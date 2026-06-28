@@ -18,10 +18,16 @@ function LoadingHint() {
   return React.createElement('div', { style: { fontSize: '12px', color: '#9ca3af' } }, "Still working — usually takes about 10 seconds.");
 }
 
+// Only the generated study set is worth surviving a reload — uploaded
+// files, drag state, and chat are inherently session-scoped, but losing a
+// freshly-generated flashcard/quiz set to an accidental refresh meant
+// burning another AI call to get back to where you already were.
+const STUDY_RESULT_KEY = 'study_result_v1';
+
 function StudyHub({ t }) {
   const { useState } = React;
 
-  const [state, setS] = useState({
+  const defaultState = {
     mode: 'upload',
     activeTab: 'flashcards',
     inputText: '',
@@ -47,8 +53,29 @@ function StudyHub({ t }) {
     isChatMode: false,
     chatAnswer: '',
     isChatLoading: false,
+  };
+
+  const [state, setS] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STUDY_RESULT_KEY));
+      if (saved && Array.isArray(saved.flashcards) && saved.flashcards.length) {
+        return { ...defaultState, ...saved, mode: 'results', activeTab: 'flashcards' };
+      }
+    } catch {}
+    return defaultState;
   });
   const setState = (patch) => setS(s => ({ ...s, ...(typeof patch === 'function' ? patch(s) : patch) }));
+
+  React.useEffect(() => {
+    if (state.mode !== 'results') return;
+    try {
+      localStorage.setItem(STUDY_RESULT_KEY, JSON.stringify({
+        topic: state.topic, topicEmoji: state.topicEmoji, flashcards: state.flashcards,
+        quiz: state.quiz, videos: state.videos, currentCard: state.currentCard,
+        flippedCards: state.flippedCards, quizAnswers: state.quizAnswers,
+      }));
+    } catch {}
+  }, [state.mode, state.topic, state.flashcards, state.quiz, state.videos, state.currentCard, state.flippedCards, state.quizAnswers]);
 
   const SYSTEM_CARDS = `You are a study material generator. Output ONLY valid JSON — no markdown, no fences, nothing else before { or after }.
 
@@ -488,7 +515,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const resultsScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     React.createElement('div', { style: { padding: '10px 12px', background: 'white', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' } },
-      React.createElement('button', { onClick: () => setState({ mode: 'upload', inputText: '', imageFile: null, pdfFile: null, docFile: null, youtubeData: null, errorMsg: '' }), style: { width: '34px', height: '34px', background: '#f3f4f6', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 } },
+      React.createElement('button', { onClick: () => { try { localStorage.removeItem(STUDY_RESULT_KEY); } catch {} setState({ mode: 'upload', inputText: '', imageFile: null, pdfFile: null, docFile: null, youtubeData: null, errorMsg: '' }); }, style: { width: '34px', height: '34px', background: '#f3f4f6', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 } },
         React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: '#374151', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '15 18 9 12 15 6' }))),
       React.createElement('div', { style: { fontSize: '26px', flexShrink: 0, lineHeight: 1 } }, topicEmoji),
       React.createElement('div', { style: { flex: 1, minWidth: 0 } },
