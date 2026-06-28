@@ -51,7 +51,7 @@ function StudyHub({ t }) {
     quizAnswers: {},
     chatInput: '',
     isChatMode: false,
-    chatAnswer: '',
+    chatMessages: [], // [{ role: 'user'|'assistant', text }] — a real thread, not one overwritten answer
     isChatLoading: false,
   };
 
@@ -392,10 +392,20 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     ));
   };
 
-  const buildChatAnswerEl = (answer, isLoading) => {
-    if (isLoading || !answer) return React.createElement('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', padding: '8px 0' } }, ...[0, 1, 2].map(i => React.createElement('div', { key: i, style: { width: '7px', height: '7px', background: '#6366f1', borderRadius: '50%', animation: `loadDot 1.4s ease-in-out ${i * 0.16}s infinite` } })));
-    const html = answer.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').split('\n\n').filter(Boolean).map(p => `<p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.7;">${p.replace(/\n/g, ' ')}</p>`).join('');
+  const renderChatText = (text) => {
+    const html = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').split('\n\n').filter(Boolean).map(p => `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;">${p.replace(/\n/g, ' ')}</p>`).join('');
     return React.createElement('div', { dangerouslySetInnerHTML: { __html: html } });
+  };
+
+  const buildChatThreadEl = (chatMessages, isLoading) => {
+    const typingDots = React.createElement('div', { style: { display: 'flex', gap: '6px', alignItems: 'center', padding: '8px 0' } }, ...[0, 1, 2].map(i => React.createElement('div', { key: i, style: { width: '7px', height: '7px', background: '#6366f1', borderRadius: '50%', animation: `loadDot 1.4s ease-in-out ${i * 0.16}s infinite` } })));
+    return React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '12px' } },
+      ...chatMessages.map((m, i) => m.role === 'user'
+        ? React.createElement('div', { key: i, style: { alignSelf: 'flex-end', maxWidth: '85%', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: 'white', padding: '9px 13px', borderRadius: '14px', borderBottomRightRadius: '4px', fontSize: '13px', lineHeight: 1.5 } }, m.text)
+        : React.createElement('div', { key: i, style: { alignSelf: 'flex-start', maxWidth: '90%', color: '#374151' } }, renderChatText(m.text))
+      ),
+      isLoading && React.createElement('div', { key: 'typing', style: { alignSelf: 'flex-start' } }, typingDots)
+    );
   };
 
   const buildTabContent = () => {
@@ -433,20 +443,34 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   };
 
   /* ─── FOLLOW-UP CHAT ──────────────────────────────────────── */
+  // A real multi-turn thread: each send appends to chatMessages and sends the
+  // whole running history back to Claude, so a follow-up like "what about
+  // the second one?" still has the earlier question/answer for context —
+  // not a single Q&A bubble that got wiped out by the next question.
   const sendChat = async () => {
-    const { chatInput, topic, flashcards, isChatLoading } = state;
+    const { chatInput, topic, flashcards, isChatLoading, chatMessages } = state;
     if (!chatInput.trim() || isChatLoading) return;
     const q = chatInput.trim();
-    setState({ chatInput: '', isChatLoading: true, isChatMode: true, chatAnswer: '' });
+    const nextMessages = [...chatMessages, { role: 'user', text: q }];
+    setState({ chatInput: '', isChatLoading: true, isChatMode: true, chatMessages: nextMessages });
     try {
       const ctx = flashcards.slice(0, 5).map(f => `• ${f.front}: ${f.back}`).join('\n');
-      const answer = await window.claude.complete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}`, messages: [{ role: 'user', content: q }] });
-      setState({ chatAnswer: answer, isChatLoading: false });
-    } catch { setState({ chatAnswer: 'Sorry, something went wrong. Please try again.', isChatLoading: false }); }
+      const history = nextMessages.map((m) => ({ role: m.role, content: m.text }));
+      const answer = await window.claude.complete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}`, messages: history });
+      setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: answer }], isChatLoading: false }));
+    } catch {
+      setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: 'Sorry, something went wrong. Please try again.' }], isChatLoading: false }));
+    }
   };
 
   /* ─── RENDER ──────────────────────────────────────────────── */
-  const { mode, inputText, isDragOver, isExtractingFile, imageFile, pdfFile, docFile, youtubeData, flashcards, quiz, chatInput, isChatMode, chatAnswer, isChatLoading, loadingMsg, topic, topicEmoji, errorMsg } = state;
+  const { mode, inputText, isDragOver, isExtractingFile, imageFile, pdfFile, docFile, youtubeData, flashcards, quiz, chatInput, isChatMode, chatMessages, isChatLoading, loadingMsg, topic, topicEmoji, errorMsg } = state;
+
+  const chatInputBarEl = React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: '22px', padding: '6px 6px 6px 14px' } },
+    React.createElement('input', { value: chatInput, onChange: (e) => setState({ chatInput: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } }, placeholder: 'Ask Claude anything about this topic…', style: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: '#111827', background: 'none' } }),
+    React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,0.3)', flexShrink: 0 } },
+      React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'white', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('line', { x1: '22', y1: '2', x2: '11', y2: '13' }), React.createElement('polygon', { points: '22 2 15 22 11 13 2 9 22 2' })))
+  );
   const hasInput = !!(inputText.trim() || imageFile || pdfFile || docFile || youtubeData);
 
   const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
@@ -525,24 +549,22 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     ),
     React.createElement('div', { style: { display: 'flex', background: 'white', borderBottom: '1px solid #e5e7eb', flexShrink: 0 } }, ...buildTabsEl()),
     React.createElement('div', { id: 'results-scroll', style: { flex: 1, overflowY: 'auto', padding: '16px 14px 10px' } }, buildTabContent()),
-    React.createElement('div', { style: { padding: '10px 12px 18px', background: 'white', borderTop: '1px solid #e5e7eb', flexShrink: 0 } },
-      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', background: '#f9fafb', border: '1.5px solid #e5e7eb', borderRadius: '22px', padding: '6px 6px 6px 14px' } },
-        React.createElement('input', { value: chatInput, onChange: (e) => setState({ chatInput: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } }, placeholder: 'Ask Claude anything about this topic…', style: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: '#111827', background: 'none' } }),
-        React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(99,102,241,0.3)', flexShrink: 0 } },
-          React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'white', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('line', { x1: '22', y1: '2', x2: '11', y2: '13' }), React.createElement('polygon', { points: '22 2 15 22 11 13 2 9 22 2' })))
-      )
-    )
+    // Hidden once the chat overlay is open — that overlay carries its own
+    // copy of this same input bar, so there's exactly one place to type at
+    // any moment instead of a second input sitting uselessly underneath it.
+    !isChatMode && React.createElement('div', { style: { padding: '10px 12px 18px', background: 'white', borderTop: '1px solid #e5e7eb', flexShrink: 0 } }, chatInputBarEl)
   );
 
-  const chatOverlay = isChatMode && React.createElement('div', { style: { position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1px solid #e5e7eb', borderRadius: '22px 22px 0 0', padding: '18px 18px 34px', boxShadow: '0 -8px 40px rgba(0,0,0,0.15)', maxHeight: '55vh', overflowY: 'auto', zIndex: 200, animation: 'fadeUp 0.3s ease-out both' } },
-    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' } },
+  const chatOverlay = isChatMode && React.createElement('div', { style: { position: 'fixed', bottom: 0, left: 0, right: 0, background: 'white', borderTop: '1px solid #e5e7eb', borderRadius: '22px 22px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.15)', maxHeight: '60vh', display: 'flex', flexDirection: 'column', zIndex: 200, animation: 'fadeUp 0.3s ease-out both' } },
+    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 18px 14px', flexShrink: 0 } },
       React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '9px' } },
         React.createElement('div', { style: { width: '28px', height: '28px', background: 'linear-gradient(135deg,#6366f1,#4f46e5)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' } }, '🧠'),
-        React.createElement('span', { style: { fontSize: '14px', fontWeight: 800, color: '#111827' } }, "Claude's Answer")
+        React.createElement('span', { style: { fontSize: '14px', fontWeight: 800, color: '#111827' } }, "Ask about this topic")
       ),
       React.createElement('button', { onClick: () => setState({ isChatMode: false }), style: { width: '28px', height: '28px', background: '#f3f4f6', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: '14px', cursor: 'pointer' } }, '✕')
     ),
-    buildChatAnswerEl(chatAnswer, isChatLoading)
+    React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '0 18px 14px' } }, buildChatThreadEl(chatMessages, isChatLoading)),
+    React.createElement('div', { style: { padding: '0 18px 18px', flexShrink: 0 } }, chatInputBarEl)
   );
 
   return React.createElement('div', { style: { height: 'calc(100vh - 140px)', minHeight: 480, borderRadius: 'var(--radius-2xl)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: '#f5f5f7', position: 'relative' } },
