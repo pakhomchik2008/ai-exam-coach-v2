@@ -56,12 +56,25 @@ function Exams({ t }) {
   const upcoming = exams.filter((e) => daysAway(e.examDate) >= 0);
   const pastExams = exams.filter((e) => daysAway(e.examDate) < 0);
 
+  const nearestExam = React.useMemo(() => {
+    if (upcoming.length === 0) return null;
+    return upcoming.reduce((a, b) => daysAway(a.examDate) <= daysAway(b.examDate) ? a : b);
+  }, [exams]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.exams_title}</h1>
         <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>{t.exams_add}</Button>
       </div>
+      {nearestExam && (
+        <div style={{ borderRadius: "var(--radius-xl)", background: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-50)" : "var(--indigo-50)", border: `1px solid ${daysAway(nearestExam.examDate) <= 7 ? "var(--amber-100)" : "var(--indigo-100)"}`, padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+          <span style={{ color: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-700)" : "var(--indigo-600)", fontWeight: "var(--weight-semibold)" }}>
+            {daysAway(nearestExam.examDate) <= 7 ? "Coming up:" : "Next exam:"}
+          </span>
+          <span style={{ color: "var(--text-body)" }}>{nearestExam.name} in {daysAway(nearestExam.examDate)} days</span>
+        </div>
+      )}
       <section>
         <p style={{ margin: "0 0 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.exams_upcoming}</p>
         {upcoming.length === 0 ? (
@@ -83,14 +96,21 @@ function Exams({ t }) {
         )}
       </section>
 
-      {showAdd && (
+      {showAdd && (exams.length === 0 ? (
         <window.ExamWizard
           config={window.EXAM_WIZARD_PRESETS.addExam}
           lang={t.code || "en"}
           onFinish={() => { setExams(window.getExams()); setShowAdd(false); }}
           onCancel={() => setShowAdd(false)}
         />
-      )}
+      ) : (
+        <QuickAddModal
+          lastExam={exams[exams.length - 1]}
+          onClose={() => setShowAdd(false)}
+          onSave={() => { setExams(window.getExams()); setShowAdd(false); }}
+          onFullWizard={() => {}}
+        />
+      ))}
       {editing && (
         <ExamDetailModal
           exam={editing}
@@ -101,6 +121,84 @@ function Exams({ t }) {
       )}
     </div>
   );
+
+  function QuickAddModal({ lastExam, onClose, onSave, onFullWizard }) {
+    const defaultDate = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); })();
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const [name, setName] = React.useState("");
+    const [examDate, setExamDate] = React.useState(defaultDate);
+    const [examBoard, setExamBoard] = React.useState(lastExam.examBoard || "");
+    const [topicCount, setTopicCount] = React.useState(lastExam.topicCount || 10);
+    const [useFullWizard, setUseFullWizard] = React.useState(false);
+    const canSave = name.trim() && examDate >= todayISO && Number(topicCount) >= 1;
+
+    React.useEffect(() => {
+      const fn = (e) => { if (e.key === "Escape") onClose(); };
+      document.addEventListener("keydown", fn);
+      return () => document.removeEventListener("keydown", fn);
+    }, []);
+
+    if (useFullWizard) {
+      return (
+        <window.ExamWizard
+          config={window.EXAM_WIZARD_PRESETS.addExam}
+          lang={t.code || "en"}
+          onFinish={() => onSave()}
+          onCancel={onClose}
+        />
+      );
+    }
+
+    function save() {
+      window.commitExamWizard({
+        examDrafts: [{
+          name: name.trim(),
+          color: null,
+          examDate,
+          examBoard,
+          topicCount: Number(topicCount) || 10,
+          targetGrade: lastExam.targetGrade || "A",
+          currentGrade: lastExam.currentGrade || "C",
+          gradingSystem: lastExam.gradingSystem || null,
+        }],
+        profilePatch: null,
+      });
+      onSave();
+    }
+
+    const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
+
+    return (
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+          <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
+          <div>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Subject name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chemistry" autoFocus style={inputStyle} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Exam date</label>
+              <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Topics</label>
+              <input type="number" min={1} value={topicCount} onChange={(e) => setTopicCount(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Exam board</label>
+            <input value={examBoard} onChange={(e) => setExamBoard(e.target.value)} placeholder="e.g. AQA" style={inputStyle} />
+          </div>
+          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Grading defaulted from your last exam. <button type="button" onClick={() => setUseFullWizard(true)} style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", padding: 0 }}>Need different grading? Use full wizard</button></p>
+          <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
+            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>Add exam</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function ExamDetailModal({ exam, onClose, onSave, onDelete }) {
     const [completionPct, setCompletionPct] = React.useState(exam.completionPct);

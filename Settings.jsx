@@ -42,6 +42,7 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   const [reminderHour, setReminderHour] = React.useState(profile.reminderHour);
   const [saved, setSaved] = React.useState(false);
   const [confirmErase, setConfirmErase] = React.useState(false);
+  const [confirmLogout, setConfirmLogout] = React.useState(false);
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [showReminderInfo, setShowReminderInfo] = React.useState(false);
@@ -53,6 +54,11 @@ function Settings({ t, lang, onLangChange, onLogout }) {
     const id = setTimeout(() => setConfirmErase(false), 3000);
     return () => clearTimeout(id);
   }, [confirmErase]);
+  React.useEffect(() => {
+    if (!confirmLogout) return;
+    const id = setTimeout(() => setConfirmLogout(false), 3000);
+    return () => clearTimeout(id);
+  }, [confirmLogout]);
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   function save() {
@@ -179,10 +185,10 @@ function Settings({ t, lang, onLangChange, onLogout }) {
 
         <Section title={t.settings_actions}>
           <button
-            onClick={logOut}
-            style={{ alignSelf: "flex-start", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-xl)", padding: "10px 20px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+            onClick={() => confirmLogout ? logOut() : setConfirmLogout(true)}
+            style={{ alignSelf: "flex-start", border: confirmLogout ? "1px solid var(--red-200)" : "1px solid var(--border-default)", background: confirmLogout ? "var(--red-50)" : "var(--surface-card)", color: confirmLogout ? "var(--red-600)" : "var(--text-body)", borderRadius: "var(--radius-xl)", padding: "10px 20px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
           >
-            {t.nav_logout}
+            {confirmLogout ? "Click again to confirm" : t.nav_logout}
           </button>
           <div>
             <button

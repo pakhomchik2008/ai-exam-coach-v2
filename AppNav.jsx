@@ -1,4 +1,21 @@
 // AI Exam Coach — top navigation + language switcher
+function NavLogoutButton({ onLogout, label }) {
+  const [confirm, setConfirm] = React.useState(false);
+  React.useEffect(() => {
+    if (!confirm) return;
+    const id = setTimeout(() => setConfirm(false), 3000);
+    return () => clearTimeout(id);
+  }, [confirm]);
+  return (
+    <button onClick={() => confirm ? onLogout() : setConfirm(true)} style={{
+      border: "none", background: "transparent", cursor: "pointer", marginLeft: "4px",
+      fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
+      color: confirm ? "var(--red-600)" : "var(--text-faint)",
+      fontWeight: confirm ? "var(--weight-semibold)" : "var(--weight-normal)",
+    }}>{confirm ? "Click again to confirm" : label}</button>
+  );
+}
+
 function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const t = window.LANGS[lang] || window.LANGS.en;
   const links = [
@@ -66,7 +83,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             )}
           </div>
 
-          <button onClick={onLogout} style={{ border: "none", background: "transparent", cursor: "pointer", marginLeft: "4px", fontSize: "var(--text-sm)", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>{t.nav_logout}</button>
+          <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
     </nav>

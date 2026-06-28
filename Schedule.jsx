@@ -33,9 +33,30 @@ function Schedule({ t }) {
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const weekdays = [t.mon, t.tue, t.wed, t.thu, t.fri, t.sat, t.sun];
 
+  const nextHint = React.useMemo(() => {
+    const todayKey = fmt(todayDate);
+    for (let i = 0; i <= 30; i++) {
+      const d = new Date(todayDate); d.setDate(d.getDate() + i);
+      const key = fmt(d);
+      const items = SESSIONS_BY_DAY[key] || [];
+      const pending = items.find((s) => s.status !== "completed");
+      if (pending) {
+        const dayLabel = i === 0 ? (t.schedule_today || "Today") : i === 1 ? (t.schedule_tomorrow || "Tomorrow") : d.toLocaleDateString(t.code === "uk" ? "uk-UA" : t.code === "fr" ? "fr-FR" : t.code === "de" ? "de-DE" : "en-GB", { weekday: "long" });
+        return `${dayLabel}: ${pending.subject} — ${pending.topic}`;
+      }
+    }
+    return null;
+  }, []);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
       <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.schedule_title}</h1>
+      {nextHint && (
+        <div style={{ borderRadius: "var(--radius-xl)", background: "var(--indigo-50)", border: "1px solid var(--indigo-100)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+          <span style={{ color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)" }}>Next session:</span>
+          <span style={{ color: "var(--text-body)" }}>{nextHint}</span>
+        </div>
+      )}
       <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 300px" }}>
         <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-3)" }}>

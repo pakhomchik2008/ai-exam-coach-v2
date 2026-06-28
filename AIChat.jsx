@@ -409,7 +409,7 @@ Do NOT use for topic/subject selection — use "menu" card.
           onClick: () => send(input),
           disabled: !input.trim() || typing,
           style: { background: input.trim() && !typing ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: input.trim() && !typing ? "pointer" : "default", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }
-        }, "Send →")
+        }, "Send")
       )
     )
   );
