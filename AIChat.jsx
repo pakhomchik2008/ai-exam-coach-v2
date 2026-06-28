@@ -127,10 +127,13 @@ Do NOT use for topic/subject selection — use "menu" card.
     } catch { return { text: raw, quickReplies: null, card: null }; }
   };
 
-  const pushAI = ({ text, quickReplies, card }) => {
+  const pushAI = ({ text, quickReplies, card, isError }) => {
     const id = Date.now() + Math.random();
-    historyRef.current = [...historyRef.current, { role: 'assistant', content: text }];
-    setMessages(m => [...m, { id, isUser: false, isAI: true, text, html: md(text), quickReplies, card }]);
+    // An error reply isn't added to the real conversation history sent back
+    // to Claude — it's UI-only, so a retry resends the same unanswered user
+    // turn instead of teaching the model that it once said "connection hiccup."
+    if (!isError) historyRef.current = [...historyRef.current, { role: 'assistant', content: text }];
+    setMessages(m => [...m, { id, isUser: false, isAI: true, text, html: md(text), quickReplies, card, isError }]);
   };
 
   const callAI = async () => {
@@ -141,7 +144,12 @@ Do NOT use for topic/subject selection — use "menu" card.
       pushAI(parse(raw));
     } catch (e) {
       setTyping(false);
-      pushAI({ text: "Sorry, connection hiccup — give it a second and try again!", quickReplies: null, card: null });
+      // Swallowing `e` here is exactly what made past failures undiagnosable
+      // (e.g. a missing ANTHROPIC_API_KEY just looked like "try again" forever
+      // with no way to tell why). Logging it costs nothing and the chat
+      // bubble stays friendly either way.
+      console.error("AI Coach request failed:", e);
+      pushAI({ text: "Sorry, connection hiccup — give it a second and try again!", quickReplies: null, card: null, isError: true });
     }
   };
 
@@ -346,16 +354,21 @@ Do NOT use for topic/subject selection — use "menu" card.
           }
           const isLast = m.id === lastAiId;
           const showReplies = isLast && !!m.quickReplies?.length && !repliesUsed[m.id] && !typing;
+          const showRetry = isLast && m.isError && !typing;
           return React.createElement('div', { key: m.id, style: { display: "flex", flexDirection: "column", gap: 8 } },
             React.createElement('div', { style: { display: "flex", gap: 12, alignItems: "flex-start" } },
               React.createElement(CoachIcon, { size: 32 }),
               React.createElement('div', { style: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 } },
                 React.createElement('div', {
-                  style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "10px 14px", maxWidth: "85%", fontSize: 13, color: "var(--text-body)", lineHeight: 1.65 },
+                  style: { background: m.isError ? "#FFF1F2" : "var(--surface-card)", border: m.isError ? "1px solid var(--red-200)" : "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "10px 14px", maxWidth: "85%", fontSize: 13, color: "var(--text-body)", lineHeight: 1.65 },
                   dangerouslySetInnerHTML: { __html: m.html }
                 }),
                 cardEl && React.createElement('div', { style: { maxWidth: 420, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 16 } }, cardEl),
-                showReplies && React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, ...buildReplies(m.id, m.quickReplies))
+                showReplies && React.createElement('div', { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, ...buildReplies(m.id, m.quickReplies)),
+                showRetry && React.createElement('button', {
+                  onClick: callAI,
+                  style: { alignSelf: "flex-start", border: "1px solid var(--red-200)", background: "#fff", color: "var(--red-600)", borderRadius: 20, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }
+                }, "🔄 Try again")
               )
             )
           );
