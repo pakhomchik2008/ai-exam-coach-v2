@@ -1,0 +1,47 @@
+/* ============================================================
+   AI Exam Coach — Typography tokens
+   The product ships NO webfont — it uses the native system UI
+   stack (ui-sans-serif / system-ui) with a mono stack for timers.
+   We preserve that intentionally: it is fast, neutral, and on-brand.
+   ============================================================ */
+:root {
+  /* ---- Families ---- */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* ---- Type scale (rem, 16px base) ---- */
+  --text-xs:   0.75rem;   /* 12 — meta, captions, day labels */
+  --text-sm:   0.875rem;  /* 14 — secondary body, controls */
+  --text-base: 1rem;      /* 16 — body */
+  --text-lg:   1.125rem;  /* 18 — section headings */
+  --text-xl:   1.25rem;   /* 20 */
+  --text-2xl:  1.5rem;    /* 24 — page titles */
+  --text-3xl:  1.875rem;  /* 30 — onboarding / study topic */
+  --text-4xl:  2.25rem;   /* 36 — landing hero */
+  --text-5xl:  3rem;      /* 48 — streak / big stat */
+  --text-7xl:  4.5rem;    /* 72 — confidence dial */
+
+  /* ---- Weights ---- */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ---- Line heights ---- */
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.5;
+
+  /* ---- Letter spacing ---- */
+  --tracking-tight: -0.02em;   /* large headings */
+  --tracking-wide:  0.05em;    /* uppercase eyebrows / meta labels */
+
+  /* ---- Semantic roles ---- */
+  --type-hero:    var(--weight-bold) var(--text-4xl)/var(--leading-tight) var(--font-sans);
+  --type-title:   var(--weight-semibold) var(--text-2xl)/var(--leading-snug) var(--font-sans);
+  --type-heading: var(--weight-semibold) var(--text-lg)/var(--leading-snug) var(--font-sans);
+  --type-body:    var(--weight-normal) var(--text-base)/var(--leading-normal) var(--font-sans);
+  --type-meta:    var(--weight-medium) var(--text-xs)/var(--leading-snug) var(--font-sans);
+}

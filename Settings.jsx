@@ -1,0 +1,219 @@
+// AI Exam Coach — Settings screen (i18n-aware)
+//
+// `Field`/`Section` are deliberately at module scope, not nested inside
+// Settings(). Defining a component inside another component's render body
+// gives it a brand-new function identity on every render of the parent — and
+// since typing in the Full name input calls setFullName, which re-renders
+// Settings, that recreated Field on every keystroke and React unmounted +
+// remounted the real <input> DOM node each time, dropping focus after every
+// single character. Module scope keeps Field's identity stable across
+// re-renders, which is the actual fix (not a debounce or event-handler patch).
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)", fontFamily: "var(--font-sans)" }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+function Section({ title, children }) {
+  return (
+    <div>
+      <p style={{ margin: "0 0 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>{title}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>{children}</div>
+    </div>
+  );
+}
+
+function Settings({ t, lang, onLangChange, onLogout }) {
+  const { Button } = window.AIExamCoachDesignSystem_99e467;
+  const profile = React.useMemo(() => window.getProfile(), []);
+  const [fullName, setFullName] = React.useState(profile.fullName || "");
+  const [email, setEmail] = React.useState(profile.email || "");
+  const [emailError, setEmailError] = React.useState("");
+  const [tz, setTz] = React.useState(() => {
+    if (profile.timezone) {
+      const z = (window.TIMEZONES || []).find((z) => z.id === profile.timezone);
+      if (z) return z;
+    }
+    return window.detectTimezone ? window.detectTimezone() : { id: "+00", label: "GMT+0", place: "London" };
+  });
+  const [reminderEnabled, setReminderEnabled] = React.useState(profile.reminderEnabled);
+  const [reminderHour, setReminderHour] = React.useState(profile.reminderHour);
+  const [saved, setSaved] = React.useState(false);
+  const [confirmErase, setConfirmErase] = React.useState(false);
+  const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showReminderInfo, setShowReminderInfo] = React.useState(false);
+
+  const ZONES = window.TIMEZONES || [];
+
+  React.useEffect(() => {
+    if (!confirmErase) return;
+    const id = setTimeout(() => setConfirmErase(false), 3000);
+    return () => clearTimeout(id);
+  }, [confirmErase]);
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function save() {
+    const trimmedEmail = email.trim();
+    const emailValid = !trimmedEmail || EMAIL_RE.test(trimmedEmail);
+    setEmailError(emailValid ? "" : t.settings_email_invalid);
+    // An invalid email shouldn't block saving the rest of the form — only the
+    // email field itself is withheld until it's fixed.
+    window.saveProfile({ fullName, timezone: tz.id, reminderEnabled, reminderHour, email: emailValid ? trimmedEmail : profile.email });
+    setSaved(true); setTimeout(() => setSaved(false), 2800);
+  }
+  function logOut() {
+    if (window.clearSession) window.clearSession();
+    if (onLogout) onLogout();
+  }
+  function eraseAllData() {
+    try { localStorage.clear(); } catch {}
+    if (onLogout) onLogout();
+  }
+
+  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
+      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.settings_title}</h1>
+      <div style={{ maxWidth: "var(--container-form)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+
+        <Section title={t.settings_account}>
+          <Field label={t.settings_fullname}>
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Your name" autoComplete="name" style={inputStyle} />
+          </Field>
+          <Field label={t.settings_email}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
+              placeholder="you@example.com"
+              autoComplete="email"
+              style={{ ...inputStyle, border: emailError ? "1px solid var(--red-400)" : inputStyle.border }}
+            />
+            {emailError && <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)" }}>{emailError}</p>}
+          </Field>
+          <Field label={t.settings_password}>
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                style={{ ...inputStyle, paddingRight: 44 }}
+              />
+              <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", cursor: "pointer", fontSize: 16, color: "var(--text-faint)", padding: 6, lineHeight: 1 }}>
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+            <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{t.settings_password_note}</p>
+          </Field>
+        </Section>
+
+        <Section title={t.settings_timezone}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+            <span aria-hidden="true">🌍</span>
+            <span>{lang === "uk" ? "Визначено автоматично" : lang === "ru" ? "Определено автоматически" : lang === "fr" ? "Détecté automatiquement" : lang === "de" ? "Automatisch erkannt" : "Auto-detected"} — <strong style={{ color: "var(--text-strong)" }}>{tz.label} · {tz.place}</strong></span>
+          </div>
+          <Field label={t.settings_timezone}>
+            <select value={tz.id} onChange={(e) => setTz(ZONES.find((z) => z.id === e.target.value))} style={{ ...inputStyle, appearance: "none" }}>
+              {ZONES.map((z) => <option key={z.id} value={z.id}>{z.label} — {z.place}</option>)}
+            </select>
+          </Field>
+        </Section>
+
+        <Section title={t.settings_reminders}>
+          <div>
+            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", cursor: "pointer" }}>
+              <input type="checkbox" checked={reminderEnabled} onChange={(e) => setReminderEnabled(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: "var(--indigo-600)", cursor: "pointer" }} />
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)" }}>
+                {t.settings_reminder_send}
+              </span>
+              <button type="button" onClick={(e) => { e.preventDefault(); setShowReminderInfo((v) => !v); }} aria-label={t.settings_reminder_info_label}
+                style={{ width: 18, height: 18, borderRadius: "50%", border: "1px solid var(--border-default)", background: showReminderInfo ? "var(--indigo-50)" : "var(--surface-muted)", color: "var(--text-muted)", fontSize: 11, fontWeight: "var(--weight-bold)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0, fontFamily: "var(--font-sans)" }}>
+                i
+              </button>
+            </label>
+            {showReminderInfo && (
+              <p style={{ margin: "6px 0 0 28px", fontSize: "var(--text-xs)", color: "var(--text-muted)", background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px", maxWidth: 420 }}>
+                {t.settings_reminder_info}
+              </p>
+            )}
+          </div>
+          {reminderEnabled && (
+            <div>
+              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>
+                {t.settings_reminder_time} — {String(reminderHour).padStart(2,"0")}:00
+              </label>
+              <input type="range" min={6} max={22} value={reminderHour} onChange={(e) => setReminderHour(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginTop: "2px" }}>
+                <span>6:00</span><span>22:00</span>
+              </div>
+            </div>
+          )}
+        </Section>
+
+        <Section title={t.settings_language}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+            {Object.values(window.LANGS).map((l) => (
+              <button key={l.code} onClick={() => onLangChange(l.code)}
+                style={{ padding: "8px 16px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: "6px",
+                  border: lang === l.code ? "1px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                  background: lang === l.code ? "var(--indigo-50)" : "var(--surface-card)",
+                  color: lang === l.code ? "var(--indigo-700)" : "var(--text-muted)",
+                  fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)" }}>
+                <span>{l.flag}</span><span>{l.label}</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+          <Button variant="accent" size="md" onClick={save}>{t.settings_save}</Button>
+        </div>
+
+        <Section title={t.settings_actions}>
+          <button
+            onClick={logOut}
+            style={{ alignSelf: "flex-start", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-xl)", padding: "10px 20px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+          >
+            {t.nav_logout}
+          </button>
+          <div>
+            <button
+              onClick={() => confirmErase ? eraseAllData() : setConfirmErase(true)}
+              style={{ alignSelf: "flex-start", border: "1px solid var(--red-200)", background: confirmErase ? "var(--red-100)" : "#FFF1F2", color: "var(--red-600)", borderRadius: "var(--radius-xl)", padding: "10px 20px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+            >
+              {confirmErase ? t.settings_erase_confirm : t.settings_erase}
+            </button>
+            <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{t.settings_erase_note}</p>
+          </div>
+        </Section>
+      </div>
+
+      {/* Toast notification */}
+      <div style={{
+        position: "fixed", bottom: 28, right: 28, zIndex: 9999,
+        background: "var(--slate-900)", color: "#fff",
+        borderRadius: "var(--radius-xl)", padding: "12px 20px",
+        fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
+        display: "flex", alignItems: "center", gap: 10,
+        boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+        transform: saved ? "translateY(0)" : "translateY(80px)",
+        opacity: saved ? 1 : 0,
+        transition: "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease",
+        pointerEvents: "none",
+      }}>
+        <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--emerald-500)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</span>
+        {t.settings_saved}
+      </div>
+
+    </div>
+  );
+}
+window.Settings = Settings;

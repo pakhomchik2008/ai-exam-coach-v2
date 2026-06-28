@@ -1,0 +1,306 @@
+<!-- @dsCard group="Web App" viewport="1024x720" name="Web app — interactive" subtitle="Landing → onboarding → dashboard → study → progress" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Exam Coach — Web App</title>
+<link rel="stylesheet" href="./styles.css" />
+<link rel="icon" href="./assets/favicon.svg" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="./_ds_bundle.js"></script>
+<script>
+  // On Vercel there's no localhost proxy — this calls a serverless function
+  // at /api/complete instead (see api/complete.js), which reads the real API
+  // key from a Vercel environment variable. Never hardcode a key here.
+  window.claude = {
+    complete: async (arg) => {
+      const system = typeof arg === 'string' ? undefined : arg.system;
+      const messages = typeof arg === 'string' ? [{ role: 'user', content: arg }] : arg.messages;
+      const res = await fetch('/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system, messages }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ? JSON.stringify(data.error) : 'proxy error');
+      return data.text;
+    },
+  };
+</script>
+<style>
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  @keyframes loadDot { 0%, 80%, 100% { opacity: .3; transform: scale(.7); } 40% { opacity: 1; transform: scale(1); } }
+  html, body { margin: 0; min-height: 100%; background: var(--surface-page); }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" rx="20" fill="#4F46E5"/>
+    <text x="50" y="66" font-size="44" text-anchor="middle" font-family="system-ui, sans-serif">🤖</text>
+  </svg>
+</template>
+<div id="root"></div>
+
+<script type="text/babel" src="i18n.jsx"></script>
+<script type="text/babel" src="exams-store.jsx"></script>
+<script type="text/babel" src="schedule-store.jsx"></script>
+<script type="text/babel" src="profile-store.jsx"></script>
+<script type="text/babel" src="auth-store.jsx"></script>
+<script type="text/babel" src="mistakes-store.jsx"></script>
+<script type="text/babel" src="progress-metrics.jsx"></script>
+<script type="text/babel" src="ai-enrichment.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="onboarding-data.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="AppNav.jsx"></script>
+<script type="text/babel" src="Landing.jsx"></script>
+<script type="text/babel" src="onboarding-steps.jsx"></script>
+<script type="text/babel" src="exam-wizard.jsx"></script>
+<script type="text/babel" src="Onboarding.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="CourseDetail.jsx"></script>
+<script type="text/babel" src="DayDetail.jsx"></script>
+<script type="text/babel" src="AIChat.jsx"></script>
+<script type="text/babel" src="StudySession.jsx"></script>
+<script type="text/babel" src="BurnoutAlert.jsx"></script>
+<script type="text/babel" src="StudyHub.jsx"></script>
+<script type="text/babel" src="MistakeJournal.jsx"></script>
+<script type="text/babel" src="Progress.jsx"></script>
+<script type="text/babel" src="Schedule.jsx"></script>
+<script type="text/babel" src="Exams.jsx"></script>
+<script type="text/babel" src="Settings.jsx"></script>
+
+<script type="text/babel">
+// ─── Tweak definitions ────────────────────────────────────────────────────────
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "Indigo",
+  "density": "Comfortable",
+  "depth": "Flat"
+}/*EDITMODE-END*/;
+
+// Accent palettes — each swaps the entire indigo/accent token set
+const ACCENT_PALETTES = {
+  Indigo: {
+    "--indigo-50":  "#EEF2FF",
+    "--indigo-100": "#E0E7FF",
+    "--indigo-500": "#6366F1",
+    "--indigo-600": "#4F46E5",
+    "--indigo-700": "#4338CA",
+    "--action-accent":       "#4F46E5",
+    "--action-accent-hover": "#4338CA",
+  },
+  Violet: {
+    "--indigo-50":  "#F5F3FF",
+    "--indigo-100": "#EDE9FE",
+    "--indigo-500": "#8B5CF6",
+    "--indigo-600": "#7C3AED",
+    "--indigo-700": "#6D28D9",
+    "--action-accent":       "#7C3AED",
+    "--action-accent-hover": "#6D28D9",
+  },
+  Rose: {
+    "--indigo-50":  "#FFF1F2",
+    "--indigo-100": "#FFE4E6",
+    "--indigo-500": "#F43F5E",
+    "--indigo-600": "#E11D48",
+    "--indigo-700": "#BE123C",
+    "--action-accent":       "#E11D48",
+    "--action-accent-hover": "#BE123C",
+  },
+  Amber: {
+    "--indigo-50":  "#FFFBEB",
+    "--indigo-100": "#FEF3C7",
+    "--indigo-500": "#F59E0B",
+    "--indigo-600": "#D97706",
+    "--indigo-700": "#B45309",
+    "--action-accent":       "#D97706",
+    "--action-accent-hover": "#B45309",
+  },
+};
+
+// Density — rescales spacing multiplier + base text size
+const DENSITY_VARS = {
+  Compact: {
+    "--space-2": "0.35rem",
+    "--space-3": "0.6rem",
+    "--space-4": "0.75rem",
+    "--space-5": "0.9rem",
+    "--space-6": "1.1rem",
+    "--space-8": "1.5rem",
+    "--text-sm":   "0.8rem",
+    "--text-base": "0.9rem",
+    "--text-lg":   "1rem",
+    "--text-xl":   "1.1rem",
+    "--text-2xl":  "1.3rem",
+  },
+  Comfortable: {},  // token defaults — no overrides needed
+  Spacious: {
+    "--space-2": "0.65rem",
+    "--space-3": "1rem",
+    "--space-4": "1.35rem",
+    "--space-5": "1.6rem",
+    "--space-6": "2rem",
+    "--space-8": "2.75rem",
+    "--text-sm":   "0.95rem",
+    "--text-base": "1.1rem",
+    "--text-lg":   "1.25rem",
+    "--text-xl":   "1.4rem",
+    "--text-2xl":  "1.75rem",
+  },
+};
+
+// Depth — shifts shadow + border intensity
+const DEPTH_VARS = {
+  Flat: {
+    "--shadow-sm": "none",
+    "--shadow-md": "none",
+    "--shadow-lg": "none",
+    "--border-default": "var(--slate-200)",
+    "--border-subtle":  "var(--slate-200)",
+  },
+  Default: {},  // token defaults
+  Floating: {
+    "--shadow-sm": "0 4px 18px -2px rgba(15,23,42,0.11), 0 2px 6px -2px rgba(15,23,42,0.07)",
+    "--shadow-md": "0 10px 36px -4px rgba(15,23,42,0.14), 0 4px 12px -4px rgba(15,23,42,0.08)",
+    "--shadow-lg": "0 20px 56px -6px rgba(15,23,42,0.18), 0 8px 20px -6px rgba(15,23,42,0.10)",
+    "--border-default": "transparent",
+    "--border-subtle":  "transparent",
+  },
+};
+
+// Inject all active tweaks as CSS custom properties on :root
+function applyTweaks(accent, density, depth) {
+  const vars = {
+    ...ACCENT_PALETTES[accent]  || {},
+    ...DENSITY_VARS[density]    || {},
+    ...DEPTH_VARS[depth]        || {},
+  };
+  let style = document.getElementById("__tweak-overrides");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "__tweak-overrides";
+    document.head.appendChild(style);
+  }
+  const rules = Object.entries(vars).map(([k, v]) => `  ${k}: ${v} !important;`).join("\n");
+  style.textContent = `:root {\n${rules}\n}`;
+}
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+
+function App() {
+  const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [route, setRoute] = React.useState(() => (window.getSession && window.getSession() ? "app" : "landing"));
+  const [tab,   setTab]   = React.useState("dashboard");
+  const [lang,  setLang]  = React.useState("en");
+  const [chatQuery, setChatQuery] = React.useState(null);
+  // Bumped whenever another tab/window writes to one of this app's
+  // localStorage keys (exams, schedule, profile, auth session, mistakes).
+  // localStorage itself is already shared across tabs in the same origin —
+  // the gap was that a mounted screen here never knew to re-read it. Keying
+  // `content` on this forces the current screen to remount and re-fetch
+  // fresh data instead of silently showing what was true when it first
+  // mounted in *this* tab.
+  const [dataVersion, setDataVersion] = React.useState(0);
+
+  // Re-apply CSS overrides whenever a tweak changes
+  React.useEffect(() => {
+    applyTweaks(tw.accent, tw.density, tw.depth);
+  }, [tw.accent, tw.density, tw.depth]);
+
+  React.useEffect(() => {
+    const SYNCED_KEYS = [window.EXAMS_KEY, window.SCHEDULE_KEY, window.PROFILE_KEY, window.ACCOUNTS_KEY, window.SESSION_KEY, window.MISTAKES_KEY];
+    const onStorage = (e) => {
+      if (e.key && !SYNCED_KEYS.includes(e.key)) return;
+      if (e.key === window.SESSION_KEY) {
+        // A logout (or login) in another tab should be reflected here too,
+        // not just the data underneath an already-rendered screen.
+        setRoute(window.getSession && window.getSession() ? "app" : "landing");
+      }
+      setDataVersion((v) => v + 1);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const t = (window.LANGS || {})[lang] || (window.LANGS || {}).en || {};
+
+  const goApp = () => { setRoute("app"); setTab("dashboard"); };
+  const goToChat = (query) => { setTab("chat"); setChatQuery(query || null); };
+  // After Sign Up / Log In / Try Demo: a returning account with existing data
+  // (or a demo session that already ran onboarding once) skips straight to
+  // the dashboard; anyone with no profile yet goes through onboarding once.
+  const goAfterAuth = () => { setRoute(window.hasProfile && window.hasProfile() ? "app" : "onboarding"); setTab("dashboard"); };
+
+  if (route === "landing")
+    return <window.Landing onContinue={goAfterAuth} />;
+  if (route === "onboarding")
+    return <window.Onboarding onFinish={goApp} lang={lang} onLangChange={setLang} />;
+
+  // key={dataVersion} forces a clean remount (and re-fetch from
+  // localStorage) whenever another tab changes the underlying data — without
+  // it, a screen mounted before that change would keep showing whatever it
+  // read on its own first mount.
+  const content =
+      tab === "chat"     ? <window.AIChat key={dataVersion} t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />
+    : tab === "study"    ? <window.StudyHub key={dataVersion} t={t} />
+    : tab === "journal"  ? <window.MistakeJournal key={dataVersion} t={t} />
+    : tab === "schedule" ? <window.Schedule key={dataVersion} t={t} />
+    : tab === "exams"    ? <window.Exams key={dataVersion} t={t} />
+    : tab === "progress" ? <window.Progress key={dataVersion} t={t} />
+    : tab === "settings" ? <window.Settings key={dataVersion} t={t} lang={lang} onLangChange={setLang} onLogout={() => setRoute("landing")} />
+    : <window.Dashboard key={dataVersion} onOpenCourse={() => {}} onGoToChat={goToChat} onGoToExams={() => setTab("exams")} onGoToSchedule={() => setTab("schedule")} t={t} />;
+
+  return (
+    <div>
+      <window.AppNav
+        current={tab}
+        onNavigate={(id) => setTab(id)}
+        onLogout={() => setRoute("landing")}
+        lang={lang}
+        onLangChange={setLang}
+      />
+      <main style={{ maxWidth: "var(--container-app)", margin: "0 auto", padding: "var(--space-8) var(--space-4)" }}>
+        {content}
+      </main>
+
+      <TweaksPanel>
+        <TweakSection label="Accent colour" />
+        <TweakRadio
+          label="Palette"
+          value={tw.accent}
+          options={["Indigo", "Violet", "Rose", "Amber"]}
+          onChange={(v) => setTweak("accent", v)}
+        />
+
+        <TweakSection label="Density" />
+        <TweakRadio
+          label="Spacing"
+          value={tw.density}
+          options={["Compact", "Comfortable", "Spacious"]}
+          onChange={(v) => setTweak("density", v)}
+        />
+
+        <TweakSection label="Card depth" />
+        <TweakRadio
+          label="Elevation"
+          value={tw.depth}
+          options={["Flat", "Default", "Floating"]}
+          onChange={(v) => setTweak("depth", v)}
+        />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

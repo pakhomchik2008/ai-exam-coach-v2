@@ -1,0 +1,130 @@
+/* ============================================================
+   AI Exam Coach — Color tokens
+   Emerald primary · Indigo accent · Slate neutrals
+   Lifted from the product's Tailwind palette (tailwind.config.ts,
+   globals.css, colors.ts, readiness.ts).
+   ============================================================ */
+:root {
+  /* ---- Brand ---- */
+  --emerald-50:  #ECFDF5;
+  --emerald-100: #D1FAE5;
+  --emerald-500: #10B981;   /* primary action */
+  --emerald-600: #059669;   /* primary hover */
+  --emerald-700: #047857;
+
+  --indigo-50:  #EEF2FF;
+  --indigo-100: #E0E7FF;
+  --indigo-500: #6366F1;   /* brand mark + accent */
+  --indigo-600: #4F46E5;   /* accent hover */
+  --indigo-700: #4338CA;
+
+  /* ---- Neutrals (Slate) ---- */
+  --slate-50:  #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+  --white: #FFFFFF;
+  --app-bg: #F9FAFB;   /* page background */
+
+  /* ---- Semantic status ---- */
+  --green-50:  #ECFDF5;
+  --green-500: #10B981;
+  --green-700: #047857;
+
+  --amber-50:  #FFFBEB;
+  --amber-100: #FEF3C7;
+  --amber-400: #FBBF24;
+  --amber-500: #F59E0B;   /* warn */
+  --amber-700: #B45309;
+
+  --red-50:  #FEF2F2;
+  --red-100: #FEE2E2;
+  --red-500: #EF4444;     /* danger */
+  --red-600: #DC2626;
+  --red-700: #B91C1C;
+
+  --sky-50:  #F0F9FF;
+  --sky-100: #E0F2FE;
+  --sky-500: #0EA5E9;
+  --sky-700: #0369A1;
+
+  --rose-50:  #FFF1F2;
+  --rose-100: #FFE4E6;
+  --rose-300: #FDA4AF;
+  --rose-500: #F43F5E;
+  --rose-700: #BE123C;
+
+  --orange-50:  #FFF7ED;
+  --orange-500: #F97316;
+
+  /* ---- Subject palette (course color dots & accents) ---- */
+  --subject-indigo: #6366F1;
+  --subject-violet: #8B5CF6;
+  --subject-pink:   #EC4899;
+  --subject-rose:   #F43F5E;
+  --subject-orange: #F97316;
+  --subject-yellow: #EAB308;
+  --subject-emerald:#10B981;
+  --subject-cyan:   #06B6D4;
+  --subject-blue:   #3B82F6;
+  --subject-teal:   #14B8A6;
+  --subject-sky:    #0EA5E9;
+
+  /* ============================================================
+     Semantic aliases — prefer these in components
+     ============================================================ */
+  /* Surfaces */
+  --surface-page:   var(--app-bg);
+  --surface-card:   var(--white);
+  --surface-muted:  var(--slate-50);
+  --surface-sunken: var(--slate-100);
+
+  /* Text */
+  --text-strong:  var(--slate-900);
+  --text-body:    var(--slate-700);
+  --text-muted:   var(--slate-500);
+  --text-faint:   var(--slate-400);
+  --text-invert:  var(--white);
+
+  /* Borders */
+  --border-subtle: var(--slate-100);
+  --border-default:var(--slate-200);
+  --border-strong: var(--slate-300);
+
+  /* Actions */
+  --action-primary:        var(--emerald-500);
+  --action-primary-hover:  var(--emerald-600);
+  --action-accent:         var(--indigo-600);
+  --action-accent-hover:   var(--indigo-700);
+
+  /* Focus ring */
+  --focus-ring: var(--emerald-500);
+
+  /* Difficulty (Easy / Medium / Hard) */
+  --diff-easy-bg:   var(--emerald-100);
+  --diff-easy-fg:   var(--emerald-700);
+  --diff-medium-bg: var(--sky-100);
+  --diff-medium-fg: var(--sky-700);
+  --diff-hard-bg:   var(--rose-100);
+  --diff-hard-fg:   var(--rose-700);
+
+  /* Rating buttons (SM-2 self-grade) */
+  --rate-blackout: var(--red-500);
+  --rate-hard:     var(--orange-500);
+  --rate-good:     var(--sky-500);
+  --rate-easy:     var(--emerald-500);
+
+  /* Readiness / risk */
+  --risk-low-fg:  var(--emerald-700);
+  --risk-low-bg:  var(--emerald-50);
+  --risk-med-fg:  var(--amber-700);
+  --risk-med-bg:  var(--amber-50);
+  --risk-high-fg: var(--red-700);
+  --risk-high-bg: var(--red-50);
+}
