@@ -117,7 +117,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
 
           {/* Coach interpretation */}
           <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "flex-start", padding: "var(--space-3) var(--space-4)", borderRadius: "var(--radius-xl)", background: "var(--indigo-50)" }}>
-            <span aria-hidden="true" style={{ fontSize: 20 }}>🤖</span>
+            {window.CoachIcon ? <window.CoachIcon size={28} /> : <span aria-hidden="true" style={{ fontSize: 20 }}>💡</span>}
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.5 }}>{coachLine}</p>
               {onGoToChat && (

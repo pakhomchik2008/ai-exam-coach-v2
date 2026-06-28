@@ -59,10 +59,14 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     setMessages([]); setCardStates({}); setRepliesUsed({}); setHeaderCollapsed(false); handled.current = false;
   };
 
+  const profile = window.getProfile ? window.getProfile() : {};
   const SYSTEM_PROMPT = `You are an AI Exam Coach — a brilliant, warm personal tutor inside a spaced-repetition revision app. One concept at a time. No walls of text. You can teach ANY subject the student raises, not only the courses below.
 
 Student's current course profile (use to personalize when relevant — real exam dates, retention, weak topics):
 ${JSON.stringify({ courses: window.deriveCourses(window.getExams()), todaySessions: (window.buildScheduleData().sessionsByDay[window.fmtDateKey(new Date())] || []) })}
+
+Student preferences (adapt your teaching style accordingly):
+${JSON.stringify({ learningModes: profile.prefs || [], studyMaterials: profile.materials || [], weeklyHours: profile.weeklyHours || null })}
 
 ⚠️ ABSOLUTE RULE: Your ENTIRE response must be valid JSON. Start with { end with }. Nothing before. Nothing after. No markdown. No code fences. If you break this rule the UI breaks completely.
 
@@ -415,4 +419,15 @@ Do NOT use for topic/subject selection — use "menu" card.
   );
 }
 
-Object.assign(window, { AIChat });
+Object.assign(window, { AIChat, CoachIcon: function CoachIconExported(props) {
+  const size = (props && props.size) || 32;
+  return React.createElement('div', {
+    style: { width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1 0%,#7c3aed 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
+  },
+    React.createElement('svg', { width: size * 0.54, height: size * 0.54, viewBox: "0 0 20 20", fill: "none" },
+      React.createElement('path', { d: "M10 2C7.24 2 5 4.24 5 7c0 1.9 1.05 3.55 2.6 4.4L7.3 12h5.4l-.3-.6C14.05 10.55 15 8.9 15 7c0-2.76-2.24-5-5-5z", fill: "white", opacity: "0.95" }),
+      React.createElement('rect', { x: "7.5", y: "13", width: "5", height: "1.5", rx: "0.75", fill: "white", opacity: "0.75" }),
+      React.createElement('rect', { x: "8.5", y: "15", width: "3", height: "1.2", rx: "0.6", fill: "white", opacity: "0.55" })
+    )
+  );
+} });
