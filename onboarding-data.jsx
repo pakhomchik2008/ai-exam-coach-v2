@@ -1,0 +1,182 @@
+// AI Exam Coach — onboarding data model: exam types, dynamic grading, prefs, copy
+
+// ─── Exam types & dynamic grading ──────────────────────────────────────────────
+// kind: "scale"  → ordered list of grade labels (best→worst), pick via segmented buttons
+// kind: "score"  → numeric range, pick via slider (min/max/step/suffix)
+const EXAM_TYPES = [
+  { id: "gcse",   label: "GCSE",       emoji: "🇬🇧", blurb: "9–1 grading",            board: "AQA · Edexcel · OCR",
+    grade: { kind: "scale", options: ["9","8","7","6","5","4","3"], current: "6", target: "8" } },
+  { id: "alevel", label: "A-Level",    emoji: "🇬🇧", blurb: "A*–E grading",           board: "AQA · Edexcel · OCR",
+    grade: { kind: "scale", options: ["A*","A","B","C","D","E"], current: "B", target: "A" } },
+  { id: "sat",    label: "SAT",        emoji: "🇺🇸", blurb: "400–1600",               board: "College Board",
+    grade: { kind: "score", min: 400, max: 1600, step: 10, current: 1180, target: 1450 } },
+  { id: "act",    label: "ACT",        emoji: "🇺🇸", blurb: "Composite 1–36",         board: "ACT, Inc.",
+    grade: { kind: "score", min: 1, max: 36, step: 1, current: 26, target: 32 } },
+  { id: "ap",     label: "AP",         emoji: "🇺🇸", blurb: "Advanced Placement 1–5", board: "College Board",
+    grade: { kind: "scale", options: ["5","4","3","2","1"], current: "3", target: "5" } },
+  { id: "ib",     label: "IB",         emoji: "🌍", blurb: "Diploma 1–7 / 45",        board: "Int. Baccalaureate",
+    grade: { kind: "scale", options: ["7","6","5","4","3","2"], current: "4", target: "6" } },
+  { id: "nmt",    label: "NMT",        emoji: "🇺🇦", blurb: "НМТ · 100–200",          board: "UCEQA",
+    grade: { kind: "score", min: 100, max: 200, step: 1, current: 145, target: 180 } },
+  { id: "matura", label: "Matura",     emoji: "🇵🇱", blurb: "0–100%",                 board: "CKE",
+    grade: { kind: "score", min: 0, max: 100, step: 1, suffix: "%", current: 60, target: 85 } },
+  { id: "abitur", label: "Abitur",     emoji: "🇩🇪", blurb: "1.0 best → 4.0",         board: "KMK",
+    grade: { kind: "scale", options: ["1.0","1.3","1.7","2.0","2.3","2.7","3.0"], current: "2.3", target: "1.3" } },
+  { id: "uni",    label: "University", emoji: "🎓", blurb: "Degree classifications",  board: "Custom modules",
+    grade: { kind: "scale", options: ["1st","2:1","2:2","3rd","Pass"], current: "2:1", target: "1st" } },
+  { id: "custom", label: "Custom",     emoji: "✏️", blurb: "Set your own",            board: "Any exam",
+    grade: { kind: "scale", options: ["A","B","C","D","Pass"], current: "C", target: "A" } },
+];
+
+function examType(id) { return EXAM_TYPES.find((e) => e.id === id) || EXAM_TYPES[1]; }
+
+// ─── Study materials & learning preferences ────────────────────────────────────
+const MATERIALS = [
+  { id: "notes",      emoji: "📝", en: "Notes",        uk: "Конспекти",   ru: "Конспекты",     fr: "Notes",       de: "Notizen" },
+  { id: "textbooks",  emoji: "📚", en: "Textbooks",    uk: "Підручники",  ru: "Учебники",      fr: "Manuels",     de: "Lehrbücher" },
+  { id: "papers",     emoji: "📄", en: "Past papers",  uk: "Минулі тести",ru: "Прошлые тесты", fr: "Annales",     de: "Altklausuren" },
+  { id: "pdfs",       emoji: "📑", en: "PDFs",         uk: "PDF",         ru: "PDF",           fr: "PDF",         de: "PDFs" },
+  { id: "shots",      emoji: "🖼️", en: "Screenshots",  uk: "Скриншоти",   ru: "Скриншоты",     fr: "Captures",    de: "Screenshots" },
+  { id: "slides",     emoji: "📊", en: "PowerPoints",  uk: "Презентації", ru: "Презентации",   fr: "Diaporamas",  de: "Folien" },
+];
+const PREFERENCES = [
+  { id: "chat",   emoji: "🤖", en: "AI chat explanations", uk: "Пояснення AI-чату", ru: "Объяснения AI-чата", fr: "Explications par IA", de: "KI-Chat-Erklärungen" },
+  { id: "cards",  emoji: "🃏", en: "Flashcards",           uk: "Флешкартки",        ru: "Флешкарты",          fr: "Cartes mémoire",      de: "Lernkarten" },
+  { id: "quiz",   emoji: "✍️", en: "Practice questions",   uk: "Практичні питання", ru: "Практические вопросы",fr: "Questions pratiques", de: "Übungsfragen" },
+  { id: "video",  emoji: "🎬", en: "Videos",               uk: "Відео",             ru: "Видео",              fr: "Vidéos",              de: "Videos" },
+  { id: "recall", emoji: "🧠", en: "Active recall",        uk: "Активне пригадування",ru: "Активное припоминание",fr: "Rappel actif",       de: "Aktives Erinnern" },
+  { id: "spaced", emoji: "🔁", en: "Spaced repetition",    uk: "Інтервальне повторення",ru: "Интервальное повторение",fr: "Répétition espacée",de: "Verteiltes Lernen" },
+];
+
+// ─── Timezones (GMT offsets, auto-detect friendly) ─────────────────────────────
+const TIMEZONES = [
+  { id: "-08", label: "GMT−8", place: "Los Angeles" },
+  { id: "-05", label: "GMT−5", place: "New York" },
+  { id: "+00", label: "GMT+0", place: "London" },
+  { id: "+01", label: "GMT+1", place: "Paris · Berlin" },
+  { id: "+02", label: "GMT+2", place: "Kyiv · Warsaw" },
+  { id: "+03", label: "GMT+3", place: "Moscow · Istanbul" },
+  { id: "+04", label: "GMT+4", place: "Dubai" },
+  { id: "+05:30", label: "GMT+5:30", place: "India" },
+  { id: "+08", label: "GMT+8", place: "Singapore" },
+  { id: "+09", label: "GMT+9", place: "Tokyo · Seoul" },
+  { id: "+10", label: "GMT+10", place: "Sydney" },
+];
+// Map a JS minute-offset to the nearest entry id; returns a label + place.
+function detectTimezone() {
+  const offMin = -new Date().getTimezoneOffset(); // east of GMT positive
+  const hours = offMin / 60;
+  const sign = hours < 0 ? "-" : "+";
+  const abs = Math.abs(hours);
+  const whole = Math.floor(abs);
+  const frac = abs - whole;
+  const want = sign + String(whole).padStart(2, "0") + (frac ? ":" + String(Math.round(frac * 60)).padStart(2, "0") : "");
+  return TIMEZONES.find((z) => z.id === want) || TIMEZONES.find((z) => z.id === "+00");
+}
+
+// ─── Default subjects pre-filled in step 2 (per advisor demo) ──────────────────
+const DEFAULT_SUBJECTS = [
+  { id: "bio",  name: "Biology",   color: "var(--subject-indigo)" },
+  { id: "chem", name: "Chemistry", color: "var(--subject-rose)" },
+];
+
+// ─── New onboarding copy, all five languages ───────────────────────────────────
+const ONB = {
+  en: {
+    advisor: "Your AI advisor", greeting: "Hi 👋 I'm your study coach. A few quick questions and I'll build your plan.",
+    step_of: (n, total) => `Step ${n} of ${total || 5}`,
+    s1_title: "What are you preparing for?", s1_sub: "Pick your exam — I'll match the grading system to it.",
+    s2_title: "Where are you right now?", s2_sub: "Be honest — I size your plan around the gap.",
+    s2_add: "+ Add subject", s2_current: "Current", s2_target: "Target", s2_name_ph: "Subject name",
+    s2_examdate: "Exam date", s2_topics: "Topics covered", s2_board: "Exam board",
+    s3_title: "How many hours can you realistically study each week?", s3_sub: "I'll spread it across your subjects.",
+    s3_hours: "hours / week",
+    s4_title: "What can I work from?", s4_sub: "Upload anything — I'll read it and map your topics.",
+    s4_upload: "Drop files or tap to upload", s4_upload_sub: "PDFs, screenshots, notes, slides, past papers",
+    s4_materials: "I have", s4_prefs: "I learn best with",
+    s5_title: "Your personalised plan", s5_sub: "Here's what I'd recommend. Tweak it, or accept and start.",
+    settings_title: "Your study setup", settings_sub: "We'll reuse this for every exam you add.", settings_edit: "Edit", settings_done: "Done",
+    analysing: "Analysing your materials…", building: "Building your roadmap…",
+    accept: "Accept plan & start →", finish_add: "Add exam", edit: "Edit plan",
+    prob: "chance of target", sessions: "sessions / week", exam: "Exam",
+    back: "Back", next: "Continue",
+  },
+  uk: {
+    advisor: "Ваш AI-радник", greeting: "Привіт 👋 Я ваш навчальний коуч. Кілька питань — і я складу план.",
+    step_of: (n, total) => `Крок ${n} з ${total || 5}`,
+    s1_title: "До чого ви готуєтеся?", s1_sub: "Оберіть іспит — я підлаштую систему оцінювання.",
+    s2_title: "Де ви зараз?", s2_sub: "Будьте чесні — я будую план навколо різниці.",
+    s2_add: "+ Додати предмет", s2_current: "Зараз", s2_target: "Ціль", s2_name_ph: "Назва предмета",
+    s2_examdate: "Дата іспиту", s2_topics: "Кількість тем", s2_board: "Екзаменаційна рада",
+    s3_title: "Скільки годин на тиждень ти реально можеш навчатися?", s3_sub: "Я розподілю їх між предметами.",
+    s3_hours: "год / тиждень",
+    s4_title: "З чим мені працювати?", s4_sub: "Завантажте будь-що — я прочитаю й складу теми.",
+    s4_upload: "Перетягніть файли або натисніть", s4_upload_sub: "PDF, скриншоти, конспекти, презентації, тести",
+    s4_materials: "У мене є", s4_prefs: "Найкраще вчуся через",
+    s5_title: "Ваш персональний план", s5_sub: "Ось що я раджу. Змініть або прийміть і почніть.",
+    settings_title: "Ваші налаштування навчання", settings_sub: "Використаємо це для кожного нового іспиту.", settings_edit: "Редагувати", settings_done: "Готово",
+    analysing: "Аналізую ваші матеріали…", building: "Будую ваш маршрут…",
+    accept: "Прийняти план →", finish_add: "Додати іспит", edit: "Змінити план",
+    prob: "шанс на ціль", sessions: "сесій / тиждень", exam: "Іспит",
+    back: "Назад", next: "Продовжити",
+  },
+  ru: {
+    advisor: "Ваш AI-советник", greeting: "Привет 👋 Я ваш коуч по учёбе. Несколько вопросов — и план готов.",
+    step_of: (n, total) => `Шаг ${n} из ${total || 5}`,
+    s1_title: "К чему вы готовитесь?", s1_sub: "Выберите экзамен — я подберу систему оценок.",
+    s2_title: "Где вы сейчас?", s2_sub: "Честно — я строю план вокруг разрыва.",
+    s2_add: "+ Добавить предмет", s2_current: "Сейчас", s2_target: "Цель", s2_name_ph: "Название предмета",
+    s2_examdate: "Дата экзамена", s2_topics: "Количество тем", s2_board: "Экзаменационная комиссия",
+    s3_title: "Сколько часов в неделю ты реально можешь учиться?", s3_sub: "Я распределю их по предметам.",
+    s3_hours: "ч / неделю",
+    s4_title: "С чем мне работать?", s4_sub: "Загрузите что угодно — я прочитаю и составлю темы.",
+    s4_upload: "Перетащите файлы или нажмите", s4_upload_sub: "PDF, скриншоты, конспекты, презентации, тесты",
+    s4_materials: "У меня есть", s4_prefs: "Лучше всего учусь через",
+    s5_title: "Ваш персональный план", s5_sub: "Вот что я рекомендую. Измените или примите и начните.",
+    settings_title: "Ваши настройки учёбы", settings_sub: "Используем это для каждого нового экзамена.", settings_edit: "Изменить", settings_done: "Готово",
+    analysing: "Анализирую материалы…", building: "Строю ваш маршрут…",
+    accept: "Принять план →", finish_add: "Добавить экзамен", edit: "Изменить план",
+    prob: "шанс на цель", sessions: "сессий / неделю", exam: "Экзамен",
+    back: "Назад", next: "Продолжить",
+  },
+  fr: {
+    advisor: "Votre conseiller IA", greeting: "Bonjour 👋 Je suis votre coach. Quelques questions et je crée votre plan.",
+    step_of: (n, total) => `Étape ${n} sur ${total || 5}`,
+    s1_title: "Pour quoi vous préparez-vous ?", s1_sub: "Choisissez l'examen — j'adapte la notation.",
+    s2_title: "Où en êtes-vous ?", s2_sub: "Soyez honnête — je calibre sur l'écart.",
+    s2_add: "+ Ajouter une matière", s2_current: "Actuel", s2_target: "Objectif", s2_name_ph: "Nom de la matière",
+    s2_examdate: "Date de l'examen", s2_topics: "Nombre de sujets", s2_board: "Organisme d'examen",
+    s3_title: "Combien d'heures par semaine peux-tu réalistement étudier ?", s3_sub: "Je les répartis entre tes matières.",
+    s3_hours: "h / semaine",
+    s4_title: "Sur quoi puis-je travailler ?", s4_sub: "Importez tout — je lis et je cartographie vos sujets.",
+    s4_upload: "Déposez des fichiers ou cliquez", s4_upload_sub: "PDF, captures, notes, diapos, annales",
+    s4_materials: "J'ai", s4_prefs: "J'apprends mieux avec",
+    s5_title: "Votre plan personnalisé", s5_sub: "Voici ma recommandation. Ajustez ou acceptez.",
+    settings_title: "Vos préférences d'étude", settings_sub: "Réutilisées pour chaque nouvel examen.", settings_edit: "Modifier", settings_done: "Terminé",
+    analysing: "Analyse de vos documents…", building: "Création de votre feuille de route…",
+    accept: "Accepter le plan →", finish_add: "Ajouter un examen", edit: "Modifier le plan",
+    prob: "chance d'objectif", sessions: "séances / semaine", exam: "Examen",
+    back: "Retour", next: "Continuer",
+  },
+  de: {
+    advisor: "Dein KI-Berater", greeting: "Hallo 👋 Ich bin dein Lerncoach. Ein paar Fragen und dein Plan steht.",
+    step_of: (n, total) => `Schritt ${n} von ${total || 5}`,
+    s1_title: "Worauf bereitest du dich vor?", s1_sub: "Wähle die Prüfung — ich passe das Notensystem an.",
+    s2_title: "Wo stehst du gerade?", s2_sub: "Ehrlich — ich plane um die Lücke herum.",
+    s2_add: "+ Fach hinzufügen", s2_current: "Aktuell", s2_target: "Ziel", s2_name_ph: "Fachname",
+    s2_examdate: "Prüfungsdatum", s2_topics: "Anzahl der Themen", s2_board: "Prüfungsausschuss",
+    s3_title: "Wie viele Stunden pro Woche kannst du realistisch lernen?", s3_sub: "Ich verteile sie auf deine Fächer.",
+    s3_hours: "Std / Woche",
+    s4_title: "Womit kann ich arbeiten?", s4_sub: "Lade alles hoch — ich lese es und ordne deine Themen.",
+    s4_upload: "Dateien ablegen oder tippen", s4_upload_sub: "PDFs, Screenshots, Notizen, Folien, Altklausuren",
+    s4_materials: "Ich habe", s4_prefs: "Ich lerne am besten mit",
+    s5_title: "Dein persönlicher Plan", s5_sub: "Das empfehle ich. Anpassen oder annehmen.",
+    settings_title: "Deine Lerneinstellungen", settings_sub: "Wir verwenden dies für jede neue Prüfung.", settings_edit: "Bearbeiten", settings_done: "Fertig",
+    analysing: "Analysiere deine Materialien…", building: "Erstelle deine Roadmap…",
+    accept: "Plan annehmen →", finish_add: "Prüfung hinzufügen", edit: "Plan bearbeiten",
+    prob: "Zielchance", sessions: "Einheiten / Woche", exam: "Prüfung",
+    back: "Zurück", next: "Weiter",
+  },
+};
+
+Object.assign(window, { EXAM_TYPES, examType, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB });
