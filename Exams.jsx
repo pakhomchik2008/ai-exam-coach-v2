@@ -16,7 +16,11 @@ function Exams({ t }) {
     const days = daysAway(exam.examDate);
     const past = days < 0;
     const soon = days >= 0 && days <= 7;
-    const totalDays = Math.ceil((new Date(exam.examDate) - new Date('2026-05-01')) / 86400000);
+    // Same assumed prep window as deriveCourse() in exams-store.jsx (90 days
+    // when no real start date is known) — this used to anchor against a
+    // hardcoded literal date instead, which silently drifted wrong as soon
+    // as "today" moved past that fixed point.
+    const totalDays = Math.max(days, 90);
     const needed = !past ? sessionsNeeded(exam.completionPct, days) : 0;
     const required = !past ? requiredPct(exam.completionPct, days, totalDays) : 100;
     const behind = !past && exam.completionPct < required;

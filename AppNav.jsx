@@ -4,8 +4,8 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const links = [
     { id: "dashboard", label: t.nav_dashboard },
     { id: "chat",      label: "🤖 " + (t.nav_chat || "AI Coach") },
-    { id: "study",     label: "Study" },
-    { id: "journal",   label: "Mistake Journal" },
+    { id: "study",     label: t.nav_study },
+    { id: "journal",   label: t.nav_journal },
     { id: "schedule",  label: t.nav_schedule },
     { id: "exams",     label: t.nav_exams },
     { id: "progress",  label: t.nav_progress },

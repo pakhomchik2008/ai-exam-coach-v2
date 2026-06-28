@@ -154,7 +154,9 @@ function deriveCourse(exam) {
   const predictedGrade = letterBand(gradeProbability);
   const targetGrade = exam.targetGrade || "A";
   const riskLevel = gradeProbability >= 60 ? "low" : gradeProbability >= 35 ? "medium" : "high";
-  const paceStatus = daysLeft < 0 ? "on_track" : paceDelta >= 0 ? "on_track" : paceDelta >= -20 ? "slightly_behind" : "very_behind";
+  // An exam with daysLeft < 0 has already happened — that's "passed," not
+  // "on track" (which previously claimed the opposite of reality).
+  const paceStatus = daysLeft < 0 ? "exam_passed" : paceDelta >= 0 ? "on_track" : paceDelta >= -20 ? "slightly_behind" : "very_behind";
   const recommendedSessions = daysLeft >= 0 ? sessionsNeeded(completionPct, daysLeft) : 0;
 
   return {
