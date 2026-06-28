@@ -124,7 +124,15 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
             <p style={{ margin: "0 0 2px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>{L("Your AI Coach", "Ваш AI-коуч", "Ваш AI-коуч", "Ton coach IA", "Dein KI-Coach")}</p>
             <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", lineHeight: 1.4, textWrap: "pretty" }}>
               {hasCourses
-                ? (onTrack >= activeCourses.length
+                ? (window.computeStreak && window.computeStreak() === 0 && todaySessions.every((s) => !s.retention)
+                    ? L(
+                        `Welcome! Your plan is ready — ${activeCourses.length} ${activeCourses.length === 1 ? "exam" : "exams"} tracked. Start your first session below to get going.`,
+                        `Ласкаво просимо! Ваш план готовий — ${activeCourses.length} ${activeCourses.length === 1 ? "іспит" : "іспитів"}. Розпочніть першу сесію нижче.`,
+                        `Добро пожаловать! План готов — ${activeCourses.length} ${activeCourses.length === 1 ? "экзамен" : "экзаменов"}. Начните первую сессию ниже.`,
+                        `Bienvenue ! Ton plan est prêt — ${activeCourses.length} ${activeCourses.length === 1 ? "examen" : "examens"}. Lance ta première séance ci-dessous.`,
+                        `Willkommen! Dein Plan steht — ${activeCourses.length} ${activeCourses.length === 1 ? "Prüfung" : "Prüfungen"}. Starte deine erste Einheit unten.`
+                      )
+                    : onTrack >= activeCourses.length
                     ? L(
                         `You're on track for all ${activeCourses.length} of your targets. Keep it up.`,
                         `Ти на шляху до всіх ${activeCourses.length} цілей. Так тримати.`,

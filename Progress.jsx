@@ -14,9 +14,21 @@ function Progress({ t }) {
     return { label: "Mastered", emoji: "⭐", color: "var(--indigo-600)" };
   };
 
+  const weakest = React.useMemo(() => {
+    const active = courses.filter((c) => c.daysAway >= 0);
+    if (active.length === 0) return null;
+    return active.reduce((a, b) => b.confidencePct < a.confidencePct ? b : a);
+  }, [courses]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)", fontFamily: "var(--font-sans)" }}>
       <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.progress_title}</h1>
+      {weakest && weakest.confidencePct < 70 && (
+        <div style={{ borderRadius: "var(--radius-xl)", background: "#FFF1F2", border: "1px solid var(--red-100)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
+          <span style={{ color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>Lowest readiness:</span>
+          <span style={{ color: "var(--text-body)" }}>{weakest.subject} at {weakest.confidencePct}% confidence</span>
+        </div>
+      )}
       <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 2fr" }}>
         <Card style={{ textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.progress_streak}</p>
