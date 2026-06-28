@@ -15,6 +15,26 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const [dayDetail, setDayDetail] = React.useState(null);
   const [activeSession, setActiveSession] = React.useState(null);
   const [toast, setToast] = React.useState(null);
+
+  // courses/todaySessions were only ever read once, on mount. A write to the
+  // same store from elsewhere in this same tab — e.g. the background AI plan
+  // summary landing after the user already navigated here, or completing a
+  // session from a different open view — never fired a native `storage`
+  // event (that only fires in *other* tabs) and so never refreshed this
+  // screen short of a full remount. Subscribing to the stores' own listeners
+  // closes that gap without needing a remount.
+  React.useEffect(() => {
+    const refresh = () => {
+      setCourses(window.deriveCourses(window.getExams()));
+      const { sessionsByDay } = window.buildScheduleData();
+      const todays = sessionsByDay[window.fmtDateKey(new Date())] || [];
+      setTodaySessions(todays.map((s) => ({ id: s.id, subject: s.subject, color: s.color, topic: s.topic, difficulty: 2, review: 1, est: 30 })));
+    };
+    const unsubExams = window.subscribeExams ? window.subscribeExams(refresh) : null;
+    const unsubSchedule = window.subscribeSchedule ? window.subscribeSchedule(refresh) : null;
+    return () => { if (unsubExams) unsubExams(); if (unsubSchedule) unsubSchedule(); };
+  }, []);
+
   const openCourse = (course, focus) => setDetail({ course, focus });
   const saveCourse = (updated) => {
     // Only confidencePct/targetGrade are genuine exam-record fields — persist
