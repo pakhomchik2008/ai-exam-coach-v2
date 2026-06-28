@@ -77,12 +77,16 @@ function StudyHub({ t }) {
     } catch {}
   }, [state.mode, state.topic, state.flashcards, state.quiz, state.videos, state.currentCard, state.flippedCards, state.quizAnswers]);
 
+  const studyProfile = window.getProfile ? window.getProfile() : {};
+  const prefHint = (studyProfile.prefs && studyProfile.prefs.length) || (studyProfile.materials && studyProfile.materials.length)
+    ? `\n\nStudent preferences: prefers ${(studyProfile.prefs || []).join(', ') || 'default'} learning modes, uses ${(studyProfile.materials || []).join(', ') || 'various'} materials. Tailor difficulty and examples accordingly.`
+    : '';
   const SYSTEM_CARDS = `You are a study material generator. Output ONLY valid JSON — no markdown, no fences, nothing else before { or after }.
 
 Schema:
 {"topic":"short name","emoji":"1 emoji","flashcards":[{"front":"≤12 words","back":"≤25 words"}],"quiz":[{"q":"question","o":["A","B","C","D"],"c":0,"e":"≤18 word explanation"}]}
 
-Rules: EXACTLY 5 flashcards. EXACTLY 4 quiz questions (c = index of correct option). All content specific and educational. For images/PDFs: identify the subject first.`;
+Rules: EXACTLY 5 flashcards. EXACTLY 4 quiz questions (c = index of correct option). All content specific and educational. For images/PDFs: identify the subject first.${prefHint}`;
 
   const SYSTEM_VIDEOS = `You are a study assistant. Output ONLY valid JSON — no markdown, no fences.
 

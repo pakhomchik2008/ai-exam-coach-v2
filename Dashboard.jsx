@@ -119,7 +119,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       {/* ── Advisor hero ──────────────────────────────────────── */}
       <section style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", border: "1px solid var(--border-subtle)", padding: "var(--space-6)" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", marginBottom: "var(--space-5)" }}>
-          <div aria-hidden="true" style={{ flexShrink: 0, width: 40, height: 40, borderRadius: "var(--radius-full)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "var(--shadow-sm)" }}>🤖</div>
+          {window.CoachIcon ? <window.CoachIcon size={40} /> : <div aria-hidden="true" style={{ flexShrink: 0, width: 40, height: 40, borderRadius: "var(--radius-full)", background: "linear-gradient(135deg,#6366f1,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "var(--shadow-sm)", color: "#fff" }}>💡</div>}
           <div>
             <p style={{ margin: "0 0 2px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>{L("Your AI Coach", "Ваш AI-коуч", "Ваш AI-коуч", "Ton coach IA", "Dein KI-Coach")}</p>
             <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", lineHeight: 1.4, textWrap: "pretty" }}>
