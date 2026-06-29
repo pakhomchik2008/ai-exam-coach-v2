@@ -8,7 +8,7 @@ function Onboarding({ onFinish, lang, onLangChange }) {
       config={window.EXAM_WIZARD_PRESETS.onboarding}
       lang={lang}
       onLangChange={onLangChange}
-      onFinish={() => onFinish()}
+      onFinish={(newExams) => onFinish(newExams)}
     />
   );
 }
