@@ -1,5 +1,5 @@
 // AI Exam Coach — Exams screen (i18n-aware)
-function Exams({ t }) {
+function Exams({ t, onPlanReady }) {
   const { Button } = window.AIExamCoachDesignSystem_99e467;
   const [exams, setExams] = React.useState(() => window.getExams());
   const [showAdd, setShowAdd] = React.useState(false);
@@ -100,14 +100,14 @@ function Exams({ t }) {
         <window.ExamWizard
           config={window.EXAM_WIZARD_PRESETS.addExam}
           lang={t.code || "en"}
-          onFinish={() => { setExams(window.getExams()); setShowAdd(false); }}
+          onFinish={(newExams) => { setExams(window.getExams()); setShowAdd(false); if (onPlanReady) onPlanReady(newExams); }}
           onCancel={() => setShowAdd(false)}
         />
       ) : (
         <QuickAddModal
           lastExam={exams[exams.length - 1]}
           onClose={() => setShowAdd(false)}
-          onSave={() => { setExams(window.getExams()); setShowAdd(false); }}
+          onSave={(newExams) => { setExams(window.getExams()); setShowAdd(false); if (onPlanReady && newExams) onPlanReady(newExams); }}
           onFullWizard={() => {}}
         />
       ))}
@@ -143,14 +143,14 @@ function Exams({ t }) {
         <window.ExamWizard
           config={window.EXAM_WIZARD_PRESETS.addExam}
           lang={t.code || "en"}
-          onFinish={() => onSave()}
+          onFinish={(newExams) => onSave(newExams)}
           onCancel={onClose}
         />
       );
     }
 
     function save() {
-      window.commitExamWizard({
+      const newExams = window.commitExamWizard({
         examDrafts: [{
           name: name.trim(),
           color: null,
@@ -163,7 +163,7 @@ function Exams({ t }) {
         }],
         profilePatch: null,
       });
-      onSave();
+      onSave(newExams);
     }
 
     const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };

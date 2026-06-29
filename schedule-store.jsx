@@ -238,7 +238,49 @@ function markSessionCompleted(id, completed = true) {
   });
 }
 
+// ─── adaptive rescheduling ──────────────────────────────────────────────
+// When sessions are overdue (date < today, still pending), redistribute
+// them into the remaining prep window. Returns { adapted: boolean,
+// changes: string[] } describing what moved and why.
+function adaptSchedule() {
+  const schedule = getSchedule();
+  const today = window.fmtDateKey(new Date());
+  const exams = window.getExams();
+  const examById = new Map(exams.map(e => [e.id, e]));
+
+  const overdue = schedule.sessions.filter(s => s.status === "pending" && s.date < today);
+  if (overdue.length === 0) return { adapted: false, changes: [] };
+
+  const changes = [];
+  let sessions = schedule.sessions.slice();
+
+  overdue.forEach(s => {
+    const exam = examById.get(s.examId);
+    if (!exam) return;
+    const daysLeft = window.daysAway(exam.examDate);
+    if (daysLeft <= 0) {
+      sessions = sessions.filter(x => x.id !== s.id);
+      changes.push(`Removed "${s.topic}" for ${exam.name} (exam already passed)`);
+      return;
+    }
+    const futureCount = sessions.filter(x => x.examId === s.examId && x.status === "pending" && x.date >= today).length;
+    const spread = Math.max(1, Math.round(daysLeft / Math.max(1, futureCount + 1)));
+    const offset = Math.min(spread, Math.max(1, Math.ceil(Math.random() * Math.min(7, daysLeft))));
+    const d = new Date(); d.setDate(d.getDate() + offset);
+    if (d.getDay() === 0) d.setDate(d.getDate() + 1);
+    const newDate = window.fmtDateKey(d);
+    sessions = sessions.map(x => x.id === s.id ? { ...x, date: newDate } : x);
+    changes.push(`Moved "${s.topic}" (${exam.name}) to ${newDate}`);
+  });
+
+  if (changes.length > 0) {
+    saveSchedule({ version: 1, sessions });
+  }
+  return { adapted: changes.length > 0, changes };
+}
+
 Object.assign(window, {
   SCHEDULE_KEY, getSchedule, saveSchedule, subscribeSchedule, markSessionCompleted,
   reconcileSchedule, buildScheduleView, seedSessionsForExam, migrateSchedule, migrateSession,
+  adaptSchedule,
 });
