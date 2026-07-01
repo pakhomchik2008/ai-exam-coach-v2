@@ -17,6 +17,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const [missionSession, setMissionSession] = React.useState(null);
   const [toast, setToast] = React.useState(null);
   const [adaptMsg, setAdaptMsg] = React.useState(null);
+  const [recap, setRecap] = React.useState(null);
 
   React.useEffect(() => {
     const refresh = () => {
@@ -58,11 +59,31 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const startMission = (s) => setMissionSession(s);
   const startSession = (s) => { setMissionSession(null); setActiveSession(s); };
 
+  // Reused both for the dashboard hero's "look ahead" card and for the
+  // session recap's "tomorrow's focus" — same lookahead, two callers.
+  const findNextPendingSession = () => {
+    const { sessionsByDay } = window.buildScheduleData();
+    const start = new Date();
+    for (let i = 1; i <= 30; i++) {
+      const d = new Date(start); d.setDate(d.getDate() + i);
+      const items = sessionsByDay[window.fmtDateKey(d)] || [];
+      const pending = items.find((it) => it.status !== "completed");
+      if (pending) return { ...pending, date: d };
+    }
+    return null;
+  };
+
   const RATING_BUMP = { 1: -1, 2: 1, 3: 2, 4: 4 };
   const RATING_RETENTION = { 1: -5, 2: 5, 3: 12, 4: 20 };
-  const handleSessionDone = (rating) => {
+  const XP_BASE = { 1: 5, 2: 10, 3: 20, 4: 30 };
+  const handleSessionDone = ({ rating, seconds, quizCorrect, quizTotal }) => {
     const s = activeSession;
     if (s) {
+      const beforeCourse = window.deriveCourses(window.getExams()).find((c) => c.name === s.subject);
+      const gradeBefore = beforeCourse ? beforeCourse.gradeProbability : 0;
+      const achievementsBefore = window.computeAchievements ? window.computeAchievements() : [];
+      const streakBefore = window.computeStreak ? window.computeStreak() : 0;
+
       if (window.markSessionCompleted) window.markSessionCompleted(s.id, true);
       setTodaySessions((ts) => ts.map((row) => row.id === s.id
         ? { ...row, lastReviewed: "Just now", retention: Math.max(0, Math.min(100, (row.retention || 50) + (RATING_RETENTION[rating] ?? 10))) }
@@ -73,11 +94,39 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
         const nextConfidence = Math.max(0, Math.min(100, (matched.confidencePct ?? 50) + (RATING_BUMP[rating] ?? 2)));
         window.saveExams(exams.map((e) => e.id === matched.id ? { ...e, confidencePct: nextConfidence } : e));
       }
-      setCourses(window.deriveCourses(window.getExams()));
-      showToast(L("Session saved — readiness updated ✓","Сесію збережено ✓","Сессия сохранена ✓","Séance enregistrée ✓","Sitzung gespeichert ✓"));
+      const afterCourses = window.deriveCourses(window.getExams());
+      setCourses(afterCourses);
+
+      const afterCourse = afterCourses.find((c) => c.name === s.subject);
+      const gradeAfter = afterCourse ? afterCourse.gradeProbability : gradeBefore;
+      const achievementsAfter = window.computeAchievements ? window.computeAchievements() : [];
+      const streakAfter = window.computeStreak ? window.computeStreak() : streakBefore;
+      const newAchievements = achievementsAfter.filter((a) =>
+        a.unlocked && !(achievementsBefore.find((b) => b.id === a.id) || {}).unlocked
+      );
+
+      setRecap({
+        subject: s.subject,
+        topic: s.topic,
+        color: s.color,
+        seconds: seconds || 0,
+        quizCorrect: quizCorrect || 0,
+        quizTotal: quizTotal || 0,
+        gradeDelta: gradeAfter - gradeBefore,
+        streakBefore, streakAfter,
+        newAchievements,
+        xp: (XP_BASE[rating] ?? 10) + (quizCorrect || 0) * 5,
+        nextFocus: findNextPendingSession(),
+      });
     }
     setActiveSession(null);
   };
+
+  // Session recap — shown the instant a session is rated, replacing the
+  // old flat "Session saved" toast with a real before/after summary.
+  if (recap) {
+    return <window.SessionRecap data={recap} onClose={() => setRecap(null)} t={t} />;
+  }
 
   // Active study session — timer view
   if (activeSession) {
@@ -103,17 +152,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const focusSession = hasCourses ? (todaySessions.find((s) => s.subject === focus.name) || todaySessions[0] || null) : null;
 
   // Look ahead if nothing today
-  let nextSession = null;
-  if (hasCourses && !focusSession) {
-    const { sessionsByDay } = window.buildScheduleData();
-    const start = new Date();
-    for (let i = 1; i <= 30 && !nextSession; i++) {
-      const d = new Date(start); d.setDate(d.getDate() + i);
-      const items = sessionsByDay[window.fmtDateKey(d)] || [];
-      const pending = items.find((it) => it.status !== "completed");
-      if (pending) nextSession = { ...pending, date: d };
-    }
-  }
+  const nextSession = hasCourses && !focusSession ? findNextPendingSession() : null;
 
   // Weekly progress
   const weekData = window.deriveWeek([t.mon,t.tue,t.wed,t.thu,t.fri,t.sat,t.sun]);

@@ -163,6 +163,7 @@ function Exams({ t, onPlanReady }) {
         }],
         profilePatch: null,
       });
+      if (window.requestTopicNames) newExams.forEach((e) => window.requestTopicNames(e.id, e, []));
       onSave(newExams);
     }
 

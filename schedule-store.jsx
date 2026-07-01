@@ -88,7 +88,7 @@ function seedSessionsForExam(exam, existingForExam, desiredCount) {
       id: uniqueId(exam.id, topicIdx),
       examId: exam.id,
       date: window.fmtDateKey(d),
-      topic: `Topic review ${topicIdx + 1}`,
+      topic: (exam.topics && exam.topics[topicIdx]) || `Topic review ${topicIdx + 1}`,
       status: "pending",
       completedAt: null,
     });
@@ -238,6 +238,26 @@ function markSessionCompleted(id, completed = true) {
   });
 }
 
+// Retroactively renames already-seeded sessions once AI topic names arrive
+// (requestTopicNames in ai-enrichment.jsx runs after the exam — and its first
+// sessions — already exist). Only touches pending sessions: a completed
+// session's topic label is part of its history and stays exactly as it was
+// when the user actually studied it, same principle as everywhere else in
+// this file.
+function relabelPendingSessions(examId, topics) {
+  if (!examId || !Array.isArray(topics) || !topics.length) return;
+  const schedule = getSchedule();
+  let changed = false;
+  const sessions = schedule.sessions.map((s) => {
+    if (s.examId !== examId || s.status !== "pending") return s;
+    const name = topics[topicIndexFromId(s.id)];
+    if (!name || s.topic === name) return s;
+    changed = true;
+    return { ...s, topic: name };
+  });
+  if (changed) saveSchedule({ version: 1, sessions });
+}
+
 // ─── adaptive rescheduling ──────────────────────────────────────────────
 // When sessions are overdue (date < today, still pending), redistribute
 // them into the remaining prep window. Returns { adapted: boolean,
@@ -282,5 +302,5 @@ function adaptSchedule() {
 Object.assign(window, {
   SCHEDULE_KEY, getSchedule, saveSchedule, subscribeSchedule, markSessionCompleted,
   reconcileSchedule, buildScheduleView, seedSessionsForExam, migrateSchedule, migrateSession,
-  adaptSchedule,
+  adaptSchedule, relabelPendingSessions, topicIndexFromId,
 });

@@ -45,6 +45,11 @@ function migrateExam(raw, index) {
     // blocks on this — see requestAiEnrichment in ai-enrichment.jsx).
     aiPlanStatus: ["idle", "pending", "ready", "failed"].includes(e.aiPlanStatus) ? e.aiPlanStatus : "idle",
     aiPlanSummary: typeof e.aiPlanSummary === "string" ? e.aiPlanSummary : null,
+    // AI-generated topic names (replaces generic "Topic review N" labels once
+    // ready) — same fire-and-forget shape as aiPlanStatus, see requestTopicNames
+    // in ai-enrichment.jsx.
+    topics: Array.isArray(e.topics) ? e.topics.filter((t) => typeof t === "string" && t) : null,
+    topicsStatus: ["idle", "pending", "ready", "failed"].includes(e.topicsStatus) ? e.topicsStatus : "idle",
     _v: EXAM_SCHEMA_VERSION,
   };
 }
@@ -159,6 +164,19 @@ function deriveCourse(exam) {
   const paceStatus = daysLeft < 0 ? "exam_passed" : paceDelta >= 0 ? "on_track" : paceDelta >= -20 ? "slightly_behind" : "very_behind";
   const recommendedSessions = daysLeft >= 0 ? sessionsNeeded(completionPct, daysLeft) : 0;
 
+  // Real topic names not yet covered by a completed session — empty until
+  // requestTopicNames (ai-enrichment.jsx) has populated exam.topics, same
+  // graceful "nothing yet" shape as every other optional AI field here.
+  let weakTopics = [];
+  if (exam.topics && exam.topics.length && window.getSchedule && window.topicIndexFromId) {
+    const completedIdx = new Set(
+      window.getSchedule().sessions
+        .filter((s) => s.examId === exam.id && s.status === "completed")
+        .map((s) => window.topicIndexFromId(s.id))
+    );
+    weakTopics = exam.topics.filter((_, i) => !completedIdx.has(i)).slice(0, 5);
+  }
+
   return {
     id: exam.id,
     name: exam.name,
@@ -177,7 +195,7 @@ function deriveCourse(exam) {
     paceStatus,
     todayCount: 0, // filled in by callers once today's sessions are known
     recommendedSessions,
-    weakTopics: [],
+    weakTopics,
     forecastOnTrack: predictedGrade,
     forecastMissed: LETTER_STEP_DOWN[predictedGrade] || predictedGrade,
     remainingWork: { sessions: recommendedSessions, papers: 0, hours: recommendedSessions * 0.75 },
