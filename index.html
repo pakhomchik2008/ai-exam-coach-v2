@@ -79,9 +79,9 @@
 <script type="text/babel" src="BurnoutAlert.jsx"></script>
 <script type="text/babel" src="StudyHub.jsx"></script>
 <script type="text/babel" src="MistakeJournal.jsx"></script>
-<script type="text/babel" src="Progress.jsx"></script>
+<script type="text/babel" src="Progress.jsx?v=brain1"></script>
 <script type="text/babel" src="Schedule.jsx"></script>
-<script type="text/babel" src="Exams.jsx?v=fix2"></script>
+<script type="text/babel" src="Exams.jsx?v=brain1"></script>
 <script type="text/babel" src="Settings.jsx"></script>
 
 <script type="text/babel">
@@ -260,14 +260,14 @@ function App() {
   // it, a screen mounted before that change would keep showing whatever it
   // read on its own first mount.
   const content =
-      tab === "chat"     ? <window.AIChat key={dataVersion} t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />
-    : tab === "study"    ? <window.StudyHub key={dataVersion} t={t} />
-    : tab === "journal"  ? <window.MistakeJournal key={dataVersion} t={t} />
-    : tab === "schedule" ? <window.Schedule key={dataVersion} t={t} />
-    : tab === "exams"    ? <window.Exams key={dataVersion} t={t} onPlanReady={(newExams) => goPlanning(newExams)} />
-    : tab === "progress" ? <window.Progress key={dataVersion} t={t} />
-    : tab === "settings" ? <window.Settings key={dataVersion} t={t} lang={lang} onLangChange={setLang} onLogout={() => setRoute("landing")} />
-    : <window.Dashboard key={dataVersion} onOpenCourse={() => {}} onGoToChat={goToChat} onGoToExams={() => setTab("exams")} onGoToSchedule={() => setTab("schedule")} t={t} />;
+      tab === "chat"     ? <window.AIChat t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />
+    : tab === "study"    ? <window.StudyHub t={t} />
+    : tab === "journal"  ? <window.MistakeJournal t={t} />
+    : tab === "schedule" ? <window.Schedule t={t} />
+    : tab === "exams"    ? <window.Exams t={t} onPlanReady={(newExams) => goPlanning(newExams)} />
+    : tab === "progress" ? <window.Progress t={t} />
+    : tab === "settings" ? <window.Settings t={t} lang={lang} onLangChange={setLang} onLogout={() => setRoute("landing")} />
+    : <window.Dashboard onOpenCourse={() => {}} onGoToChat={goToChat} onGoToExams={() => setTab("exams")} onGoToSchedule={() => setTab("schedule")} t={t} />;
 
   return (
     <div>
