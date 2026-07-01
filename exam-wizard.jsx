@@ -218,6 +218,12 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       });
     }
 
+    if (cfg.aiEnrichment && window.requestTopicNames) {
+      // One call per exam — topicCount/name/examBoard differ per subject, so
+      // this can't batch like requestAiEnrichment does. Same fire-and-forget shape.
+      newExams.forEach((newExam) => window.requestTopicNames(newExam.id, newExam, files));
+    }
+
     onFinish(newExams);
   }
 

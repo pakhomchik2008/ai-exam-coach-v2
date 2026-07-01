@@ -5,17 +5,18 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AI Exam Coach — Web App</title>
-<link rel="stylesheet" href="./styles.css" />
-<link rel="icon" href="./assets/favicon.svg" />
+<link rel="stylesheet" href="../../styles.css" />
+<link rel="icon" href="../../assets/favicon.svg" />
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="./_ds_bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../../_ds_bundle.js"></script>
 <script>
-  // On Vercel there's no localhost proxy — this calls a serverless function
-  // at /api/complete instead (see api/complete.js), which reads the real API
-  // key from a Vercel environment variable. Never hardcode a key here.
+  // No daily cap: this is a local prototype on a paid API key, not a shipped
+  // free tier yet. A shared cross-feature quota here was silently masquerading
+  // as real AI output once exhausted (see onboarding plan-summary bug).
   window.claude = {
     complete: async (arg) => {
       const system = typeof arg === 'string' ? undefined : arg.system;
@@ -50,20 +51,20 @@
 <div id="root"></div>
 
 <script type="text/babel" src="i18n.jsx"></script>
-<script type="text/babel" src="exams-store.jsx"></script>
-<script type="text/babel" src="schedule-store.jsx"></script>
+<script type="text/babel" src="exams-store.jsx?cbtest=9001"></script>
+<script type="text/babel" src="schedule-store.jsx?cbtest=9001"></script>
 <script type="text/babel" src="profile-store.jsx"></script>
-<script type="text/babel" src="auth-store.jsx"></script>
+<script type="text/babel" src="auth-store.jsx?v=sb1"></script>
 <script type="text/babel" src="mistakes-store.jsx"></script>
 <script type="text/babel" src="progress-metrics.jsx"></script>
-<script type="text/babel" src="ai-enrichment.jsx"></script>
+<script type="text/babel" src="ai-enrichment.jsx?cbtest=9001"></script>
 <script type="text/babel" src="data.jsx"></script>
 <script type="text/babel" src="onboarding-data.jsx"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 <script type="text/babel" src="AppNav.jsx"></script>
 <script type="text/babel" src="Landing.jsx"></script>
 <script type="text/babel" src="onboarding-steps.jsx"></script>
-<script type="text/babel" src="exam-wizard.jsx"></script>
+<script type="text/babel" src="exam-wizard.jsx?cbtest=9001"></script>
 <script type="text/babel" src="Onboarding.jsx"></script>
 <script type="text/babel" src="Dashboard.jsx"></script>
 <script type="text/babel" src="CourseDetail.jsx"></script>
@@ -71,13 +72,14 @@
 <script type="text/babel" src="AIChat.jsx"></script>
 <script type="text/babel" src="TodaysMission.jsx"></script>
 <script type="text/babel" src="StudySession.jsx"></script>
+<script type="text/babel" src="SessionRecap.jsx"></script>
 <script type="text/babel" src="AIPlan.jsx"></script>
 <script type="text/babel" src="BurnoutAlert.jsx"></script>
 <script type="text/babel" src="StudyHub.jsx"></script>
 <script type="text/babel" src="MistakeJournal.jsx"></script>
 <script type="text/babel" src="Progress.jsx"></script>
 <script type="text/babel" src="Schedule.jsx"></script>
-<script type="text/babel" src="Exams.jsx"></script>
+<script type="text/babel" src="Exams.jsx?cbtest=9001"></script>
 <script type="text/babel" src="Settings.jsx"></script>
 
 <script type="text/babel">

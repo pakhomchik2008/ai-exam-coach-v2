@@ -1,80 +1,155 @@
-// AI Exam Coach — local-only auth simulation. There is no backend, so this
-// cannot be real security — but storing a SHA-256 hash (not the plaintext
-// password) via the browser's native Web Crypto API costs nothing and is
-// strictly better than the alternative, so there's no reason not to.
-// Accounts and the active session are kept in separate localStorage keys
-// from exam/schedule/profile data on purpose: logging out must never imply
-// "delete my study data" (see Settings.jsx — that's now a distinct, explicit
-// "Erase all data" action instead of being conflated with normal logout).
+// AI Exam Coach — Supabase-backed auth.
+// Drop-in replacement for the local-only version: keeps the same
+// window.getSession / signUp / logIn / startDemo / clearSession API
+// so every other file that calls those functions works without changes.
+// OAuth (Google, GitHub, Apple) added via window.signInWithOAuth(provider).
 
-const ACCOUNTS_KEY = "auth_accounts_v1";
-const SESSION_KEY = "auth_session_v1";
+const ACCOUNTS_KEY = "auth_accounts_v1"; // kept for compat
+const SESSION_KEY  = "auth_session_v1";
 
-async function hashPassword(pw) {
-  if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
-    const bytes = new TextEncoder().encode(pw);
-    const digest = await window.crypto.subtle.digest("SHA-256", bytes);
-    return "sha256:" + Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+// ─── Supabase client ──────────────────────────────────────────────────────────
+
+const { createClient } = window.supabase;
+const _supabase = createClient(
+  "https://cyftpdiabopydwytyudt.supabase.co",
+  "sb_publishable_wL5HRZEHk9zAMUNWJa0BMA_IA4cC9Wo"
+);
+
+// ─── Session cache (sync-readable, async-updated) ─────────────────────────────
+
+let _cachedSession = null;
+
+function _supabaseUserToSession(user) {
+  if (!user) return null;
+  return {
+    id:    user.id,
+    email: user.email || null,
+    name:  user.user_metadata?.full_name || user.user_metadata?.name
+           || (user.email ? user.email.split("@")[0] : "User"),
+    mode:  "account",
+  };
+}
+
+function _persistSession(session) {
+  _cachedSession = session;
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+  // Trigger the App's storage listener so it can re-route (login / logout)
+  window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
+}
+
+// On every page load: pick up an existing Supabase session (covers OAuth
+// redirect-back, tab refresh while logged in, etc.)
+_supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.user) {
+    _persistSession(_supabaseUserToSession(session.user));
+  } else {
+    // Restore demo mode from localStorage if the user was demoing
+    try {
+      const raw = JSON.parse(localStorage.getItem(SESSION_KEY));
+      if (raw?.mode === "demo") _cachedSession = raw;
+    } catch {}
   }
-  // SubtleCrypto requires a secure context — true for any real browser at
-  // localhost/https, but not guaranteed everywhere this file might run
-  // (older WebViews, this app's own test harness). Fall back to a same-API,
-  // non-cryptographic hash rather than ever touching the plaintext password.
-  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
-  for (let i = 0; i < pw.length; i++) {
-    const ch = pw.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = (h1 ^ (h1 >>> 16)) >>> 0; h2 = (h2 ^ (h2 >>> 16)) >>> 0;
-  return "fallback:" + h1.toString(16) + h2.toString(16);
-}
+});
 
-function getAccounts() {
-  try { return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || []; } catch { return []; }
-}
-function saveAccounts(list) {
-  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(list)); } catch {}
-}
+// Stay in sync for the lifetime of the page
+_supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_IN" && session?.user) {
+    _persistSession(_supabaseUserToSession(session.user));
+  } else if (event === "SIGNED_OUT") {
+    _cachedSession = null;
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
+    window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
+  }
+});
+
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 function getSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch { return null; }
+  if (_cachedSession) return _cachedSession;
+  // Demo session lives only in localStorage (Supabase doesn't know about it)
+  try {
+    const raw = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (raw?.mode === "demo") return raw;
+  } catch {}
+  return null;
 }
+
 function setSession(session) {
+  _cachedSession = session;
   try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
   return session;
 }
+
 function clearSession() {
+  _cachedSession = null;
   try { localStorage.removeItem(SESSION_KEY); } catch {}
+  _supabase.auth.signOut().catch(() => {}); // fire-and-forget
 }
 
-function normalizeEmail(email) { return String(email || "").trim().toLowerCase(); }
-
 async function signUp({ name, email, password }) {
-  const normalized = normalizeEmail(email);
-  const accounts = getAccounts();
-  if (accounts.some((a) => a.email === normalized)) {
-    const err = new Error("An account with this email already exists."); err.code = "ACCOUNT_EXISTS"; throw err;
+  const { data, error } = await _supabase.auth.signUp({
+    email: email.trim().toLowerCase(),
+    password,
+    options: { data: { full_name: name.trim() } },
+  });
+  if (error) {
+    const err = new Error(error.message);
+    err.code = "SIGNUP_ERROR";
+    throw err;
   }
-  const passwordHash = await hashPassword(password);
-  saveAccounts([...accounts, { email: normalized, name: name.trim(), passwordHash }]);
-  return setSession({ email: normalized, name: name.trim(), mode: "account" });
+  if (data.session?.user) {
+    const session = _supabaseUserToSession(data.session.user);
+    window.saveProfile && window.saveProfile({ fullName: session.name, email: session.email });
+    return setSession(session);
+  }
+  // Supabase requires email confirmation before the session is live
+  const err = new Error("Check your email to confirm your account, then log in.");
+  err.code = "EMAIL_CONFIRMATION";
+  throw err;
 }
 
 async function logIn({ email, password }) {
-  const normalized = normalizeEmail(email);
-  const account = getAccounts().find((a) => a.email === normalized);
-  if (!account) { const err = new Error("No account found with this email."); err.code = "NOT_FOUND"; throw err; }
-  const passwordHash = await hashPassword(password);
-  if (passwordHash !== account.passwordHash) { const err = new Error("Incorrect password."); err.code = "WRONG_PASSWORD"; throw err; }
-  return setSession({ email: account.email, name: account.name, mode: "account" });
+  const { data, error } = await _supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+  if (error) {
+    const err = new Error(
+      error.message.toLowerCase().includes("invalid")
+        ? "Incorrect email or password."
+        : error.message
+    );
+    err.code = "WRONG_PASSWORD";
+    throw err;
+  }
+  const session = _supabaseUserToSession(data.user);
+  window.saveProfile && window.saveProfile({ fullName: session.name, email: session.email });
+  return session;
+}
+
+async function signInWithOAuth(provider) {
+  // redirectTo must be listed in Supabase → Authentication → URL Configuration
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await _supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo },
+  });
+  if (error) throw new Error(error.message);
+  // Browser will navigate away to the OAuth provider — nothing more to do here
 }
 
 function startDemo() {
   return setSession({ email: null, name: "Demo", mode: "demo" });
 }
 
+// Legacy stubs — kept so any file that imports these symbols still compiles
+function getAccounts()  { return []; }
+function saveAccounts() {}
+async function hashPassword(pw) { return pw; }
+
 Object.assign(window, {
-  ACCOUNTS_KEY, SESSION_KEY, hashPassword, getAccounts, getSession, setSession,
-  clearSession, signUp, logIn, startDemo,
+  ACCOUNTS_KEY, SESSION_KEY, _supabase,
+  hashPassword, getAccounts, saveAccounts,
+  getSession, setSession, clearSession,
+  signUp, logIn, startDemo, signInWithOAuth,
 });

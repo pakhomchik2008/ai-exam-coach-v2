@@ -89,4 +89,39 @@ async function requestAiEnrichment(examIds, context) {
   }
 }
 
-Object.assign(window, { requestAiEnrichment, fileToClaudeContent });
+// AI-generated topic names — replaces the generic "Topic review N" labels
+// schedule-store.jsx falls back to. Runs per-exam (unlike requestAiEnrichment,
+// which batches examIds) since topicCount/name/examBoard differ per exam in a
+// multi-subject wizard run. Same fire-and-forget, never-block-Finish shape.
+async function requestTopicNames(examId, exam, files) {
+  if (!examId || !exam || !window.claude) return;
+  patchExamAi(examId, { topicsStatus: "pending" });
+
+  const count = Math.max(1, exam.topicCount || 10);
+  try {
+    let content;
+    if (files && files.length > 0) {
+      const blocks = [];
+      for (const f of files.slice(0, 2)) blocks.push(...(await fileToClaudeContent(f)));
+      blocks.push({ type: "text", text: `Based on the material above, list exactly ${count} specific topics covered for "${exam.name}". Each a short topic name (2-5 words), most foundational first.` });
+      content = blocks;
+    } else {
+      content = `List exactly ${count} specific topics typically covered in "${exam.name}" at "${exam.examBoard || "a standard"}" level. Each a short topic name (2-5 words), most foundational first. Use your knowledge of this subject's real curriculum.`;
+    }
+    const system = `You are listing real syllabus topics for an exam-prep app. Output ONLY valid JSON, no markdown: {"topics":["topic name","topic name",...]}. Exactly ${count} items, each under 5 words.`;
+    const raw = await window.claude.complete({ system, messages: [{ role: "user", content }] });
+    const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
+    const parsed = JSON.parse(clean);
+    const topics = (Array.isArray(parsed.topics) ? parsed.topics : [])
+      .filter((t) => typeof t === "string" && t.trim())
+      .slice(0, count);
+    if (!topics.length) throw new Error("no topics returned");
+
+    patchExamAi(examId, { topics, topicsStatus: "ready" });
+    if (window.relabelPendingSessions) window.relabelPendingSessions(examId, topics);
+  } catch {
+    patchExamAi(examId, { topicsStatus: "failed" });
+  }
+}
+
+Object.assign(window, { requestAiEnrichment, requestTopicNames, fileToClaudeContent });
