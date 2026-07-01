@@ -1,46 +1,74 @@
-// AI Exam Coach — Progress screen (i18n-aware) — v2 with feedback fixes
+// AI Exam Coach — Progress screen: brain-driven, no legacy deriveCourses.
 function Progress({ t }) {
   const { Card, ProgressBar, Badge } = window.AIExamCoachDesignSystem_99e467;
-  const courses = window.deriveCourses(window.getExams());
+  const brain = window.useBrain();
+  const examViews = brain.examViews || [];
   const week = window.deriveWeek();
   const achievements = window.computeAchievements ? window.computeAchievements() : [];
   const maxBar = Math.max(3, ...week.map((d) => Math.max(d.scheduled, d.completed)));
 
-  // FIX #11: Human-readable ease labels instead of raw SM-2 float
-  const easeLabel = (ease) => {
-    if (ease < 2.0) return { label: "Struggling", emoji: "😟", color: "var(--red-500)" };
-    if (ease < 2.5) return { label: "Getting there", emoji: "📈", color: "var(--amber-600)" };
-    if (ease < 3.0) return { label: "Confident", emoji: "✓", color: "var(--emerald-600)" };
+  const weeklyGoalH = (window.getProfile ? window.getProfile() : {}).weeklyHours || 12;
+  const secStudied = window.secondsStudiedThisWeek ? window.secondsStudiedThisWeek() : 0;
+  const hoursStudied = Math.round((secStudied / 3600) * 10) / 10;
+
+  const readinessLabel = (r) => {
+    if (r < 25) return { label: "Struggling", emoji: "😟", color: "var(--red-500)" };
+    if (r < 50) return { label: "Getting there", emoji: "📈", color: "var(--amber-600)" };
+    if (r < 75) return { label: "Confident", emoji: "✓", color: "var(--emerald-600)" };
     return { label: "Mastered", emoji: "⭐", color: "var(--indigo-600)" };
   };
 
   const weakest = React.useMemo(() => {
-    const active = courses.filter((c) => c.daysAway >= 0);
-    if (active.length === 0) return null;
-    return active.reduce((a, b) => b.confidencePct < a.confidencePct ? b : a);
-  }, [courses]);
+    const active = examViews.filter((e) => e.daysAway == null || e.daysAway >= 0);
+    if (!active.length) return null;
+    return active.reduce((a, b) => b.readiness < a.readiness ? b : a);
+  }, [brain]);
+
+  // Build mastery table from the brain's per-topic data
+  const masteryRows = React.useMemo(() => {
+    const rows = [];
+    for (const ev of examViews) {
+      for (const tp of ev.topics || []) {
+        if (!tp.lastSeen) continue;
+        const daysSince = tp.lastSeen ? Math.round((Date.now() - new Date(tp.lastSeen).getTime()) / 86400000) : null;
+        const lastLabel = daysSince === 0 ? "Today" : daysSince === 1 ? "Yesterday" : daysSince != null ? `${daysSince}d ago` : "–";
+        const dueIn = tp.dueDate ? Math.round((new Date(tp.dueDate).getTime() - Date.now()) / 86400000) : null;
+        const nextLabel = dueIn != null ? (dueIn <= 0 ? "Now" : dueIn === 1 ? "Tomorrow" : `In ${dueIn}d`) : "–";
+        rows.push({
+          topic: tp.name, subject: ev.name, last: lastLabel, next: nextLabel,
+          readiness: Math.round(tp.retention * 100),
+          tone: tp.retention >= 0.7 ? "positive" : tp.retention >= 0.4 ? "warning" : "negative",
+        });
+      }
+    }
+    return rows.sort((a, b) => a.readiness - b.readiness);
+  }, [brain]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)", fontFamily: "var(--font-sans)" }}>
       <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.progress_title}</h1>
-      {weakest && weakest.confidencePct < 70 && (
+      {weakest && weakest.readiness < 40 && (
         <div style={{ borderRadius: "var(--radius-xl)", background: "#FFF1F2", border: "1px solid var(--red-100)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
           <span style={{ color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>Lowest readiness:</span>
-          <span style={{ color: "var(--text-body)" }}>{weakest.subject} at {weakest.confidencePct}% confidence</span>
+          <span style={{ color: "var(--text-body)" }}>{weakest.name} at {weakest.readiness}%</span>
         </div>
       )}
-      <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 2fr" }}>
+      <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 1fr 2fr" }}>
         <Card style={{ textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.progress_streak}</p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--text-5xl)", fontWeight: "var(--weight-bold)", color: "var(--action-primary)" }}>{window.computeStreak ? window.computeStreak() : 0}</p>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t.progress_streak_days}</p>
         </Card>
 
-        {/* FIX #12: Weekly chart with Y-axis label, tooltip titles, and legend */}
+        <Card style={{ textAlign: "center" }}>
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>This week</p>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--text-3xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-mono)", color: "var(--text-strong)" }}>{hoursStudied}h</p>
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>of {weeklyGoalH}h goal</p>
+        </Card>
+
         <Card>
           <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.progress_this_week}</p>
           <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "stretch" }}>
-            {/* Y-axis label */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingBottom: 20 }}>
               <span style={{ fontSize: 10, color: "var(--text-faint)", writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap", letterSpacing: 0.5 }}>Sessions</span>
             </div>
@@ -56,7 +84,6 @@ function Progress({ t }) {
                   </div>
                 ))}
               </div>
-              {/* Legend */}
               <div style={{ display: "flex", gap: "var(--space-4)", marginTop: "var(--space-2)", fontSize: 11, color: "var(--text-muted)" }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ width: 8, height: 8, background: "var(--slate-200)", borderRadius: 2, display: "inline-block" }} /> Scheduled
@@ -74,18 +101,20 @@ function Progress({ t }) {
         <h2 style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.progress_confidence}</h2>
         <Card>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {courses.length === 0 && (
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>No exams yet — add one to see confidence levels.</p>
+            {examViews.length === 0 && (
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>No exams yet — add one to see readiness levels.</p>
             )}
-            {courses.map((c) => {
-              const el = easeLabel(c.confidencePct / 100 * 2.7 + 1.3);
+            {examViews.map((ev) => {
+              const el = readinessLabel(ev.readiness);
               return (
-                <div key={c.id}>
+                <div key={ev.id}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-sm)", marginBottom: 4 }}>
-                    <span style={{ color: "var(--text-body)" }}>{c.subject}</span>
-                    <span style={{ color: el.color, fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)" }}>{el.emoji} {el.label}</span>
+                    <span style={{ color: "var(--text-body)" }}>{ev.name}</span>
+                    <span style={{ color: el.color, fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)" }}>
+                      {el.emoji} {el.label} · {ev.readiness}%
+                    </span>
                   </div>
-                  <ProgressBar value={c.confidencePct} autoColor />
+                  <ProgressBar value={ev.readiness} autoColor />
                 </div>
               );
             })}
@@ -100,17 +129,17 @@ function Progress({ t }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)" }}>
             <thead>
               <tr style={{ background: "var(--surface-muted)", color: "var(--text-muted)", textAlign: "left" }}>
-                {[t.progress_topic, t.progress_subject, t.progress_last_studied, "Mastery", t.progress_next_review].map((h) => (
+                {[t.progress_topic, t.progress_subject, t.progress_last_studied, "Retention", t.progress_next_review].map((h) => (
                   <th key={h} style={{ padding: "8px 12px", fontWeight: "var(--weight-medium)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {window.MASTERY.length === 0 && (
+              {masteryRows.length === 0 && (
                 <tr><td colSpan={5} style={{ padding: "16px 12px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>No study history yet.</td></tr>
               )}
-              {window.MASTERY.map((r, i) => {
-                const el = easeLabel(r.ease);
+              {masteryRows.map((r, i) => {
+                const el = readinessLabel(r.readiness);
                 return (
                   <tr key={i} style={{ borderTop: "1px solid var(--border-subtle)" }}>
                     <td style={{ padding: "10px 12px", color: "var(--text-strong)" }}>
@@ -121,7 +150,7 @@ function Progress({ t }) {
                     <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{r.subject}</td>
                     <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{r.last}</td>
                     <td style={{ padding: "10px 12px" }}>
-                      <span style={{ color: el.color, fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)" }}>{el.emoji} {el.label}</span>
+                      <span style={{ color: el.color, fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)" }}>{el.emoji} {r.readiness}%</span>
                     </td>
                     <td style={{ padding: "10px 12px", color: "var(--text-muted)" }}>{r.next}</td>
                   </tr>

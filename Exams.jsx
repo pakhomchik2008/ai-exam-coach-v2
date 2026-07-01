@@ -1,29 +1,36 @@
-// AI Exam Coach — Exams screen (i18n-aware)
+// AI Exam Coach — Exams screen: brain-driven, reactive via useBrain().
 function Exams({ t, onPlanReady }) {
   const { Button } = window.AIExamCoachDesignSystem_99e467;
+  const brain = window.useBrain();
   const [exams, setExams] = React.useState(() => window.getExams());
   const [showAdd, setShowAdd] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
+
+  // Re-sync when brain changes (another screen marked topics, etc.)
+  React.useEffect(() => { setExams(window.getExams()); }, [brain]);
 
   const persist = (next) => { setExams(next); window.saveExams(next); };
   const updateExam = (id, patch) => persist(exams.map((e) => e.id === id ? { ...e, ...patch } : e));
   const deleteExam = (id) => persist(exams.filter((e) => e.id !== id));
 
-  const { daysAway, sessionsNeeded, requiredPct } = window;
+  const { daysAway } = window;
   function fmtDate(s) { return new Date(s).toLocaleDateString(t.code === "uk" ? "uk-UA" : t.code === "fr" ? "fr-FR" : t.code === "de" ? "de-DE" : "en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
 
+  // Brain exam views keyed by id for easy lookup
+  const evMap = React.useMemo(() => {
+    const m = {};
+    for (const ev of (brain.examViews || [])) m[ev.id] = ev;
+    return m;
+  }, [brain]);
+
   function ExamCard({ exam }) {
+    const ev = evMap[exam.id];
     const days = daysAway(exam.examDate);
     const past = days < 0;
     const soon = days >= 0 && days <= 7;
-    // Same assumed prep window as deriveCourse() in exams-store.jsx (90 days
-    // when no real start date is known) — this used to anchor against a
-    // hardcoded literal date instead, which silently drifted wrong as soon
-    // as "today" moved past that fixed point.
-    const totalDays = Math.max(days, 90);
-    const needed = !past ? sessionsNeeded(exam.completionPct, days) : 0;
-    const required = !past ? requiredPct(exam.completionPct, days, totalDays) : 100;
-    const behind = !past && exam.completionPct < required;
+    const readiness = ev ? ev.readiness : 0;
+    const coverage = ev ? ev.coverage : 0;
+    const pace = ev ? ev.pace : "on_track";
     const [hover, setHover] = React.useState(false);
     return (
       <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={() => setEditing(exam)}
@@ -40,14 +47,14 @@ function Exams({ t, onPlanReady }) {
         </div>
         {!past && (
           <div style={{ margin: "var(--space-2) 0", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "var(--text-xs)", color: behind ? "var(--red-500)" : "var(--emerald-600)", fontWeight: "var(--weight-medium)" }}>
-              {behind ? `⚠️ Behind — needs ${needed} sessions/week` : `✓ On track — ${needed} sessions/week`}
+            <span style={{ fontSize: "var(--text-xs)", color: pace === "very_behind" || pace === "behind" ? "var(--red-500)" : "var(--emerald-600)", fontWeight: "var(--weight-medium)" }}>
+              {pace === "very_behind" || pace === "behind" ? `⚠️ Behind — ${readiness}% readiness` : `✓ ${readiness}% readiness`}
             </span>
           </div>
         )}
-        <p style={{ margin: "var(--space-2) 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{exam.topicCount} {t.exams_topics}</p>
+        <p style={{ margin: "var(--space-2) 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{exam.topicCount} {t.exams_topics} · {coverage}% covered</p>
         <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${exam.completionPct}%`, background: "var(--action-primary)", borderRadius: "var(--radius-full)", transition: "width var(--dur-slow) var(--ease-out)" }} />
+          <div style={{ height: "100%", width: `${coverage}%`, background: "var(--action-primary)", borderRadius: "var(--radius-full)", transition: "width var(--dur-slow) var(--ease-out)" }} />
         </div>
       </div>
     );
@@ -114,6 +121,7 @@ function Exams({ t, onPlanReady }) {
       {editing && (
         <ExamDetailModal
           exam={editing}
+          ev={evMap[editing.id]}
           onClose={() => setEditing(null)}
           onSave={(patch) => { updateExam(editing.id, patch); setEditing(null); }}
           onDelete={() => { deleteExam(editing.id); setEditing(null); }}
@@ -129,6 +137,7 @@ function Exams({ t, onPlanReady }) {
     const [examDate, setExamDate] = React.useState(defaultDate);
     const [examBoard, setExamBoard] = React.useState(lastExam.examBoard || "");
     const [topicCount, setTopicCount] = React.useState(lastExam.topicCount || 10);
+    const [topicsText, setTopicsText] = React.useState("");
     const [useFullWizard, setUseFullWizard] = React.useState(false);
     const canSave = name.trim() && examDate >= todayISO && Number(topicCount) >= 1;
 
@@ -150,20 +159,30 @@ function Exams({ t, onPlanReady }) {
     }
 
     function save() {
+      const manualTopics = topicsText.split("\n").map((l) => l.trim()).filter(Boolean);
+      const finalTopicCount = manualTopics.length || Number(topicCount) || 10;
       const newExams = window.commitExamWizard({
         examDrafts: [{
           name: name.trim(),
           color: null,
           examDate,
           examBoard,
-          topicCount: Number(topicCount) || 10,
+          topicCount: finalTopicCount,
           targetGrade: lastExam.targetGrade || "A",
           currentGrade: lastExam.currentGrade || "C",
           gradingSystem: lastExam.gradingSystem || null,
         }],
         profilePatch: null,
       });
-      if (window.requestTopicNames) newExams.forEach((e) => window.requestTopicNames(e.id, e, []));
+      newExams.forEach((e) => {
+        if (manualTopics.length) {
+          if (window.patchExamAi) window.patchExamAi(e.id, { topics: manualTopics, topicsStatus: "ready", topicCount: manualTopics.length });
+          if (window.relabelPendingSessions) window.relabelPendingSessions(e.id, manualTopics);
+        } else {
+          const extract = window.requestCourseExtraction || window.requestTopicNames;
+          if (extract) extract(e.id, e, []);
+        }
+      });
       onSave(newExams);
     }
 
@@ -171,7 +190,7 @@ function Exams({ t, onPlanReady }) {
 
     return (
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
-        <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+        <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)", maxHeight: "90vh", overflowY: "auto" }}>
           <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
           <div>
             <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Subject name</label>
@@ -191,6 +210,18 @@ function Exams({ t, onPlanReady }) {
             <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Exam board</label>
             <input value={examBoard} onChange={(e) => setExamBoard(e.target.value)} placeholder="e.g. AQA" style={inputStyle} />
           </div>
+          <div>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>
+              Your topics <span style={{ color: "var(--text-faint)", fontWeight: "normal", fontSize: "var(--text-xs)" }}>(one per line — or leave blank)</span>
+            </label>
+            <textarea
+              value={topicsText}
+              onChange={(e) => setTopicsText(e.target.value)}
+              rows={3}
+              placeholder={"e.g.\nForces & Motion\nEnergy\nWaves"}
+              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+            />
+          </div>
           <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Grading defaulted from your last exam. <button type="button" onClick={() => setUseFullWizard(true)} style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", padding: 0 }}>Need different grading? Use full wizard</button></p>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
@@ -201,14 +232,15 @@ function Exams({ t, onPlanReady }) {
     );
   }
 
-  function ExamDetailModal({ exam, onClose, onSave, onDelete }) {
+  function ExamDetailModal({ exam, ev, onClose, onSave, onDelete }) {
     const [confirmDelete, setConfirmDelete] = React.useState(false);
-    // Coverage is DERIVED from the topics you've actually studied (marked on the
-    // session recap), not hand-set. A manual slider here used to grant readiness
-    // for zero real work — the exact thing that felt fake.
-    const covered = window.coverageForExam ? window.coverageForExam(exam.id) : (exam.completionPct || 0);
+    const coverage = ev ? ev.coverage : (exam.completionPct || 0);
+    const readiness = ev ? ev.readiness : 0;
     const topicCount = Math.max(1, exam.topicCount || 10);
-    const coveredTopics = Math.round((covered / 100) * topicCount);
+    const coveredTopics = Math.round((coverage / 100) * topicCount);
+    const predictedGrade = ev ? ev.predictedGrade : "–";
+    const probability = ev ? ev.probability : 0;
+
     React.useEffect(() => {
       if (!confirmDelete) return;
       const id = setTimeout(() => setConfirmDelete(false), 3000);
@@ -219,6 +251,7 @@ function Exams({ t, onPlanReady }) {
       document.addEventListener("keydown", fn);
       return () => document.removeEventListener("keydown", fn);
     }, []);
+
     return (
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -227,15 +260,32 @@ function Exams({ t, onPlanReady }) {
             <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{exam.name}</h2>
           </div>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} topics</p>
+
+          {/* Stats row */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)" }}>
+            <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
+              <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{readiness}%</div>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Readiness</div>
+            </div>
+            <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
+              <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{predictedGrade}</div>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Predicted</div>
+            </div>
+            <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
+              <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{probability}%</div>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Target chance</div>
+            </div>
+          </div>
+
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
-              <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCount} · {covered}%</strong>
+              <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCount} · {coverage}%</strong>
             </div>
             <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${covered}%`, background: exam.color, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+              <div style={{ height: "100%", width: `${coverage}%`, background: exam.color, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
             </div>
             <p style={{ margin: "8px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.5 }}>
-              Updates automatically as you study — mark topics as covered on the session recap. It never rises without real study time behind it.
+              Updates automatically as you study — mark topics as covered on the session recap.
             </p>
           </div>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
