@@ -5,12 +5,6 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
   const today = new Date().toLocaleDateString(t.code === "uk" ? "uk-UA" : t.code === "ru" ? "ru-RU" : t.code === "fr" ? "fr-FR" : t.code === "de" ? "de-DE" : "en-GB", { weekday: "long", day: "numeric", month: "long" });
 
-  const [courses, setCourses] = React.useState(() => window.deriveCourses(window.getExams()));
-  const [todaySessions, setTodaySessions] = React.useState(() => {
-    const { sessionsByDay } = window.buildScheduleData();
-    const todays = sessionsByDay[window.fmtDateKey(new Date())] || [];
-    return todays.map((s) => ({ id: s.id, subject: s.subject, color: s.color, topic: s.topic, difficulty: 2, review: 1, est: 45 }));
-  });
   const [detail, setDetail] = React.useState(null);
   const [dayDetail, setDayDetail] = React.useState(null);
   const [activeSession, setActiveSession] = React.useState(null);
@@ -19,17 +13,25 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const [adaptMsg, setAdaptMsg] = React.useState(null);
   const [recap, setRecap] = React.useState(null);
 
-  React.useEffect(() => {
-    const refresh = () => {
-      setCourses(window.deriveCourses(window.getExams()));
-      const { sessionsByDay } = window.buildScheduleData();
-      const todays = sessionsByDay[window.fmtDateKey(new Date())] || [];
-      setTodaySessions(todays.map((s) => ({ id: s.id, subject: s.subject, color: s.color, topic: s.topic, difficulty: 2, review: 1, est: 45 })));
-    };
-    const unsubExams = window.subscribeExams ? window.subscribeExams(refresh) : null;
-    const unsubSchedule = window.subscribeSchedule ? window.subscribeSchedule(refresh) : null;
-    return () => { if (unsubExams) unsubExams(); if (unsubSchedule) unsubSchedule(); };
-  }, []);
+  // THE BRAIN. Subscribing here makes the whole dashboard re-render the moment
+  // any mastery / confidence / exam / schedule value changes anywhere in the
+  // app — no remount, no manual refresh. `rec` is the single "what should I do
+  // right now" answer, recomputed live from the learner model.
+  const brain = window.useBrain();
+  const rec = React.useMemo(
+    () => (window.recommendNextAction ? window.recommendNextAction() : null),
+    [brain]
+  );
+  // Courses and today's sessions are now DERIVED from the brain, not stored in
+  // local state — so they can never drift out of sync with the hero. useBrain()
+  // above already re-renders this component on any change, so a plain useMemo
+  // keyed on `brain` is all the reactivity we need (no subscribe effect).
+  const courses = React.useMemo(() => window.brainCourses(), [brain]);
+  const todaySessions = React.useMemo(() => {
+    const { sessionsByDay } = window.buildScheduleData();
+    const todays = sessionsByDay[window.fmtDateKey(new Date())] || [];
+    return todays.map((s) => ({ id: s.id, subject: s.subject, color: s.color, topic: s.topic, difficulty: 2, review: 1, est: 45 }));
+  }, [brain]);
 
   // Adaptive scheduling — check for overdue sessions on mount
   React.useEffect(() => {
@@ -53,11 +55,25 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       ? { ...e, confidencePct: updated.confidencePct, targetGrade: updated.targetGrade }
       : e);
     window.saveExams(next);
-    setCourses(window.deriveCourses(next));
+    // No local setState — useBrain() re-derives `courses` from the new data.
   };
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2800); };
   const startMission = (s) => setMissionSession(s);
   const startSession = (s) => { setMissionSession(null); setActiveSession(s); };
+
+  // Turn the brain's recommendation into a real study session. If a matching
+  // pending schedule session exists we reuse its id (so completing it marks the
+  // plan done); otherwise we synthesise one that still carries examId+topicIdx,
+  // which is all handleSessionDone needs to record the review against the brain.
+  const startRecommended = () => {
+    if (!rec) return;
+    if (rec.kind === "add_exam") { onGoToExams && onGoToExams(); return; }
+    startMission({
+      id: rec.sessionId || `rec::${rec.examId}::${rec.topicIdx}`,
+      examId: rec.examId, subject: rec.examName, color: rec.color,
+      topic: rec.topicName, difficulty: 2, est: rec.estMinutes,
+    });
+  };
 
   // Reused both for the dashboard hero's "look ahead" card and for the
   // session recap's "tomorrow's focus" — same lookahead, two callers.
@@ -73,50 +89,82 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
     return null;
   };
 
-  const RATING_BUMP = { 1: -1, 2: 1, 3: 2, 4: 4 };
-  const RATING_RETENTION = { 1: -5, 2: 5, 3: 12, 4: 20 };
   const XP_BASE = { 1: 5, 2: 10, 3: 20, 4: 30 };
-  const handleSessionDone = ({ rating, seconds, quizCorrect, quizTotal }) => {
+  const handleSessionDone = ({ rating, seconds, quizCorrect, quizTotal, chatMessages }) => {
     const s = activeSession;
     if (s) {
-      const beforeCourse = window.deriveCourses(window.getExams()).find((c) => c.name === s.subject);
+      // examId + this session's topic are encoded in the id ("sess::examId::idx"
+      // or synthetic "rec::examId::idx"); s.examId is present on recommended ones.
+      const examId = s.examId || (typeof s.id === "string" && s.id.includes("::") ? s.id.split("::")[1] : null);
+      const exam = examId && window.getExams ? window.getExams().find((e) => e.id === examId) : null;
+      // topicIdx comes from the id's "::idx" when present; otherwise match the
+      // session's topic name to its position in the exam's topic list (ad-hoc /
+      // CourseDetail sessions don't encode an index).
+      let sessionTopicIdx = window.topicIndexFromId ? window.topicIndexFromId(s.id) : -1;
+      if (sessionTopicIdx < 0 && exam && Array.isArray(exam.topics)) {
+        const i = exam.topics.indexOf(s.topic);
+        if (i >= 0) sessionTopicIdx = i;
+      }
+      const topicCount = exam ? Math.max(1, exam.topicCount || (exam.topics ? exam.topics.length : 10)) : 0;
+      const topics = Array.from({ length: topicCount }, (_, i) => ({
+        idx: i,
+        name: (exam && exam.topics && exam.topics[i]) || (i === sessionTopicIdx ? s.topic : `Topic ${i + 1}`),
+      }));
+
+      // Log the real study TIME now (planned session marked done, or an ad-hoc
+      // one inserted as history) so "hours studied this week" is honest — even
+      // before the user tells us which topics they covered.
+      if (window.recordCompletedSession) {
+        window.recordCompletedSession({ id: s.id, examId, topic: s.topic, durationSec: seconds || 0 });
+      }
+
+      // Snapshot BEFORE coverage is applied — the recap's "coverage step" is what
+      // actually moves mastery/readiness, so the before/after delta is measured
+      // across the user's own topic selection, not fabricated here.
+      const beforeCourse = window.brainCourses().find((c) => c.name === s.subject);
       const gradeBefore = beforeCourse ? beforeCourse.gradeProbability : 0;
+      const readinessBefore = beforeCourse ? beforeCourse.readinessPct : 0;
       const achievementsBefore = window.computeAchievements ? window.computeAchievements() : [];
       const streakBefore = window.computeStreak ? window.computeStreak() : 0;
 
-      if (window.markSessionCompleted) window.markSessionCompleted(s.id, true);
-      setTodaySessions((ts) => ts.map((row) => row.id === s.id
-        ? { ...row, lastReviewed: "Just now", retention: Math.max(0, Math.min(100, (row.retention || 50) + (RATING_RETENTION[rating] ?? 10))) }
-        : row));
-      const exams = window.getExams();
-      const matched = exams.find((e) => e.name === s.subject);
-      if (matched) {
-        const nextConfidence = Math.max(0, Math.min(100, (matched.confidencePct ?? 50) + (RATING_BUMP[rating] ?? 2)));
-        window.saveExams(exams.map((e) => e.id === matched.id ? { ...e, confidencePct: nextConfidence } : e));
-      }
-      const afterCourses = window.deriveCourses(window.getExams());
-      setCourses(afterCourses);
-
-      const afterCourse = afterCourses.find((c) => c.name === s.subject);
-      const gradeAfter = afterCourse ? afterCourse.gradeProbability : gradeBefore;
-      const achievementsAfter = window.computeAchievements ? window.computeAchievements() : [];
-      const streakAfter = window.computeStreak ? window.computeStreak() : streakBefore;
-      const newAchievements = achievementsAfter.filter((a) =>
-        a.unlocked && !(achievementsBefore.find((b) => b.id === a.id) || {}).unlocked
-      );
+      // The recap collects "which of my N topics did I cover?" and calls this to
+      // commit. Returns the freshly-derived after-state so the recap can reveal
+      // the real delta + any achievements the coverage unlocked.
+      const commitCoverage = (selectedIdxs) => {
+        if (examId && selectedIdxs.length && window.markTopicsStudied) {
+          window.markTopicsStudied(examId, selectedIdxs, selectedIdxs.map((i) => topics[i] && topics[i].name));
+        }
+        if (examId && sessionTopicIdx >= 0 && window.recordConfidence) {
+          window.recordConfidence({ examId, topicIdx: sessionTopicIdx, topicName: s.topic, rating });
+        }
+        const afterCourse = window.brainCourses().find((c) => c.name === s.subject);
+        const achievementsAfter = window.computeAchievements ? window.computeAchievements() : [];
+        const streakAfter = window.computeStreak ? window.computeStreak() : streakBefore;
+        return {
+          gradeDelta: (afterCourse ? afterCourse.gradeProbability : gradeBefore) - gradeBefore,
+          readinessBefore,
+          readinessAfter: afterCourse ? afterCourse.readinessPct : readinessBefore,
+          streakBefore, streakAfter,
+          coveragePct: afterCourse ? afterCourse.readinessPct : 0,
+          newAchievements: achievementsAfter.filter((a) =>
+            a.unlocked && !(achievementsBefore.find((b) => b.id === a.id) || {}).unlocked),
+          xp: (XP_BASE[rating] ?? 10) + (quizCorrect || 0) * 5 + selectedIdxs.length * 3,
+        };
+      };
 
       setRecap({
+        examId,
         subject: s.subject,
         topic: s.topic,
         color: s.color,
         seconds: seconds || 0,
         quizCorrect: quizCorrect || 0,
         quizTotal: quizTotal || 0,
-        gradeDelta: gradeAfter - gradeBefore,
-        streakBefore, streakAfter,
-        newAchievements,
-        xp: (XP_BASE[rating] ?? 10) + (quizCorrect || 0) * 5,
+        topics,
+        sessionTopicIdx,
+        commitCoverage,
         nextFocus: findNextPendingSession(),
+        chatMessages: chatMessages || [],
       });
     }
     setActiveSession(null);
@@ -145,20 +193,28 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
 
   const activeCourses = courses.filter((c) => c.daysAway >= 0);
   const hasCourses = activeCourses.length > 0;
-  const overall = hasCourses ? Math.round(activeCourses.reduce((a, c) => a + c.readinessPct, 0) / activeCourses.length) : 0;
-  const overallProb = hasCourses ? Math.round(activeCourses.reduce((a, c) => a + c.gradeProbability, 0) / activeCourses.length) : 0;
-  const overallGrade = overallProb >= 80 ? "A" : overallProb >= 60 ? "B" : overallProb >= 40 ? "C" : "D";
+  // All overall figures come straight from the brain's canonical aggregates —
+  // the predicted grade uses the same grade scale (gradeFromReadiness) as every
+  // per-course card, so the summary can never disagree with the detail.
+  const overallProb = brain.overallProbability;
+  const overallGrade = brain.overallPredictedGrade;
   const focus = hasCourses ? activeCourses.reduce((a, b) => (b.gradeProbability < a.gradeProbability ? b : a), activeCourses[0]) : null;
   const focusSession = hasCourses ? (todaySessions.find((s) => s.subject === focus.name) || todaySessions[0] || null) : null;
 
   // Look ahead if nothing today
   const nextSession = hasCourses && !focusSession ? findNextPendingSession() : null;
 
-  // Weekly progress
+  // Weekly progress is now measured in REAL HOURS studied vs your stated weekly
+  // availability — study your full 19h and you're at 100%, more overshoots,
+  // less falls short. (The old "sessions completed / scheduled" ratio let a
+  // week read 100% without a single real minute behind it.)
   const weekData = window.deriveWeek([t.mon,t.tue,t.wed,t.thu,t.fri,t.sat,t.sun]);
-  const weekScheduled = weekData.reduce((a, d) => a + d.scheduled, 0);
-  const weekCompleted = weekData.reduce((a, d) => a + d.completed, 0);
-  const weekPct = weekScheduled > 0 ? Math.round((weekCompleted / weekScheduled) * 100) : 0;
+  const profile = window.getProfile ? window.getProfile() : { weeklyHours: 12 };
+  const weeklyGoalH = profile.weeklyHours || 12;
+  const secStudied = window.secondsStudiedThisWeek ? window.secondsStudiedThisWeek() : 0;
+  const hoursStudied = Math.round((secStudied / 3600) * 10) / 10;
+  const weekPct = weeklyGoalH > 0 ? Math.round((hoursStudied / weeklyGoalH) * 100) : 0;
+  const weekBarPct = Math.min(100, weekPct);
 
   // Total remaining
   const schedule = window.getSchedule();
@@ -194,27 +250,55 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
           </div>
         </div>
 
-        {/* Mission card — the primary CTA */}
-        {focusSession ? (
+        {/* Recommendation card — the primary CTA, chosen by the brain */}
+        {rec && (rec.kind === "review" || rec.kind === "learn") ? (
           <div style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", boxShadow: "var(--shadow-sm)", marginBottom: "var(--space-4)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: focusSession.color, flexShrink: 0 }} />
-              <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>
-                {L("Next up","Далі","Далее","À suivre","Als nächstes")}
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: rec.color, flexShrink: 0 }} />
+              <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>
+                {rec.kind === "learn"
+                  ? L("Learn next","Вивчити далі","Изучить далее","Apprendre ensuite","Als Nächstes lernen")
+                  : L("Review now","Повторити зараз","Повторить сейчас","Réviser maintenant","Jetzt wiederholen")}
               </span>
+              <span style={{ marginLeft: "auto", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>~{rec.estMinutes}{L("min","хв","мин","min","Min")}</span>
             </div>
-            <h3 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{focusSession.topic}</h3>
-            <p style={{ margin: "0 0 var(--space-1)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              {focusSession.subject} · ~{focusSession.est || 45}{L("min","хв","мин","min","Min")}
-            </p>
-            {focus && (
-              <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-xs)", color: "var(--indigo-600)", fontStyle: "italic" }}>
-                💡 {focus.riskLevel === "high"
-                  ? L(`Prioritized — ${focus.name} needs the most attention right now.`,`Пріоритет — ${focus.name} потребує найбільшої уваги.`,`Приоритет — ${focus.name} требует наибольшего внимания.`,`Priorité — ${focus.name} nécessite le plus d'attention.`,`Priorität — ${focus.name} braucht am meisten Aufmerksamkeit.`)
-                  : L(`Scheduled by spaced repetition to strengthen long-term retention.`,`Заплановано інтервальним повторенням.`,`Запланировано интервальным повторением.`,`Programmé par répétition espacée.`,`Durch verteilte Wiederholung geplant.`)}
-              </p>
-            )}
-            <button onClick={() => startMission(focusSession)} style={{
+            <h3 style={{ margin: "0 0 2px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{rec.topicName}</h3>
+            <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{rec.examName}</p>
+
+            {/* Why this — the AI justifies its choice */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: "var(--space-3)" }}>
+              {rec.reasons.map((r, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: "var(--text-xs)", color: "var(--text-body)" }}>
+                  <span style={{ color: "var(--indigo-500)", lineHeight: 1.4 }}>›</span>
+                  <span style={{ lineHeight: 1.4 }}>{r}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Projected readiness gain — an honest number from the model */}
+            <div style={{ background: "var(--indigo-50)", borderRadius: "var(--radius-lg)", padding: "10px 12px", marginBottom: "var(--space-3)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", color: "var(--indigo-700)" }}>
+                  {rec.examName} {L("readiness","готовність","готовность","préparation","Bereitschaft")}
+                </span>
+                <span style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", fontWeight: "var(--weight-bold)", color: "var(--indigo-700)" }}>
+                  {rec.readinessNow}%{rec.readinessGain > 0 && <span style={{ color: "var(--emerald-600)" }}> → {rec.readinessProjected}%</span>}
+                </span>
+              </div>
+              <div style={{ height: 8, background: "rgba(99,102,241,0.15)", borderRadius: "var(--radius-full)", overflow: "hidden", position: "relative" }}>
+                {rec.readinessGain > 0 && (
+                  <div style={{ position: "absolute", inset: 0, width: `${rec.readinessProjected}%`, background: "repeating-linear-gradient(45deg, var(--emerald-300), var(--emerald-300) 4px, transparent 4px, transparent 8px)", borderRadius: "var(--radius-full)" }} />
+                )}
+                <div style={{ position: "absolute", inset: 0, width: `${rec.readinessNow}%`, background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.5s ease" }} />
+              </div>
+              {rec.readinessGain > 0 && (
+                <p style={{ margin: "6px 0 0", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-semibold)" }}>
+                  ✨ {L("Completing this lifts you","Ця сесія підніме","Эта сессия поднимет","Cette séance augmente","Das hebt dich")} +{rec.readinessGain}%
+                </p>
+              )}
+            </div>
+
+            <button onClick={startRecommended} style={{
               width: "100%", padding: "14px", borderRadius: "var(--radius-xl)", border: "none",
               background: "linear-gradient(135deg, var(--indigo-600), #7c3aed)", color: "#fff",
               fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", cursor: "pointer",
@@ -224,23 +308,13 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
             onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; }}
             onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
             >
-              ✨ {L("Start My AI Plan","Розпочати AI план","Начать AI план","Démarrer mon plan IA","Meinen KI-Plan starten")} →
+              ✨ {L("Start now","Почати зараз","Начать сейчас","Commencer","Jetzt starten")} →
             </button>
           </div>
-        ) : nextSession ? (
-          <div style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", boxShadow: "var(--shadow-sm)", marginBottom: "var(--space-4)" }}>
-            <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
-              {L("No sessions today","Сьогодні немає сесій","Сегодня нет сессий","Pas de séance aujourd'hui","Heute keine Sitzung")} — {L("next one","наступна","следующая","prochaine","nächste")}:
-            </p>
-            <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-base)", color: "var(--text-body)" }}>
-              {nextSession.topic} · {nextSession.subject} · {nextSession.date.toLocaleDateString(t.code === "uk" ? "uk-UA" : "en-GB", { weekday: "short", day: "numeric", month: "short" })}
-            </p>
-            <Button variant="accent" size="md" onClick={() => onGoToSchedule && onGoToSchedule()}>{L("View schedule","Розклад","Расписание","Calendrier","Zeitplan")} →</Button>
-          </div>
-        ) : hasCourses ? (
+        ) : rec && rec.kind === "rest" ? (
           <div style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
             <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              {L("No sessions today — enjoy the rest day 🎉","Сьогодні відпочинок 🎉","Сегодня отдых 🎉","Jour de repos 🎉","Ruhetag 🎉")}
+              {L("Everything's fresh — enjoy the rest day 🎉","Все свіже — відпочинь 🎉","Всё свежо — отдохни 🎉","Tout est frais — repos 🎉","Alles frisch — Ruhetag 🎉")}
             </p>
           </div>
         ) : (
@@ -279,7 +353,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-3)" }}>
         {[
           { value: overallGrade, label: L("Predicted","Прогноз","Прогноз","Prévu","Prognose"), sub: `${overallProb}% ${L("probability","ймовірність","вероятность","probabilité","Wahrscheinl.")}`, color: overallProb >= 60 ? "var(--emerald-600)" : overallProb >= 40 ? "var(--amber-600)" : "var(--red-500)" },
-          { value: `${weekCompleted}/${weekScheduled}`, label: L("This week","Цей тиждень","Эта неделя","Cette sem.","Diese Woche"), sub: `${weekPct}% ${L("done","готово","готово","fait","erledigt")}`, color: "var(--indigo-600)" },
+          { value: `${hoursStudied}/${weeklyGoalH}h`, label: L("This week","Цей тиждень","Эта неделя","Cette sem.","Diese Woche"), sub: `${weekPct}% ${L("of goal","цілі","цели","de l'objectif","des Ziels")}`, color: weekPct >= 100 ? "var(--emerald-600)" : "var(--indigo-600)" },
           { value: `${totalHours}h`, label: L("Remaining","Залишилось","Осталось","Restant","Verbleibend"), sub: `${totalPending} ${L("sessions","сесій","сессий","séances","Sitzungen")}`, color: "var(--text-strong)" },
           { value: `${streak}🔥`, label: L("Streak","Серія","Серия","Série","Serie"), sub: streak > 0 ? L("days","днів","дней","jours","Tage") : L("start today!","почніть!","начните!","commencez !","jetzt starten!"), color: streak > 0 ? "var(--amber-600)" : "var(--text-faint)" },
         ].map((stat, i) => (
@@ -295,10 +369,10 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       <section style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-default)", padding: "var(--space-4)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
           <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Weekly progress","Тижневий прогрес","Недельный прогресс","Progrès de la semaine","Wochenfortschritt")}</span>
-          <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", color: weekPct >= 80 ? "var(--emerald-600)" : weekPct >= 40 ? "var(--amber-600)" : "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{weekPct}%</span>
+          <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", color: weekPct >= 80 ? "var(--emerald-600)" : weekPct >= 40 ? "var(--amber-600)" : "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{hoursStudied}h / {weeklyGoalH}h · {weekPct}%</span>
         </div>
         <div style={{ height: 10, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${weekPct}%`, background: weekPct >= 80 ? "var(--emerald-500)" : weekPct >= 40 ? "var(--amber-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.5s ease" }} />
+          <div style={{ height: "100%", width: `${weekBarPct}%`, background: weekPct >= 80 ? "var(--emerald-500)" : weekPct >= 40 ? "var(--amber-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.5s ease" }} />
         </div>
         <div style={{ marginTop: "var(--space-2)" }}>
           <WeekStrip

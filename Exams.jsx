@@ -202,8 +202,13 @@ function Exams({ t, onPlanReady }) {
   }
 
   function ExamDetailModal({ exam, onClose, onSave, onDelete }) {
-    const [completionPct, setCompletionPct] = React.useState(exam.completionPct);
     const [confirmDelete, setConfirmDelete] = React.useState(false);
+    // Coverage is DERIVED from the topics you've actually studied (marked on the
+    // session recap), not hand-set. A manual slider here used to grant readiness
+    // for zero real work — the exact thing that felt fake.
+    const covered = window.coverageForExam ? window.coverageForExam(exam.id) : (exam.completionPct || 0);
+    const topicCount = Math.max(1, exam.topicCount || 10);
+    const coveredTopics = Math.round((covered / 100) * topicCount);
     React.useEffect(() => {
       if (!confirmDelete) return;
       const id = setTimeout(() => setConfirmDelete(false), 3000);
@@ -224,13 +229,17 @@ function Exams({ t, onPlanReady }) {
           <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} topics</p>
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
-              <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{completionPct}%</strong>
+              <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCount} · {covered}%</strong>
             </div>
-            <input type="range" min={0} max={100} value={completionPct} onChange={(e) => setCompletionPct(Number(e.target.value))} style={{ width: "100%", accentColor: exam.color }} />
+            <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${covered}%`, background: exam.color, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+            </div>
+            <p style={{ margin: "8px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.5 }}>
+              Updates automatically as you study — mark topics as covered on the session recap. It never rises without real study time behind it.
+            </p>
           </div>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Close</button>
-            <button onClick={() => onSave({ completionPct })} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Save</button>
           </div>
           <button onClick={() => confirmDelete ? onDelete() : setConfirmDelete(true)}
             style={{ border: "none", background: "transparent", color: confirmDelete ? "var(--red-600)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: "4px 0", textAlign: "center" }}>

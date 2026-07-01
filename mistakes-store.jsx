@@ -10,7 +10,7 @@ function getMistakes() {
 function saveMistakes(list) {
   try { localStorage.setItem(MISTAKES_KEY, JSON.stringify(list)); } catch {}
 }
-function logMistake({ topic, question, options, correctIndex, selectedIndex, explanation }) {
+function logMistake({ topic, question, options, correctIndex, selectedIndex, explanation, examId, topicIdx }) {
   const list = getMistakes();
   list.unshift({
     id: "m" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
@@ -18,6 +18,10 @@ function logMistake({ topic, question, options, correctIndex, selectedIndex, exp
     question, options: options || [],
     correctIndex, selectedIndex,
     explanation: explanation || "",
+    // Optional linkage to the brain's topic model — enables clustering mistakes
+    // by exam/topic and tying them to mastery. Absent for legacy entries.
+    examId: examId != null ? examId : null,
+    topicIdx: typeof topicIdx === "number" ? topicIdx : null,
     at: Date.now(),
   });
   saveMistakes(list.slice(0, 200));

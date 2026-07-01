@@ -24,6 +24,8 @@ function topicIndexFromId(id) {
 
 // ─── validation ─────────────────────────────────────────────────────────────
 
+function isFinitePos(n) { return typeof n === "number" && Number.isFinite(n) && n >= 0; }
+
 function migrateSession(raw) {
   if (!raw || typeof raw !== "object") return null;
   if (typeof raw.id !== "string" || !raw.id) return null;
@@ -37,6 +39,9 @@ function migrateSession(raw) {
     topic: typeof raw.topic === "string" && raw.topic ? raw.topic : "Study session",
     status: completed ? "completed" : "pending",
     completedAt: completed && typeof raw.completedAt === "string" ? raw.completedAt : (completed ? new Date().toISOString() : null),
+    // Real seconds actually spent studying this session — the honest basis for
+    // "hours studied this week" (vs. the profile's planned weekly hours).
+    durationSec: isFinitePos(raw.durationSec) ? Math.round(raw.durationSec) : 0,
   };
 }
 
@@ -80,7 +85,9 @@ function seedSessionsForExam(exam, existingForExam, desiredCount) {
 
   const out = [];
   for (let i = 0; i < count; i++) {
-    const dayOffset = Math.min(span, Math.max(1, Math.round(((i + 1) * span) / (count + 1))));
+    // Start from tomorrow (day 1) and spread evenly to just before exam — the old
+    // formula started at span/(count+1) which left the first week empty.
+    const dayOffset = Math.max(1, Math.min(span - 1, count <= 1 ? 1 : Math.round(i * (span - 1) / (count - 1))));
     const d = new Date(today); d.setDate(d.getDate() + dayOffset);
     if (d.getDay() === 0) d.setDate(d.getDate() + 1); // nudge off Sundays
     const topicIdx = nextTopicIdx();
@@ -228,14 +235,56 @@ function saveSchedule(state) {
   return validated;
 }
 
-function markSessionCompleted(id, completed = true) {
+function markSessionCompleted(id, completed = true, durationSec = null) {
   const schedule = getSchedule();
   return saveSchedule({
     version: 1,
     sessions: schedule.sessions.map((s) => s.id === id
-      ? { ...s, status: completed ? "completed" : "pending", completedAt: completed ? new Date().toISOString() : null }
+      ? { ...s, status: completed ? "completed" : "pending",
+          completedAt: completed ? new Date().toISOString() : null,
+          durationSec: completed ? (isFinitePos(durationSec) ? Math.round(durationSec) : (s.durationSec || 0)) : 0 }
       : s),
   });
+}
+
+// Records that a study session actually happened. If the id already exists in
+// the schedule (a planned session) it's marked complete in place; if it doesn't
+// (a recommended / ad-hoc "rec::…" or CourseDetail session) it's inserted as a
+// completed history entry. Either way the real study time lands in the schedule
+// so "hours studied this week" counts EVERY session, planned or not.
+function recordCompletedSession({ id, examId, topic, durationSec }) {
+  const schedule = getSchedule();
+  const exists = schedule.sessions.some((s) => s.id === id);
+  if (exists) return markSessionCompleted(id, true, durationSec);
+  const eid = examId || (typeof id === "string" && id.includes("::") ? id.split("::")[1] : null);
+  if (!eid) return schedule;
+  return saveSchedule({
+    version: 1,
+    sessions: schedule.sessions.concat([{
+      id, examId: eid,
+      date: window.fmtDateKey(new Date()),
+      topic: topic || "Study session",
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      durationSec: isFinitePos(durationSec) ? Math.round(durationSec) : 0,
+    }]),
+  });
+}
+
+// Total seconds of real study logged in the current (Mon–Sun) week, across ALL
+// completed sessions regardless of which exam or whether they were planned.
+function secondsStudiedThisWeek() {
+  const schedule = getSchedule();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const monday = new Date(today);
+  monday.setDate(monday.getDate() - ((today.getDay() + 6) % 7));
+  const monKey = window.fmtDateKey(monday);
+  return schedule.sessions.reduce((sum, s) => {
+    if (s.status !== "completed") return sum;
+    // Prefer completedAt's date; fall back to the session date.
+    const day = s.completedAt ? window.fmtDateKey(new Date(s.completedAt)) : s.date;
+    return day >= monKey ? sum + (s.durationSec || 0) : sum;
+  }, 0);
 }
 
 // Retroactively renames already-seeded sessions once AI topic names arrive
@@ -301,6 +350,7 @@ function adaptSchedule() {
 
 Object.assign(window, {
   SCHEDULE_KEY, getSchedule, saveSchedule, subscribeSchedule, markSessionCompleted,
+  recordCompletedSession, secondsStudiedThisWeek,
   reconcileSchedule, buildScheduleView, seedSessionsForExam, migrateSchedule, migrateSession,
   adaptSchedule, relabelPendingSessions, topicIndexFromId,
 });

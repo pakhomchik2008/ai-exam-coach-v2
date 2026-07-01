@@ -6,6 +6,14 @@ function AIPlan({ examIds, onStart, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("planning");
   const [done, setDone] = React.useState(0);
+  const reasonsRef = React.useRef(null);
+  const [whyGlow, setWhyGlow] = React.useState(false);
+  const scrollToWhy = () => {
+    if (!reasonsRef.current) return;
+    reasonsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    setWhyGlow(true);
+    setTimeout(() => setWhyGlow(false), 1800);
+  };
 
   const STEPS = [
     { icon: "📚", text: L("Analyzing your syllabus…","Аналізую програму…","Анализирую программу…","Analyse du programme…","Lehrplan wird analysiert…") },
@@ -205,6 +213,11 @@ function AIPlan({ examIds, onStart, t }) {
             <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-600)" }}>
               {L("Your AI Study Plan","Ваш AI план навчання","Ваш AI план обучения","Votre plan d'étude IA","Ihr KI-Lernplan")}
             </span>
+            <button onClick={scrollToWhy} aria-label={L("Why this plan?","Чому цей план?","Почему этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "1px solid var(--indigo-200, #c7d2fe)", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-full)", padding: "3px 10px 3px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              <span style={{ display: "inline-flex", width: 15, height: 15, borderRadius: "50%", background: "var(--indigo-600)", color: "#fff", alignItems: "center", justifyContent: "center", fontSize: 10, fontStyle: "italic", fontWeight: 700 }}>i</span>
+              {L("Why this plan?","Чому цей?","Почему?","Pourquoi ?","Warum?")}
+            </button>
           </div>
           <h1 style={{ margin: "0 0 24px", fontSize: 36, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2 }}>
             {L("Everything is planned.","Все заплановано.","Всё спланировано.","Tout est planifié.","Alles ist geplant.")}
@@ -305,10 +318,21 @@ function AIPlan({ examIds, onStart, t }) {
         </div>
 
         {/* ── Reasoning cards ─────────────────────────────────── */}
-        <div style={{ marginBottom: 40, animation: "fadeUp 0.6s ease 0.4s both" }}>
+        <div ref={reasonsRef} style={{ marginBottom: 40, scrollMarginTop: 16, animation: "fadeUp 0.6s ease 0.4s both", borderRadius: "var(--radius-2xl)", padding: whyGlow ? 16 : 0, background: whyGlow ? "var(--indigo-50)" : "transparent", transition: "background 0.4s ease, padding 0.4s ease" }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>
             💡 {L("Why this plan?","Чому саме цей план?","Почему именно этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
           </h2>
+          {/* Plain-language summary of the exact numbers above, so "why THIS plan"
+              is answered concretely, not just with generic principles. */}
+          <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", padding: 16 }}>
+            {L(
+              `You told us you can study ${profile.weeklyHours}h a week, and your last exam is ${lastExamDays} days out. So we scheduled ${totalSessions} focused sessions (~${totalHours}h) — about ${sessionsPerWeek} a week — starting this week and spaced out to just before each exam. ${weakest ? `${weakest.name} gets the most slots because it's your lowest predicted grade right now.` : ""} ${restDayCount} rest day${restDayCount === 1 ? "" : "s"} are built in so you don't burn out.`,
+              `Ви вказали ${profile.weeklyHours}год/тиждень, а останній іспит через ${lastExamDays} днів. Тож ми запланували ${totalSessions} сесій (~${totalHours}год) — близько ${sessionsPerWeek}/тиждень — починаючи з цього тижня. ${weakest ? `${weakest.name} отримує найбільше сесій — найнижчий прогноз.` : ""}`,
+              `Вы указали ${profile.weeklyHours}ч/неделю, а последний экзамен через ${lastExamDays} дней. Поэтому мы запланировали ${totalSessions} сессий (~${totalHours}ч) — около ${sessionsPerWeek}/неделю — начиная с этой недели. ${weakest ? `${weakest.name} получает больше всего сессий — самый низкий прогноз.` : ""}`,
+              `Vous étudiez ${profile.weeklyHours}h/semaine, dernier examen dans ${lastExamDays} jours. Nous avons planifié ${totalSessions} séances (~${totalHours}h) — env. ${sessionsPerWeek}/semaine — dès cette semaine. ${weakest ? `${weakest.name} a le plus de séances.` : ""}`,
+              `Du lernst ${profile.weeklyHours}h/Woche, letzte Prüfung in ${lastExamDays} Tagen. Wir haben ${totalSessions} Einheiten (~${totalHours}h) geplant — ca. ${sessionsPerWeek}/Woche — ab dieser Woche. ${weakest ? `${weakest.name} bekommt die meisten Einheiten.` : ""}`
+            )}
+          </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             {reasons.map((r, i) => (
               <div key={i} style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", padding: 16 }}>

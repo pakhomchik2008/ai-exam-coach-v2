@@ -8,24 +8,29 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
   const opts = grade ? grade.grade.options : ["A*", "A", "B", "C", "D", "E"];
 
   const [target, setTarget] = React.useState(course.targetGrade);
-  const [confidence, setConfidence] = React.useState(course.confidencePct);
   const [sessions, setSessions] = React.useState(course.recommendedSessions || 3);
   const [savedFlash, setSavedFlash] = React.useState(false);
 
-  // live success-probability model
+  // Confidence is DERIVED by the brain from real quiz/session performance — it
+  // is shown, never hand-set. (A manual slider here used to write a value the
+  // learner model then ignored, i.e. a control that did nothing.)
+  const confidence = course.confidencePct;
+
+  // Live success-probability projection as the student explores a different
+  // target grade or study intensity. Anchored to the brain's real numbers when
+  // nothing is changed, so on open it exactly matches the card.
   const prob = React.useMemo(() => {
     const origIdx = opts.indexOf(String(course.targetGrade));
     const newIdx = opts.indexOf(String(target));
     const harder = origIdx >= 0 && newIdx >= 0 ? origIdx - newIdx : 0;
     let p = course.gradeProbability
       + (sessions - (course.recommendedSessions || 3)) * 6
-      + (confidence - course.confidencePct) * 0.4
       - harder * 14;
     return Math.max(3, Math.min(97, Math.round(p)));
-  }, [target, confidence, sessions]);
+  }, [target, sessions]);
 
   const readiness = Math.max(3, Math.min(99, Math.round(
-    course.readinessPct + (confidence - course.confidencePct) * 0.5 + (sessions - (course.recommendedSessions || 3)) * 4
+    course.readinessPct + (sessions - (course.recommendedSessions || 3)) * 4
   )));
   const risk = prob >= 60 ? { id: "low", tone: "easy", label: L("Low", "Низький", "Низкий", "Faible", "Niedrig"), color: "var(--emerald-600)" }
     : prob >= 40 ? { id: "medium", tone: "medium", label: L("Medium", "Середній", "Средний", "Moyen", "Mittel"), color: "var(--amber-600)" }
@@ -69,16 +74,18 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
   });
   const eyebrow = { margin: "0 0 var(--space-3)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" };
 
-  const dirty = target !== course.targetGrade || confidence !== course.confidencePct || sessions !== (course.recommendedSessions || 3);
+  const dirty = target !== course.targetGrade;
   const save = () => {
-    onSave && onSave({ ...course, targetGrade: target, confidencePct: confidence, recommendedSessions: sessions, gradeProbability: prob, readinessPct: readiness, riskLevel: risk.id });
+    // Only the target grade is a real, persisted user choice. Everything else
+    // (confidence, readiness, probability) is derived by the brain.
+    onSave && onSave({ ...course, targetGrade: target });
     setSavedFlash(true); setTimeout(() => setSavedFlash(false), 1600);
   };
   const startSession = () => {
     const today = (window.buildScheduleData().sessionsByDay[window.fmtDateKey(new Date())] || []).find((x) => x.subject === course.name);
     const s = today
-      ? { id: course.id + "-s", subject: today.subject, color: today.color, topic: today.topic, difficulty: 2, review: 1, est: 30 }
-      : { id: course.id + "-s", subject: course.name, color: course.color, topic: course.weakTopics[0] || "General review", difficulty: 3, review: 1, est: 45 };
+      ? { id: today.id, examId: course.id, subject: today.subject, color: today.color, topic: today.topic, difficulty: 2, review: 1, est: 30 }
+      : { id: course.id + "-s", examId: course.id, subject: course.name, color: course.color, topic: course.weakTopics[0] || "General review", difficulty: 3, review: 1, est: 45 };
     onStart && onStart(s);
   };
 
@@ -140,13 +147,22 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
             </div>
           </div>
 
-          {/* Confidence */}
+          {/* Confidence — derived from real performance, read-only */}
           <div ref={secRefs.confidence} style={sec("confidence")}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "var(--space-2)" }}>
-              <p style={{ ...eyebrow, margin: 0 }}>{L("Your confidence", "Ваша впевненість", "Ваша уверенность", "Votre confiance", "Deine Sicherheit")}</p>
+              <p style={{ ...eyebrow, margin: 0 }}>{L("Confidence", "Впевненість", "Уверенность", "Confiance", "Sicherheit")}</p>
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)" }}>{confidence}%</span>
             </div>
-            <input type="range" min={0} max={100} step={5} value={confidence} onChange={(e) => setConfidence(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)", height: 28 }} />
+            <div style={{ height: 10, background: "var(--surface-sunken, var(--surface-muted))", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${confidence}%`, background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+            </div>
+            <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+              {L("Measured from your quiz results and session ratings — it moves as you study.",
+                 "Розраховано за вашими результатами — змінюється, коли ви вчитеся.",
+                 "Рассчитано по вашим результатам — меняется по мере учёбы.",
+                 "Calculé d'après vos résultats — évolue à mesure que vous étudiez.",
+                 "Aus deinen Ergebnissen berechnet — ändert sich beim Lernen.")}
+            </p>
           </div>
 
           {/* Study intensity */}
@@ -171,7 +187,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
               {course.weakTopics.map((tp, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
                   <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)" }}>{tp}</span>
-                  <button onClick={() => onStart && onStart({ id: course.id + "-" + i, subject: course.name, color: course.color, topic: tp, difficulty: 3, review: 1, est: 45 })}
+                  <button onClick={() => onStart && onStart({ id: course.id + "-" + i, examId: course.id, subject: course.name, color: course.color, topic: tp, difficulty: 3, review: 1, est: 45 })}
                     style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
                     {L("Study", "Вчити", "Учить", "Étudier", "Lernen")} →
                   </button>
@@ -179,6 +195,48 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
               ))}
             </div>
           </div>
+
+          {/* Knowledge base — the payoff from uploaded materials. Persisted by
+              aiExtractCourse so it survives across sessions and feeds quizzes. */}
+          {course.kb && (
+            <div style={sec("materials")}>
+              <p style={eyebrow}>📚 {L("From your materials", "З ваших матеріалів", "Из ваших материалов", "De vos documents", "Aus deinen Materialien")}</p>
+              {course.kb.status === "extracting" && (
+                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                  {L("Reading your uploads and building a knowledge base…", "Читаю ваші файли та будую базу знань…", "Читаю ваши файлы и строю базу знаний…", "Lecture de vos fichiers et création de la base…", "Lese deine Uploads und baue eine Wissensbasis…")}
+                </p>
+              )}
+              {course.kb.status === "not_study_material" && (
+                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                  {L("That upload didn't look like study material, so topics came from the standard syllabus instead.", "Завантаження не схоже на навчальний матеріал, тож теми взято зі стандартної програми.", "Загрузка не похожа на учебный материал, поэтому темы взяты из стандартной программы.", "Ce fichier ne semblait pas être du matériel d'étude ; les sujets viennent du programme standard.", "Der Upload wirkte nicht wie Lernmaterial; die Themen stammen aus dem Standardlehrplan.")}
+                </p>
+              )}
+              {course.kb.status === "ready" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                  {Array.isArray(course.kb.sourceFiles) && course.kb.sourceFiles.length > 0 && (
+                    <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                      {L("Extracted from", "З файлів", "Из файлов", "Extrait de", "Extrahiert aus")}: {course.kb.sourceFiles.join(", ")}
+                    </p>
+                  )}
+                  {(course.kb.chapters || []).slice(0, 6).map((ch, i) => (
+                    <div key={i} style={{ borderRadius: "var(--radius-lg)", background: "var(--surface-muted)", padding: "var(--space-3)" }}>
+                      <p style={{ margin: "0 0 4px", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{ch.title}</p>
+                      {Array.isArray(ch.keyFacts) && ch.keyFacts.length > 0 && (
+                        <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: "var(--text-xs)", color: "var(--text-body)", lineHeight: 1.6 }}>
+                          {ch.keyFacts.slice(0, 3).map((f, j) => <li key={j}>{f}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                  {Array.isArray(course.kb.glossary) && course.kb.glossary.length > 0 && (
+                    <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                      {course.kb.glossary.length} {L("key terms captured — used to write quizzes from your notes.", "ключових термінів — використовуються для тестів із ваших нотаток.", "ключевых терминов — используются для тестов из ваших заметок.", "termes clés — utilisés pour créer des quiz à partir de vos notes.", "Schlüsselbegriffe — genutzt, um Quizze aus deinen Notizen zu erstellen.")}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Sticky footer */}

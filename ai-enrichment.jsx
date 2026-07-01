@@ -124,4 +124,41 @@ async function requestTopicNames(examId, exam, files) {
   }
 }
 
-Object.assign(window, { requestAiEnrichment, requestTopicNames, fileToClaudeContent });
+// The upload payoff, wired end-to-end. When a student uploads real materials we
+// deep-extract them into a persistent knowledge base (aiExtractCourse → brain's
+// saveExamKB: chapters, objectives, key facts, formulas, glossary) AND derive
+// the exam's real topic list from that KB — so one extraction feeds the planner
+// (topics/sessions), quizzes (grounded in their own notes) and CourseDetail.
+// No files (or extraction fails / isn't study material) → fall back to the
+// curriculum-knowledge topic names, so setup never dead-ends.
+async function requestCourseExtraction(examId, exam, files) {
+  if (!examId || !exam) return;
+  if (!files || !files.length || !window.aiExtractCourse) {
+    return requestTopicNames(examId, exam, files);
+  }
+  const count = Math.max(1, exam.topicCount || 10);
+  try {
+    const kb = await window.aiExtractCourse(examId, files); // persists KB to the brain
+    // Derive topic names from the KB: prefer the granular chapter topics, fall
+    // back to chapter titles. Keep to the exam's topicCount, foundational first.
+    const chapters = Array.isArray(kb.chapters) ? kb.chapters : [];
+    let topics = [];
+    for (const ch of chapters) {
+      if (Array.isArray(ch.topics) && ch.topics.length) topics.push(...ch.topics);
+      else if (ch.title) topics.push(ch.title);
+    }
+    topics = topics.map((tp) => String(tp).trim()).filter(Boolean);
+    if (topics.length > count) topics = topics.slice(0, count);
+    if (!topics.length) throw new Error("KB produced no topics");
+
+    patchExamAi(examId, { topics, topicsStatus: "ready" });
+    if (window.relabelPendingSessions) window.relabelPendingSessions(examId, topics);
+  } catch (err) {
+    // Not study material, or extraction failed — still give the student a usable
+    // topic list from curriculum knowledge rather than leaving generic labels.
+    console.warn("Course extraction fell back to curriculum topics:", err && err.message);
+    return requestTopicNames(examId, exam, files);
+  }
+}
+
+Object.assign(window, { requestAiEnrichment, requestTopicNames, requestCourseExtraction, fileToClaudeContent, patchExamAi });
