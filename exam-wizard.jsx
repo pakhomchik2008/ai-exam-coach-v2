@@ -151,11 +151,13 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
     id: "s" + Date.now(), name: "", color: "var(--subject-indigo)",
     current: exam.grade.current, target: exam.grade.target,
     examDate: defaultExamDate, topicCount: 10, examBoard: exam.board,
+    topicsText: "",
   });
   const [subjects, setSubjects] = React.useState(() => initialExam ? [{
     id: initialExam.id, name: initialExam.name, color: initialExam.color,
     current: initialExam.currentGrade || exam.grade.current, target: initialExam.targetGrade || exam.grade.target,
     examDate: initialExam.examDate, topicCount: initialExam.topicCount, examBoard: initialExam.examBoard,
+    topicsText: (initialExam.topics || []).join("\n"),
   }] : [blankSubject()]);
   const loadDemoData = () => setSubjects(window.DEFAULT_SUBJECTS.map((s) => ({ ...s, current: exam.grade.current, target: exam.grade.target, examDate: defaultExamDate, topicCount: 10, examBoard: exam.board })));
   const pickExam = (id) => {
@@ -218,10 +220,19 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       });
     }
 
-    if (cfg.aiEnrichment && window.requestTopicNames) {
-      // One call per exam — topicCount/name/examBoard differ per subject, so
-      // this can't batch like requestAiEnrichment does. Same fire-and-forget shape.
-      newExams.forEach((newExam) => window.requestTopicNames(newExam.id, newExam, files));
+    if (cfg.aiEnrichment) {
+      const extract = window.requestCourseExtraction || window.requestTopicNames;
+      newExams.forEach((newExam, i) => {
+        const s = rows[i];
+        const manualTopics = (s.topicsText || "").split("\n").map((t) => t.trim()).filter(Boolean);
+        if (manualTopics.length) {
+          // User typed their own topics — apply immediately, skip AI call entirely.
+          if (window.patchExamAi) window.patchExamAi(newExam.id, { topics: manualTopics, topicsStatus: "ready", topicCount: manualTopics.length });
+          if (window.relabelPendingSessions) window.relabelPendingSessions(newExam.id, manualTopics);
+        } else if (extract) {
+          extract(newExam.id, newExam, files);
+        }
+      });
     }
 
     onFinish(newExams);
@@ -389,6 +400,18 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_board}</label>
                     <input value={s.examBoard} onChange={(e) => setSubject(s.id, { examBoard: e.target.value })}
                       style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>
+                      Your topics <span style={{ color: "var(--text-faint)", fontWeight: "normal" }}>(one per line — or leave blank and AI will suggest)</span>
+                    </label>
+                    <textarea
+                      value={s.topicsText}
+                      onChange={(e) => setSubject(s.id, { topicsText: e.target.value })}
+                      rows={4}
+                      placeholder={"e.g.\nForces & Motion\nEnergy\nWaves\nElectricity"}
+                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", resize: "vertical", lineHeight: 1.6 }}
+                    />
                   </div>
                   <div>
                     <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s2_current}</p>

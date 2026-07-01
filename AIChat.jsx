@@ -60,13 +60,14 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   };
 
   const profile = window.getProfile ? window.getProfile() : {};
-  const SYSTEM_PROMPT = `You are an AI Exam Coach — a brilliant, warm personal tutor inside a spaced-repetition revision app. One concept at a time. No walls of text. You can teach ANY subject the student raises, not only the courses below.
-
-Student's current course profile (use to personalize when relevant — real exam dates, retention, weak topics):
-${JSON.stringify({ courses: window.deriveCourses(window.getExams()), todaySessions: (window.buildScheduleData().sessionsByDay[window.fmtDateKey(new Date())] || []) })}
+  // The student's exams, readiness, weakest topics and recent mistakes are NOT
+  // hand-stitched here anymore — brainComplete() (callAI below) prepends the
+  // canonical buildLearnerContext() to every request, so the coach shares one
+  // source of truth with the rest of the app instead of a divergent snapshot.
+  const SYSTEM_PROMPT = `You are an AI Exam Coach — a brilliant, warm personal tutor inside a spaced-repetition revision app. One concept at a time. No walls of text. You can teach ANY subject the student raises, not only their enrolled exams. The learner context above is real: use their actual exams, weak topics and recent mistakes to steer what you teach and how hard you push.
 
 Student preferences (adapt your teaching style accordingly):
-${JSON.stringify({ learningModes: profile.prefs || [], studyMaterials: profile.materials || [], weeklyHours: profile.weeklyHours || null })}
+${JSON.stringify({ learningModes: profile.prefs || [], studyMaterials: profile.materials || [] })}
 
 ⚠️ ABSOLUTE RULE: Your ENTIRE response must be valid JSON. Start with { end with }. Nothing before. Nothing after. No markdown. No code fences. If you break this rule the UI breaks completely.
 
@@ -143,7 +144,13 @@ Do NOT use for topic/subject selection — use "menu" card.
   const callAI = async () => {
     setTyping(true);
     try {
-      const raw = await window.claude.complete({ system: SYSTEM_PROMPT, messages: historyRef.current });
+      // Route through the brain so every coach turn carries the learner's real
+      // exams / weak topics / mistakes / learning style. Falls back to the raw
+      // client only if the brain layer somehow isn't loaded.
+      const complete = window.brainComplete
+        ? (args) => window.brainComplete(args)
+        : (args) => window.claude.complete(args);
+      const raw = await complete({ system: SYSTEM_PROMPT, messages: historyRef.current });
       setTyping(false);
       pushAI(parse(raw));
     } catch (e) {
@@ -195,7 +202,7 @@ Do NOT use for topic/subject selection — use "menu" card.
   // Welcome message — once, on first mount with no history
   React.useEffect(() => {
     if (messages.length > 0) return;
-    const courses = window.deriveCourses(window.getExams());
+    const courses = window.brainCourses ? window.brainCourses() : window.deriveCourses(window.getExams());
     const timer = setTimeout(() => {
       pushAI({
         text: "Hey! 👋 I'm your **AI Coach** — I know your courses and exam dates, and I can teach you anything else too.\n\nWhat are we tackling today?",
