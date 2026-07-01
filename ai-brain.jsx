@@ -1,27 +1,17 @@
 // AI Exam Coach — the AI layer that sits on top of the brain.
 //
-// window.claude.complete() (index.html) is a raw pass-through: every feature
-// hand-built its own prompt and none of them knew anything about the student.
-// That is why the app "had AI" but never felt like it *understood you*.
-//
-// This module is the single choke point every AI call should go through. It:
-//   • injects buildLearnerContext() — a compact snapshot of who the learner is
-//     and what they know — into the system prompt of every request, so the AI
-//     has memory by default instead of by accident;
-//   • provides one robust JSON parser (three files reimplemented the fragile
-//     raw.slice(indexOf('{')..) dance);
-//   • exposes typed operations that write their results BACK into the brain —
-//     a wrong quiz answer lowers that topic's mastery, an upload populates the
-//     knowledge base — so the app is a loop, not a set of one-shot prompts.
-//
-// Must load AFTER brain-store.jsx and after index.html has defined window.claude.
+// This is the single choke point every AI call goes through. It:
+//   • injects buildLearnerContext() — who the learner is, what they know,
+//     their uploaded materials — into every request
+//   • provides robust JSON parsing
+//   • exposes typed operations that write back INTO the brain
+//   • tracks what topics the AI Coach discusses so mastery updates in real-time
 
 // ─── robust JSON ─────────────────────────────────────────────────────────────
 
 function parseJSON(raw, fallback = null) {
   if (typeof raw !== "string") return fallback;
   let s = raw.trim();
-  // Strip ```json fences if the model added them despite instructions.
   s = s.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
   const start = s.search(/[[{]/);
   if (start === -1) return fallback;
@@ -34,10 +24,7 @@ function parseJSON(raw, fallback = null) {
 
 // ─── learner context ─────────────────────────────────────────────────────────
 
-// The paragraph of "everything we know about this student" that rides on every
-// call. Deliberately compact (tokens cost money and dilute attention) — the
-// weakest topics and recent mistakes matter far more than a full dump.
-function buildLearnerContext() {
+function buildLearnerContext(opts = {}) {
   if (!window.getBrain) return "";
   const b = window.getBrain();
   const p = b.profile || {};
@@ -45,38 +32,97 @@ function buildLearnerContext() {
 
   const name = p.fullName ? p.fullName.split(" ")[0] : null;
   lines.push(`You are this student's personal tutor.${name ? ` Their name is ${name}.` : ""}`);
-  if (p.weeklyHours) lines.push(`They can study about ${p.weeklyHours} hours/week.`);
-  if (b.memory && b.memory.learningStyle) lines.push(`Preferred learning style: ${b.memory.learningStyle}.`);
-  if (b.memory && b.memory.notes && b.memory.notes.length)
-    lines.push(`Remember about them: ${b.memory.notes.slice(0, 5).join("; ")}.`);
+  if (p.weeklyHours) lines.push(`They study about ${p.weeklyHours} hours/week.`);
 
+  // Learning memory — what we've learned ABOUT this student across sessions
+  const mem = b.memory || {};
+  if (mem.learningStyle) lines.push(`Preferred learning style: ${mem.learningStyle}.`);
+  if (mem.strengths && mem.strengths.length) lines.push(`Known strengths: ${mem.strengths.join(", ")}.`);
+  if (mem.weaknesses && mem.weaknesses.length) lines.push(`Known weaknesses: ${mem.weaknesses.join(", ")}.`);
+  if (mem.preferredExplanations && mem.preferredExplanations.length)
+    lines.push(`They respond well to: ${mem.preferredExplanations.join(", ")}.`);
+  if (mem.notes && mem.notes.length)
+    lines.push(`Remember: ${mem.notes.slice(0, 8).join("; ")}.`);
+
+  // Exams with per-topic mastery detail
   if (b.examViews && b.examViews.length) {
-    lines.push("Their exams:");
+    lines.push("\n── THEIR EXAMS ──");
     b.examViews.forEach((e) => {
-      const days = e.daysAway == null ? "" : e.daysAway < 0 ? " (already passed)" : ` in ${e.daysAway} days`;
-      lines.push(`• ${e.name} (${e.examBoard}), target ${e.targetGrade}, ${e.readiness}% ready${days}.`);
+      const days = e.daysAway == null ? "" : e.daysAway < 0 ? " (passed)" : ` — exam in ${e.daysAway} days`;
+      lines.push(`\n📘 ${e.name} (${e.examBoard || "unknown board"}), target ${e.targetGrade}, ${e.readiness}% ready${days}`);
+
+      // Per-topic mastery breakdown — this is what makes the tutor KNOW the student
+      const topicLines = [];
+      e.topics.forEach((t) => {
+        if (t.lastSeen) {
+          const ret = Math.round(t.retention * 100);
+          const status = ret >= 80 ? "solid" : ret >= 50 ? "fading" : "weak";
+          topicLines.push(`  ${t.name}: ${ret}% retention (${status})`);
+        } else {
+          topicLines.push(`  ${t.name}: never studied`);
+        }
+      });
+      if (topicLines.length <= 15) lines.push(...topicLines);
+      else {
+        // Too many topics — show weakest + unseen only
+        const weak = e.topics.filter((t) => !t.lastSeen || t.retention < 0.5);
+        lines.push(`  ${e.topics.length} topics total. Weakest/unseen:`);
+        weak.slice(0, 10).forEach((t) => {
+          lines.push(`  ${t.name}: ${t.lastSeen ? Math.round(t.retention * 100) + "% (weak)" : "never studied"}`);
+        });
+      }
     });
   }
-  if (b.weakestTopics && b.weakestTopics.length) {
-    lines.push("Weakest topics right now (lowest estimated retention):");
-    b.weakestTopics.slice(0, 5).forEach((t) =>
-      lines.push(`• ${t.topicName} (${t.examName}) — ${Math.round(t.retention * 100)}%`));
+
+  // Due reviews — topics actively being forgotten
+  if (b.dueReviews && b.dueReviews.length) {
+    lines.push("\n── DUE FOR REVIEW (memory fading) ──");
+    b.dueReviews.slice(0, 6).forEach((t) =>
+      lines.push(`• ${t.topicName} (${t.examName}) — ${Math.round(t.retention * 100)}% retention`));
   }
+
+  // Recent mistakes
   if (b.mistakes && b.mistakes.length) {
-    lines.push("Recent mistakes to watch for:");
-    b.mistakes.slice(0, 3).forEach((m) => lines.push(`• ${m.topic}: got "${m.question}" wrong`));
+    lines.push("\n── RECENT MISTAKES ──");
+    b.mistakes.slice(0, 5).forEach((m) =>
+      lines.push(`• ${m.topic}: got "${m.question}" wrong`));
   }
+
+  // KB content injection — when discussing a specific topic, include the
+  // student's own materials so the tutor can reference THEIR notes
+  if (opts.topicContext) {
+    const { examId, topicName } = opts.topicContext;
+    const kb = examId && window.getExamKB ? window.getExamKB(examId) : null;
+    if (kb && kb.status === "ready" && Array.isArray(kb.chapters)) {
+      const norm = (x) => String(x || "").toLowerCase();
+      const topicL = norm(topicName);
+      const ch = kb.chapters.find((c) =>
+        norm(c.title).includes(topicL) || topicL.includes(norm(c.title)) ||
+        (Array.isArray(c.topics) && c.topics.some((tp) => norm(tp).includes(topicL) || topicL.includes(norm(tp)))));
+      if (ch) {
+        lines.push(`\n── FROM STUDENT'S OWN MATERIALS: ${ch.title} ──`);
+        if (ch.objectives && ch.objectives.length) lines.push("Objectives: " + ch.objectives.join("; "));
+        if (ch.keyFacts && ch.keyFacts.length) lines.push("Key facts:\n• " + ch.keyFacts.slice(0, 12).join("\n• "));
+        if (ch.formulas && ch.formulas.length) lines.push("Formulas: " + ch.formulas.join("; "));
+      }
+      if (kb.glossary && kb.glossary.length) {
+        const relevant = kb.glossary.filter((g) => topicL.includes(norm(g.term)) || norm(g.term).includes(topicL));
+        if (relevant.length) {
+          lines.push("Relevant glossary:");
+          relevant.slice(0, 5).forEach((g) => lines.push(`• ${g.term}: ${g.def}`));
+        }
+      }
+    }
+  }
+
   return lines.join("\n");
 }
 
 // ─── central completion ───────────────────────────────────────────────────────
 
-// Every feature should call this instead of window.claude.complete directly.
-// includeContext=false for the rare call that must not be biased by the learner
-// snapshot (e.g. neutral extraction from an uploaded file).
-async function brainComplete({ system, messages, prompt, includeContext = true } = {}) {
+async function brainComplete({ system, messages, prompt, includeContext = true, topicContext } = {}) {
   if (!window.claude) throw new Error("AI is not available");
-  const ctx = includeContext ? buildLearnerContext() : "";
+  const ctx = includeContext ? buildLearnerContext({ topicContext }) : "";
   const fullSystem = [ctx, system].filter(Boolean).join("\n\n");
   const msgs = messages || [{ role: "user", content: prompt || "" }];
   return window.claude.complete({ system: fullSystem || undefined, messages: msgs });
@@ -87,10 +133,84 @@ async function brainCompleteJSON(opts, fallback = null) {
   return parseJSON(raw, fallback);
 }
 
-// ─── typed operations ─────────────────────────────────────────────────────────
+// ─── coach session tracker ──────────────────────────────────────────────────
+// Tracks what the AI Coach covers in a conversation so we can update mastery
+// and generate a meaningful session summary.
 
-// A real tutor turn: context-aware, concise, one concept at a time. Returns the
-// assistant's text; callers own the message history.
+function createCoachSession() {
+  return {
+    startedAt: Date.now(),
+    topicsCovered: [],        // [{examId, topicIdx, topicName}]
+    quizResults: [],          // [{correct, topicName, question}]
+    conceptsTaught: 0,
+    diagnosedWeaknesses: [],  // strings
+    diagnosedStrengths: [],   // strings
+  };
+}
+
+function coachSessionSummary(session) {
+  if (!session) return null;
+  const mins = Math.round((Date.now() - session.startedAt) / 60000);
+  const quizCorrect = session.quizResults.filter((r) => r.correct).length;
+  const quizTotal = session.quizResults.length;
+  return {
+    durationMinutes: mins,
+    topicsCovered: session.topicsCovered,
+    quizCorrect,
+    quizTotal,
+    quizAccuracy: quizTotal > 0 ? Math.round((quizCorrect / quizTotal) * 100) : null,
+    conceptsTaught: session.conceptsTaught,
+    diagnosedWeaknesses: session.diagnosedWeaknesses,
+    diagnosedStrengths: session.diagnosedStrengths,
+  };
+}
+
+// Apply a coach session's learnings to the brain
+function commitCoachSession(session) {
+  if (!session) return;
+  // Mark all discussed topics as "seen"
+  const seen = new Set();
+  session.topicsCovered.forEach((t) => {
+    const key = `${t.examId}::${t.topicIdx}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    if (window.markTopicsStudied) {
+      window.markTopicsStudied(t.examId, [t.topicIdx], [t.topicName]);
+    }
+  });
+  // Save diagnosed insights to learner memory
+  if (session.diagnosedWeaknesses.length && window.updateMemory) {
+    const mem = window.getMemory ? window.getMemory() : {};
+    const existing = new Set(mem.weaknesses || []);
+    session.diagnosedWeaknesses.forEach((w) => existing.add(w));
+    window.updateMemory({ weaknesses: [...existing].slice(0, 20) });
+  }
+  if (session.diagnosedStrengths.length && window.updateMemory) {
+    const mem = window.getMemory ? window.getMemory() : {};
+    const existing = new Set(mem.strengths || []);
+    session.diagnosedStrengths.forEach((s) => existing.add(s));
+    window.updateMemory({ strengths: [...existing].slice(0, 20) });
+  }
+}
+
+// Resolve a topic name to an examId + topicIdx for brain write-back
+function resolveTopicForBrain(topicName) {
+  if (!topicName || !window.getBrain) return null;
+  const b = window.getBrain();
+  const norm = (s) => String(s || "").toLowerCase().trim();
+  const target = norm(topicName);
+  for (const ev of (b.examViews || [])) {
+    for (const t of (ev.topics || [])) {
+      if (norm(t.name) === target || norm(t.name).includes(target) || target.includes(norm(t.name))) {
+        return { examId: ev.id, topicIdx: t.topicIdx, topicName: t.name, examName: ev.name };
+      }
+    }
+  }
+  return null;
+}
+
+// ─── typed operations ────────────────────────────────────────────────────────
+
 async function aiTutorReply(history, userMessage) {
   const system =
     "You are a world-class personal tutor, not a chatbot. Teach ONE idea at a time, " +
@@ -101,8 +221,6 @@ async function aiTutorReply(history, userMessage) {
   return brainComplete({ system, messages });
 }
 
-// Generate an adaptive multiple-choice quiz for a topic. Difficulty is nudged
-// by the topic's current mastery so a shaky topic isn't hit with hard items.
 async function aiGenerateQuiz(examId, topicIdx, topicName, n = 5) {
   const mastery = window.getMastery ? window.getMastery()[window.topicKey(examId, topicIdx)] : null;
   const level = !mastery ? "introductory" : mastery.mastery > 0.7 ? "challenging" : mastery.mastery > 0.4 ? "moderate" : "foundational";
@@ -110,12 +228,10 @@ async function aiGenerateQuiz(examId, topicIdx, topicName, n = 5) {
     `Generate exactly ${n} ${level} multiple-choice questions on the topic below. ` +
     `Output ONLY valid JSON, no markdown: {"questions":[{"q":"...","options":["a","b","c","d"],"correct":0,"why":"one-line explanation"}]}. ` +
     `Four options each, exactly one correct, "correct" is its 0-based index.`;
-  const data = await brainCompleteJSON({ system, prompt: `Topic: ${topicName}` }, { questions: [] });
+  const data = await brainCompleteJSON({ system, prompt: `Topic: ${topicName}`, topicContext: { examId, topicName } }, { questions: [] });
   return Array.isArray(data.questions) ? data.questions.slice(0, n) : [];
 }
 
-// Explain a concept a DIFFERENT way — the "I still don't get it" button. Uses
-// learner memory so the alternative actually differs along a useful axis.
 async function aiExplainDifferently(concept, priorExplanation) {
   const system =
     "The student did not understand the previous explanation. Explain the SAME concept a " +
@@ -125,9 +241,6 @@ async function aiExplainDifferently(concept, priorExplanation) {
   return brainComplete({ system, prompt });
 }
 
-// THE upload payoff. Deep-extract an uploaded course into a structured
-// knowledge base and PERSIST it to the brain, so every other screen can use it.
-// files: File[]. Returns the saved KB (or throws).
 async function aiExtractCourse(examId, files) {
   if (!window.fileToClaudeContent || !window.saveExamKB) throw new Error("extraction unavailable");
   window.saveExamKB(examId, { status: "extracting" });
@@ -143,7 +256,6 @@ async function aiExtractCourse(examId, files) {
   const system =
     "You are extracting a precise, faithful study knowledge base from a student's own materials. " +
     "Do not invent content that isn't supported by the source. Be thorough but concise.";
-  // includeContext:false — extraction should reflect the FILE, not our prior beliefs.
   const data = await brainCompleteJSON(
     { system, messages: [{ role: "user", content: blocks }], includeContext: false },
     null
@@ -166,4 +278,5 @@ async function aiExtractCourse(examId, files) {
 Object.assign(window, {
   parseJSON, buildLearnerContext, brainComplete, brainCompleteJSON,
   aiTutorReply, aiGenerateQuiz, aiExplainDifferently, aiExtractCourse,
+  createCoachSession, coachSessionSummary, commitCoachSession, resolveTopicForBrain,
 });
