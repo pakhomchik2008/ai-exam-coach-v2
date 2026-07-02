@@ -580,7 +580,12 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   React.useEffect(() => {
     if (initialQuery && onConsumeQuery) {
       onConsumeQuery();
-      setMode("chat");
+      if (typeof initialQuery === "object" && initialQuery.mode === "learn" && initialQuery.topic) {
+        setTopic(initialQuery.topic);
+        setMode("learn");
+      } else {
+        setMode("chat");
+      }
     }
   }, [initialQuery]);
 

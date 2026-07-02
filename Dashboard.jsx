@@ -68,11 +68,9 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const startRecommended = () => {
     if (!rec) return;
     if (rec.kind === "add_exam") { onGoToExams && onGoToExams(); return; }
-    startMission({
-      id: rec.sessionId || `rec::${rec.examId}::${rec.topicIdx}`,
-      examId: rec.examId, subject: rec.examName, color: rec.color,
-      topic: rec.topicName, difficulty: 2, est: rec.estMinutes,
-    });
+    if (onGoToChat) {
+      onGoToChat({ mode: "learn", topic: rec.topicName });
+    }
   };
 
   // Reused both for the dashboard hero's "look ahead" card and for the
