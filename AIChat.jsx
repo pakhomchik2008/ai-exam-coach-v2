@@ -92,7 +92,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
               setCpSelected(i); setCpRevealed(true);
               setCpResults((r) => [...r, correct]);
               onResult(correct);
-              if (resolved && window.recordReview) window.recordReview(resolved.examId, resolved.topicIdx, correct);
+              if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct });
             },
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
@@ -123,9 +123,23 @@ function LessonEngine({ topic, onExit }) {
   const [masteryBefore, setMasteryBefore] = React.useState(null);
   const [consecutiveCorrect, setConsecutiveCorrect] = React.useState(0);
   const [xp, setXp] = React.useState(0);
+  // Guards the once-per-lesson XP commit so it can't double-count across
+  // re-renders. Only a genuine completion (done → true) banks XP; exiting early
+  // never sets done, so partial-lesson XP is deliberately not awarded.
+  const xpCommittedRef = React.useRef(false);
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
   const brain = window.getBrain ? window.getBrain() : {};
+
+  // Persist this lesson's XP to the Brain exactly once, when it completes. By
+  // this point every per-answer setXp has flushed, so `xp` is the final tally;
+  // +100 matches the completion bonus the celebration screen shows.
+  React.useEffect(() => {
+    if (done && !xpCommittedRef.current) {
+      xpCommittedRef.current = true;
+      if (window.addXp) window.addXp(xp + 100);
+    }
+  }, [done]);
 
   React.useEffect(() => {
     if (resolved) {
@@ -237,7 +251,7 @@ OUTPUT FORMAT:
     setResults((r) => [...r, { type: "mcq", correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 20 : 5));
     setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
-    if (resolved && window.recordReview) window.recordReview(resolved.examId, resolved.topicIdx, isCorrect);
+    if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     if (!isCorrect && resolved && window.logMistake) {
       const s = plan.steps[step];
       const q = s.type === "checkpoint" ? "checkpoint" : (s.question || "");
@@ -253,7 +267,7 @@ OUTPUT FORMAT:
     setResults((r) => [...r, { type: "tf", correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 20 : 5));
     setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
-    if (resolved && window.recordReview) window.recordReview(resolved.examId, resolved.topicIdx, isCorrect);
+    if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
   const answerFill = () => {
@@ -265,7 +279,7 @@ OUTPUT FORMAT:
     setResults((r) => [...r, { type: "fill", correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 25 : 5));
     setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
-    if (resolved && window.recordReview) window.recordReview(resolved.examId, resolved.topicIdx, isCorrect);
+    if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
   const commitResults = () => {
@@ -274,8 +288,10 @@ OUTPUT FORMAT:
     if (resolved) {
       if (window.markTopicsStudied) window.markTopicsStudied(resolved.examId, [resolved.topicIdx], [resolved.topicName]);
       if (window.recordConfidence) {
-        const conf = total === 0 ? 3 : correct / total >= 0.8 ? 5 : correct / total >= 0.5 ? 3 : 1;
-        window.recordConfidence(resolved.examId, resolved.topicIdx, conf);
+        // 0..1 confidence derived from accuracy — recordConfidence accepts a
+        // 0..1 value directly, so no 1..4 rating remap needed.
+        const conf = total === 0 ? 0.5 : correct / total >= 0.8 ? 1 : correct / total >= 0.5 ? 0.6 : 0.2;
+        window.recordConfidence({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, rating: conf });
       }
     }
     if (window.commitCoachSession) {
