@@ -5,6 +5,11 @@
 // Setup on Vercel: Project Settings → Environment Variables →
 //   ANTHROPIC_API_KEY = <your key>
 // Redeploy after adding it.
+
+// Extend to 60 s so lesson generation (8-12 structured steps) doesn't time out
+// on Vercel Hobby. Pro plan supports up to 300 s.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
@@ -17,9 +22,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { system, messages } = req.body || {};
-  if (!messages) {
-    res.status(400).json({ error: "Missing messages" });
+  const { system, messages, prompt } = req.body || {};
+  // Accept either {messages} (from brainComplete) or {prompt} (legacy fallback)
+  const msgs = messages || (prompt ? [{ role: "user", content: prompt }] : null);
+  if (!msgs) {
+    res.status(400).json({ error: "Missing messages or prompt" });
     return;
   }
 
@@ -32,10 +39,10 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 4096,
         system,
-        messages,
+        messages: msgs,
       }),
     });
     const data = await upstream.json();
