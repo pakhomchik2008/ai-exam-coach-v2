@@ -45,6 +45,67 @@ const _btn = (label, onClick, primary, disabled) => React.createElement("button"
   }
 }, label);
 
+// ─── CHECKPOINT (own component) ──────────────────────────────────────────────
+// Its own component so its cpIdx/cpSelected/cpRevealed/cpResults hooks are
+// never declared *after* LessonEngine's early returns (loading/error/done) —
+// that ordering was a Rules-of-Hooks violation that crashed the engine the
+// instant a lesson finished loading. Mounting fresh per checkpoint step also
+// gives the per-step state reset for free (no effect needed).
+function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
+  const [cpIdx, setCpIdx] = React.useState(0);
+  const [cpSelected, setCpSelected] = React.useState(null);
+  const [cpRevealed, setCpRevealed] = React.useState(false);
+  const [cpResults, setCpResults] = React.useState([]);
+
+  const questions = s.questions || [];
+  if (cpIdx >= questions.length) {
+    // Checkpoint complete — show mini summary
+    const cpCorrect = cpResults.filter(Boolean).length;
+    return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+      React.createElement("div", { style: { background: "linear-gradient(135deg, #f0fdf4 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "4px solid #22c55e", textAlign: "center" } },
+        React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f0fdf4", "#15803d", "📊 CHECKPOINT RESULTS")),
+        React.createElement("p", { style: { fontSize: 36, fontWeight: 700, color: cpCorrect === questions.length ? "#15803d" : "#b45309", margin: "8px 0" } }, `${cpCorrect}/${questions.length}`),
+        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 16px" } },
+          cpCorrect === questions.length ? "Perfect score! 🌟" : cpCorrect >= questions.length * 0.6 ? "Good work! Keep going." : "Let's review — you'll get there.")),
+      React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", () => { onXp(cpCorrect === questions.length ? 50 : 20); onAdvance(); }, true, false)));
+  }
+  const q = questions[cpIdx];
+  return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+    React.createElement("div", { style: { marginBottom: 12, display: "flex", alignItems: "center", gap: 8 } },
+      _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", `CHECKPOINT ${cpIdx + 1}/${questions.length}`)),
+    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.question),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+        ...(q.options || []).map((opt, i) => {
+          const isCor = i === q.correct, isSel = i === cpSelected;
+          let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+          if (cpRevealed) {
+            if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
+            else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
+            else { col = "#d1d5db"; bc = "#f3f4f6"; }
+          }
+          return React.createElement("button", {
+            key: i, disabled: cpRevealed,
+            onClick: () => {
+              if (cpRevealed) return;
+              const correct = i === q.correct;
+              setCpSelected(i); setCpRevealed(true);
+              setCpResults((r) => [...r, correct]);
+              onResult(correct);
+              if (resolved && window.recordReview) window.recordReview(resolved.examId, resolved.topicIdx, correct);
+            },
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+          },
+            React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+        })),
+      cpRevealed && q.explanation && React.createElement("div", {
+        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${cpSelected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+      }, cpSelected === q.correct ? "✅ " : "💡 ", q.explanation)),
+    cpRevealed && React.createElement("div", { style: { marginTop: 16 } },
+      _btn(cpIdx + 1 < questions.length ? "Next question →" : "See results →", () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
+}
+
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
 
 function LessonEngine({ topic, onExit }) {
@@ -404,64 +465,6 @@ OUTPUT FORMAT:
         _btn("Continue →", () => { setXp((x) => x + 15); advance(); }, true, false)));
   };
 
-  // Checkpoint: cycle through sub-questions
-  const [cpIdx, setCpIdx] = React.useState(0);
-  const [cpSelected, setCpSelected] = React.useState(null);
-  const [cpRevealed, setCpRevealed] = React.useState(false);
-  const [cpResults, setCpResults] = React.useState([]);
-
-  React.useEffect(() => { setCpIdx(0); setCpSelected(null); setCpRevealed(false); setCpResults([]); }, [step]);
-
-  const renderCheckpoint = () => {
-    const questions = s.questions || [];
-    if (cpIdx >= questions.length) {
-      // Checkpoint complete — show mini summary
-      const cpCorrect = cpResults.filter(Boolean).length;
-      return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-        React.createElement("div", { style: { background: "linear-gradient(135deg, #f0fdf4 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "4px solid #22c55e", textAlign: "center" } },
-          React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f0fdf4", "#15803d", "📊 CHECKPOINT RESULTS")),
-          React.createElement("p", { style: { fontSize: 36, fontWeight: 700, color: cpCorrect === questions.length ? "#15803d" : "#b45309", margin: "8px 0" } }, `${cpCorrect}/${questions.length}`),
-          React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 16px" } },
-            cpCorrect === questions.length ? "Perfect score! 🌟" : cpCorrect >= questions.length * 0.6 ? "Good work! Keep going." : "Let's review — you'll get there.")),
-        React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", () => { setXp((x) => x + (cpCorrect === questions.length ? 50 : 20)); advance(); }, true, false)));
-    }
-    const q = questions[cpIdx];
-    return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { marginBottom: 12, display: "flex", alignItems: "center", gap: 8 } },
-        _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", `CHECKPOINT ${cpIdx + 1}/${questions.length}`)),
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.question),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
-          ...(q.options || []).map((opt, i) => {
-            const isCor = i === q.correct, isSel = i === cpSelected;
-            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
-            if (cpRevealed) {
-              if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-              else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-              else { col = "#d1d5db"; bc = "#f3f4f6"; }
-            }
-            return React.createElement("button", {
-              key: i, disabled: cpRevealed,
-              onClick: () => {
-                if (cpRevealed) return;
-                const correct = i === q.correct;
-                setCpSelected(i); setCpRevealed(true);
-                setCpResults((r) => [...r, correct]);
-                setResults((r) => [...r, { type: "checkpoint", correct }]);
-                if (resolved && window.recordReview) window.recordReview(resolved.examId, resolved.topicIdx, correct);
-              },
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
-            },
-              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
-          })),
-        cpRevealed && q.explanation && React.createElement("div", {
-          style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${cpSelected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
-        }, cpSelected === q.correct ? "✅ " : "💡 ", q.explanation)),
-      cpRevealed && React.createElement("div", { style: { marginTop: 16 } },
-        _btn(cpIdx + 1 < questions.length ? "Next question →" : "See results →", () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
-  };
-
   // ─── Render current step ───────────────────────────────────────────────────
   const renderStep = () => {
     if (!s) return null;
@@ -471,7 +474,13 @@ OUTPUT FORMAT:
       case "tf": return renderTf();
       case "fill": return renderFill();
       case "worked_example": return renderWorkedExample();
-      case "checkpoint": return renderCheckpoint();
+      case "checkpoint": return React.createElement(LessonCheckpoint, {
+        step: s,
+        resolved,
+        onResult: (correct) => setResults((r) => [...r, { type: "checkpoint", correct }]),
+        onXp: (amount) => setXp((x) => x + amount),
+        onAdvance: advance,
+      });
       default: return React.createElement("p", null, `Unknown step: ${s.type}`);
     }
   };
