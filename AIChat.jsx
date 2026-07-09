@@ -51,6 +51,7 @@ function LessonEngine({ topic, onExit }) {
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
+  const [retryCount, setRetryCount] = React.useState(0);
   const [step, setStep] = React.useState(0);
   const [results, setResults] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
@@ -77,6 +78,12 @@ function LessonEngine({ topic, onExit }) {
 
   // Generate lesson plan
   React.useEffect(() => {
+    setLoading(true);
+    setError(null);
+    setPlan(null);
+    setStep(0);
+    setResults([]);
+    setDone(false);
     (async () => {
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
@@ -123,11 +130,12 @@ RULES:
 OUTPUT FORMAT:
 {"title":"Lesson title","estimatedMinutes":12,"steps":[...]}`;
 
-        const raw = await complete({
-          system,
-          prompt: `Generate a structured lesson on: ${topic}`,
-          topicContext,
-        });
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Taking too long — please try again.")), 45000));
+        const raw = await Promise.race([
+          complete({ system, prompt: `Generate a structured lesson on: ${topic}`, topicContext }),
+          timeout,
+        ]);
 
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
         if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error("Invalid lesson plan");
@@ -139,7 +147,7 @@ OUTPUT FORMAT:
         setLoading(false);
       }
     })();
-  }, [topic]);
+  }, [topic, retryCount]);
 
   // ─── Step interaction handlers ─────────────────────────────────────────────
   const advance = () => {
@@ -241,10 +249,13 @@ OUTPUT FORMAT:
   }
 
   if (error) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement("p", { style: { fontSize: 16, color: "var(--red-600)" } }, "Couldn't generate lesson"),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, error),
-      _btn("← Back", onExit, false, false));
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
+      React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate lesson"),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
+        _btn("↺ Try again", () => setRetryCount((n) => n + 1), true, false),
+        _btn("← Back", onExit, false, false)));
   }
 
   // ─── Celebration Screen ────────────────────────────────────────────────────
