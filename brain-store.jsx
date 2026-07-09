@@ -525,8 +525,34 @@ function useBrain() {
   };
 })();
 
+// ─── XP + level (persisted lifetime progress) ────────────────────────────────
+// XP used to live only in LessonEngine's local state and evaporated the moment
+// the student left the celebration screen. Persisting it here makes it durable
+// and readable by any screen via the same reactive path (getBrain surfaces it
+// too), so a lesson's XP actually accrues to a lifetime total + level.
+const XP_KEY = "brain_xp_v1";
+function getXp() { return _read(XP_KEY, 0); }
+function addXp(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n <= 0) return getXp();
+  const next = getXp() + Math.round(n);
+  _write(XP_KEY, next);
+  _bump();
+  return next;
+}
+// One satisfying curve, defined once so no two screens disagree on "level":
+// level N starts at (N-1)²·100 XP  →  L1@0, L2@100, L3@400, L4@900, L5@1600…
+function xpLevel(xp) {
+  const x = typeof xp === "number" ? xp : getXp();
+  const level = Math.floor(Math.sqrt(Math.max(0, x) / 100)) + 1;
+  const curFloor = (level - 1) * (level - 1) * 100;
+  const nextFloor = level * level * 100;
+  return { level, xp: x, into: x - curFloor, need: nextFloor - curFloor, nextFloor };
+}
+
 Object.assign(window, {
-  MASTERY_KEY, KB_KEY, MEMORY_KEY,
+  MASTERY_KEY, KB_KEY, MEMORY_KEY, XP_KEY,
+  getXp, addXp, xpLevel,
   topicKey, getMastery, applyReview, recordReview, recordConfidence, retention,
   markTopicsStudied, coverageForExam, syncCompletionFromCoverage,
   simulateReadinessGain, recommendNextAction, brainCourses,
