@@ -68,9 +68,24 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const startRecommended = () => {
     if (!rec) return;
     if (rec.kind === "add_exam") { onGoToExams && onGoToExams(); return; }
-    if (onGoToChat) {
-      onGoToChat({ mode: "learn", topic: rec.topicName });
-    }
+    if (focusSession) { startMission(focusSession); return; }
+    const schedData = window.getSchedule ? window.getSchedule() : {};
+    const sched = Array.isArray(schedData) ? schedData : (schedData.sessions || []);
+    const matched = rec.sessionId && sched.find((s) => s.id === rec.sessionId);
+    if (matched) { startMission(matched); return; }
+    // Synthesize a session from the brain's recommendation so the button
+    // always launches StudySession regardless of whether today has a
+    // scheduled slot.
+    startMission({
+      id: rec.sessionId || `rec::${rec.examId}::${rec.topicIdx}`,
+      examId: rec.examId,
+      subject: rec.examName,
+      topic: rec.topicName,
+      color: rec.color || "var(--indigo-600)",
+      difficulty: 2,
+      review: 1,
+      est: rec.estMinutes || 45,
+    });
   };
 
   // Reused both for the dashboard hero's "look ahead" card and for the
