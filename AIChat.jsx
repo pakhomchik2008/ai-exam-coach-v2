@@ -74,7 +74,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
     React.createElement("div", { style: { marginBottom: 12, display: "flex", alignItems: "center", gap: 8 } },
       _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", `CHECKPOINT ${cpIdx + 1}/${questions.length}`)),
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.question),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...(q.options || []).map((opt, i) => {
           const isCor = i === q.correct, isSel = i === cpSelected;
@@ -391,7 +391,7 @@ RULES:
             _badge("#eef2ff", "#4f46e5", `📝 QUICK CHECK ${quizIdx + 1}/${quizzes.length}`),
             _badge("#f0fdf4", "#15803d", sec.title)),
           React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-            React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.question),
+            React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
               ...(q.options || []).map((opt, i) => {
                 const isCor = i === q.correct, isSel = i === selected;
@@ -887,7 +887,7 @@ ${STEP_TYPES}`;
   const renderFill = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
       React.createElement("div", { style: { marginBottom: 14 } }, _badge("#fefce8", "#92400e", "✍️ FILL IN THE BLANK")),
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(s.sentence.replace("___", "<u style='border-bottom:2px dashed #6366f1;padding:0 8px;color:#6366f1'>___</u>")) } }),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(s.sentence).replace("___", "<u style='border-bottom:2px dashed #6366f1;padding:0 8px;color:#6366f1'>___</u>") } }),
       !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
         React.createElement("input", {
           value: fillInput, onChange: (e) => setFillInput(e.target.value),
