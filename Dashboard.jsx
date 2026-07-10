@@ -1,7 +1,7 @@
 // AI Exam Coach — Dashboard: plan-centric design with "Today's AI Plan" hero,
 // adaptive scheduling, TodaysMission briefing, and projected outcomes.
 function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t }) {
-  const { StreakBanner, SessionCard, CourseCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
+  const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
   const today = new Date().toLocaleDateString(t.code === "uk" ? "uk-UA" : t.code === "ru" ? "ru-RU" : t.code === "fr" ? "fr-FR" : t.code === "de" ? "de-DE" : "en-GB", { weekday: "long", day: "numeric", month: "long" });
 
@@ -227,7 +227,6 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const secStudied = window.secondsStudiedThisWeek ? window.secondsStudiedThisWeek() : 0;
   const hoursStudied = Math.round((secStudied / 3600) * 10) / 10;
   const weekPct = weeklyGoalH > 0 ? Math.round((hoursStudied / weeklyGoalH) * 100) : 0;
-  const weekBarPct = Math.min(100, weekPct);
 
   // Total remaining
   const schedule = window.getSchedule();
@@ -378,24 +377,15 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
         ))}
       </div>
 
-      {/* ── Weekly progress bar ───────────────────────────── */}
-      <section style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-default)", padding: "var(--space-4)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
-          <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Weekly progress","Тижневий прогрес","Недельный прогресс","Progrès de la semaine","Wochenfortschritt")}</span>
-          <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", color: weekPct >= 80 ? "var(--emerald-600)" : weekPct >= 40 ? "var(--amber-600)" : "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{hoursStudied}h / {weeklyGoalH}h · {weekPct}%</span>
-        </div>
-        <div style={{ height: 10, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${weekBarPct}%`, background: weekPct >= 80 ? "var(--emerald-500)" : weekPct >= 40 ? "var(--amber-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.5s ease" }} />
-        </div>
-        <div style={{ marginTop: "var(--space-2)" }}>
-          <WeekStrip
-            days={weekData}
-            onDayClick={(d, i) => setDayDetail({ day: d, dayIndex: i })}
-          />
-        </div>
+      {/* ── Week strip — hours/goal numbers already live in the stats row,
+              so this is just the tappable day-by-day view, no duplicate bar */}
+      <section style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-default)", padding: "var(--space-3) var(--space-4)" }}>
+        <WeekStrip
+          days={weekData}
+          onDayClick={(d, i) => setDayDetail({ day: d, dayIndex: i })}
+        />
       </section>
 
-      <StreakBanner days={streak} message={t.streak_keep} />
       <window.BurnoutAlert t={t} />
 
       {/* ── Per-course readiness ──────────────────────────── */}
@@ -437,18 +427,6 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
           })}
         </div>
       </section>
-
-      {/* ── Upcoming exams (compact) ─────────────────────── */}
-      {hasCourses && (
-        <section>
-          <H2>{t.dash_upcoming_exams}</H2>
-          <div style={{ marginTop: "var(--space-3)", display: "grid", gap: "var(--space-4)", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
-            {activeCourses.map((c) => (
-              <CourseCard key={c.id} {...c} onClick={() => openCourse(c)} onStatClick={(stat) => openCourse(c, stat)} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {dayDetail && (
         <window.DayDetail
