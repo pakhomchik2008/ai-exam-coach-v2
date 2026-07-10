@@ -179,7 +179,7 @@ STRUCTURE:
 
 SECTION FIELDS (each section object):
 - "title": string — section name
-- "content": string — 3-8 paragraphs of thorough explanation. Use **bold** for key terms. Separate paragraphs with \\n\\n. Be detailed enough that a student can learn the topic from this alone without another textbook. Include concrete examples inline.
+- "content": string — 2-4 paragraphs of clear explanation. Use **bold** for key terms. Separate paragraphs with \\n\\n. Explain the concept fully with a concrete example or analogy inline. Be thorough but not padded.
 - "keyPoints": string[] — 2-4 key takeaways (short, memorable phrases)
 - "formula": string | null — key formula, rule, date, code snippet, or equation if relevant. null if not applicable.
 - "example": object | null — {"problem":"a specific problem","solution":"step-by-step solution with working shown","answer":"final answer"} — null if the section is conceptual
