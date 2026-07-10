@@ -25,12 +25,58 @@ function CoachIcon({ size = 32 }) {
 
 const _md = (text) => {
   if (!text) return "";
-  return text
+  let t = text
+    .replace(/<br\s*\/?>/gi, "\n");
+  t = t
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
-    .replace(/`([^`\n]+?)`/g, "<code style='background:#f1f5f9;padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>");
+    .replace(/`([^`\n]+?)`/g, "<code style='background:#f1f5f9;padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
+    .replace(/\n/g, "<br/>");
+  return t;
 };
+
+const _isMath = (text) => /[=°²³√×÷±∑∫πΔ∞≠≤≥∈∩∪]/.test(text) || /\d\s*[\+\-\*\/]\s*\d/.test(text);
+
+const _sfx = (() => {
+  const ctx = () => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } };
+  let _ctx = null;
+  const getCtx = () => { if (!_ctx) _ctx = ctx(); return _ctx; };
+  return {
+    correct() {
+      const c = getCtx(); if (!c) return;
+      const o = c.createOscillator(), g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.type = "sine"; o.frequency.setValueAtTime(523, c.currentTime);
+      o.frequency.setValueAtTime(659, c.currentTime + 0.08);
+      o.frequency.setValueAtTime(784, c.currentTime + 0.16);
+      g.gain.setValueAtTime(0.12, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.35);
+      o.start(c.currentTime); o.stop(c.currentTime + 0.35);
+    },
+    wrong() {
+      const c = getCtx(); if (!c) return;
+      const o = c.createOscillator(), g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.type = "sine"; o.frequency.setValueAtTime(330, c.currentTime);
+      o.frequency.setValueAtTime(277, c.currentTime + 0.12);
+      g.gain.setValueAtTime(0.1, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25);
+      o.start(c.currentTime); o.stop(c.currentTime + 0.25);
+    },
+    complete() {
+      const c = getCtx(); if (!c) return;
+      [523, 659, 784, 1047].forEach((freq, i) => {
+        const o = c.createOscillator(), g = c.createGain();
+        o.connect(g); g.connect(c.destination);
+        o.type = "sine"; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.1, c.currentTime + i * 0.12);
+        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + i * 0.12 + 0.3);
+        o.start(c.currentTime + i * 0.12); o.stop(c.currentTime + i * 0.12 + 0.3);
+      });
+    },
+  };
+})();
 
 const _badge = (bg, fg, text) => React.createElement("span", {
   style: { display: "inline-block", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 12, background: bg, color: fg }
@@ -1397,6 +1443,7 @@ ${STEP_TYPES}`;
     if (step + 1 >= (plan?.steps?.length || 0)) {
       commitResults();
       setDone(true);
+      _sfx.complete();
     } else {
       setStep(step + 1);
     }
@@ -1410,6 +1457,7 @@ ${STEP_TYPES}`;
     setResults((r) => [...r, { type: "mcq", correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 20 : 5));
     setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
+    isCorrect ? _sfx.correct() : _sfx.wrong();
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     if (!isCorrect && resolved && window.logMistake) {
       const s = plan.steps[step];
@@ -1426,6 +1474,7 @@ ${STEP_TYPES}`;
     setResults((r) => [...r, { type: "tf", correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 20 : 5));
     setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
+    isCorrect ? _sfx.correct() : _sfx.wrong();
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
@@ -1438,6 +1487,7 @@ ${STEP_TYPES}`;
     setResults((r) => [...r, { type: "fill", correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 25 : 5));
     setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
+    isCorrect ? _sfx.correct() : _sfx.wrong();
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
@@ -1551,9 +1601,11 @@ ${STEP_TYPES}`;
       React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", "📖 CONCEPT")),
       s.title && React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
       React.createElement("div", { style: { fontSize: 15, lineHeight: 1.75, color: "var(--text-body)", marginBottom: 16 }, dangerouslySetInnerHTML: { __html: _md(s.body) } }),
-      s.keyTakeaway && React.createElement("div", { style: { background: "#fefce8", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "#92400e", marginBottom: s.example ? 14 : 0 } },
+      s.keyTakeaway && React.createElement("div", { style: { background: "linear-gradient(135deg, #fefce8, #fef9c3)", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "#92400e", marginBottom: s.example ? 14 : 0 } },
         "💡 ", React.createElement("strong", null, s.keyTakeaway)),
-      s.example && React.createElement("div", { style: { background: "var(--surface-muted)", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "var(--text-body)", fontFamily: "var(--font-mono)" } }, s.example)),
+      s.example && (_isMath(s.example)
+        ? React.createElement("div", { style: { background: "linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)", borderRadius: 12, padding: "14px 20px", textAlign: "center", fontSize: 18, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "#4338ca", letterSpacing: "0.02em" } }, s.example)
+        : React.createElement("div", { style: { background: "var(--surface-muted)", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "var(--text-body)", fontFamily: "var(--font-mono)", lineHeight: 1.7 }, dangerouslySetInnerHTML: { __html: _md(s.example) } }))),
     React.createElement("div", { style: { marginTop: 16 } }, _btn("Got it, continue →", advance, true, false)));
 
   const renderMcq = (question, options, correct, explanation, diff, isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
@@ -1583,7 +1635,7 @@ ${STEP_TYPES}`;
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
         })),
       revealed && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${selected === correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, #f0fdf4, #ecfdf5)" : "linear-gradient(135deg, #fffbeb, #fef3c7)", border: `1px solid ${selected === correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
       }, selected === correct ? "✅ " : "💡 ", explanation)),
     revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
 
@@ -1672,6 +1724,15 @@ ${STEP_TYPES}`;
       explainFeedback && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
   };
 
+  const renderMathLine = (text) => {
+    if (_isMath(text)) {
+      return React.createElement("div", {
+        style: { background: "linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)", borderRadius: 10, padding: "10px 16px", margin: "6px 0", textAlign: "center", fontSize: 17, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "#4338ca", letterSpacing: "0.02em" }
+      }, text);
+    }
+    return React.createElement("div", { style: { fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: _md(text) } });
+  };
+
   const renderWorkedExample = () => {
     const steps = s.steps || [];
     const allVisible = stepsRevealed >= steps.length;
@@ -1682,15 +1743,21 @@ ${STEP_TYPES}`;
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 0 } },
           ...steps.map((st, i) => {
             const vis = i < stepsRevealed;
-            return React.createElement("div", { key: i, style: { display: "flex", gap: 12, padding: "12px 0", borderTop: i > 0 ? "1px solid var(--border-subtle)" : "none", opacity: vis ? 1 : 0.25, transition: "opacity 0.4s" } },
-              React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: vis ? "#7c3aed" : "var(--surface-muted)", color: vis ? "white" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 } }, i + 1),
+            return React.createElement("div", {
+              key: i,
+              style: { display: "flex", gap: 12, padding: "14px 0", borderTop: i > 0 ? "1px solid var(--border-subtle)" : "none", opacity: vis ? 1 : 0.25, transform: vis ? "translateY(0)" : "translateY(4px)", transition: "opacity 0.4s, transform 0.4s" }
+            },
+              React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: vis ? "linear-gradient(135deg,#7c3aed,#6366f1)" : "var(--surface-muted)", color: vis ? "white" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.3s" } }, i + 1),
               React.createElement("div", { style: { flex: 1 } },
-                React.createElement("div", { style: { fontSize: 12, fontWeight: 600, color: vis ? "var(--text-muted)" : "var(--text-faint)", marginBottom: 2 } }, st.label),
-                vis && React.createElement("div", { style: { fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: _md(st.content) } })));
+                React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: vis ? "#7c3aed" : "var(--text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" } }, st.label),
+                vis && renderMathLine(st.content)));
           })),
         !allVisible && React.createElement("div", { style: { marginTop: 14 } },
-          _btn(stepsRevealed === 0 ? "Show first step →" : "Show next step →", () => setStepsRevealed((n) => n + 1), false, false)),
-        allVisible && s.challenge && React.createElement("div", { style: { marginTop: 14, background: "#fefce8", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "#92400e" } }, "🎯 Now you try: ", React.createElement("strong", null, s.challenge))),
+          React.createElement("button", {
+            onClick: () => setStepsRevealed((n) => n + 1),
+            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed #c4b5fd", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "#7c3aed", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+          }, stepsRevealed === 0 ? "Reveal first step →" : `Reveal step ${stepsRevealed + 1} →`)),
+        allVisible && s.challenge && React.createElement("div", { style: { marginTop: 14, background: "linear-gradient(135deg, #fefce8, #fef9c3)", border: "1px solid #fde68a", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#92400e" } }, "🎯 Now you try: ", React.createElement("strong", null, s.challenge))),
       allVisible && React.createElement("div", { style: { marginTop: 16 } },
         _btn("Continue →", () => { setXp((x) => x + 15); advance(); }, true, false)));
   };
@@ -1720,78 +1787,63 @@ ${STEP_TYPES}`;
   const pct = Math.round(((step + 1) / totalSteps) * 100);
   const estMinsLeft = plan.estimatedMinutes ? Math.max(1, Math.round(plan.estimatedMinutes * (1 - step / totalSteps))) : null;
 
-  // ─── Difficulty panel ──────────────────────────────────────────────────────
+  // ─── Difficulty panel (compact pills) ───────────────────────────────────────
   const topicKey = `${topic}::${resolved?.examId || "any"}`;
   const currentVote = getDiffVote(topicKey);
   const DIFF_OPTIONS = [
-    { v: -2, emoji: "😵", label: "Way too hard" },
-    { v: -1, emoji: "😬", label: "A bit hard" },
-    { v:  0, emoji: "👍", label: "Just right" },
-    { v:  1, emoji: "😌", label: "A bit easy" },
-    { v:  2, emoji: "🥱", label: "Way too easy" },
+    { v: -2, emoji: "😵", label: "Hard" },
+    { v:  0, emoji: "👍", label: "OK" },
+    { v:  2, emoji: "🥱", label: "Easy" },
   ];
 
-  const renderDiffButton = () => React.createElement("div", { style: { position: "relative", display: "inline-block" } },
-    // Floating chip
-    React.createElement("button", {
-      onClick: () => setShowDiffPanel((v) => !v),
-      title: "Rate difficulty",
-      style: {
-        display: "flex", alignItems: "center", gap: 5, padding: "5px 10px",
-        background: diffVoted ? "#f0fdf4" : "var(--surface-card)",
-        border: `1px solid ${diffVoted ? "#86efac" : "var(--border-default)"}`,
-        borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
-        color: diffVoted ? "#15803d" : "var(--text-muted)", fontFamily: "var(--font-sans)",
-        transition: "all 0.15s",
-      }
-    },
-      React.createElement("span", null, diffVoted ? "✓ Rated" : "🎚️ Difficulty")),
+  const renderDiffPills = () => React.createElement("div", {
+    style: { display: "flex", gap: 6, alignItems: "center" }
+  },
+    React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", fontWeight: 600 } }, "Difficulty:"),
+    ...DIFF_OPTIONS.map(({ v, emoji, label }) =>
+      React.createElement("button", {
+        key: v,
+        onClick: () => { saveDiffVote(topicKey, v); setDiffVoted(true); },
+        style: {
+          display: "flex", alignItems: "center", gap: 3, padding: "3px 8px",
+          background: currentVote === v ? "#eef2ff" : "transparent",
+          border: currentVote === v ? "1px solid #c7d2fe" : "1px solid var(--border-subtle)",
+          borderRadius: 12, fontSize: 11, cursor: "pointer",
+          color: currentVote === v ? "#4f46e5" : "var(--text-muted)",
+          fontFamily: "var(--font-sans)", fontWeight: currentVote === v ? 600 : 400,
+        }
+      }, emoji, " ", label)));
 
-    // Dropdown panel (opens upward)
-    showDiffPanel && React.createElement("div", {
-      style: {
-        position: "absolute", bottom: "calc(100% + 8px)", right: 0,
-        background: "var(--surface-card)", border: "1px solid var(--border-default)",
-        borderRadius: 14, padding: "8px 6px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-        display: "flex", flexDirection: "column", gap: 2, minWidth: 170, zIndex: 50,
-        animation: "fadeUp 0.15s ease-out",
-      }
-    },
-      React.createElement("p", { style: { fontSize: 10, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "2px 8px 6px" } }, "How difficult was this?"),
-      ...DIFF_OPTIONS.map(({ v, emoji, label }) =>
-        React.createElement("button", {
-          key: v,
-          onClick: () => {
-            saveDiffVote(topicKey, v);
-            setDiffVoted(true);
-            setShowDiffPanel(false);
-          },
-          style: {
-            display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
-            background: currentVote === v ? "#eef2ff" : "none",
-            border: "none", borderRadius: 10, fontSize: 13, cursor: "pointer",
-            color: currentVote === v ? "#4f46e5" : "var(--text-body)",
-            fontFamily: "var(--font-sans)", fontWeight: currentVote === v ? 600 : 400,
-            textAlign: "left", width: "100%",
-          }
-        }, React.createElement("span", { style: { fontSize: 16 } }, emoji), label))));
+  // Meta-strip info
+  const examName = resolved ? ((window.getBrain ? window.getBrain() : {}).examViews || []).find((e) => e.id === resolved.examId)?.name || "" : "";
+  const estTotalMin = plan.estimatedMinutes || Math.max(2, Math.round(totalSteps * 0.5));
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
-    // Progress bar
+    // Progress header
     React.createElement("div", { style: { padding: "12px 20px 0" } },
+      // Meta-strip
+      step === 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, alignItems: "center" } },
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 } }, "⏱ ~", estTotalMin, " min"),
+        examName && React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, "·"),
+        examName && React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 } }, "📚 ", examName),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, "·"),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, totalSteps, " steps")),
+      // Step counter + stats row
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Step ${step + 1} of ${totalSteps}`),
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `Step ${step + 1} of ${totalSteps}`),
         React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", fontSize: 12, color: "var(--text-muted)" } },
-          masteryBefore != null && React.createElement("span", null, `Mastery: ${masteryNow}%`),
-          totalAnswered > 0 && React.createElement("span", null, `${correctCount}/${totalAnswered} ✓`),
-          estMinsLeft && React.createElement("span", null, `~${estMinsLeft} min left`),
-          renderDiffButton()),
+          totalAnswered > 0 && React.createElement("span", { style: { background: "#f0fdf4", color: "#15803d", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${correctCount}/${totalAnswered} ✓`),
+          estMinsLeft && React.createElement("span", null, `~${estMinsLeft}m left`)),
       ),
-      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s ease" } })),
-      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
-        React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)" } }, plan.title),
-        React.createElement("button", { onClick: () => { commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit lesson"))),
+      // Progress bar
+      React.createElement("div", { style: { height: 5, background: "var(--surface-muted)", borderRadius: 3, overflow: "hidden" } },
+        React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 3, transition: "width 0.4s ease" } })),
+      // Bottom row: title + exit
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 } },
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, plan.title),
+        React.createElement("button", { onClick: () => { commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit")),
+      // Difficulty pills (shown after first answer)
+      totalAnswered > 0 && !diffVoted && React.createElement("div", { style: { marginTop: 8, animation: "fadeUp 0.3s ease-out" } }, renderDiffPills())),
 
     // Step content — clicking outside diff panel closes it
     React.createElement("div", {
