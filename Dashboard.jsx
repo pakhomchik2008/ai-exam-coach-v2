@@ -250,6 +250,39 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
         </div>
       )}
 
+      {/* ── Phase 4: Exam Countdown Banner (< 7 days) ─────── */}
+      {(() => {
+        const urgent = activeCourses.filter((c) => c.daysAway >= 0 && c.daysAway <= 7).sort((a, b) => a.daysAway - b.daysAway);
+        if (urgent.length === 0) return null;
+        const nearest = urgent[0];
+        const isToday = nearest.daysAway === 0;
+        const isTomorrow = nearest.daysAway === 1;
+        const dayLabel = isToday ? L("TODAY","СЬОГОДНІ","СЕГОДНЯ","AUJOURD'HUI","HEUTE")
+          : isTomorrow ? L("TOMORROW","ЗАВТРА","ЗАВТРА","DEMAIN","MORGEN")
+          : `${nearest.daysAway} ${L("DAYS LEFT","ДНІВ","ДНЕЙ","JOURS","TAGE")}`;
+        const bgGrad = isToday ? "linear-gradient(135deg, #fef2f2, #fee2e2)" : nearest.daysAway <= 3 ? "linear-gradient(135deg, #fffbeb, #fef3c7)" : "linear-gradient(135deg, #eff6ff, #dbeafe)";
+        const borderC = isToday ? "#fca5a5" : nearest.daysAway <= 3 ? "#fde68a" : "#93c5fd";
+        const textC = isToday ? "#991b1b" : nearest.daysAway <= 3 ? "#92400e" : "#1e40af";
+        const emoji = isToday ? "🚨" : nearest.daysAway <= 3 ? "⏰" : "📅";
+        return (
+          <div style={{ borderRadius: "var(--radius-xl)", background: bgGrad, border: `1.5px solid ${borderC}`, padding: "14px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-3)", animation: "fadeUp 0.4s ease" }}>
+            <span style={{ fontSize: 28 }}>{emoji}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: "var(--text-xs)", fontWeight: 800, letterSpacing: "0.08em", color: textC, background: isToday ? "#fee2e2" : "rgba(255,255,255,0.6)", padding: "2px 8px", borderRadius: 6 }}>{dayLabel}</span>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: textC }}>{nearest.subject}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "var(--text-xs)", color: textC, opacity: 0.8 }}>
+                {nearest.readinessPct}% {L("ready","готовність","готовность","prêt","bereit")} · {L("target","ціль","цель","objectif","Ziel")}: {nearest.targetGrade}
+              </p>
+            </div>
+            {urgent.length > 1 && (
+              <span style={{ fontSize: "var(--text-xs)", color: textC, opacity: 0.7, whiteSpace: "nowrap" }}>+{urgent.length - 1} {L("more","ще","ещё","autre","weitere")}</span>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── Today's AI Plan — hero section ────────────────── */}
       <section style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", border: "1px solid var(--border-subtle)", padding: "var(--space-6)", position: "relative", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
@@ -387,6 +420,47 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       </section>
 
       <window.BurnoutAlert t={t} />
+
+      {/* ── Phase 6: Weak Spot Digest ────────────────────── */}
+      {(() => {
+        const weakSpots = activeCourses.flatMap((c) => {
+          const ev = (brain.examViews || []).find((e) => e.id === c.id);
+          if (!ev) return [];
+          return (ev.topics || [])
+            .filter((tp) => tp.lastSeen && tp.retention < 0.5)
+            .map((tp) => ({ name: tp.topicName || tp.name, exam: c.subject, retention: Math.round(tp.retention * 100), color: c.color, topicIdx: tp.topicIdx, examId: c.id }));
+        }).sort((a, b) => a.retention - b.retention).slice(0, 3);
+        if (weakSpots.length === 0) return null;
+        return (
+          <section style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-default)", padding: "var(--space-4)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-3)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <span style={{ fontSize: 18 }}>🎯</span>
+                <H2 size="var(--text-base)">{L("Weak spots","Слабкі місця","Слабые места","Points faibles","Schwachstellen")}</H2>
+              </div>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L("Topics where you struggle","Теми зі складнощами","Темы, где сложности","Sujets difficiles","Schwierige Themen")}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {weakSpots.map((ws, i) => (
+                <div key={i} onClick={() => onGoToChat && onGoToChat({ mode: "learn", topic: ws.name })}
+                  style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "12px 14px", borderRadius: "var(--radius-lg)", background: ws.retention < 20 ? "#fef2f2" : ws.retention < 35 ? "#fffbeb" : "var(--surface-muted)", border: `1px solid ${ws.retention < 20 ? "#fecaca" : ws.retention < 35 ? "#fde68a" : "var(--border-subtle)"}`, cursor: "pointer", transition: "transform 0.1s ease" }}>
+                  <div style={{ width: 40, textAlign: "center", flexShrink: 0 }}>
+                    <div style={{ fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", color: ws.retention < 20 ? "var(--red-600)" : ws.retention < 35 ? "var(--amber-600)" : "var(--text-body)", fontFamily: "var(--font-mono)" }}>{ws.retention}%</div>
+                    <div style={{ height: 3, background: "var(--border-subtle)", borderRadius: 2, overflow: "hidden", marginTop: 3 }}>
+                      <div style={{ height: "100%", width: `${ws.retention}%`, background: ws.retention < 20 ? "var(--red-500)" : ws.retention < 35 ? "var(--amber-500)" : "var(--indigo-500)" }} />
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ws.name}</div>
+                    <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{ws.exam}</div>
+                  </div>
+                  <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", flexShrink: 0 }}>{L("Study","Вчити","Учить","Étudier","Lernen")} →</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ── Per-course readiness ──────────────────────────── */}
       <section>
