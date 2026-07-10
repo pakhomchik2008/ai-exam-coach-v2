@@ -161,45 +161,40 @@ function LearnEngine({ topic, onExit }) {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
 
-        const system = `You are an expert teacher creating a comprehensive study guide. The student is learning this topic for the FIRST TIME — explain everything from scratch, with enough depth to take notes from.
+        const system = `You are an expert teacher creating a focused study guide. The student is learning this topic for the FIRST TIME.
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
 
-VOICE:
-- Clear, warm, patient. Assume zero prior knowledge of THIS specific topic.
-- Use concrete analogies and real-world examples to anchor abstract ideas.
-- **Bold** key terms when they first appear.
-- Explain WHY things work, not just WHAT they are.
-- Write as if you're a brilliant friend explaining at a whiteboard.
+CRITICAL CONSTRAINT: The ENTIRE JSON response must stay under 6000 tokens. Be concise — quality over quantity.
 
-STRUCTURE:
-- Break the topic into logical sub-topics (sections). Use AS MANY sections as the topic genuinely needs — a simple concept might need 2-3, a complex one might need 5-7. Don't pad, don't compress.
-- Each section is a FULL explanation, not a summary.
-- After each section, include 1-2 quiz questions that test understanding of THAT section only.
+VOICE: Clear, warm, direct. **Bold** key terms. Use concrete examples and analogies.
+
+STRUCTURE — exactly 3 to 4 sections (no more, no fewer):
+- Break the topic into its 3-4 most important sub-topics. Choose the most essential ones.
+- Each section covers ONE clear idea with explanation + example.
 
 SECTION FIELDS (each section object):
 - "title": string — section name
-- "content": string — 2-4 paragraphs of clear explanation. Use **bold** for key terms. Separate paragraphs with \\n\\n. Explain the concept fully with a concrete example or analogy inline. Be thorough but not padded.
-- "keyPoints": string[] — 2-4 key takeaways (short, memorable phrases)
-- "formula": string | null — key formula, rule, date, code snippet, or equation if relevant. null if not applicable.
-- "example": object | null — {"problem":"a specific problem","solution":"step-by-step solution with working shown","answer":"final answer"} — null if the section is conceptual
-- "proTip": string | null — a practical shortcut or insight
-- "commonMistake": string | null — what students commonly get wrong here
-- "quiz": array of 1-2 objects, each: {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}
+- "content": string — 3-5 sentences of clear explanation. **Bold** key terms. Include ONE concrete analogy or example inline. Separate ideas with \\n\\n if needed.
+- "keyPoints": string[] — exactly 2-3 short memorable takeaways
+- "formula": string | null — the key formula, rule, or code snippet. null if not applicable.
+- "example": {"problem":"one specific problem","solution":"2-4 step solution","answer":"final answer"} | null — null for purely conceptual sections
+- "proTip": string | null — one practical shortcut (1 sentence). null if nothing important.
+- "commonMistake": string | null — the #1 thing students get wrong (1 sentence). null if not applicable.
+- "quiz": array of exactly 1 object: {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences."}
 
 TOP-LEVEL FIELDS:
-- "title": string — topic title
-- "estimatedMinutes": number
-- "sections": array of section objects (as many as needed)
-- "summary": string[] — 4-8 key points covering the ENTIRE topic (a cheat-sheet)
-- "checkpoint": {"questions":[3 MCQ objects spanning ALL sections]}
+- "title": string
+- "estimatedMinutes": number (5-15)
+- "sections": array of exactly 3-4 section objects
+- "summary": string[] — exactly 4-5 key points covering the whole topic
+- "checkpoint": {"questions": array of exactly 3 MCQ objects: {"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}}
 
 RULES:
-- Number of sections is NOT fixed — use as many as the topic needs for thorough coverage.
-- Content per section must be thorough — multiple paragraphs, not bullet points.
-- Quiz questions test ONLY what was explained in that specific section.
-- Checkpoint questions span ALL sections.
-- Adapt to the subject: math/physics → formulas + worked examples; history → dates + cause-effect; programming → code snippets; literature → quotes + analysis.`;
+- EXACTLY 3-4 sections. Not 5, not 6. Choose the most essential sub-topics.
+- Content is 3-5 sentences per section — not essays, not bullet points.
+- Every field that says "null if not applicable" MUST be null (not omitted) when not relevant.
+- Adapt to subject: math → formulas + worked numbers; history → key dates + causation; programming → code; science → mechanisms.`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Taking too long — try again.")), 55000));
         const raw = await Promise.race([
