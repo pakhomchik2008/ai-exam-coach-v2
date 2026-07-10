@@ -108,7 +108,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
 
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
 
-function LessonEngine({ topic, onExit }) {
+function LessonEngine({ topic, mode, onExit }) {
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -164,58 +164,101 @@ function LessonEngine({ topic, onExit }) {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
 
-        const system = `You are an elite personal tutor building ONE lesson — a fast, exciting, one-on-one session, NOT a textbook. Anything known about the student (name, weak topics, past mistakes, strengths) appears above; use it.
-
-OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
-
-VOICE — applies to every "body", "explanation" and "keyTakeaway":
+        const VOICE = `VOICE — applies to every "body", "explanation" and "keyTakeaway":
 - Energetic, warm, a little cheeky. Talk TO the student, not AT them.
-- Praise is specific and earned — name the exact thing they did right. NEVER "Great job", "Correct!", "Well done", or praise that would fit any answer.
-- 1-3 short sentences per text field. No walls of text, ever.
+- Praise is specific and earned — name the exact thing they did right. NEVER "Great job", "Correct!", "Well done", or praise that fits any answer.
+- 1-3 short sentences per text field. No walls of text.
 - Turn wrong answers into insight ("Ooh — that's the classic trap, here's the tell…"), never a flat "the answer is B".
-- When the student's history above is relevant, reference it naturally ("this is the trap you hit last time", "you crushed the related idea already"). NEVER invent history you weren't given.
+- When the student's history above is relevant, reference it naturally. NEVER invent history you weren't given.`;
 
-STRUCTURE — 8-12 steps:
-1. COLD OPEN FIRST. Step 1 is an "mcq" or "tf" that hooks curiosity BEFORE anything is explained — a surprising question, a common trap, a real-world bet, or a "predict what happens". Its "explanation" delivers the reveal that makes the student WANT the concept. Step 1 is NEVER a teach.
-2. Only after the hook, "teach" the concept it exposed (short), then alternate teach → question so the student interacts every step.
-3. 2-3 concepts total. Mix mcq, tf AND fill — never the same type twice in a row.
-4. Difficulty rises through the lesson.
-5. End with a "checkpoint" of exactly 3 questions covering everything taught.
-
-STEP TYPES AND THEIR EXACT JSON SHAPES:
+        const STEP_TYPES = `STEP TYPES AND THEIR EXACT JSON SHAPES:
 
 "teach" — explain ONE concept:
 {"type":"teach","title":"Short Title","body":"1-3 sentences. **Bold** key terms. Concrete analogy, not abstract.","keyTakeaway":"One punchy sentence","example":"A concrete example or formula"}
 
-"mcq" — multiple choice question:
-{"type":"mcq","question":"Clear, specific question","options":["A","B","C","D"],"correct":1,"explanation":"The reveal / why others are traps. 1-2 sentences.","difficulty":"easy|medium|hard"}
+"mcq" — multiple choice:
+{"type":"mcq","question":"Clear, specific question","options":["A","B","C","D"],"correct":1,"explanation":"Why the right answer is right; why others are traps. 1-2 sentences.","difficulty":"easy|medium|hard"}
 
 "tf" — true or false:
-{"type":"tf","statement":"A clear statement that is either true or false","correct":true,"explanation":"Why it's true/false. 1 sentence."}
+{"type":"tf","statement":"A clear statement","correct":true,"explanation":"Why it's true/false. 1 sentence."}
 
 "fill" — fill in the blank (ONE word or short phrase):
 {"type":"fill","sentence":"The ___ is the powerhouse of the cell.","answer":"mitochondria","accept":["mitochondria","mitochondrion"],"explanation":"Brief explanation."}
 
 "worked_example" — step-by-step solution:
-{"type":"worked_example","title":"Example: ...","steps":[{"label":"Step 1 name","content":"What to do"},{"label":"Step 2 name","content":"What to do"}],"challenge":"Now try: a similar problem for the student"}
+{"type":"worked_example","title":"Example: ...","steps":[{"label":"Step 1","content":"What to do"}],"challenge":"A similar problem for the student to try"}
 
-"checkpoint" — 3 rapid-fire questions to test retention:
+"checkpoint" — 3 rapid-fire questions:
 {"type":"checkpoint","questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":2,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":1,"explanation":"..."}]}
 
-RULES:
-- Step 1 MUST be mcq or tf used as a curiosity hook — NOT a teach.
-- Never two teach steps in a row; every teach is followed by a question.
-- Questions test what was just covered (except the cold open, which tests intuition).
-- Difficulty increases as the lesson progresses.
-- Total steps: 8-12 (not counting checkpoint sub-questions).
+OUTPUT FORMAT: {"title":"Lesson title","estimatedMinutes":10,"steps":[...]}`;
 
-OUTPUT FORMAT:
-{"title":"Lesson title","estimatedMinutes":12,"steps":[...]}`;
+        // Two completely different lesson shapes depending on whether the student
+        // is seeing this topic for the first time (learn) or revisiting it (review/practice).
+        const system = (mode === "learn") ? `You are an expert teacher building ONE clear first-lesson — the student is encountering this topic for the first time. Priority is understanding, not speed. Anything known about the student appears above; use it.
+
+OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
+
+${VOICE}
+
+STRUCTURE — 8-12 steps, always concept-first:
+1. Step 1 is ALWAYS a "teach" step. Open with the clearest, most concrete explanation of the first concept — an analogy, a real-world anchor, not a definition dump.
+2. Every "teach" is immediately followed by ONE quiz (mcq, tf, or fill) that tests exactly what was just taught — nothing the student hasn't seen yet.
+3. Pattern: teach → quiz → teach → quiz → (worked_example →) teach → quiz → checkpoint.
+4. 2-3 core concepts total. Each gets its own teach + quiz pair.
+5. End with a "checkpoint" of exactly 3 questions covering all concepts taught.
+
+RULES:
+- Step 1 MUST be "teach" — NEVER mcq or tf as the first step.
+- Never two "teach" steps in a row. Every teach is followed by a quiz.
+- Quiz questions test ONLY what was explicitly taught earlier in this lesson.
+- Difficulty rises gradually — first quiz is easy, last quiz before checkpoint is hard.
+- Total steps: 8-12 (checkpoint counts as 1 step).
+
+${STEP_TYPES}` : (mode === "practice") ? `You are a tough exam examiner. Build a PRACTICE TEST — rapid-fire exam-style questions, no teaching. The student already knows this material; make them prove it. Anything known about the student appears above; target their weak spots.
+
+OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
+
+${VOICE}
+
+STRUCTURE — 8-10 steps, all questions:
+1. Open with a medium-difficulty mcq or tf question. No warmup.
+2. Mix mcq, tf, AND fill throughout. Never the same type twice in a row.
+3. No "teach" steps — ONLY quiz questions and one final "checkpoint".
+4. Questions span the full topic: definitions, applications, tricky edge cases.
+5. End with a "checkpoint" of exactly 3 hard exam-style questions.
+
+RULES:
+- Step 1 MUST be mcq or tf — never a teach.
+- Zero "teach" steps allowed anywhere in the lesson.
+- Difficulty is medium-to-hard throughout. No softballs.
+- Total steps: 8-10.
+
+${STEP_TYPES}` : `You are an AI tutor running a SPACED REPETITION session — the student has seen this before, this is retrieval practice. Make them recall, not re-read. Anything known about the student appears above; reference their past mistakes naturally.
+
+OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
+
+${VOICE}
+
+STRUCTURE — 8-10 steps, quiz-heavy:
+1. COLD OPEN FIRST. Step 1 is an "mcq" or "tf" that tests recall immediately — a surprising question, a trap, a "what's the rule here?". Its "explanation" should be the mini-reveal. Step 1 is NEVER a teach.
+2. After each question, if the answer exposed a gap, add ONE short "teach" to re-explain just that point (1-2 sentences, not a re-teach from scratch). Otherwise go straight to the next question.
+3. Mix mcq, tf, AND fill. Never the same type twice in a row.
+4. At least 5 quiz questions before the checkpoint.
+5. End with a "checkpoint" of exactly 3 questions.
+
+RULES:
+- Step 1 MUST be mcq or tf — NEVER a teach.
+- "teach" steps here are SHORT reminders (1-2 sentences) — not full explanations.
+- Difficulty starts medium and rises to hard.
+- Total steps: 8-10.
+
+${STEP_TYPES}`;
 
         const timeout = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Taking too long — please try again.")), 45000));
         const raw = await Promise.race([
-          complete({ system, prompt: `Generate a structured lesson on: ${topic}`, topicContext }),
+          complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext }),
           timeout,
         ]);
 
@@ -636,19 +679,19 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); };
 
   // Active mode screens
-  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, onExit: exitToLobby });
+  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
 
-  // Review mode — generate review lesson for due topics
+  // Review mode — spaced repetition, quiz-heavy, cold-open hook
   if (mode === "review") {
     const reviewTopic = dueReviews.length > 0 ? dueReviews[0].topicName : (weakest.length > 0 ? weakest[0].topicName : "General review");
-    return React.createElement(LessonEngine, { topic: `Review: ${reviewTopic}`, onExit: exitToLobby });
+    return React.createElement(LessonEngine, { topic: reviewTopic, mode: "review", onExit: exitToLobby });
   }
 
-  // Practice mode — generate practice questions
+  // Practice mode — exam simulation, pure questions, no teaching
   if (mode === "practice") {
-    const practiceTopic = examViews.length > 0 ? `Exam practice: ${examViews[0].name}` : "Practice questions";
-    return React.createElement(LessonEngine, { topic: practiceTopic, onExit: exitToLobby });
+    const practiceTopic = examViews.length > 0 ? examViews[0].name : "General exam practice";
+    return React.createElement(LessonEngine, { topic: practiceTopic, mode: "practice", onExit: exitToLobby });
   }
 
   // Topic picker for Learn mode
