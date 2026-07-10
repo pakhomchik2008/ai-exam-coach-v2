@@ -6,7 +6,7 @@
 
 const COACH_MODES = [
   { id: "learn", emoji: "🧠", label: "Learn", desc: "Structured lesson" },
-  { id: "review", emoji: "⚡", label: "Review", desc: "Spaced repetition" },
+  { id: "review", emoji: "⚡", label: "Quick Check", desc: "5 questions · 2 min" },
   { id: "practice", emoji: "🎯", label: "Practice", desc: "Exam questions" },
   { id: "speed", emoji: "🏎️", label: "Speed Round", desc: "20 Qs × 30 sec" },
   { id: "chat", emoji: "💬", label: "Chat", desc: "Ask anything" },
@@ -542,97 +542,99 @@ RULES:
 
 // ─── FLASHCARD ENGINE (Review mode) ──────────────────────────────────────────
 
-function FlashcardEngine({ topic, onExit, quickMode }) {
-  const [cards, setCards] = React.useState(null);
+function QuickCheckEngine({ topic, onExit }) {
+  const [questions, setQuestions] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [idx, setIdx] = React.useState(0);
-  const [flipped, setFlipped] = React.useState(false);
+  const [selected, setSelected] = React.useState(null);
+  const [revealed, setRevealed] = React.useState(false);
+  const [fillInput, setFillInput] = React.useState("");
   const [results, setResults] = React.useState([]);
   const [done, setDone] = React.useState(false);
-  const [timer, setTimer] = React.useState(quickMode ? 60 : null);
-  const timerRef = React.useRef(null);
+  const startTime = React.useRef(Date.now());
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
 
-  // Generate flashcards
   React.useEffect(() => {
-    setLoading(true); setError(null); setCards(null); setIdx(0); setFlipped(false); setResults([]); setDone(false);
+    setLoading(true); setError(null); setQuestions(null); setIdx(0); setSelected(null); setRevealed(false); setResults([]); setDone(false); setFillInput("");
+    startTime.current = Date.now();
     (async () => {
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-        const n = quickMode ? 5 : 8;
-        const system = `You are a spaced-repetition flashcard generator. Create exactly ${n} flashcards for REVIEW (the student has seen this topic before). Each card tests recall of ONE fact, formula, definition, or concept.
+        const system = `You are building a QUICK CHECK — 5 rapid retrieval questions for a student who has studied this topic before. This is NOT a flashcard deck. Each question has ONE correct answer and immediate feedback.
 
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 
-CARD TYPES — mix these for variety:
-- "concept": front = question about a concept, back = clear explanation (2-3 sentences max)
-- "formula": front = "What is the formula for X?", back = the formula + one-line explanation
-- "definition": front = term, back = definition
-- "application": front = a concrete scenario/problem, back = the answer with brief reasoning
+QUESTION TYPES — mix at least 2 types:
+"mcq": {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence why this is right.","topic":"subtopic name"}
+"fill": {"type":"fill","question":"Complete: The ___ is...","answer":"mitochondria","accept":["mitochondria","mitochondrion"],"explanation":"1 sentence.","topic":"subtopic name"}
 
-FORMAT: {"cards":[{"type":"concept|formula|definition|application","front":"question/prompt","back":"answer/explanation","hint":"optional one-word hint"}]}
+FORMAT: {"questions":[...5 items...],"sessionTitle":"Short title for this check"}
 
 RULES:
-- Front is ALWAYS a question or prompt, never a statement
-- Back is concise — max 3 sentences
-- Difficulty should vary: 2 easy, ${n - 4} medium, 2 hard
-- No duplicate concepts across cards
-- Cards test RECALL, not recognition — no multiple choice`;
+- Exactly 5 questions. Mix MCQ and fill-in-blank (at least 1 fill).
+- Questions test RECALL of key facts, formulas, definitions — not obscure trivia.
+- Difficulty: 1 easy, 3 medium, 1 hard. Order easy→hard.
+- Explanations are 1 sentence max — concise, helpful if wrong.
+- Each question covers a DIFFERENT subtopic/concept.
+- "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long — try again.")), 40000));
         const raw = await Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${n} review flashcards on: ${topic}` }], topicContext }),
+          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.cards) || parsed.cards.length === 0) throw new Error("Invalid flashcards");
-        setCards(parsed.cards);
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        setQuestions(parsed);
         setLoading(false);
       } catch (e) {
-        console.error("Flashcard generation failed:", e);
-        setError(e.message || "Failed to generate flashcards");
+        console.error("Quick Check generation failed:", e);
+        setError(e.message || "Failed to generate questions");
         setLoading(false);
       }
     })();
   }, [topic]);
 
-  // Quick mode timer
-  React.useEffect(() => {
-    if (!quickMode || loading || done || !cards) return;
-    timerRef.current = setInterval(() => {
-      setTimer((t) => {
-        if (t <= 1) { clearInterval(timerRef.current); setDone(true); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [quickMode, loading, done, cards]);
+  const answerMcq = (optIdx) => {
+    if (selected !== null) return;
+    const q = questions.questions[idx];
+    const isCorrect = optIdx === q.correct;
+    setSelected(optIdx);
+    setRevealed(true);
+    setResults((r) => [...r, { correct: isCorrect, topic: q.topic || topic }]);
+    isCorrect ? _sfx.correct() : _sfx.wrong();
+    if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+  };
 
-  const rate = (label) => {
-    const card = cards[idx];
-    const map = { again: { correct: false, quality: 0 }, hard: { correct: true, quality: 0.3 }, good: { correct: true, quality: 0.7 }, easy: { correct: true, quality: 1.0 } };
-    const { correct, quality } = map[label];
-    if (resolved && window.recordReview) {
-      window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct, quality });
-    }
-    setResults((r) => [...r, { card: idx, label, correct }]);
-    setFlipped(false);
-    if (idx + 1 >= cards.length) {
+  const answerFill = () => {
+    const q = questions.questions[idx];
+    const userAns = fillInput.trim().toLowerCase();
+    const accepts = [q.answer, ...(q.accept || [])].map((a) => a.toLowerCase().trim());
+    const isCorrect = accepts.some((a) => a === userAns || a.includes(userAns) || userAns.includes(a));
+    setRevealed(true);
+    setSelected(isCorrect ? "correct" : "wrong");
+    setResults((r) => [...r, { correct: isCorrect, topic: q.topic || topic }]);
+    isCorrect ? _sfx.correct() : _sfx.wrong();
+    if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+  };
+
+  const advance = () => {
+    setSelected(null); setRevealed(false); setFillInput("");
+    if (idx + 1 >= questions.questions.length) {
       setDone(true);
-      if (timerRef.current) clearInterval(timerRef.current);
+      _sfx.complete();
     } else {
       setIdx(idx + 1);
     }
   };
 
-  // ── Loading ──
   if (loading) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, quickMode ? "Preparing quick review..." : "Building flashcards..."),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Preparing Quick Check..."),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
         ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
@@ -641,118 +643,129 @@ RULES:
   if (error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
       React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate flashcards"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate questions"),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn("← Back", onExit, false, false)));
+      _btn("← Back", onExit, false, false));
   }
 
-  // ── Summary screen ──
   if (done) {
     const total = results.length;
-    const remembered = results.filter((r) => r.correct).length;
-    const forgot = results.filter((r) => !r.correct);
-    const pctRemembered = total > 0 ? Math.round((remembered / total) * 100) : 0;
-    const xpEarned = remembered * 15 + (total > 0 ? 50 : 0);
+    const correct = results.filter((r) => r.correct).length;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const xpEarned = correct * 20 + (pct === 100 ? 50 : 0);
+    const elapsed = Math.round((Date.now() - startTime.current) / 1000);
+    const wrongTopics = results.filter((r) => !r.correct).map((r) => r.topic);
     if (window.addXp && total > 0) window.addXp(xpEarned);
 
-    // Group "again" cards by topic for insight
-    const forgotCards = forgot.map((r) => cards[r.card]?.front).filter(Boolean);
+    const emoji = pct === 100 ? "🔥" : pct >= 80 ? "🧠" : pct >= 60 ? "💪" : "📖";
+    const message = pct === 100 ? `${topic} locked in!` : pct >= 80 ? "Almost perfect!" : pct >= 60 ? "Good, but room to grow" : "Let's review this topic";
 
     return React.createElement("div", {
-      style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out", gap: 4 }
+      style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out" }
     },
-      React.createElement("span", { style: { fontSize: 56, marginBottom: 8 } }, pctRemembered >= 80 ? "🧠" : pctRemembered >= 50 ? "💪" : "📖"),
+      React.createElement("span", { style: { fontSize: 56, marginBottom: 8, animation: "pulse 0.6s ease-in-out" } }, emoji),
       React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } },
-        quickMode ? "Quick Review Done!" : "Review Complete!"),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, topic),
+        `${correct}/${total} ✓`),
+      React.createElement("p", { style: { fontSize: 15, color: "var(--text-muted)", margin: "0 0 24px", textAlign: "center" } }, message),
 
-      // Stats
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 24 } },
         ...[
-          { val: `${pctRemembered}%`, label: "Remembered", color: pctRemembered >= 80 ? "#15803d" : pctRemembered >= 50 ? "#b45309" : "#b91c1c" },
-          { val: `${total}`, label: "Cards", color: "var(--indigo-600)" },
+          { val: `${pct}%`, label: "Score", color: pct >= 80 ? "#15803d" : pct >= 60 ? "#b45309" : "#b91c1c" },
+          { val: `${elapsed}s`, label: "Time", color: "var(--indigo-600)" },
           { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
           React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, s.label)))),
 
-      // Forgot section
-      forgotCards.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
-        React.createElement("p", { style: { margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em" } }, `Forgot ${forgotCards.length} — review tomorrow`),
-        ...forgotCards.map((q, i) => React.createElement("p", { key: i, style: { margin: "4px 0", fontSize: 13, color: "#b45309", lineHeight: 1.4 } }, `• ${q}`))),
+      wrongTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "linear-gradient(135deg, #fffbeb, #fef3c7)", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Review these:"),
+        ...wrongTopics.map((t, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "#b45309" } }, `→ ${t}`))),
 
-      // Buttons
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
         _btn("Done →", onExit, true, false)));
   }
 
-  // ── Card view ──
-  const card = cards[idx];
-  const progress = `${idx + 1} / ${cards.length}`;
-  const pct = Math.round(((idx + 1) / cards.length) * 100);
+  // ── Question view ──
+  const q = questions.questions[idx];
+  const total = questions.questions.length;
+  const pct = Math.round(((idx + 1) / total) * 100);
 
-  const RATE_BUTTONS = [
-    { key: "again", label: "Again", emoji: "🔄", desc: "Forgot", bg: "#fef2f2", bc: "#fca5a5", fg: "#b91c1c" },
-    { key: "hard", label: "Hard", emoji: "😬", desc: "Struggled", bg: "#fffbeb", bc: "#fde68a", fg: "#92400e" },
-    { key: "good", label: "Good", emoji: "👍", desc: "Got it", bg: "#f0fdf4", bc: "#86efac", fg: "#15803d" },
-    { key: "easy", label: "Easy", emoji: "😎", desc: "Instant", bg: "#eef2ff", bc: "#a5b4fc", fg: "#4338ca" },
-  ];
+  const renderQuestion = () => {
+    if (q.type === "fill") {
+      return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+          React.createElement("div", { style: { marginBottom: 14 } }, _badge("#fefce8", "#92400e", "✍️ FILL IN")),
+          React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question).replace("___", "<u style='border-bottom:2px dashed #6366f1;padding:0 8px;color:#6366f1'>___</u>") } }),
+          !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
+            React.createElement("input", {
+              value: fillInput, onChange: (e) => setFillInput(e.target.value),
+              onKeyDown: (e) => { if (e.key === "Enter" && fillInput.trim()) answerFill(); },
+              placeholder: "Type your answer…", autoFocus: true,
+              style: { flex: 1, border: "1.5px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", fontSize: 15, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", outline: "none" }
+            }),
+            React.createElement("button", {
+              onClick: fillInput.trim() ? answerFill : undefined, disabled: !fillInput.trim(),
+              style: { padding: "12px 20px", background: fillInput.trim() ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
+            }, "Check")),
+          revealed && React.createElement("div", {
+            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, #f0fdf4, #ecfdf5)" : "linear-gradient(135deg, #fffbeb, #fef3c7)", border: `1px solid ${selected === "correct" ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "#15803d" : "#92400e", lineHeight: 1.6 }
+          }, selected === "correct" ? `✅ Correct! "${q.answer}"` : `💡 The answer is "${q.answer}". ${q.explanation || ""}`)));
+    }
+
+    // MCQ
+    return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
+          _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", "⚡ QUESTION"),
+          q.topic && _badge("var(--surface-muted)", "var(--text-muted)", q.topic)),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          ...(q.options || []).map((opt, i) => {
+            const isCor = i === q.correct, isSel = i === selected;
+            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+            if (revealed) {
+              if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
+              else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
+              else { col = "#d1d5db"; bc = "#f3f4f6"; }
+            }
+            return React.createElement("button", {
+              key: i, disabled: revealed, onClick: () => answerMcq(i),
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            },
+              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+          })),
+        revealed && React.createElement("div", {
+          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, #f0fdf4, #ecfdf5)" : "linear-gradient(135deg, #fffbeb, #fef3c7)", border: `1px solid ${selected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+        }, selected === q.correct ? "✅ " : "💡 ", q.explanation)));
+  };
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
-    // Header
+    // Progress header
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Card ${progress}`),
-        React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center", fontSize: 12, color: "var(--text-muted)" } },
-          timer != null && React.createElement("span", { style: { fontWeight: 700, color: timer <= 10 ? "#b91c1c" : "var(--indigo-600)", fontSize: 14 } }, `${timer}s`),
-          React.createElement("button", { onClick: () => { setDone(true); if (timerRef.current) clearInterval(timerRef.current); },
-            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End review"))),
-      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s ease" } }))),
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `${idx + 1} of ${total}`),
+        React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+          results.length > 0 && React.createElement("span", { style: { background: "#f0fdf4", color: "#15803d", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${results.filter((r) => r.correct).length}/${results.length} ✓`),
+          React.createElement("button", { onClick: () => { setDone(true); _sfx.complete(); },
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End"))),
+      // Step dots
+      React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 4 } },
+        ...questions.questions.map((_, i) => {
+          const r = results[i];
+          const bg = i === idx ? "#6366f1" : r ? (r.correct ? "#22c55e" : "#ef4444") : "var(--border-subtle)";
+          return React.createElement("div", { key: i, style: { flex: 1, height: 5, borderRadius: 3, background: bg, transition: "background 0.3s" } });
+        })),
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, questions.sessionTitle || `Quick Check: ${topic}`),
+        React.createElement("button", { onClick: onExit, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit"))),
 
-    // Card
-    React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 20 } },
-      // Front/Back card
-      React.createElement("div", {
-        onClick: () => { if (!flipped) setFlipped(true); },
-        style: {
-          width: "100%", maxWidth: 420, minHeight: 220, background: "var(--surface-card)",
-          border: `2px solid ${flipped ? "#86efac" : "var(--border-default)"}`,
-          borderRadius: 20, padding: "28px 24px", cursor: flipped ? "default" : "pointer",
-          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
-          textAlign: "center", transition: "border-color 0.3s",
-          boxShadow: flipped ? "0 4px 20px rgba(34,197,94,0.1)" : "none",
-        }
-      },
-        // Type badge
-        React.createElement("div", { style: { marginBottom: 12 } },
-          _badge(flipped ? "#f0fdf4" : "#eef2ff", flipped ? "#15803d" : "#4f46e5",
-            flipped ? "💡 ANSWER" : `📇 ${(card.type || "concept").toUpperCase()}`)),
-        // Content
-        React.createElement("div", {
-          style: { fontSize: flipped ? 15 : 17, fontWeight: flipped ? 400 : 600, color: "var(--text-strong)", lineHeight: 1.6 },
-          dangerouslySetInnerHTML: { __html: _md(flipped ? card.back : card.front) }
-        }),
-        // Hint
-        !flipped && card.hint && React.createElement("p", { style: { margin: "12px 0 0", fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" } }, `Hint: ${card.hint}`),
-        // Tap to flip
-        !flipped && React.createElement("p", { style: { margin: "16px 0 0", fontSize: 12, color: "var(--text-faint)" } }, "Tap to reveal answer")),
+    // Question content
+    React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px 20px 80px" } }, renderQuestion()),
 
-      // Rating buttons (only when flipped)
-      flipped && React.createElement("div", { style: { display: "flex", gap: 8, width: "100%", maxWidth: 420 } },
-        ...RATE_BUTTONS.map((b) =>
-          React.createElement("button", {
-            key: b.key, onClick: () => rate(b.key),
-            style: {
-              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              padding: "14px 4px", background: b.bg, border: `1.5px solid ${b.bc}`,
-              borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "transform 0.1s",
-            }
-          },
-            React.createElement("span", { style: { fontSize: 20 } }, b.emoji),
-            React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: b.fg } }, b.label),
-            React.createElement("span", { style: { fontSize: 10, color: b.fg, opacity: 0.7 } }, b.desc))))));
+    // Continue button at bottom
+    revealed && React.createElement("div", { style: { padding: "12px 20px 20px" } },
+      _btn(idx + 1 >= total ? "See results →" : "Next →", advance, true, false)));
 }
 
 // ─── SPEED ROUND ENGINE ─────────────────────────────────────────────────────
@@ -2022,13 +2035,12 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
 
-  // Review mode — flashcard session from the queue
+  // Review mode — Quick Check session from the queue
   if (mode === "review" && reviewTopic) {
     const isQuick = reviewTopic === "__quick__";
     const quickTopic = isQuick ? ((brain.dueReviews || [])[0]?.topicName || (brain.weakestTopics || [])[0]?.topicName || "General review") : null;
-    return React.createElement(FlashcardEngine, {
+    return React.createElement(QuickCheckEngine, {
       topic: isQuick ? quickTopic : reviewTopic,
-      quickMode: isQuick,
       onExit: exitToQueue,
     });
   }
@@ -2062,27 +2074,27 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
           React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, tp.topicName),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } },
             `${tp.examName}${tp.lastSeen ? ` · last seen ${daysAgo(tp.lastSeen)}` : ""}`)),
-        React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--indigo-600)", flexShrink: 0 } }, "Review →"));
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--indigo-600)", flexShrink: 0 } }, "Check →"));
     };
 
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
         React.createElement("button", { onClick: exitToLobby, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "⚡ Review queue")),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "⚡ Quick Check")),
       React.createElement("p", { style: { margin: "0 0 14px 28px", fontSize: 13, color: "var(--text-muted)" } },
         queue.length > 0
           ? `${queue.length} ${queue.length === 1 ? "topic is" : "topics are"} fading — weakest first.`
           : "Nothing is due right now."),
 
-      // One Minute Review button
+      // Quick Check all button
       (queue.length > 0 || weakFallback.length > 0) && React.createElement("button", {
         onClick: () => setReviewTopic("__quick__"),
         style: { display: "flex", alignItems: "center", gap: 12, margin: "0 0 16px", padding: "14px 18px", background: "linear-gradient(135deg,#eef2ff,#e0e7ff)", border: "1.5px solid var(--indigo-500)", borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%" }
       },
         React.createElement("span", { style: { fontSize: 24 } }, "⚡"),
         React.createElement("div", { style: { flex: 1, textAlign: "left" } },
-          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 700, color: "var(--indigo-700)" } }, "One Minute Review"),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--indigo-600)" } }, "5 flashcards · 60 seconds · done")),
+          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 700, color: "var(--indigo-700)" } }, "Quick Check — All Topics"),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--indigo-600)" } }, "5 questions · ~2 min · see your score")),
         React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, "Go →")),
 
       queue.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
