@@ -495,6 +495,15 @@ RULES:
 
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
 
+// ─── Difficulty vote helpers ─────────────────────────────────────────────────
+const DIFF_KEY = "brain_difficulty_v1";
+function getDiffVote(topicKey) {
+  try { const d = JSON.parse(localStorage.getItem(DIFF_KEY) || "{}"); return d[topicKey] ?? null; } catch { return null; }
+}
+function saveDiffVote(topicKey, vote) {
+  try { const d = JSON.parse(localStorage.getItem(DIFF_KEY) || "{}"); d[topicKey] = vote; localStorage.setItem(DIFF_KEY, JSON.stringify(d)); } catch {}
+}
+
 function LessonEngine({ topic, mode, onExit }) {
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -510,6 +519,8 @@ function LessonEngine({ topic, mode, onExit }) {
   const [masteryBefore, setMasteryBefore] = React.useState(null);
   const [consecutiveCorrect, setConsecutiveCorrect] = React.useState(0);
   const [xp, setXp] = React.useState(0);
+  const [showDiffPanel, setShowDiffPanel] = React.useState(false);
+  const [diffVoted, setDiffVoted] = React.useState(false);
   // Guards the once-per-lesson XP commit so it can't double-count across
   // re-renders. Only a genuine completion (done → true) banks XP; exiting early
   // never sets done, so partial-lesson XP is deliberately not awarded.
@@ -551,6 +562,14 @@ function LessonEngine({ topic, mode, onExit }) {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
 
+        const topicKey = `${topic}::${resolved?.examId || "any"}`;
+        const priorVote = getDiffVote(topicKey);
+        const DIFF_NOTE = priorVote == null || priorVote === 0 ? "" :
+          priorVote >= 2  ? "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student said this topic was WAY too easy last time. Skip basics entirely. Use only hard questions, complex applications, tricky edge cases. Assume solid prior knowledge." :
+          priorVote === 1 ? "\n\n⚠️ DIFFICULTY FEEDBACK: The student found this slightly too easy. Use harder questions, less hand-holding, assume more background knowledge." :
+          priorVote === -1 ? "\n\n⚠️ DIFFICULTY FEEDBACK: The student found this slightly too hard. Use more scaffolding, clearer analogies, and start with easier questions." :
+          "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student found this topic WAY too hard last time. Simplify significantly: very concrete examples, no jargon without explanation, easy questions first, heavy scaffolding throughout.";
+
         const VOICE = `VOICE — applies to every "body", "explanation" and "keyTakeaway":
 - Energetic, warm, a little cheeky. Talk TO the student, not AT them.
 - Praise is specific and earned — name the exact thing they did right. NEVER "Great job", "Correct!", "Well done", or praise that fits any answer.
@@ -582,7 +601,7 @@ OUTPUT FORMAT: {"title":"Lesson title","estimatedMinutes":10,"steps":[...]}`;
 
         // Two completely different lesson shapes depending on whether the student
         // is seeing this topic for the first time (learn) or revisiting it (review/practice).
-        const system = (mode === "learn") ? `You are an expert teacher building ONE clear first-lesson — the student is encountering this topic for the first time. Priority is understanding, not speed. Anything known about the student appears above; use it.
+        const system = (mode === "learn") ? `You are an expert teacher building ONE clear first-lesson — the student is encountering this topic for the first time. Priority is understanding, not speed. Anything known about the student appears above; use it.${DIFF_NOTE}
 
 OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
 
@@ -602,7 +621,7 @@ RULES:
 - Difficulty rises gradually — first quiz is easy, last quiz before checkpoint is hard.
 - Total steps: 8-12 (checkpoint counts as 1 step).
 
-${STEP_TYPES}` : (mode === "practice") ? `You are a tough exam examiner. Build a PRACTICE TEST — rapid-fire exam-style questions, no teaching. The student already knows this material; make them prove it. Anything known about the student appears above; target their weak spots.
+${STEP_TYPES}` : (mode === "practice") ? `You are a tough exam examiner. Build a PRACTICE TEST — rapid-fire exam-style questions, no teaching. The student already knows this material; make them prove it. Anything known about the student appears above; target their weak spots.${DIFF_NOTE}
 
 OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
 
@@ -621,7 +640,7 @@ RULES:
 - Difficulty is medium-to-hard throughout. No softballs.
 - Total steps: 8-10.
 
-${STEP_TYPES}` : `You are an AI tutor running a SPACED REPETITION session — the student has seen this before, this is retrieval practice. Make them recall, not re-read. Anything known about the student appears above; reference their past mistakes naturally.
+${STEP_TYPES}` : `You are an AI tutor running a SPACED REPETITION session — the student has seen this before, this is retrieval practice. Make them recall, not re-read. Anything known about the student appears above; reference their past mistakes naturally.${DIFF_NOTE}
 
 OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
 
@@ -951,15 +970,72 @@ ${STEP_TYPES}`;
   const pct = Math.round(((step + 1) / totalSteps) * 100);
   const estMinsLeft = plan.estimatedMinutes ? Math.max(1, Math.round(plan.estimatedMinutes * (1 - step / totalSteps))) : null;
 
+  // ─── Difficulty panel ──────────────────────────────────────────────────────
+  const topicKey = `${topic}::${resolved?.examId || "any"}`;
+  const currentVote = getDiffVote(topicKey);
+  const DIFF_OPTIONS = [
+    { v: -2, emoji: "😵", label: "Way too hard" },
+    { v: -1, emoji: "😬", label: "A bit hard" },
+    { v:  0, emoji: "👍", label: "Just right" },
+    { v:  1, emoji: "😌", label: "A bit easy" },
+    { v:  2, emoji: "🥱", label: "Way too easy" },
+  ];
+
+  const renderDiffButton = () => React.createElement("div", { style: { position: "relative", display: "inline-block" } },
+    // Floating chip
+    React.createElement("button", {
+      onClick: () => setShowDiffPanel((v) => !v),
+      title: "Rate difficulty",
+      style: {
+        display: "flex", alignItems: "center", gap: 5, padding: "5px 10px",
+        background: diffVoted ? "#f0fdf4" : "var(--surface-card)",
+        border: `1px solid ${diffVoted ? "#86efac" : "var(--border-default)"}`,
+        borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        color: diffVoted ? "#15803d" : "var(--text-muted)", fontFamily: "var(--font-sans)",
+        transition: "all 0.15s",
+      }
+    },
+      React.createElement("span", null, diffVoted ? "✓ Rated" : "🎚️ Difficulty")),
+
+    // Dropdown panel (opens upward)
+    showDiffPanel && React.createElement("div", {
+      style: {
+        position: "absolute", bottom: "calc(100% + 8px)", right: 0,
+        background: "var(--surface-card)", border: "1px solid var(--border-default)",
+        borderRadius: 14, padding: "8px 6px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        display: "flex", flexDirection: "column", gap: 2, minWidth: 170, zIndex: 50,
+        animation: "fadeUp 0.15s ease-out",
+      }
+    },
+      React.createElement("p", { style: { fontSize: 10, fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "2px 8px 6px" } }, "How difficult was this?"),
+      ...DIFF_OPTIONS.map(({ v, emoji, label }) =>
+        React.createElement("button", {
+          key: v,
+          onClick: () => {
+            saveDiffVote(topicKey, v);
+            setDiffVoted(true);
+            setShowDiffPanel(false);
+          },
+          style: {
+            display: "flex", alignItems: "center", gap: 10, padding: "8px 12px",
+            background: currentVote === v ? "#eef2ff" : "none",
+            border: "none", borderRadius: 10, fontSize: 13, cursor: "pointer",
+            color: currentVote === v ? "#4f46e5" : "var(--text-body)",
+            fontFamily: "var(--font-sans)", fontWeight: currentVote === v ? 600 : 400,
+            textAlign: "left", width: "100%",
+          }
+        }, React.createElement("span", { style: { fontSize: 16 } }, emoji), label))));
+
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Progress bar
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Step ${step + 1} of ${totalSteps}`),
-        React.createElement("div", { style: { display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)" } },
+        React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", fontSize: 12, color: "var(--text-muted)" } },
           masteryBefore != null && React.createElement("span", null, `Mastery: ${masteryNow}%`),
           totalAnswered > 0 && React.createElement("span", null, `${correctCount}/${totalAnswered} ✓`),
-          estMinsLeft && React.createElement("span", null, `~${estMinsLeft} min left`)),
+          estMinsLeft && React.createElement("span", null, `~${estMinsLeft} min left`),
+          renderDiffButton()),
       ),
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
         React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s ease" } })),
@@ -967,8 +1043,11 @@ ${STEP_TYPES}`;
         React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)" } }, plan.title),
         React.createElement("button", { onClick: () => { commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit lesson"))),
 
-    // Step content
-    React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px 20px 20px" } }, renderStep()));
+    // Step content — clicking outside diff panel closes it
+    React.createElement("div", {
+      style: { flex: 1, overflowY: "auto", padding: "20px 20px 20px" },
+      onClick: () => { if (showDiffPanel) setShowDiffPanel(false); }
+    }, renderStep()));
 }
 
 // ─── CHAT MODE (freeform) ────────────────────────────────────────────────────
