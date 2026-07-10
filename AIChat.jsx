@@ -453,6 +453,9 @@ RULES:
   if (phase === "done") {
     const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
     const finalXp = xp + 100;
+    const totalXpAfter = (window.getXp ? window.getXp() : 0) + finalXp;
+    const xpLevelAfter = window.xpLevel ? window.xpLevel(totalXpAfter) : null;
+    const xpPctAfter = xpLevelAfter ? Math.round((xpLevelAfter.into / xpLevelAfter.need) * 100) : 0;
     const masteryDelta = (masteryNow || 0) - (masteryBefore || 0);
     const grade = accuracy >= 90 ? "A" : accuracy >= 75 ? "B" : accuracy >= 60 ? "C" : "D";
     const gradeEmoji = { A: "🌟", B: "✨", C: "👍", D: "💪" };
@@ -477,7 +480,13 @@ RULES:
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${totalSections}📖`),
           React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Sections"))),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, `${correctCount} of ${totalAnswered} questions correct`),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" } }, `${correctCount} of ${totalAnswered} questions correct`),
+      xpLevelAfter && React.createElement("div", { style: { width: "100%", maxWidth: 360, marginBottom: 16, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 16px" } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, `⭐ Level ${xpLevelAfter.level}`),
+          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, `${xpLevelAfter.into} / ${xpLevelAfter.need} XP`)),
+        React.createElement("div", { style: { height: 8, background: "var(--border-subtle)", borderRadius: 4, overflow: "hidden" } },
+          React.createElement("div", { style: { height: "100%", width: `${xpPctAfter}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 4 } }))),
       _btn("Done →", onExit, true, false));
   }
 
@@ -762,6 +771,9 @@ ${STEP_TYPES}`;
   if (done) {
     const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
     const finalXp = xp + 100; // completion bonus
+    const totalXpAfter = (window.getXp ? window.getXp() : 0) + finalXp;
+    const xpLevelAfter = window.xpLevel ? window.xpLevel(totalXpAfter) : null;
+    const xpPctAfter = xpLevelAfter ? Math.round((xpLevelAfter.into / xpLevelAfter.need) * 100) : 0;
     const masteryDelta = (masteryNow || 0) - (masteryBefore || 0);
     const streak = window.computeStreak ? window.computeStreak() : 0;
     const grade = accuracy >= 90 ? "A" : accuracy >= 75 ? "B" : accuracy >= 60 ? "C" : "D";
@@ -796,8 +808,13 @@ ${STEP_TYPES}`;
       ),
 
       // Score detail
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, `${correctCount} of ${totalAnswered} questions correct`),
-
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" } }, `${correctCount} of ${totalAnswered} questions correct`),
+      xpLevelAfter && React.createElement("div", { style: { width: "100%", maxWidth: 360, marginBottom: 16, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 16px" } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, `⭐ Level ${xpLevelAfter.level}`),
+          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, `${xpLevelAfter.into} / ${xpLevelAfter.need} XP`)),
+        React.createElement("div", { style: { height: 8, background: "var(--border-subtle)", borderRadius: 4, overflow: "hidden" } },
+          React.createElement("div", { style: { height: "100%", width: `${xpPctAfter}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 4 } }))),
       _btn("Done →", onExit, true, false));
   }
 
@@ -1112,13 +1129,21 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   // ─── LOBBY ─────────────────────────────────────────────────────────────────
   const greeting = name ? `Hey ${name}!` : "Hey!";
   const urgentReview = dueReviews.length > 0 ? dueReviews[0] : null;
+  const xpData = window.xpLevel ? window.xpLevel() : null;
+  const xpPct = xpData ? Math.round((xpData.into / xpData.need) * 100) : 0;
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Hero
-    React.createElement("div", { style: { textAlign: "center", padding: "36px 20px 20px" } },
+    React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
       React.createElement(CoachIcon, { size: 56 }),
       React.createElement("h1", { style: { margin: "16px 0 4px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, `${greeting} What do you want to do?`),
-      React.createElement("p", { style: { margin: 0, fontSize: 14, color: "var(--text-muted)" } }, "Your AI Coach is ready.")),
+      React.createElement("p", { style: { margin: 0, fontSize: 14, color: "var(--text-muted)" } }, "Your AI Coach is ready."),
+      xpData && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, margin: "14px auto 0", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 16px", maxWidth: 240 } },
+        React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "4px 8px", borderRadius: 8, letterSpacing: "0.04em", whiteSpace: "nowrap" } }, `LV ${xpData.level}`),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("div", { style: { height: 6, background: "var(--border-subtle)", borderRadius: 3, overflow: "hidden" } },
+            React.createElement("div", { style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 3 } })),
+          React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0", textAlign: "right" } }, `${xpData.into}/${xpData.need} XP`)))),
 
     // Urgent review nudge
     urgentReview && React.createElement("div", {
