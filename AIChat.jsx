@@ -241,12 +241,7 @@ OUTPUT FORMAT:
       commitResults();
       setDone(true);
     } else {
-      // Difficulty adaptation: skip teach if 3+ consecutive correct
-      let next = step + 1;
-      if (consecutiveCorrect >= 3 && plan.steps[next]?.type === "teach" && next + 1 < plan.steps.length) {
-        next++; // skip to the question
-      }
-      setStep(next);
+      setStep(step + 1);
     }
   };
 
@@ -396,10 +391,14 @@ OUTPUT FORMAT:
       s.example && React.createElement("div", { style: { background: "var(--surface-muted)", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "var(--text-body)", fontFamily: "var(--font-mono)" } }, s.example)),
     React.createElement("div", { style: { marginTop: 16 } }, _btn("Got it, continue →", advance, true, false)));
 
-  const renderMcq = (question, options, correct, explanation, diff) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+  const renderMcq = (question, options, correct, explanation, diff, isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+    isHook && React.createElement("div", { style: { marginBottom: 12, padding: "10px 16px", background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "1px solid #f59e0b", borderRadius: 12, fontSize: 13, color: "#92400e", fontWeight: 600 } },
+      "🔥 Before we explain anything — take a guess:"),
+    React.createElement("div", { style: { background: "var(--surface-card)", border: isHook ? "2px solid #f59e0b" : "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
       React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-        _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", "⚡ QUESTION"),
+        isHook
+          ? _badge("linear-gradient(135deg,#f59e0b,#d97706)", "white", "🔥 HOOK QUESTION")
+          : _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", "⚡ QUESTION"),
         diff && _badge(diff === "hard" ? "#fef2f2" : diff === "easy" ? "#f0fdf4" : "#fefce8", diff === "hard" ? "#b91c1c" : diff === "easy" ? "#15803d" : "#92400e", diff)),
       React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, question),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
@@ -423,9 +422,11 @@ OUTPUT FORMAT:
       }, selected === correct ? "✅ " : "💡 ", explanation)),
     revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
 
-  const renderTf = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-      React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f5f3ff", "#7c3aed", "✋ TRUE OR FALSE")),
+  const renderTf = (isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+    isHook && React.createElement("div", { style: { marginBottom: 12, padding: "10px 16px", background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "1px solid #f59e0b", borderRadius: 12, fontSize: 13, color: "#92400e", fontWeight: 600 } },
+      "🔥 Before we explain anything — take a guess:"),
+    React.createElement("div", { style: { background: "var(--surface-card)", border: isHook ? "2px solid #f59e0b" : "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+      React.createElement("div", { style: { marginBottom: 14 } }, isHook ? _badge("linear-gradient(135deg,#f59e0b,#d97706)", "white", "🔥 HOOK QUESTION") : _badge("#f5f3ff", "#7c3aed", "✋ TRUE OR FALSE")),
       React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 } }, s.statement),
       React.createElement("div", { style: { display: "flex", gap: 12 } },
         ...[true, false].map((val) => {
@@ -493,8 +494,8 @@ OUTPUT FORMAT:
     if (!s) return null;
     switch (s.type) {
       case "teach": return renderTeach();
-      case "mcq": return renderMcq(s.question, s.options, s.correct, s.explanation, s.difficulty);
-      case "tf": return renderTf();
+      case "mcq": return renderMcq(s.question, s.options, s.correct, s.explanation, s.difficulty, step === 0);
+      case "tf": return renderTf(step === 0);
       case "fill": return renderFill();
       case "worked_example": return renderWorkedExample();
       case "checkpoint": return React.createElement(LessonCheckpoint, {
