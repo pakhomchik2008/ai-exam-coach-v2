@@ -106,6 +106,389 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
       _btn(cpIdx + 1 < questions.length ? "Next question →" : "See results →", () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
 }
 
+// ─── LEARN ENGINE ────────────────────────────────────────────────────────────
+// First contact with a topic. Rich theory sections with examples, formulas,
+// callouts. AI decides how many sections the topic needs. Each section:
+// full explanation → quick quiz. Ends with summary + checkpoint.
+
+function LearnEngine({ topic, onExit }) {
+  const [plan, setPlan] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [retryCount, setRetryCount] = React.useState(0);
+  const [phase, setPhase] = React.useState("roadmap");
+  const [secIdx, setSecIdx] = React.useState(0);
+  const [quizIdx, setQuizIdx] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [revealed, setRevealed] = React.useState(false);
+  const [results, setResults] = React.useState([]);
+  const [xp, setXp] = React.useState(0);
+  const [masteryBefore, setMasteryBefore] = React.useState(null);
+  const xpCommittedRef = React.useRef(false);
+  const scrollRef = React.useRef(null);
+
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const brain = window.getBrain ? window.getBrain() : {};
+
+  React.useEffect(() => {
+    if (phase === "done" && !xpCommittedRef.current) {
+      xpCommittedRef.current = true;
+      if (window.addXp) window.addXp(xp + 100);
+    }
+  }, [phase]);
+
+  React.useEffect(() => {
+    if (resolved) {
+      const ev = (brain.examViews || []).find((e) => e.id === resolved.examId);
+      const tp = ev && (ev.topics || []).find((t) => t.topicIdx === resolved.topicIdx);
+      setMasteryBefore(tp ? Math.round(tp.retention * 100) : 0);
+    } else setMasteryBefore(0);
+  }, []);
+
+  const masteryNow = React.useMemo(() => {
+    if (!resolved || !window.getBrain) return masteryBefore || 0;
+    const b = window.getBrain();
+    const ev = (b.examViews || []).find((e) => e.id === resolved.examId);
+    const tp = ev && (ev.topics || []).find((t) => t.topicIdx === resolved.topicIdx);
+    return tp ? Math.round(tp.retention * 100) : masteryBefore || 0;
+  }, [results]);
+
+  // ─── Generate study guide ─────────────────────────────────────────────────
+  React.useEffect(() => {
+    setLoading(true); setError(null); setPlan(null); setPhase("roadmap"); setSecIdx(0); setResults([]);
+    (async () => {
+      try {
+        const complete = window.brainComplete || ((a) => window.claude.complete(a));
+        const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+
+        const system = `You are an expert teacher creating a comprehensive study guide. The student is learning this topic for the FIRST TIME — explain everything from scratch, with enough depth to take notes from.
+
+OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
+
+VOICE:
+- Clear, warm, patient. Assume zero prior knowledge of THIS specific topic.
+- Use concrete analogies and real-world examples to anchor abstract ideas.
+- **Bold** key terms when they first appear.
+- Explain WHY things work, not just WHAT they are.
+- Write as if you're a brilliant friend explaining at a whiteboard.
+
+STRUCTURE:
+- Break the topic into logical sub-topics (sections). Use AS MANY sections as the topic genuinely needs — a simple concept might need 2-3, a complex one might need 5-7. Don't pad, don't compress.
+- Each section is a FULL explanation, not a summary.
+- After each section, include 1-2 quiz questions that test understanding of THAT section only.
+
+SECTION FIELDS (each section object):
+- "title": string — section name
+- "content": string — 3-8 paragraphs of thorough explanation. Use **bold** for key terms. Separate paragraphs with \\n\\n. Be detailed enough that a student can learn the topic from this alone without another textbook. Include concrete examples inline.
+- "keyPoints": string[] — 2-4 key takeaways (short, memorable phrases)
+- "formula": string | null — key formula, rule, date, code snippet, or equation if relevant. null if not applicable.
+- "example": object | null — {"problem":"a specific problem","solution":"step-by-step solution with working shown","answer":"final answer"} — null if the section is conceptual
+- "proTip": string | null — a practical shortcut or insight
+- "commonMistake": string | null — what students commonly get wrong here
+- "quiz": array of 1-2 objects, each: {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."}
+
+TOP-LEVEL FIELDS:
+- "title": string — topic title
+- "estimatedMinutes": number
+- "sections": array of section objects (as many as needed)
+- "summary": string[] — 4-8 key points covering the ENTIRE topic (a cheat-sheet)
+- "checkpoint": {"questions":[3 MCQ objects spanning ALL sections]}
+
+RULES:
+- Number of sections is NOT fixed — use as many as the topic needs for thorough coverage.
+- Content per section must be thorough — multiple paragraphs, not bullet points.
+- Quiz questions test ONLY what was explained in that specific section.
+- Checkpoint questions span ALL sections.
+- Adapt to the subject: math/physics → formulas + worked examples; history → dates + cause-effect; programming → code snippets; literature → quotes + analysis.`;
+
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Taking too long — try again.")), 55000));
+        const raw = await Promise.race([
+          complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext }),
+          timeout,
+        ]);
+        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        if (!parsed || !Array.isArray(parsed.sections) || parsed.sections.length === 0) throw new Error("Invalid study guide");
+        setPlan(parsed); setLoading(false);
+      } catch (e) {
+        console.error("Learn generation failed:", e);
+        setError(e.message || "Failed to generate"); setLoading(false);
+      }
+    })();
+  }, [topic, retryCount]);
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  const sections = plan ? plan.sections : [];
+  const sec = sections[secIdx] || {};
+  const totalSections = sections.length;
+  const correctCount = results.filter((r) => r.correct).length;
+  const totalAnswered = results.length;
+  const scrollTop = () => { if (scrollRef.current) scrollRef.current.scrollTop = 0; };
+
+  const commitResults = () => {
+    if (resolved) {
+      if (window.markTopicsStudied) window.markTopicsStudied(resolved.examId, [resolved.topicIdx], [resolved.topicName]);
+      if (window.recordConfidence) {
+        const conf = totalAnswered === 0 ? 0.5 : correctCount / totalAnswered >= 0.8 ? 1 : correctCount / totalAnswered >= 0.5 ? 0.6 : 0.2;
+        window.recordConfidence({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, rating: conf });
+      }
+    }
+    if (window.commitCoachSession) {
+      const sess = { startedAt: Date.now() - 600000, topicsCovered: resolved ? [resolved] : [], quizResults: results.map((r) => ({ correct: r.correct, topicName: topic })), conceptsTaught: sections.length, diagnosedWeaknesses: [], diagnosedStrengths: [] };
+      if (correctCount / Math.max(1, totalAnswered) >= 0.7) sess.diagnosedStrengths.push(topic);
+      else sess.diagnosedWeaknesses.push(topic);
+      window.commitCoachSession(sess);
+    }
+  };
+
+  const answerQuiz = (idx, correct) => {
+    if (selected !== null) return;
+    const isCorrect = idx === correct;
+    setSelected(idx); setRevealed(true);
+    setResults((r) => [...r, { correct: isCorrect }]);
+    setXp((x) => x + (isCorrect ? 20 : 5));
+    if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+  };
+
+  const nextAfterQuiz = () => {
+    const quizzes = sec.quiz || [];
+    if (quizIdx + 1 < quizzes.length) {
+      setQuizIdx(quizIdx + 1); setSelected(null); setRevealed(false);
+    } else if (secIdx + 1 < totalSections) {
+      setSecIdx(secIdx + 1); setPhase("section"); setQuizIdx(0); setSelected(null); setRevealed(false); scrollTop();
+    } else {
+      setPhase("summary"); scrollTop();
+    }
+  };
+
+  const goFromSection = () => {
+    if (sec.quiz && sec.quiz.length > 0) {
+      setPhase("quiz"); setQuizIdx(0); setSelected(null); setRevealed(false);
+    } else if (secIdx + 1 < totalSections) {
+      setSecIdx(secIdx + 1); scrollTop();
+    } else {
+      setPhase("summary"); scrollTop();
+    }
+  };
+
+  const progressPct = phase === "roadmap" ? 0 : phase === "done" ? 100 :
+    phase === "summary" ? 90 : phase === "checkpoint" ? 95 :
+    Math.round(((secIdx + (phase === "quiz" ? 0.5 : 0)) / totalSections) * 85);
+
+  const renderContent = (text) => {
+    if (!text) return [];
+    return text.split(/\n\n+/).map((para, i) =>
+      React.createElement("p", {
+        key: i,
+        style: { margin: "0 0 14px", lineHeight: 1.8, fontSize: 15, color: "var(--text-body)" },
+        dangerouslySetInnerHTML: { __html: _md(para.replace(/\n/g, "<br/>")) }
+      }));
+  };
+
+  // ─── Loading ──────────────────────────────────────────────────────────────
+  if (loading) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
+      React.createElement(CoachIcon, { size: 56 }),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Building your study guide..."),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
+      React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)" } }, "This takes a moment — lots of material to prepare"),
+      React.createElement("div", { style: { display: "flex", gap: 6 } },
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+  }
+
+  if (error) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
+      React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate study guide"),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
+        _btn("↺ Try again", () => setRetryCount((n) => n + 1), true, false),
+        _btn("← Back", onExit, false, false)));
+  }
+
+  // ─── Progress header ──────────────────────────────────────────────────────
+  const header = React.createElement("div", { style: { padding: "12px 20px 0", flexShrink: 0 } },
+    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+      React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } },
+        phase === "roadmap" ? "Overview" : phase === "summary" ? "Summary" : phase === "checkpoint" ? "Final Check" : phase === "done" ? "Complete!" : `Section ${secIdx + 1} of ${totalSections}`),
+      React.createElement("div", { style: { display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)" } },
+        totalAnswered > 0 && React.createElement("span", null, `${correctCount}/${totalAnswered} ✓`),
+        React.createElement("button", { onClick: () => { if (phase !== "roadmap") commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit"))),
+    React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
+      React.createElement("div", { style: { height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s ease" } })),
+    React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 4, display: "block" } }, plan.title));
+
+  // ─── ROADMAP ──────────────────────────────────────────────────────────────
+  if (phase === "roadmap") {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)" } },
+      header,
+      React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "24px 20px" } },
+        React.createElement("div", { style: { textAlign: "center", marginBottom: 28 } },
+          React.createElement("span", { style: { fontSize: 48 } }, "📘"),
+          React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 6px" } }, plan.title),
+          React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, `${totalSections} sections · ~${plan.estimatedMinutes || 15} min`)),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 } },
+          ...sections.map((s, i) => React.createElement("div", {
+            key: i,
+            style: { display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14 }
+          },
+            React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#7c3aed)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 } }, i + 1),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("span", { style: { fontSize: 15, fontWeight: 600, color: "var(--text-strong)" } }, s.title),
+              s.quiz && s.quiz.length > 0 && React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)", marginLeft: 8 } }, `+ ${s.quiz.length} quiz`))))),
+        _btn("Let's start →", () => { setPhase("section"); scrollTop(); }, true, false)));
+  }
+
+  // ─── SECTION (rich theory) ────────────────────────────────────────────────
+  if (phase === "section") {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)" } },
+      header,
+      React.createElement("div", { ref: scrollRef, style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
+        React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+          React.createElement("div", { style: { marginBottom: 12 } },
+            _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", `📖 SECTION ${secIdx + 1} of ${totalSections}`)),
+          React.createElement("h2", { style: { fontSize: 20, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 20px" } }, sec.title),
+
+          // Main content
+          React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, marginBottom: 16 } },
+            ...renderContent(sec.content)),
+
+          // Formula
+          sec.formula && React.createElement("div", { style: { background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 12, padding: "16px 20px", marginBottom: 16, textAlign: "center" } },
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 } }, "📐 KEY FORMULA / RULE"),
+            React.createElement("div", { style: { fontFamily: "var(--font-mono)", fontSize: 16, color: "#0f172a", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, sec.formula)),
+
+          // Example
+          sec.example && React.createElement("div", { style: { background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 14, padding: 20, marginBottom: 16 } },
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 } }, "📝 WORKED EXAMPLE"),
+            sec.example.problem && React.createElement("p", { style: { fontWeight: 600, fontSize: 14, color: "#581c87", margin: "0 0 12px", lineHeight: 1.5 } }, sec.example.problem),
+            sec.example.solution && React.createElement("div", { style: { fontSize: 14, color: "#6b21a8", lineHeight: 1.75, marginBottom: 10 }, dangerouslySetInnerHTML: { __html: _md(String(sec.example.solution).replace(/\n/g, "<br/>")) } }),
+            sec.example.answer && React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#581c87", borderTop: "1px solid #e9d5ff", paddingTop: 10, marginTop: 4 } }, "→ Answer: ", sec.example.answer)),
+
+          // Pro tip
+          sec.proTip && React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#15803d", lineHeight: 1.6 } },
+            "💡 ", React.createElement("strong", null, "Pro tip: "), sec.proTip),
+
+          // Common mistake
+          sec.commonMistake && React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#b91c1c", lineHeight: 1.6 } },
+            "⚠️ ", React.createElement("strong", null, "Common mistake: "), sec.commonMistake),
+
+          // Key points
+          sec.keyPoints && sec.keyPoints.length > 0 && React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "14px 18px", marginBottom: 20 } },
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 } }, "🔑 KEY POINTS"),
+            ...sec.keyPoints.map((kp, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, fontSize: 14, color: "#78350f", lineHeight: 1.5, marginBottom: 4 } },
+              React.createElement("span", null, "•"), React.createElement("span", { dangerouslySetInnerHTML: { __html: _md(kp) } })))),
+
+          // Continue button
+          _btn(sec.quiz && sec.quiz.length > 0 ? "Got it — quiz me →" : (secIdx + 1 < totalSections ? "Got it, next section →" : "See summary →"), goFromSection, true, false))));
+  }
+
+  // ─── QUIZ (after each section) ────────────────────────────────────────────
+  if (phase === "quiz") {
+    const quizzes = sec.quiz || [];
+    const q = quizzes[quizIdx];
+    if (!q) return React.createElement("div", { style: { padding: 40, textAlign: "center" } }, _btn("Continue →", nextAfterQuiz, true, false));
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)" } },
+      header,
+      React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
+        React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+          React.createElement("div", { style: { marginBottom: 12, display: "flex", gap: 8 } },
+            _badge("#eef2ff", "#4f46e5", `📝 QUICK CHECK ${quizIdx + 1}/${quizzes.length}`),
+            _badge("#f0fdf4", "#15803d", sec.title)),
+          React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+            React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.question),
+            React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+              ...(q.options || []).map((opt, i) => {
+                const isCor = i === q.correct, isSel = i === selected;
+                let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+                if (revealed) {
+                  if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
+                  else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
+                  else { col = "#d1d5db"; bc = "#f3f4f6"; }
+                }
+                return React.createElement("button", {
+                  key: i, disabled: revealed, onClick: () => answerQuiz(i, q.correct),
+                  style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+                },
+                  React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+                  React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              })),
+            revealed && q.explanation && React.createElement("div", {
+              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${selected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+            }, selected === q.correct ? "✅ " : "💡 ", q.explanation)),
+          revealed && React.createElement("div", { style: { marginTop: 16 } },
+            _btn(quizIdx + 1 < quizzes.length ? "Next question →" : secIdx + 1 < totalSections ? "Next section →" : "See summary →", nextAfterQuiz, true, false)))));
+  }
+
+  // ─── SUMMARY (cheat sheet) ────────────────────────────────────────────────
+  if (phase === "summary") {
+    const summaryPoints = plan.summary || [];
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)" } },
+      header,
+      React.createElement("div", { ref: scrollRef, style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
+        React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } },
+          React.createElement("span", { style: { fontSize: 40 } }, "📋"),
+          React.createElement("h2", { style: { fontSize: 20, fontWeight: 700, color: "var(--text-strong)", margin: "8px 0 4px" } }, "Key Takeaways"),
+          React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0 } }, "Copy these into your notes!")),
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, marginBottom: 20 } },
+          ...summaryPoints.map((point, i) => React.createElement("div", {
+            key: i,
+            style: { display: "flex", gap: 10, padding: "10px 0", borderBottom: i < summaryPoints.length - 1 ? "1px solid var(--border-subtle)" : "none" }
+          },
+            React.createElement("span", { style: { fontSize: 16, flexShrink: 0, color: "#6366f1" } }, "✦"),
+            React.createElement("span", { style: { fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: _md(point) } })))),
+        _btn("Ready — test me! →", () => { setPhase("checkpoint"); scrollTop(); }, true, false)));
+  }
+
+  // ─── CHECKPOINT ───────────────────────────────────────────────────────────
+  if (phase === "checkpoint" && plan.checkpoint) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)" } },
+      header,
+      React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
+        React.createElement(LessonCheckpoint, {
+          step: plan.checkpoint,
+          resolved,
+          onResult: (correct) => setResults((r) => [...r, { correct }]),
+          onXp: (amount) => setXp((x) => x + amount),
+          onAdvance: () => { commitResults(); setPhase("done"); },
+        })));
+  }
+
+  // ─── DONE (celebration) ───────────────────────────────────────────────────
+  if (phase === "done") {
+    const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0;
+    const finalXp = xp + 100;
+    const masteryDelta = (masteryNow || 0) - (masteryBefore || 0);
+    const grade = accuracy >= 90 ? "A" : accuracy >= 75 ? "B" : accuracy >= 60 ? "C" : "D";
+    const gradeEmoji = { A: "🌟", B: "✨", C: "👍", D: "💪" };
+
+    return React.createElement("div", {
+      style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 0, padding: "0 20px", animation: "fadeUp 0.5s ease-out" }
+    },
+      React.createElement("div", { style: { fontSize: 56, marginBottom: 8, animation: "pulse 0.6s ease-in-out" } }, gradeEmoji[grade]),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, "Study Guide Complete!"),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, plan.title),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 360, marginBottom: 24 } },
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "#15803d" : "#b45309", margin: 0 } }, `${accuracy}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Accuracy")),
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${finalXp}`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP Earned")),
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-muted)", margin: 0 } }, `${masteryBefore || 0}%`),
+          React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: masteryDelta > 0 ? "#15803d" : "var(--text-strong)", margin: "2px 0 0" } }, `→ ${masteryNow || 0}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Mastery")),
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${totalSections}📖`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Sections"))),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, `${correctCount} of ${totalAnswered} questions correct`),
+      _btn("Done →", onExit, true, false));
+  }
+
+  return null;
+}
+
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
 
 function LessonEngine({ topic, mode, onExit }) {
@@ -679,7 +1062,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); };
 
   // Active mode screens
-  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby });
+  if (mode === "learn" && topic) return React.createElement(LearnEngine, { topic, onExit: exitToLobby });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
 
   // Review mode — spaced repetition, quiz-heavy, cold-open hook
@@ -768,4 +1151,4 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc)))));
 }
 
-Object.assign(window, { AIChat, CoachIcon });
+Object.assign(window, { AIChat, CoachIcon, LearnEngine });
