@@ -8,6 +8,7 @@ const COACH_MODES = [
   { id: "learn", emoji: "🧠", label: "Learn", desc: "Structured lesson" },
   { id: "review", emoji: "⚡", label: "Review", desc: "Spaced repetition" },
   { id: "practice", emoji: "🎯", label: "Practice", desc: "Exam questions" },
+  { id: "speed", emoji: "🏎️", label: "Speed Round", desc: "20 Qs × 30 sec" },
   { id: "chat", emoji: "💬", label: "Chat", desc: "Ask anything" },
 ];
 
@@ -493,6 +494,700 @@ RULES:
   return null;
 }
 
+// ─── FLASHCARD ENGINE (Review mode) ──────────────────────────────────────────
+
+function FlashcardEngine({ topic, onExit, quickMode }) {
+  const [cards, setCards] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [idx, setIdx] = React.useState(0);
+  const [flipped, setFlipped] = React.useState(false);
+  const [results, setResults] = React.useState([]);
+  const [done, setDone] = React.useState(false);
+  const [timer, setTimer] = React.useState(quickMode ? 60 : null);
+  const timerRef = React.useRef(null);
+
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+
+  // Generate flashcards
+  React.useEffect(() => {
+    setLoading(true); setError(null); setCards(null); setIdx(0); setFlipped(false); setResults([]); setDone(false);
+    (async () => {
+      try {
+        const complete = window.brainComplete || ((a) => window.claude.complete(a));
+        const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+        const n = quickMode ? 5 : 8;
+        const system = `You are a spaced-repetition flashcard generator. Create exactly ${n} flashcards for REVIEW (the student has seen this topic before). Each card tests recall of ONE fact, formula, definition, or concept.
+
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
+
+CARD TYPES — mix these for variety:
+- "concept": front = question about a concept, back = clear explanation (2-3 sentences max)
+- "formula": front = "What is the formula for X?", back = the formula + one-line explanation
+- "definition": front = term, back = definition
+- "application": front = a concrete scenario/problem, back = the answer with brief reasoning
+
+FORMAT: {"cards":[{"type":"concept|formula|definition|application","front":"question/prompt","back":"answer/explanation","hint":"optional one-word hint"}]}
+
+RULES:
+- Front is ALWAYS a question or prompt, never a statement
+- Back is concise — max 3 sentences
+- Difficulty should vary: 2 easy, ${n - 4} medium, 2 hard
+- No duplicate concepts across cards
+- Cards test RECALL, not recognition — no multiple choice`;
+
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long — try again.")), 40000));
+        const raw = await Promise.race([
+          complete({ system, messages: [{ role: "user", content: `Generate ${n} review flashcards on: ${topic}` }], topicContext }),
+          timeout,
+        ]);
+        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        if (!parsed || !Array.isArray(parsed.cards) || parsed.cards.length === 0) throw new Error("Invalid flashcards");
+        setCards(parsed.cards);
+        setLoading(false);
+      } catch (e) {
+        console.error("Flashcard generation failed:", e);
+        setError(e.message || "Failed to generate flashcards");
+        setLoading(false);
+      }
+    })();
+  }, [topic]);
+
+  // Quick mode timer
+  React.useEffect(() => {
+    if (!quickMode || loading || done || !cards) return;
+    timerRef.current = setInterval(() => {
+      setTimer((t) => {
+        if (t <= 1) { clearInterval(timerRef.current); setDone(true); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [quickMode, loading, done, cards]);
+
+  const rate = (label) => {
+    const card = cards[idx];
+    const map = { again: { correct: false, quality: 0 }, hard: { correct: true, quality: 0.3 }, good: { correct: true, quality: 0.7 }, easy: { correct: true, quality: 1.0 } };
+    const { correct, quality } = map[label];
+    if (resolved && window.recordReview) {
+      window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct, quality });
+    }
+    setResults((r) => [...r, { card: idx, label, correct }]);
+    setFlipped(false);
+    if (idx + 1 >= cards.length) {
+      setDone(true);
+      if (timerRef.current) clearInterval(timerRef.current);
+    } else {
+      setIdx(idx + 1);
+    }
+  };
+
+  // ── Loading ──
+  if (loading) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
+      React.createElement(CoachIcon, { size: 56 }),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, quickMode ? "Preparing quick review..." : "Building flashcards..."),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
+      React.createElement("div", { style: { display: "flex", gap: 6 } },
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+  }
+
+  if (error) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
+      React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate flashcards"),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
+        _btn("← Back", onExit, false, false)));
+  }
+
+  // ── Summary screen ──
+  if (done) {
+    const total = results.length;
+    const remembered = results.filter((r) => r.correct).length;
+    const forgot = results.filter((r) => !r.correct);
+    const pctRemembered = total > 0 ? Math.round((remembered / total) * 100) : 0;
+    const xpEarned = remembered * 15 + (total > 0 ? 50 : 0);
+    if (window.addXp && total > 0) window.addXp(xpEarned);
+
+    // Group "again" cards by topic for insight
+    const forgotCards = forgot.map((r) => cards[r.card]?.front).filter(Boolean);
+
+    return React.createElement("div", {
+      style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out", gap: 4 }
+    },
+      React.createElement("span", { style: { fontSize: 56, marginBottom: 8 } }, pctRemembered >= 80 ? "🧠" : pctRemembered >= 50 ? "💪" : "📖"),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } },
+        quickMode ? "Quick Review Done!" : "Review Complete!"),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, topic),
+
+      // Stats
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 24 } },
+        ...[
+          { val: `${pctRemembered}%`, label: "Remembered", color: pctRemembered >= 80 ? "#15803d" : pctRemembered >= 50 ? "#b45309" : "#b91c1c" },
+          { val: `${total}`, label: "Cards", color: "var(--indigo-600)" },
+          { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
+        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
+          React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, s.label)))),
+
+      // Forgot section
+      forgotCards.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
+        React.createElement("p", { style: { margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em" } }, `Forgot ${forgotCards.length} — review tomorrow`),
+        ...forgotCards.map((q, i) => React.createElement("p", { key: i, style: { margin: "4px 0", fontSize: 13, color: "#b45309", lineHeight: 1.4 } }, `• ${q}`))),
+
+      // Buttons
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
+        _btn("Done →", onExit, true, false)));
+  }
+
+  // ── Card view ──
+  const card = cards[idx];
+  const progress = `${idx + 1} / ${cards.length}`;
+  const pct = Math.round(((idx + 1) / cards.length) * 100);
+
+  const RATE_BUTTONS = [
+    { key: "again", label: "Again", emoji: "🔄", desc: "Forgot", bg: "#fef2f2", bc: "#fca5a5", fg: "#b91c1c" },
+    { key: "hard", label: "Hard", emoji: "😬", desc: "Struggled", bg: "#fffbeb", bc: "#fde68a", fg: "#92400e" },
+    { key: "good", label: "Good", emoji: "👍", desc: "Got it", bg: "#f0fdf4", bc: "#86efac", fg: "#15803d" },
+    { key: "easy", label: "Easy", emoji: "😎", desc: "Instant", bg: "#eef2ff", bc: "#a5b4fc", fg: "#4338ca" },
+  ];
+
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+    // Header
+    React.createElement("div", { style: { padding: "12px 20px 0" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Card ${progress}`),
+        React.createElement("div", { style: { display: "flex", gap: 12, alignItems: "center", fontSize: 12, color: "var(--text-muted)" } },
+          timer != null && React.createElement("span", { style: { fontWeight: 700, color: timer <= 10 ? "#b91c1c" : "var(--indigo-600)", fontSize: 14 } }, `${timer}s`),
+          React.createElement("button", { onClick: () => { setDone(true); if (timerRef.current) clearInterval(timerRef.current); },
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End review"))),
+      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
+        React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s ease" } }))),
+
+    // Card
+    React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", gap: 20 } },
+      // Front/Back card
+      React.createElement("div", {
+        onClick: () => { if (!flipped) setFlipped(true); },
+        style: {
+          width: "100%", maxWidth: 420, minHeight: 220, background: "var(--surface-card)",
+          border: `2px solid ${flipped ? "#86efac" : "var(--border-default)"}`,
+          borderRadius: 20, padding: "28px 24px", cursor: flipped ? "default" : "pointer",
+          display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+          textAlign: "center", transition: "border-color 0.3s",
+          boxShadow: flipped ? "0 4px 20px rgba(34,197,94,0.1)" : "none",
+        }
+      },
+        // Type badge
+        React.createElement("div", { style: { marginBottom: 12 } },
+          _badge(flipped ? "#f0fdf4" : "#eef2ff", flipped ? "#15803d" : "#4f46e5",
+            flipped ? "💡 ANSWER" : `📇 ${(card.type || "concept").toUpperCase()}`)),
+        // Content
+        React.createElement("div", {
+          style: { fontSize: flipped ? 15 : 17, fontWeight: flipped ? 400 : 600, color: "var(--text-strong)", lineHeight: 1.6 },
+          dangerouslySetInnerHTML: { __html: _md(flipped ? card.back : card.front) }
+        }),
+        // Hint
+        !flipped && card.hint && React.createElement("p", { style: { margin: "12px 0 0", fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" } }, `Hint: ${card.hint}`),
+        // Tap to flip
+        !flipped && React.createElement("p", { style: { margin: "16px 0 0", fontSize: 12, color: "var(--text-faint)" } }, "Tap to reveal answer")),
+
+      // Rating buttons (only when flipped)
+      flipped && React.createElement("div", { style: { display: "flex", gap: 8, width: "100%", maxWidth: 420 } },
+        ...RATE_BUTTONS.map((b) =>
+          React.createElement("button", {
+            key: b.key, onClick: () => rate(b.key),
+            style: {
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+              padding: "14px 4px", background: b.bg, border: `1.5px solid ${b.bc}`,
+              borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "transform 0.1s",
+            }
+          },
+            React.createElement("span", { style: { fontSize: 20 } }, b.emoji),
+            React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: b.fg } }, b.label),
+            React.createElement("span", { style: { fontSize: 10, color: b.fg, opacity: 0.7 } }, b.desc))))));
+}
+
+// ─── SPEED ROUND ENGINE ─────────────────────────────────────────────────────
+// 20 rapid-fire questions, 30 seconds each, no explanations during, summary at end.
+
+function SpeedRoundEngine({ examViews, onExit }) {
+  const [phase, setPhase] = React.useState("loading"); // loading | session | summary
+  const [questions, setQuestions] = React.useState([]);
+  const [idx, setIdx] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [results, setResults] = React.useState([]);
+  const [timer, setTimer] = React.useState(30);
+  const [error, setError] = React.useState(null);
+  const timerRef = React.useRef(null);
+  const totalQ = 20;
+  const perQ = 30;
+
+  // Pick topics from all exams
+  const allTopics = React.useMemo(() => {
+    return examViews.flatMap((e) => (e.topics || []).map((tp) => ({
+      name: tp.topicName || tp.name, examId: e.id, examName: e.name,
+      topicIdx: tp.topicIdx,
+    })));
+  }, [examViews]);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const complete = window.brainComplete || ((a) => window.claude.complete(a));
+        const topicSample = allTopics.length > 0
+          ? allTopics.sort(() => Math.random() - 0.5).slice(0, 6).map((t) => t.name).join(", ")
+          : "general knowledge";
+        const system = `Generate exactly ${totalQ} rapid-fire multiple-choice questions for a SPEED ROUND exam drill. Mix topics from: ${topicSample}. Each question must be answerable in under 30 seconds — no complex calculations.
+
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
+
+FORMAT: {"questions":[{"q":"Question text","options":["A","B","C","D"],"correct":0,"topic":"topic name","explanation":"One sentence why"}]}
+
+RULES:
+- 4 options each, exactly one correct, "correct" is 0-based index
+- Questions should be clear and direct — no ambiguity
+- Mix easy (40%), medium (40%), hard (20%)
+- Cover as many different topics as possible`;
+
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long.")), 50000));
+        const raw = await Promise.race([
+          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }] }),
+          timeout,
+        ]);
+        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        setQuestions(parsed.questions.slice(0, totalQ));
+        setPhase("session");
+      } catch (e) {
+        setError(e.message || "Failed to generate questions");
+      }
+    })();
+  }, []);
+
+  // Per-question countdown
+  React.useEffect(() => {
+    if (phase !== "session") return;
+    setTimer(perQ);
+    timerRef.current = setInterval(() => {
+      setTimer((t) => {
+        if (t <= 1) {
+          clearInterval(timerRef.current);
+          // Time's up — skip
+          setResults((r) => [...r, { qIdx: idx, correct: false, timedOut: true }]);
+          if (idx + 1 >= questions.length) { setPhase("summary"); }
+          else { setIdx((i) => i + 1); setSelected(null); }
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [phase, idx, questions.length]);
+
+  const answer = (optIdx) => {
+    if (selected !== null) return;
+    clearInterval(timerRef.current);
+    const q = questions[idx];
+    const isCorrect = optIdx === q.correct;
+    setSelected(optIdx);
+    setResults((r) => [...r, { qIdx: idx, correct: isCorrect, chosen: optIdx, time: perQ - timer }]);
+    // Record to brain
+    const match = allTopics.find((t) => t.name.toLowerCase().includes((q.topic || "").toLowerCase()));
+    if (match && window.recordReview) {
+      window.recordReview({ examId: match.examId, topicIdx: match.topicIdx, topicName: match.name, correct: isCorrect, quality: isCorrect ? 0.7 : 0.1 });
+    }
+    // Auto-advance after brief flash
+    setTimeout(() => {
+      if (idx + 1 >= questions.length) setPhase("summary");
+      else { setIdx((i) => i + 1); setSelected(null); }
+    }, 400);
+  };
+
+  // ── Loading ──
+  if (phase === "loading" && !error) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
+      React.createElement(CoachIcon, { size: 56 }),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Preparing Speed Round..."),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${totalQ} questions × ${perQ} seconds each`),
+      React.createElement("div", { style: { display: "flex", gap: 6 } },
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+  }
+
+  if (error) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
+      React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Couldn't generate questions"),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", textAlign: "center" } }, error),
+      _btn("← Back", onExit, false, false));
+  }
+
+  // ── Summary ──
+  if (phase === "summary") {
+    const correct = results.filter((r) => r.correct).length;
+    const timedOut = results.filter((r) => r.timedOut).length;
+    const avgTime = results.length > 0 ? (results.filter((r) => !r.timedOut).reduce((a, r) => a + (r.time || 0), 0) / Math.max(1, results.filter((r) => !r.timedOut).length)).toFixed(1) : 0;
+    const accuracy = results.length > 0 ? Math.round((correct / results.length) * 100) : 0;
+    const earnedXp = correct * 10 + (accuracy >= 80 ? 50 : accuracy >= 60 ? 25 : 0);
+    if (window.addXp) window.addXp(earnedXp);
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 0, padding: "0 20px", animation: "fadeUp 0.5s ease-out" } },
+      React.createElement("div", { style: { fontSize: 56, marginBottom: 8 } }, accuracy >= 80 ? "🏆" : accuracy >= 60 ? "⚡" : "💪"),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, "Speed Round Complete!"),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, `${results.length} questions in ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}s`),
+
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 380, marginBottom: 24 } },
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "#15803d" : "#b45309", margin: 0 } }, `${accuracy}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Accuracy")),
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${avgTime}s`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Avg time")),
+        React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${earnedXp}`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP"))),
+
+      timedOut > 0 && React.createElement("p", { style: { fontSize: 13, color: "#b45309", margin: "0 0 12px" } }, `⏰ ${timedOut} ${timedOut === 1 ? "question" : "questions"} timed out`),
+
+      // Wrong answers review
+      results.filter((r) => !r.correct).length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 380, marginBottom: 16 } },
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, "Review mistakes"),
+        React.createElement("div", { style: { maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 } },
+          ...results.filter((r) => !r.correct).map((r, i) => {
+            const q = questions[r.qIdx];
+            return q && React.createElement("div", { key: i, style: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 13 } },
+              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "#991b1b" } }, q.q),
+              React.createElement("p", { style: { margin: 0, color: "#b91c1c", fontSize: 12 } }, `✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`));
+          }))),
+
+      _btn("Done →", onExit, true, false));
+  }
+
+  // ── Session ──
+  const q = questions[idx];
+  if (!q) return null;
+  const timerPct = (timer / perQ) * 100;
+  const timerColor = timer <= 5 ? "#ef4444" : timer <= 10 ? "#f59e0b" : "#6366f1";
+
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+    // Top bar: timer + progress
+    React.createElement("div", { style: { padding: "12px 20px 0" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Question ${idx + 1}/${questions.length}`),
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
+          React.createElement("span", { style: { fontSize: 24, fontWeight: 700, color: timerColor, fontFamily: "var(--font-mono)", minWidth: 36, textAlign: "right" } }, timer),
+          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, "sec")),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, `${results.filter((r) => r.correct).length}✓ ${results.filter((r) => !r.correct).length}✗`)),
+      // Timer bar
+      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
+        React.createElement("div", { style: { height: "100%", width: `${timerPct}%`, background: timerColor, borderRadius: 2, transition: "width 1s linear, background 0.3s" } })),
+      // Progress bar
+      React.createElement("div", { style: { height: 3, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden", marginTop: 4 } },
+        React.createElement("div", { style: { height: "100%", width: `${((idx + 1) / questions.length) * 100}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.3s" } }))),
+    // Question card
+    React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "20px" } },
+      q.topic && React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, q.topic),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 17, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.q),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+        ...(q.options || []).map((opt, i) => {
+          let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)";
+          if (selected !== null) {
+            if (i === q.correct) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; }
+            else if (i === selected) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; }
+            else { col = "#d1d5db"; bc = "#f3f4f6"; }
+          }
+          return React.createElement("button", {
+            key: i, disabled: selected !== null,
+            onClick: () => answer(i),
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all 0.15s" }
+          },
+            React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "#22c55e" : selected === i ? "#ef4444" : "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "white" : "#9ca3af", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+            opt);
+        }))));
+}
+
+// ─── PRACTICE ENGINE (Exam simulation) ───────────────────────────────────────
+
+function PracticeEngine({ examViews, onExit }) {
+  const [phase, setPhase] = React.useState("setup"); // setup | session | summary
+  const [config, setConfig] = React.useState({ difficulty: "adaptive", topics: [], estMinutes: 20 });
+  const [questions, setQuestions] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+  const [qIdx, setQIdx] = React.useState(0);
+  const [selected, setSelected] = React.useState(null);
+  const [confidence, setConfidence] = React.useState(null);
+  const [showWhy, setShowWhy] = React.useState(false);
+  const [whyInput, setWhyInput] = React.useState("");
+  const [revealed, setRevealed] = React.useState(false);
+  const [results, setResults] = React.useState([]);
+  const [patternAlert, setPatternAlert] = React.useState(null);
+
+  const allTopics = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
+
+  // ── Setup screen ──
+  if (phase === "setup") {
+    const DIFFS = [
+      { key: "easy", label: "Easy", emoji: "😊", desc: "Basics & definitions" },
+      { key: "medium", label: "Medium", emoji: "🎯", desc: "Standard exam level" },
+      { key: "hard", label: "Hard", emoji: "🔥", desc: "Tricky edge cases" },
+      { key: "adaptive", label: "Adaptive", emoji: "🤖", desc: "AI adjusts in real-time" },
+    ];
+    const selectedTopics = config.topics.length > 0 ? config.topics : allTopics.slice(0, 3).map((t) => t.name);
+
+    const startPractice = async () => {
+      setPhase("session"); setLoading(true); setError(null);
+      try {
+        const complete = window.brainComplete || ((a) => window.claude.complete(a));
+        const topicList = selectedTopics.join(", ");
+        const n = config.difficulty === "easy" ? 10 : config.difficulty === "hard" ? 15 : 12;
+        const diffNote = config.difficulty === "adaptive"
+          ? "Start at medium difficulty. If 2+ correct in a row, increase. If wrong, decrease. Mix difficulties."
+          : `All questions should be ${config.difficulty} difficulty.`;
+        const system = `You are an exam paper generator. Create exactly ${n} exam-style questions covering: ${topicList}.
+
+${diffNote}
+
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
+
+FORMAT: {"questions":[{"question":"...", "options":["A","B","C","D"], "correct":0, "explanation":"1-2 sentences", "topic":"which topic this tests", "difficulty":"easy|medium|hard"}]}
+
+RULES:
+- Mix question types: conceptual, calculation, application, edge-case traps
+- Each question has exactly 4 options, "correct" is 0-based index
+- explanation should teach WHY the right answer is right AND why the chosen wrong one is wrong
+- Spread questions evenly across the listed topics
+- No duplicate concepts`;
+
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long.")), 45000));
+        const raw = await Promise.race([
+          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }] }),
+          timeout,
+        ]);
+        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        setQuestions(parsed.questions);
+        setLoading(false);
+      } catch (e) {
+        console.error("Practice generation failed:", e);
+        setError(e.message); setLoading(false);
+      }
+    };
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
+        React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "🎯 Practice Exam")),
+
+      // Difficulty
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, "Difficulty"),
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 } },
+        ...DIFFS.map((d) => React.createElement("button", {
+          key: d.key, onClick: () => setConfig((c) => ({ ...c, difficulty: d.key })),
+          style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: config.difficulty === d.key ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${config.difficulty === d.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+        },
+          React.createElement("span", { style: { fontSize: 20 } }, d.emoji),
+          React.createElement("div", null,
+            React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: config.difficulty === d.key ? "var(--indigo-700)" : "var(--text-strong)" } }, d.label),
+            React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)" } }, d.desc))))),
+
+      // Topics
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, "Topics"),
+      React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24 } },
+        ...allTopics.slice(0, 12).map((tp) => {
+          const on = selectedTopics.includes(tp.name);
+          return React.createElement("button", {
+            key: tp.name, onClick: () => setConfig((c) => {
+              const cur = c.topics.length > 0 ? c.topics : allTopics.slice(0, 3).map((t) => t.name);
+              return { ...c, topics: on ? cur.filter((n) => n !== tp.name) : [...cur, tp.name] };
+            }),
+            style: { padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 20, border: `1px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "#eef2ff" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" }
+          }, tp.name);
+        })),
+
+      // Start button
+      _btn("Start Practice →", startPractice, true, false));
+  }
+
+  // ── Loading ──
+  if (loading) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
+      React.createElement(CoachIcon, { size: 56 }),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Generating your exam..."),
+      React.createElement("div", { style: { display: "flex", gap: 6 } },
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+  }
+
+  if (error) {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
+      React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate exam"),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0 } }, error),
+      _btn("← Back", () => { setPhase("setup"); setError(null); }, false, false));
+  }
+
+  // ── Summary ──
+  if (phase === "summary" || (questions && qIdx >= questions.length)) {
+    const total = results.length;
+    const correct = results.filter((r) => r.correct).length;
+    const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+    const xpEarned = correct * 20 + 50;
+    if (window.addXp && total > 0) window.addXp(xpEarned);
+    const byTopic = {};
+    results.forEach((r) => {
+      const t = r.topic || "Unknown";
+      if (!byTopic[t]) byTopic[t] = { correct: 0, total: 0 };
+      byTopic[t].total++;
+      if (r.correct) byTopic[t].correct++;
+    });
+    const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out", gap: 4 } },
+      React.createElement("span", { style: { fontSize: 56, marginBottom: 8 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : "💪"),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, "Practice Complete!"),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, `${correct}/${total} correct · ${pct}%`),
+
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 20 } },
+        ...[
+          { val: `${pct}%`, label: "Score", color: pct >= 70 ? "#15803d" : "#b91c1c" },
+          { val: `${total}`, label: "Questions", color: "var(--indigo-600)" },
+          { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
+        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
+          React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
+
+      weakTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase" } }, "🎯 Pattern detected — focus on:"),
+        ...weakTopics.map((t, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "#b45309" } }, `• ${t}`))),
+
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
+        _btn("Done →", onExit, true, false)));
+  }
+
+  // ── Question view ──
+  if (!questions) return null;
+  const q = questions[qIdx];
+  const totalQ = questions.length;
+  const pctDone = Math.round(((qIdx + 1) / totalQ) * 100);
+
+  // Pattern detection: 3+ wrong in same topic → alert
+  React.useEffect(() => {
+    if (results.length < 3) return;
+    const topicErrors = {};
+    results.forEach((r) => { if (!r.correct && r.topic) { topicErrors[r.topic] = (topicErrors[r.topic] || 0) + 1; } });
+    const worst = Object.entries(topicErrors).find(([, c]) => c >= 3);
+    if (worst && (!patternAlert || patternAlert.topic !== worst[0])) {
+      setPatternAlert({ topic: worst[0], count: worst[1] });
+    }
+  }, [results.length]);
+
+  const submitAnswer = () => {
+    if (selected === null || confidence === null) return;
+    const isCorrect = selected === q.correct;
+    const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
+    if (resolved && window.recordReview) {
+      window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+    }
+    if (!isCorrect && resolved && window.logMistake) {
+      window.logMistake({ topic: resolved?.topicName || q.topic, question: q.question, examId: resolved?.examId, topicIdx: resolved?.topicIdx });
+    }
+    setResults((r) => [...r, { correct: isCorrect, topic: q.topic, confidence, selected }]);
+    if (!isCorrect) { setShowWhy(true); } else { setRevealed(true); }
+  };
+
+  const advance = () => {
+    setSelected(null); setConfidence(null); setRevealed(false); setShowWhy(false); setWhyInput(""); setPatternAlert(null);
+    if (qIdx + 1 >= totalQ) { setPhase("summary"); } else { setQIdx(qIdx + 1); }
+  };
+
+  const CONF_OPTS = [
+    { key: "guessing", emoji: "🤔", label: "Guessing" },
+    { key: "okay", emoji: "🤨", label: "Okay" },
+    { key: "easy", emoji: "😎", label: "Easy" },
+  ];
+
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+    // Progress header
+    React.createElement("div", { style: { padding: "12px 20px 0" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Question ${qIdx + 1} / ${totalQ}`),
+        React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", fontSize: 12 } },
+          q.difficulty && _badge(q.difficulty === "hard" ? "#fef2f2" : q.difficulty === "easy" ? "#f0fdf4" : "#fefce8",
+            q.difficulty === "hard" ? "#b91c1c" : q.difficulty === "easy" ? "#15803d" : "#92400e", q.difficulty),
+          React.createElement("button", { onClick: () => setPhase("summary"),
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End exam"))),
+      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
+        React.createElement("div", { style: { height: "100%", width: `${pctDone}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s" } }))),
+
+    // Content
+    React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
+      // Pattern alert
+      patternAlert && !revealed && !showWhy && React.createElement("div", {
+        style: { marginBottom: 16, padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, animation: "fadeUp 0.3s" }
+      },
+        React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 700, color: "#b91c1c" } }, "🎯 Pattern detected"),
+        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "#dc2626" } }, `You've struggled with ${patternAlert.topic} ${patternAlert.count} times. Consider a refresher after this exam.`)),
+
+      // Question card
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
+        q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("#f5f3ff", "#7c3aed", q.topic)),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+
+        // Options
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          ...(q.options || []).map((opt, i) => {
+            const isCorrect = i === q.correct;
+            const isSel = i === selected;
+            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+            if (revealed || showWhy) {
+              if (isCorrect) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
+              else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
+              else { col = "#d1d5db"; bc = "#f3f4f6"; }
+            } else if (isSel) { bg = "#eef2ff"; bc = "var(--indigo-500)"; col = "var(--indigo-700)"; lbg = "var(--indigo-500)"; lcol = "white"; }
+            return React.createElement("button", {
+              key: i, disabled: revealed || showWhy,
+              onClick: () => setSelected(i),
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: (revealed || showWhy) ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            },
+              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+          })),
+
+        // Confidence selector (before submitting)
+        selected !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 16 } },
+          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", margin: "0 0 8px" } }, "How confident are you?"),
+          React.createElement("div", { style: { display: "flex", gap: 8 } },
+            ...CONF_OPTS.map((c) => React.createElement("button", {
+              key: c.key, onClick: () => setConfidence(c.key),
+              style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 8px", background: confidence === c.key ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${confidence === c.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: confidence === c.key ? "var(--indigo-700)" : "var(--text-muted)" }
+            }, React.createElement("span", null, c.emoji), c.label)))),
+
+        // Submit button
+        selected !== null && confidence !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 12 } },
+          _btn("Submit →", submitAnswer, true, false)),
+
+        // "Why did you choose?" (wrong answer)
+        showWhy && React.createElement("div", { style: { marginTop: 16, animation: "fadeUp 0.3s" } },
+          React.createElement("div", { style: { padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, marginBottom: 12 } },
+            React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "#92400e" } }, `Why did you choose ${["A", "B", "C", "D"][selected]}?`),
+            React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "#b45309" } }, "Explain your reasoning — this helps you learn from mistakes.")),
+          React.createElement("textarea", {
+            value: whyInput, onChange: (e) => setWhyInput(e.target.value), autoFocus: true,
+            placeholder: "I thought this because...", rows: 2,
+            style: { width: "100%", border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", boxSizing: "border-box" }
+          }),
+          React.createElement("div", { style: { marginTop: 8 } },
+            _btn(whyInput.trim() ? "See explanation →" : "Skip →", () => { setShowWhy(false); setRevealed(true); }, true, false))),
+
+        // Explanation (after reveal)
+        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${results[results.length - 1]?.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "#15803d" : "#92400e", lineHeight: 1.6 } },
+          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation)),
+
+      // Continue button
+      revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false))));
+}
+
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
 
 // ─── Difficulty vote helpers ─────────────────────────────────────────────────
@@ -521,6 +1216,13 @@ function LessonEngine({ topic, mode, onExit }) {
   const [xp, setXp] = React.useState(0);
   const [showDiffPanel, setShowDiffPanel] = React.useState(false);
   const [diffVoted, setDiffVoted] = React.useState(false);
+  const [explainInput, setExplainInput] = React.useState("");
+  const [explainFeedback, setExplainFeedback] = React.useState(null);
+  const [explainLoading, setExplainLoading] = React.useState(false);
+  const [askOpen, setAskOpen] = React.useState(false);
+  const [askInput, setAskInput] = React.useState("");
+  const [askReply, setAskReply] = React.useState(null);
+  const [askLoading, setAskLoading] = React.useState(false);
   // Guards the once-per-lesson XP commit so it can't double-count across
   // re-renders. Only a genuine completion (done → true) banks XP; exiting early
   // never sets done, so partial-lesson XP is deliberately not awarded.
@@ -594,6 +1296,9 @@ function LessonEngine({ topic, mode, onExit }) {
 "worked_example" — step-by-step solution:
 {"type":"worked_example","title":"Example: ...","steps":[{"label":"Step 1","content":"What to do"}],"challenge":"A similar problem for the student to try"}
 
+"explain_back" — student explains the concept in their own words, AI checks:
+{"type":"explain_back","prompt":"Explain [concept] in your own words, as if teaching a friend.","ideal":"The key points a good explanation should cover.","concept":"The concept name"}
+
 "checkpoint" — 3 rapid-fire questions:
 {"type":"checkpoint","questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":2,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":1,"explanation":"..."}]}
 
@@ -607,12 +1312,13 @@ OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Star
 
 ${VOICE}
 
-STRUCTURE — 8-12 steps, always concept-first:
+STRUCTURE — 9-14 steps, always concept-first:
 1. Step 1 is ALWAYS a "teach" step. Open with the clearest, most concrete explanation of the first concept — an analogy, a real-world anchor, not a definition dump.
 2. Every "teach" is immediately followed by ONE quiz (mcq, tf, or fill) that tests exactly what was just taught — nothing the student hasn't seen yet.
-3. Pattern: teach → quiz → teach → quiz → (worked_example →) teach → quiz → checkpoint.
-4. 2-3 core concepts total. Each gets its own teach + quiz pair.
-5. End with a "checkpoint" of exactly 3 questions covering all concepts taught.
+3. After the SECOND concept's quiz, add ONE "explain_back" step where the student explains what they've learned so far in their own words. This is the most powerful learning moment.
+4. Pattern: teach → quiz → teach → quiz → explain_back → (worked_example →) teach → quiz → checkpoint.
+5. 2-3 core concepts total. Each gets its own teach + quiz pair.
+6. End with a "checkpoint" of exactly 3 questions covering all concepts taught.
 
 RULES:
 - Step 1 MUST be "teach" — NEVER mcq or tf as the first step.
@@ -686,6 +1392,8 @@ ${STEP_TYPES}`;
     setRevealed(false);
     setFillInput("");
     setStepsRevealed(0);
+    setExplainInput(""); setExplainFeedback(null); setExplainLoading(false);
+    setAskOpen(false); setAskInput(""); setAskReply(null); setAskLoading(false);
     if (step + 1 >= (plan?.steps?.length || 0)) {
       commitResults();
       setDone(true);
@@ -923,6 +1631,47 @@ ${STEP_TYPES}`;
       }, selected === "correct" ? `✅ Correct! "${s.answer}"` : `💡 The answer is "${s.answer}". ${s.explanation || ""}`)),
     revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
 
+  const renderExplainBack = () => {
+    const submitExplanation = async () => {
+      if (!explainInput.trim() || explainLoading) return;
+      setExplainLoading(true);
+      try {
+        const complete = window.brainComplete || ((a) => window.claude.complete(a));
+        const reply = await complete({
+          system: `You are grading a student's explanation. They were asked: "${s.prompt}". The ideal answer covers: ${s.ideal}. Grade their attempt — be encouraging but honest. If they missed key points, name them specifically. If they nailed it, tell them what was good. 2-3 sentences max. End with a score: ⭐ (weak), ⭐⭐ (okay), ⭐⭐⭐ (great).`,
+          messages: [{ role: "user", content: explainInput }],
+        });
+        setExplainFeedback(reply);
+        const stars = (reply.match(/⭐/g) || []).length;
+        setXp((x) => x + (stars >= 3 ? 30 : stars >= 2 ? 20 : 10));
+      } catch {
+        setExplainFeedback("Couldn't check your answer right now — but writing it out is the learning! Keep going.");
+      }
+      setExplainLoading(false);
+    };
+
+    return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "2px solid #7c3aed", borderRadius: 16, padding: 24 } },
+        React.createElement("div", { style: { marginBottom: 14 } }, _badge("linear-gradient(135deg,#7c3aed,#6366f1)", "white", "🧠 EXPLAIN IT BACK")),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 6px", color: "var(--text-strong)", lineHeight: 1.5 } }, s.prompt),
+        React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" } }, "Explain in your own words — as if teaching a friend."),
+
+        !explainFeedback && React.createElement("div", null,
+          React.createElement("textarea", {
+            value: explainInput, onChange: (e) => setExplainInput(e.target.value), autoFocus: true,
+            placeholder: "In my own words...", rows: 4,
+            style: { width: "100%", border: "1.5px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", fontSize: 14, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }
+          }),
+          React.createElement("div", { style: { marginTop: 10 } },
+            _btn(explainLoading ? "Checking..." : "Check my explanation →", submitExplanation, true, !explainInput.trim() || explainLoading))),
+
+        explainFeedback && React.createElement("div", {
+          style: { padding: "14px 16px", background: "#f5f3ff", border: "1px solid #c4b5fd", borderRadius: 12, fontSize: 14, color: "#5b21b6", lineHeight: 1.6 },
+          dangerouslySetInnerHTML: { __html: _md(explainFeedback) }
+        })),
+      explainFeedback && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
+  };
+
   const renderWorkedExample = () => {
     const steps = s.steps || [];
     const allVisible = stepsRevealed >= steps.length;
@@ -954,6 +1703,7 @@ ${STEP_TYPES}`;
       case "mcq": return renderMcq(s.question, s.options, s.correct, s.explanation, s.difficulty, step === 0);
       case "tf": return renderTf(step === 0);
       case "fill": return renderFill();
+      case "explain_back": return renderExplainBack();
       case "worked_example": return renderWorkedExample();
       case "checkpoint": return React.createElement(LessonCheckpoint, {
         step: s,
@@ -1045,9 +1795,68 @@ ${STEP_TYPES}`;
 
     // Step content — clicking outside diff panel closes it
     React.createElement("div", {
-      style: { flex: 1, overflowY: "auto", padding: "20px 20px 20px" },
+      style: { flex: 1, overflowY: "auto", padding: "20px 20px 80px" },
       onClick: () => { if (showDiffPanel) setShowDiffPanel(false); }
-    }, renderStep()));
+    }, renderStep()),
+
+    // ── Ask AI floating button + mini-chat ──
+    React.createElement("div", { style: { position: "fixed", bottom: 24, right: 24, zIndex: 100 } },
+      // Mini-chat panel
+      askOpen && React.createElement("div", {
+        style: { position: "absolute", bottom: 56, right: 0, width: 320, maxHeight: 380, background: "var(--surface-card)", border: "1.5px solid var(--indigo-500)", borderRadius: 16, boxShadow: "0 12px 40px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", animation: "fadeUp 0.2s ease-out", overflow: "hidden" }
+      },
+        // Header
+        React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: 8 } },
+          React.createElement(CoachIcon, { size: 24 }),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)", flex: 1 } }, "Ask about this step"),
+          React.createElement("button", { onClick: () => setAskOpen(false), style: { background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "✕")),
+        // Reply area
+        React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px", minHeight: 80 } },
+          askReply
+            ? React.createElement("div", { style: { fontSize: 13, color: "var(--text-body)", lineHeight: 1.65 }, dangerouslySetInnerHTML: { __html: _md(askReply) } })
+            : askLoading
+              ? React.createElement("div", { style: { display: "flex", gap: 5, padding: "20px 0", justifyContent: "center" } },
+                  ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))
+              : React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: 0 } }, "Ask anything about this step — I'll explain it differently, give a hint, or go deeper.")),
+        // Input
+        React.createElement("div", { style: { padding: "10px 12px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 8 } },
+          React.createElement("input", {
+            value: askInput, onChange: (e) => setAskInput(e.target.value), autoFocus: true,
+            placeholder: "e.g. Why is this the answer?",
+            onKeyDown: (e) => {
+              if (e.key === "Enter" && askInput.trim() && !askLoading) {
+                const q = askInput.trim();
+                setAskInput(""); setAskReply(null); setAskLoading(true);
+                const stepCtx = s ? `Current step: ${JSON.stringify({ type: s.type, title: s.title, question: s.question || s.statement || s.prompt || "", body: s.body || "" })}` : "";
+                (window.brainComplete || ((a) => window.claude.complete(a)))({
+                  system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
+                  messages: [{ role: "user", content: q }],
+                }).then((r) => { setAskReply(r); setAskLoading(false); })
+                  .catch(() => { setAskReply("Couldn't get an answer right now — try again."); setAskLoading(false); });
+              }
+            },
+            style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", outline: "none" }
+          }),
+          React.createElement("button", {
+            disabled: !askInput.trim() || askLoading,
+            onClick: () => {
+              const q = askInput.trim();
+              if (!q || askLoading) return;
+              setAskInput(""); setAskReply(null); setAskLoading(true);
+              const stepCtx = s ? `Current step: ${JSON.stringify({ type: s.type, title: s.title, question: s.question || s.statement || s.prompt || "", body: s.body || "" })}` : "";
+              (window.brainComplete || ((a) => window.claude.complete(a)))({
+                system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
+                messages: [{ role: "user", content: q }],
+              }).then((r) => { setAskReply(r); setAskLoading(false); })
+                .catch(() => { setAskReply("Couldn't get an answer right now — try again."); setAskLoading(false); });
+            },
+            style: { background: askInput.trim() && !askLoading ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: askInput.trim() && !askLoading ? "pointer" : "default", fontFamily: "var(--font-sans)" }
+          }, "Ask"))),
+      // Floating button
+      React.createElement("button", {
+        onClick: () => { setAskOpen((v) => !v); if (!askOpen) { setAskReply(null); setAskInput(""); } },
+        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "#4338ca" : "linear-gradient(135deg,#6366f1,#7c3aed)", border: "none", color: "white", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(99,102,241,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
+      }, askOpen ? "✕" : "💬")));
 }
 
 // ─── CHAT MODE (freeform) ────────────────────────────────────────────────────
@@ -1161,9 +1970,15 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   if (mode === "learn" && topic) return React.createElement(LearnEngine, { topic, onExit: exitToLobby });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
 
-  // Review mode — a session launched from the queue below
+  // Review mode — flashcard session from the queue
   if (mode === "review" && reviewTopic) {
-    return React.createElement(LessonEngine, { topic: reviewTopic, mode: "review", onExit: exitToQueue });
+    const isQuick = reviewTopic === "__quick__";
+    const quickTopic = isQuick ? ((brain.dueReviews || [])[0]?.topicName || (brain.weakestTopics || [])[0]?.topicName || "General review") : null;
+    return React.createElement(FlashcardEngine, {
+      topic: isQuick ? quickTopic : reviewTopic,
+      quickMode: isQuick,
+      onExit: exitToQueue,
+    });
   }
 
   // ─── REVIEW QUEUE ──────────────────────────────────────────────────────────
@@ -1202,10 +2017,21 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
         React.createElement("button", { onClick: exitToLobby, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
         React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "⚡ Review queue")),
-      React.createElement("p", { style: { margin: "0 0 18px 28px", fontSize: 13, color: "var(--text-muted)" } },
+      React.createElement("p", { style: { margin: "0 0 14px 28px", fontSize: 13, color: "var(--text-muted)" } },
         queue.length > 0
-          ? `${queue.length} ${queue.length === 1 ? "topic is" : "topics are"} fading — weakest first. Clear the stack!`
+          ? `${queue.length} ${queue.length === 1 ? "topic is" : "topics are"} fading — weakest first.`
           : "Nothing is due right now."),
+
+      // One Minute Review button
+      (queue.length > 0 || weakFallback.length > 0) && React.createElement("button", {
+        onClick: () => setReviewTopic("__quick__"),
+        style: { display: "flex", alignItems: "center", gap: 12, margin: "0 0 16px", padding: "14px 18px", background: "linear-gradient(135deg,#eef2ff,#e0e7ff)", border: "1.5px solid var(--indigo-500)", borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%" }
+      },
+        React.createElement("span", { style: { fontSize: 24 } }, "⚡"),
+        React.createElement("div", { style: { flex: 1, textAlign: "left" } },
+          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 700, color: "var(--indigo-700)" } }, "One Minute Review"),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--indigo-600)" } }, "5 flashcards · 60 seconds · done")),
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, "Go →")),
 
       queue.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...queue.map(rowFor)),
@@ -1220,10 +2046,14 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
           ...weakFallback.map(rowFor))));
   }
 
-  // Practice mode — exam simulation, pure questions, no teaching
+  // Practice mode — full exam simulator with confidence + why
   if (mode === "practice") {
-    const practiceTopic = examViews.length > 0 ? examViews[0].name : "General exam practice";
-    return React.createElement(LessonEngine, { topic: practiceTopic, mode: "practice", onExit: exitToLobby });
+    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby });
+  }
+
+  // Speed Round mode
+  if (mode === "speed") {
+    return React.createElement(SpeedRoundEngine, { examViews, onExit: exitToLobby });
   }
 
   // Topic picker for Learn mode
