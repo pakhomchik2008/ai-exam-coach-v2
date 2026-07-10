@@ -924,7 +924,18 @@ function PracticeEngine({ examViews, onExit }) {
   const [results, setResults] = React.useState([]);
   const [patternAlert, setPatternAlert] = React.useState(null);
 
-  const allTopics = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
+  const allTopics = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName || t.name, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
+
+  // Pattern detection must be declared here — hooks cannot come after conditional returns
+  React.useEffect(() => {
+    if (results.length < 3) return;
+    const topicErrors = {};
+    results.forEach((r) => { if (!r.correct && r.topic) { topicErrors[r.topic] = (topicErrors[r.topic] || 0) + 1; } });
+    const worst = Object.entries(topicErrors).find(([, c]) => c >= 3);
+    if (worst && (!patternAlert || patternAlert.topic !== worst[0])) {
+      setPatternAlert({ topic: worst[0], count: worst[1] });
+    }
+  }, [results.length]);
 
   // ── Setup screen ──
   if (phase === "setup") {
@@ -1070,17 +1081,6 @@ RULES:
   const q = questions[qIdx];
   const totalQ = questions.length;
   const pctDone = Math.round(((qIdx + 1) / totalQ) * 100);
-
-  // Pattern detection: 3+ wrong in same topic → alert
-  React.useEffect(() => {
-    if (results.length < 3) return;
-    const topicErrors = {};
-    results.forEach((r) => { if (!r.correct && r.topic) { topicErrors[r.topic] = (topicErrors[r.topic] || 0) + 1; } });
-    const worst = Object.entries(topicErrors).find(([, c]) => c >= 3);
-    if (worst && (!patternAlert || patternAlert.topic !== worst[0])) {
-      setPatternAlert({ topic: worst[0], count: worst[1] });
-    }
-  }, [results.length]);
 
   const submitAnswer = () => {
     if (selected === null || confidence === null) return;
@@ -1967,7 +1967,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const exitToQueue = () => setReviewTopic(null);
 
   // Active mode screens
-  if (mode === "learn" && topic) return React.createElement(LearnEngine, { topic, onExit: exitToLobby });
+  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
 
   // Review mode — flashcard session from the queue
