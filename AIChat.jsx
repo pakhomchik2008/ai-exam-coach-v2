@@ -1051,6 +1051,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const [mode, setMode] = React.useState(null);
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
+  const [reviewTopic, setReviewTopic] = React.useState(null);
 
   const brain = React.useMemo(() => window.getBrain ? window.getBrain() : {}, []);
   const examViews = brain.examViews || [];
@@ -1071,16 +1072,73 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     }
   }, [initialQuery]);
 
-  const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); };
+  const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); setReviewTopic(null); };
+  // Finishing one review returns to the QUEUE (not the lobby) so "clear the
+  // stack" is one continuous flow — the queue re-derives from the brain, so
+  // the topic just reviewed drops out or shows its new retention.
+  const exitToQueue = () => setReviewTopic(null);
 
   // Active mode screens
   if (mode === "learn" && topic) return React.createElement(LearnEngine, { topic, onExit: exitToLobby });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
 
-  // Review mode — spaced repetition, quiz-heavy, cold-open hook
+  // Review mode — a session launched from the queue below
+  if (mode === "review" && reviewTopic) {
+    return React.createElement(LessonEngine, { topic: reviewTopic, mode: "review", onExit: exitToQueue });
+  }
+
+  // ─── REVIEW QUEUE ──────────────────────────────────────────────────────────
+  // The real spaced-repetition surface: every topic the forgetting curve says
+  // is fading, weakest first. Read fresh (not from the mount-time memo) so the
+  // queue updates the moment a finished review writes back to the brain.
   if (mode === "review") {
-    const reviewTopic = dueReviews.length > 0 ? dueReviews[0].topicName : (weakest.length > 0 ? weakest[0].topicName : "General review");
-    return React.createElement(LessonEngine, { topic: reviewTopic, mode: "review", onExit: exitToLobby });
+    const freshBrain = window.getBrain ? window.getBrain() : {};
+    const queue = freshBrain.dueReviews || [];
+    const weakFallback = (freshBrain.weakestTopics || []).filter((t) => t.lastSeen).slice(0, 4);
+    const daysAgo = (iso) => {
+      if (!iso) return null;
+      const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+      return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
+    };
+    const retColor = (r) => r < 0.3 ? { fg: "#b91c1c", bg: "#fef2f2", bar: "#ef4444" } : r < 0.5 ? { fg: "#b45309", bg: "#fffbeb", bar: "#f59e0b" } : { fg: "#a16207", bg: "#fefce8", bar: "#eab308" };
+    const rowFor = (tp, i) => {
+      const c = retColor(tp.retention);
+      const pct = Math.round(tp.retention * 100);
+      return React.createElement("button", {
+        key: tp.key || i, onClick: () => setReviewTopic(tp.topicName),
+        style: { display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
+      },
+        React.createElement("div", { style: { width: 44, flexShrink: 0, textAlign: "center" } },
+          React.createElement("p", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: c.fg } }, `${pct}%`),
+          React.createElement("div", { style: { height: 4, background: "var(--border-subtle)", borderRadius: 2, overflow: "hidden", marginTop: 3 } },
+            React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: c.bar } }))),
+        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, tp.topicName),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } },
+            `${tp.examName}${tp.lastSeen ? ` · last seen ${daysAgo(tp.lastSeen)}` : ""}`)),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--indigo-600)", flexShrink: 0 } }, "Review →"));
+    };
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
+        React.createElement("button", { onClick: exitToLobby, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "⚡ Review queue")),
+      React.createElement("p", { style: { margin: "0 0 18px 28px", fontSize: 13, color: "var(--text-muted)" } },
+        queue.length > 0
+          ? `${queue.length} ${queue.length === 1 ? "topic is" : "topics are"} fading — weakest first. Clear the stack!`
+          : "Nothing is due right now."),
+
+      queue.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+        ...queue.map(rowFor)),
+
+      queue.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "32px 0" } },
+        React.createElement("span", { style: { fontSize: 44 } }, "🌱"),
+        React.createElement("p", { style: { margin: "12px 0 4px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, "All memories fresh!"),
+        React.createElement("p", { style: { margin: "0 0 20px", fontSize: 13, color: "var(--text-muted)" } }, "Come back later — or sharpen your weakest topics now.")),
+      queue.length === 0 && weakFallback.length > 0 && React.createElement("div", null,
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, "Weakest topics"),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+          ...weakFallback.map(rowFor))));
   }
 
   // Practice mode — exam simulation, pure questions, no teaching
@@ -1147,7 +1205,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
     // Urgent review nudge
     urgentReview && React.createElement("div", {
-      onClick: () => setMode("review"),
+      onClick: () => { setReviewTopic(urgentReview.topicName); setMode("review"); },
       style: { margin: "0 20px 16px", padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }
     },
       React.createElement("span", { style: { fontSize: 20 } }, "⚡"),
