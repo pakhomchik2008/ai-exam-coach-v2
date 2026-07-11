@@ -2062,13 +2062,17 @@ ${STEP_TYPES}`;
 // ─── CHAT MODE (freeform) ────────────────────────────────────────────────────
 
 function ChatMode({ onExit, initialQuery }) {
-  const STORAGE_KEY = "aicoach_chat_msgs";
-  const HISTORY_KEY = "aicoach_chat_hist";
+  // v2 keys — old chat sessions cached a generic greeting bubble that has
+  // no place in the dashboard-first layout, so this intentionally starts fresh
+  // instead of resurrecting stale messages from the pre-dashboard chat.
+  const STORAGE_KEY = "aicoach_chat_msgs_v2";
+  const HISTORY_KEY = "aicoach_chat_hist_v2";
   const [messages, setMessages] = React.useState(() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } });
   const [input, setInput] = React.useState("");
   const [typing, setTyping] = React.useState(false);
   const [showDash, setShowDash] = React.useState(true);
   const bodyRef = React.useRef(null);
+  const inputRef = React.useRef(null);
   const historyRef = React.useRef((() => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; } })());
   const handled = React.useRef(false);
   const proactiveRef = React.useRef(false);
@@ -2217,7 +2221,11 @@ If no actions fit, omit the ACTIONS line entirely.`,
           { text: "Test my knowledge", icon: "🎯", query: "Test my knowledge on " },
           { text: "Make flashcards", icon: "🗂", query: "Create flashcards for " },
         ].map((a, i) => React.createElement("button", {
-          key: i, onClick: () => { setShowDash(false); setInput(a.query); },
+          // Keep the dashboard visible — just prefill + focus the input so the
+          // student can finish naming the topic before anything is sent. Hiding
+          // the dashboard here (as before) swapped in an empty/stale chat view
+          // with nothing relevant on screen, which read as "everything vanished".
+          key: i, onClick: () => { setInput(a.query); requestAnimationFrame(() => inputRef.current && inputRef.current.focus()); },
           style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
         },
           React.createElement("span", { style: { fontSize: 18 } }, a.icon),
@@ -2272,7 +2280,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
 
     // Input area
     React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--surface-card)", display: "flex", gap: 8, alignItems: "flex-end" } },
-      React.createElement("textarea", { value: input, onChange: (e) => setInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }, placeholder: "Ask anything…", rows: 1, style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: 100, overflowY: "auto" } }),
+      React.createElement("textarea", { ref: inputRef, value: input, onChange: (e) => setInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }, placeholder: "Ask anything…", rows: 1, style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: 100, overflowY: "auto" } }),
       React.createElement("button", { onClick: () => send(input), disabled: !input.trim() || typing, style: { background: input.trim() && !typing ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: input.trim() && !typing ? "pointer" : "default", fontFamily: "var(--font-sans)" } }, "Send")));
 }
 
