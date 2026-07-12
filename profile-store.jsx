@@ -37,6 +37,10 @@ function migrateProfile(raw) {
     sessionLengthMin: isFiniteNumber(p.sessionLengthMin) && p.sessionLengthMin >= 15 && p.sessionLengthMin <= 180 ? Math.round(p.sessionLengthMin) : 45,
     // Recurring weekly no-study windows (e.g. Friday evening, all Sunday).
     blackoutSlots: Array.isArray(p.blackoutSlots) ? p.blackoutSlots.filter(isValidBlackoutSlot) : [],
+    // Which of the 3 AIPlan.jsx intensity tiers is actually driving the
+    // scheduler right now — see INTENSITY_MULTIPLIERS in schedule-store.jsx.
+    // "balanced" (1x) means weeklyHours is used exactly as entered.
+    planIntensity: ["minimal", "balanced", "ambitious"].includes(p.planIntensity) ? p.planIntensity : "balanced",
     materials: Array.isArray(p.materials) ? p.materials.filter((x) => typeof x === "string") : ["notes", "papers"],
     prefs: Array.isArray(p.prefs) ? p.prefs.filter((x) => typeof x === "string") : ["chat", "recall", "spaced"],
     lang: typeof p.lang === "string" && p.lang ? p.lang : "en",
@@ -74,7 +78,7 @@ function getProfile() {
 // Fields that feed schedule-store.jsx's allocateBudget — changing any of
 // these invalidates every active exam's session plan, unlike materials/prefs/
 // lang/etc, which are cosmetic to the scheduler.
-const BUDGET_FIELDS = ["weeklyHours", "daysPerWeek", "sessionLengthMin", "blackoutSlots"];
+const BUDGET_FIELDS = ["weeklyHours", "daysPerWeek", "sessionLengthMin", "blackoutSlots", "planIntensity"];
 
 function _budgetFieldsChanged(before, after) {
   return BUDGET_FIELDS.some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
