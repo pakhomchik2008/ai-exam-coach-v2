@@ -537,8 +537,12 @@ function saveSchedule(state) {
 
 function addManualSession({ examId, topic, date, startTime, durationMin }) {
   const schedule = getSchedule();
+  // Date.now() alone can collide if two manual sessions are created within
+  // the same millisecond (rapid double-click, or two calls issued
+  // back-to-back in code); the random suffix makes that practically
+  // impossible without changing the id format anything else depends on.
   const session = migrateSession({
-    id: `manual::${examId}::${Date.now()}`,
+    id: `manual::${examId}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`,
     examId, date, startTime,
     topic: topic || "Study session",
     status: "pending",

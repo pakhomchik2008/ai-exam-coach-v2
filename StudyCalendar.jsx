@@ -17,6 +17,14 @@ function calMondayOf(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDa
 function calMinutesOf(hhmm) { const [h, m] = (hhmm || "17:00").split(":").map(Number); return h * 60 + m; }
 function calHHMM(mins) { const w = Math.max(0, Math.min(24 * 60 - 1, Math.round(mins))); const h = Math.floor(w / 60), m = w % 60; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
 function calSnap(mins) { return Math.round(mins / CAL_SNAP_MIN) * CAL_SNAP_MIN; }
+// Pure so calendar-tests.jsx can cover it without a live DOM/gridRef — takes
+// the pixel offset from the row's left edge and one column's pixel width,
+// returns a clamped 0-6 day index. This is the exact formula that had the
+// Wednesday→Saturday drag bug (see xToDayIndex below for the story).
+function calDayIndexFromOffset(offsetX, colWidth) {
+  if (!colWidth) return 0;
+  return Math.max(0, Math.min(6, Math.floor(offsetX / colWidth)));
+}
 
 function StudyCalendar({ t }) {
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -68,10 +76,18 @@ function StudyCalendar({ t }) {
     const y = clientY - rect.top;
     return CAL_HOUR_START * 60 + (y / CAL_HOUR_PX) * 60;
   }
+  // gridRef is anchored to a SINGLE day column (Monday's, dayIdx===0) — its
+  // rect.width is therefore already one column's width, and rect.left is
+  // already the left edge of the whole 7-column row (Monday starts the row).
+  // The bug this replaced multiplied by 7 as if rect.width were the full
+  // row's width, which put x roughly 7× further right than intended —
+  // e.g. dragging within Wednesday's column (dayIdx 2) computed index ~14,
+  // clamped to 6 (Sunday), which is exactly the "wrong day" symptom
+  // (Wednesday → Saturday/Sunday) users were hitting on every drag past the
+  // first column.
   function xToDayIndex(clientX) {
     const rect = gridRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    return Math.max(0, Math.min(6, Math.floor((x / rect.width) * 7)));
+    return calDayIndexFromOffset(clientX - rect.left, rect.width);
   }
 
   // ── drag-to-move / drag-to-resize ─────────────────────────────────────
@@ -81,7 +97,9 @@ function StudyCalendar({ t }) {
       if (!gridRef.current) return;
       if (drag.mode === "resize") {
         const mins = yToMinutes(e.clientY);
-        const newDuration = Math.max(CAL_SNAP_MIN, calSnap(mins - calMinutesOf(drag.startTime)));
+        // Clamp 15min–8h — a fast/overshot drag shouldn't be able to silently
+        // produce a session spanning the rest of the day (or a negative one).
+        const newDuration = Math.max(CAL_SNAP_MIN, Math.min(8 * 60, calSnap(mins - calMinutesOf(drag.startTime))));
         setPreview({ id: drag.id, date: drag.date, startTime: drag.startTime, durationMin: newDuration });
       } else {
         const dayIdx = xToDayIndex(e.clientX);
@@ -302,4 +320,11 @@ function CalCreateModal({ at, exams, defaultDurationMin, onClose, onCreate }) {
   );
 }
 
-window.StudyCalendar = StudyCalendar;
+Object.assign(window, {
+  StudyCalendar,
+  // Exposed for calendar-tests.jsx — these are the pure functions behind
+  // every date/time computation in the calendar (drag, resize, week nav,
+  // creation). Testing them directly, without a live drag, is what actually
+  // catches regressions like the Wednesday→Saturday day-index bug.
+  calFmtDate, calMondayOf, calMinutesOf, calHHMM, calSnap, calDayIndexFromOffset,
+});
