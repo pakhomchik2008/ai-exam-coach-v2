@@ -71,11 +71,30 @@ function getProfile() {
   return _profileCache;
 }
 
+// Fields that feed schedule-store.jsx's allocateBudget — changing any of
+// these invalidates every active exam's session plan, unlike materials/prefs/
+// lang/etc, which are cosmetic to the scheduler.
+const BUDGET_FIELDS = ["weeklyHours", "daysPerWeek", "sessionLengthMin", "blackoutSlots"];
+
+function _budgetFieldsChanged(before, after) {
+  return BUDGET_FIELDS.some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+}
+
 function saveProfile(patch) {
-  const next = migrateProfile({ ...getProfile(), ...patch });
+  const before = getProfile();
+  const next = migrateProfile({ ...before, ...patch });
   try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch {}
   _profileRaw = JSON.stringify(next);
   _profileCache = next;
+
+  // Replan every active exam's pending sessions if the user's study budget
+  // itself changed (weekly hours, days/week, session length, blackout
+  // times) — same "recompute what depends on this" principle as
+  // exams-store.jsx's saveExams triggering reconcileSchedule.
+  if (_budgetFieldsChanged(before, next) && window.replanAllSchedules) {
+    window.replanAllSchedules();
+  }
+
   _notifyProfile();
   return next;
 }
