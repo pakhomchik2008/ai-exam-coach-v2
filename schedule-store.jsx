@@ -46,6 +46,16 @@ function migrateSession(raw) {
     // profile.sessionLengthMin; null on pre-Phase-3 sessions (consumers fall
     // back to profile.sessionLengthMin ?? 45).
     durationMin: typeof raw.durationMin === "number" && raw.durationMin > 0 ? Math.round(raw.durationMin) : null,
+    // "HH:MM" 24h clock — when in the day this session is planned. Null on
+    // sessions from before StudyCalendar.jsx existed (they render as
+    // all-day/unscheduled-time in the calendar until touched).
+    startTime: typeof raw.startTime === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(raw.startTime) ? raw.startTime : null,
+    // True once a human has directly moved/resized/created this session via
+    // StudyCalendar.jsx. Manual sessions are never touched by the budget
+    // engine's replanning (reconcileSchedule / replanAllSchedules) — same
+    // "completed history survives no matter what" principle extended to
+    // "a session you personally placed survives too."
+    manual: raw.manual === true,
   };
 }
 
@@ -151,6 +161,54 @@ function _topicRetention(examId, topicIdx) {
 // the user typed into Settings; Minimal/Ambitious scale it down/up.
 const INTENSITY_MULTIPLIERS = { minimal: 0.55, balanced: 1, ambitious: 1.5 };
 
+// ─── time-of-day assignment (feeds StudyCalendar.jsx) ──────────────────────
+// blackoutSlots only records recurring morning/afternoon/evening/all-day
+// windows, not exact hours, so a day's free time is modeled as one 06:00–
+// 22:00 block minus whichever named periods are blocked that weekday.
+const DAY_PERIOD_RANGES = { morning: [6 * 60, 12 * 60], afternoon: [12 * 60, 17 * 60], evening: [17 * 60, 22 * 60] };
+const SLOT_GAP_MIN = 15; // breathing room between back-to-back sessions
+
+function _freeIntervalsForWeekday(weekday, blackoutSlots) {
+  let intervals = [[6 * 60, 22 * 60]];
+  (blackoutSlots || []).filter((s) => s.day === weekday && s.period !== "all").forEach((b) => {
+    const range = DAY_PERIOD_RANGES[b.period];
+    if (!range) return;
+    const [bs, be] = range;
+    const next = [];
+    intervals.forEach(([s, e]) => {
+      if (be <= s || bs >= e) { next.push([s, e]); return; } // no overlap with this blocked period
+      if (bs > s) next.push([s, bs]);
+      if (be < e) next.push([be, e]);
+    });
+    intervals = next;
+  });
+  return intervals;
+}
+
+// Returns the start minute (from midnight) for the `slotIdx`-th session
+// packed into a day's free intervals. Once free time runs out, sessions keep
+// stacking sequentially past 22:00 rather than disappearing — an overloaded
+// day is visually obvious in StudyCalendar and the user can drag it elsewhere.
+function _slotStartMinutes(intervals, slotIdx, sessionLengthMin) {
+  let cursor = 0;
+  for (const [start, end] of intervals) {
+    let t = start;
+    while (t + sessionLengthMin <= end) {
+      if (cursor === slotIdx) return t;
+      cursor++;
+      t += sessionLengthMin + SLOT_GAP_MIN;
+    }
+  }
+  const last = intervals[intervals.length - 1] || [17 * 60, 17 * 60];
+  return last[1] + SLOT_GAP_MIN + (slotIdx - cursor) * (sessionLengthMin + SLOT_GAP_MIN);
+}
+
+function _minutesToHHMM(mins) {
+  const wrapped = ((Math.round(mins) % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60), m = wrapped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 function allocateBudget(exams, profile) {
   const {
     weeklyHours = 12,
@@ -193,6 +251,15 @@ function allocateBudget(exams, profile) {
     (blackoutSlots || []).filter((s) => s && s.period === "all").map((s) => s.day)
   );
   const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+  // Shared across every exam in this call so two exams landing sessions on
+  // the same real calendar date get different times instead of overlapping.
+  const weekdayIntervalsCache = {};
+  function intervalsForWeekday(weekday) {
+    if (!weekdayIntervalsCache[weekday]) weekdayIntervalsCache[weekday] = _freeIntervalsForWeekday(weekday, blackoutSlots);
+    return weekdayIntervalsCache[weekday];
+  }
+  const globalDateSlotCount = {};
 
   for (const exam of activeExams) {
     const dl = daysLeftFor(exam);
@@ -276,6 +343,7 @@ function allocateBudget(exams, profile) {
 
     sessionPlan.forEach((topicIdx, k) => {
       const dateIdx = Math.floor(k / sessionsPerDay) % availableDates.length;
+      const date = availableDates[dateIdx];
 
       // Deduplicate within this exam's session set
       let id = makeSessionId(exam.id, topicIdx);
@@ -283,10 +351,16 @@ function allocateBudget(exams, profile) {
       while (usedIds.has(id)) { id = makeSessionId(exam.id, topicIdx, n); n++; }
       usedIds.add(id);
 
+      const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
+      const slotIdx = globalDateSlotCount[date] || 0;
+      globalDateSlotCount[date] = slotIdx + 1;
+      const startTime = _minutesToHHMM(_slotStartMinutes(intervalsForWeekday(weekday), slotIdx, sessionLengthMin));
+
       sessions.push({
         id,
         examId: exam.id,
-        date: availableDates[dateIdx],
+        date,
+        startTime,
         topic: (exam.topics && exam.topics[topicIdx]) || `Topic review ${topicIdx + 1}`,
         status: "pending",
         completedAt: null,
@@ -346,9 +420,12 @@ function reconcileSchedule(oldExams, newExams, schedule) {
 
     for (const examId of needsReplanning) {
       const plan = budgetPlan.get(examId);
-      const completed = sessions.filter((s) => s.examId === examId && s.status === "completed");
+      // Completed history AND hand-placed sessions (StudyCalendar.jsx) both
+      // survive replanning — a session the user personally dragged into place
+      // shouldn't vanish just because they added another exam.
+      const preserved = sessions.filter((s) => s.examId === examId && (s.status === "completed" || s.manual));
       const others = sessions.filter((s) => s.examId !== examId);
-      sessions = others.concat(completed, plan ? plan.sessions : []);
+      sessions = others.concat(preserved, plan ? plan.sessions : []);
     }
   }
 
@@ -372,7 +449,7 @@ function replanAllSchedules() {
   if (!activeIds.size) return schedule;
 
   const budgetPlan = allocateBudget(exams, profile);
-  const untouched = schedule.sessions.filter((s) => !activeIds.has(s.examId) || s.status === "completed");
+  const untouched = schedule.sessions.filter((s) => !activeIds.has(s.examId) || s.status === "completed" || s.manual);
   const replanned = [];
   activeIds.forEach((examId) => {
     const plan = budgetPlan.get(examId);
@@ -450,6 +527,42 @@ function saveSchedule(state) {
   _scheduleCache = validated;
   _notifySchedule();
   return validated;
+}
+
+// ─── manual calendar edits (StudyCalendar.jsx) ─────────────────────────────
+// A hand-created or hand-moved session is always saved with manual:true so
+// reconcileSchedule/replanAllSchedules leave it alone (see §2+3 above and
+// replanAllSchedules) — the whole point of a drag-to-edit calendar is that
+// edits stick even after the next AI replan.
+
+function addManualSession({ examId, topic, date, startTime, durationMin }) {
+  const schedule = getSchedule();
+  const session = migrateSession({
+    id: `manual::${examId}::${Date.now()}`,
+    examId, date, startTime,
+    topic: topic || "Study session",
+    status: "pending",
+    durationMin: durationMin || 45,
+    manual: true,
+  });
+  if (!session) return schedule;
+  return saveSchedule({ version: 1, sessions: schedule.sessions.concat([session]) });
+}
+
+// Used for both moving/resizing an engine-generated session (which promotes
+// it to manual on first touch) and editing an already-manual one.
+function updateSession(id, patch) {
+  const schedule = getSchedule();
+  const sessions = schedule.sessions.map((s) => s.id === id ? { ...s, ...patch, manual: true } : s);
+  return saveSchedule({ version: 1, sessions });
+}
+
+// Completed sessions are history and can't be deleted from the calendar —
+// same "history survives no matter what" rule as everywhere else in this file.
+function deleteSession(id) {
+  const schedule = getSchedule();
+  const sessions = schedule.sessions.filter((s) => s.id !== id || s.status === "completed");
+  return saveSchedule({ version: 1, sessions });
 }
 
 function markSessionCompleted(id, completed = true, durationSec = null) {
@@ -571,5 +684,5 @@ Object.assign(window, {
   reconcileSchedule, buildScheduleView, seedSessionsForExam, migrateSchedule, migrateSession,
   adaptSchedule, relabelPendingSessions, topicIndexFromId,
   allocateBudget, availableStudyDaysPerWeek, replanAllSchedules,
-  INTENSITY_MULTIPLIERS,
+  INTENSITY_MULTIPLIERS, addManualSession, updateSession, deleteSession,
 });

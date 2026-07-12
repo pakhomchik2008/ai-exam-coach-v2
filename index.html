@@ -50,9 +50,9 @@
 </template>
 <div id="root"></div>
 
-<script type="text/babel" src="i18n.jsx"></script>
+<script type="text/babel" src="i18n.jsx?v=cal1"></script>
 <script type="text/babel" src="exams-store.jsx?cbtest=9001"></script>
-<script type="text/babel" src="schedule-store.jsx?v=budget3"></script>
+<script type="text/babel" src="schedule-store.jsx?v=budget4"></script>
 <script type="text/babel" src="profile-store.jsx?v=budget2"></script>
 <script type="text/babel" src="auth-store.jsx?v=sb1"></script>
 <script type="text/babel" src="mistakes-store.jsx?v=brain1"></script>
@@ -63,7 +63,7 @@
 <script type="text/babel" src="data.jsx"></script>
 <script type="text/babel" src="onboarding-data.jsx"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="AppNav.jsx"></script>
+<script type="text/babel" src="AppNav.jsx?v=cal1"></script>
 <script type="text/babel" src="Landing.jsx"></script>
 <script type="text/babel" src="onboarding-steps.jsx"></script>
 <script type="text/babel" src="exam-wizard.jsx?v=fix7"></script>
@@ -81,6 +81,7 @@
 <script type="text/babel" src="MistakeJournal.jsx"></script>
 <script type="text/babel" src="Progress.jsx?v=brain1"></script>
 <script type="text/babel" src="Schedule.jsx"></script>
+<script type="text/babel" src="StudyCalendar.jsx"></script>
 <script type="text/babel" src="Exams.jsx?v=brain1"></script>
 <script type="text/babel" src="Settings.jsx?v=budget1"></script>
 
@@ -264,6 +265,7 @@ function App() {
     : tab === "study"    ? <window.StudyHub t={t} />
     : tab === "journal"  ? <window.MistakeJournal t={t} />
     : tab === "schedule" ? <window.Schedule t={t} />
+    : tab === "calendar" ? <window.StudyCalendar t={t} />
     : tab === "exams"    ? <window.Exams t={t} onPlanReady={(newExams) => goPlanning(newExams)} />
     : tab === "progress" ? <window.Progress t={t} />
     : tab === "settings" ? <window.Settings t={t} lang={lang} onLangChange={setLang} onLogout={() => setRoute("landing")} />
