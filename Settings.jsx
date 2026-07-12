@@ -25,6 +25,11 @@ function Section({ title, children }) {
   );
 }
 
+// Study-availability section text isn't in i18n.jsx yet (adding full 5-language
+// keys there for one settings section is a lot of churn) — same lightweight
+// inline-L() pattern AIPlan.jsx already uses for its own new copy.
+function L(lang, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[lang] || en; }
+
 function Settings({ t, lang, onLangChange, onLogout }) {
   const { Button } = window.AIExamCoachDesignSystem_99e467;
   const profile = React.useMemo(() => window.getProfile(), []);
@@ -40,6 +45,14 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   });
   const [reminderEnabled, setReminderEnabled] = React.useState(profile.reminderEnabled);
   const [reminderHour, setReminderHour] = React.useState(profile.reminderHour);
+  // Study-plan budget inputs — feed schedule-store.jsx's allocateBudget
+  // (Phase 3). Editing any of these here goes through the same saveProfile()
+  // path as the wizard, which already diffs BUDGET_FIELDS and calls
+  // replanAllSchedules() when they actually change.
+  const [weeklyHours, setWeeklyHours] = React.useState(profile.weeklyHours);
+  const [daysPerWeek, setDaysPerWeek] = React.useState(profile.daysPerWeek);
+  const [sessionLengthMin, setSessionLengthMin] = React.useState(profile.sessionLengthMin);
+  const [blackoutSlots, setBlackoutSlots] = React.useState(profile.blackoutSlots);
   const [saved, setSaved] = React.useState(false);
   const [confirmErase, setConfirmErase] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
@@ -67,7 +80,11 @@ function Settings({ t, lang, onLangChange, onLogout }) {
     setEmailError(emailValid ? "" : t.settings_email_invalid);
     // An invalid email shouldn't block saving the rest of the form — only the
     // email field itself is withheld until it's fixed.
-    window.saveProfile({ fullName, timezone: tz.id, reminderEnabled, reminderHour, email: emailValid ? trimmedEmail : profile.email });
+    window.saveProfile({
+      fullName, timezone: tz.id, reminderEnabled, reminderHour,
+      email: emailValid ? trimmedEmail : profile.email,
+      weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots,
+    });
     setSaved(true); setTimeout(() => setSaved(false), 2800);
   }
   function logOut() {
@@ -162,6 +179,31 @@ function Settings({ t, lang, onLangChange, onLogout }) {
               </div>
             </div>
           )}
+        </Section>
+
+        <Section title={L(lang, "Study availability","Доступність для навчання","Доступность для учёбы","Disponibilité d'étude","Lernverfügbarkeit")}>
+          <div>
+            <div style={{ textAlign: "center", marginBottom: "var(--space-3)" }}>
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-4xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", lineHeight: 1 }}>{weeklyHours}</span>
+              <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                {L(lang, "hours per week","годин на тиждень","часов в неделю","heures par semaine","Stunden pro Woche")}
+              </p>
+            </div>
+            <input type="range" min={2} max={40} step={1} value={weeklyHours} onChange={(e) => setWeeklyHours(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)", height: 28 }} />
+          </div>
+          <window.AvailabilityGrid
+            daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
+            sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
+            blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} />
+          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+            {L(lang,
+              "Changes here recalculate your entire study schedule to fit the new budget.",
+              "Зміни тут перераховують весь ваш розклад навчання під новий бюджет.",
+              "Изменения здесь пересчитывают весь ваш учебный график под новый бюджет.",
+              "Ces changements recalculent tout votre emploi du temps d'étude.",
+              "Änderungen hier berechnen Ihren gesamten Lernplan neu."
+            )}
+          </p>
         </Section>
 
         <Section title={t.settings_language}>
