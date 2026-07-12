@@ -42,6 +42,10 @@ function migrateSession(raw) {
     // Real seconds actually spent studying this session — the honest basis for
     // "hours studied this week" (vs. the profile's planned weekly hours).
     durationSec: isFinitePos(raw.durationSec) ? Math.round(raw.durationSec) : 0,
+    // Planned session length in minutes — set by the budget engine from
+    // profile.sessionLengthMin; null on pre-Phase-3 sessions (consumers fall
+    // back to profile.sessionLengthMin ?? 45).
+    durationMin: typeof raw.durationMin === "number" && raw.durationMin > 0 ? Math.round(raw.durationMin) : null,
   };
 }
 
@@ -103,6 +107,175 @@ function seedSessionsForExam(exam, existingForExam, desiredCount) {
   return out;
 }
 
+// ─── hour-budget allocation engine ──────────────────────────────────────────
+// Phase 3: replaces the sessionsNeeded-based approach for generating new
+// pending sessions. Converts the user's real study budget (weeklyHours,
+// daysPerWeek, sessionLengthMin, blackoutSlots from profile) into a concrete
+// session plan:
+//
+//   total weekly budget
+//     → split proportionally across active exams by urgency (topics / daysLeft)
+//     → split within each exam across topics by (difficulty × importance / retention)
+//     → pack into sessions of sessionLengthMin stamped on allowed calendar days
+//
+// Returns Map<examId, { sessions: Session[], budgetWarning: string|null }>.
+// reconcileSchedule decides which exam IDs to actually replace; this just
+// computes the plan. sessionsNeeded stays in place for display-side estimates
+// (deriveCourse → recommendedSessions / remainingWork) — they're a different
+// concern from the scheduler.
+
+// Days per week that are NOT completely blocked (period !== "all").
+// Used to cap effectiveDaysPerWeek against the user's blackout constraints.
+function availableStudyDaysPerWeek(blackoutSlots) {
+  const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const fullyBlocked = new Set(
+    (blackoutSlots || []).filter((s) => s && s.period === "all").map((s) => s.day)
+  );
+  return DAYS.filter((d) => !fullyBlocked.has(d)).length;
+}
+
+// SM-2 retention from brain-store mastery, falling back to 0.3 ("needs review").
+// A lower retention value → higher study weight for that topic.
+function _topicRetention(examId, topicIdx) {
+  try {
+    const mastery = window.getMastery ? window.getMastery() : {};
+    const entry = mastery[`${examId}::${topicIdx}`];
+    if (entry && typeof entry.retention === "number") return Math.max(0.05, entry.retention);
+  } catch {}
+  return 0.3;
+}
+
+function allocateBudget(exams, profile) {
+  const {
+    weeklyHours = 12,
+    daysPerWeek = 5,
+    sessionLengthMin = 45,
+    blackoutSlots = [],
+  } = profile || {};
+
+  // ── 1. Compute real weekly session capacity ─────────────────────────────
+  const totalAvailDays = availableStudyDaysPerWeek(blackoutSlots);
+  // Can't study more days than non-blacked-out days; also can't exceed budget
+  const effectiveDaysPerWeek = Math.max(1, Math.min(daysPerWeek, totalAvailDays));
+  const sessionLengthHours = sessionLengthMin / 60;
+  const maxByHours = Math.max(1, Math.floor(weeklyHours / sessionLengthHours));
+  const sessionsPerWeek = Math.min(effectiveDaysPerWeek, maxByHours);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  const activeExams = (exams || []).filter((e) => new Date(e.examDate) > today);
+  const result = new Map();
+  if (!activeExams.length) return result;
+
+  // ── 2. Urgency = topics / daysLeft — split budget proportionally ────────
+  function daysLeftFor(exam) {
+    return Math.max(1, Math.ceil((new Date(exam.examDate) - today) / 86400000));
+  }
+  function urgency(exam) { return (exam.topicCount || 10) / daysLeftFor(exam); }
+  const totalUrgency = activeExams.reduce((s, e) => s + urgency(e), 0) || 1;
+
+  // Day names that are fully blacked out (JS: 0=Sun,1=Mon,...,6=Sat)
+  const fullyBlockedDayNames = new Set(
+    (blackoutSlots || []).filter((s) => s && s.period === "all").map((s) => s.day)
+  );
+  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+  for (const exam of activeExams) {
+    const dl = daysLeftFor(exam);
+    const weeksLeft = Math.max(1, dl / 7);
+
+    // Sessions/week for this exam, proportional to urgency
+    const urgencyFraction = urgency(exam) / totalUrgency;
+    const sessionsPerWeekForExam = Math.max(1, Math.round(sessionsPerWeek * urgencyFraction));
+
+    // Total sessions across the full remaining prep window
+    const totalSessions = Math.max(1, Math.round(sessionsPerWeekForExam * weeksLeft));
+
+    const topicCount = Math.max(1, exam.topicCount || 10);
+    const budgetWarning = totalSessions < topicCount
+      ? `Budget allows ${totalSessions} sessions before the exam, but there are ${topicCount} topics — increase weekly hours or study days to cover everything.`
+      : null;
+
+    // ── 3. Weight topics by difficulty × importance / retention ──────────
+    const rawWeights = [];
+    for (let i = 0; i < topicCount; i++) {
+      const w = (exam.topicWeights || {})[i] || {};
+      const d = typeof w.difficulty === "number" ? w.difficulty : 5;
+      const imp = typeof w.importance === "number" ? w.importance : 5;
+      rawWeights.push((d * imp) / _topicRetention(exam.id, i));
+    }
+    const totalWeight = rawWeights.reduce((s, w) => s + w, 0) || 1;
+
+    // Each topic gets at least 1 session, then additional sessions by weight
+    const sessionsPerTopic = rawWeights.map((w) =>
+      Math.max(1, Math.round((w / totalWeight) * totalSessions))
+    );
+
+    // ── 4. Round-robin interleave: each pass covers each topic once ───────
+    // Result: if topic 0 gets 5 sessions and topic 1 gets 2, the plan is
+    // [0,1,0,1,0,0,0] — spaced so both are revisited throughout the timeline.
+    const sessionPlan = [];
+    const remaining = [...sessionsPerTopic];
+    let anyLeft = true;
+    while (anyLeft) {
+      anyLeft = false;
+      for (let i = 0; i < topicCount; i++) {
+        if (remaining[i] > 0) { sessionPlan.push(i); remaining[i]--; anyLeft = true; }
+      }
+    }
+
+    // ── 5. Build list of available calendar dates ─────────────────────────
+    const availableDates = [];
+    const examDate = new Date(exam.examDate);
+    const cur = new Date(today); cur.setDate(cur.getDate() + 1);
+    while (cur < examDate) {
+      if (!fullyBlockedDayNames.has(JS_DAY_NAMES[cur.getDay()])) {
+        availableDates.push(window.fmtDateKey(new Date(cur)));
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    if (!availableDates.length) {
+      result.set(exam.id, { sessions: [], budgetWarning: "No available study days before this exam." });
+      continue;
+    }
+
+    // ── 6. Spread session plan evenly across available dates ──────────────
+    const count = Math.min(sessionPlan.length, availableDates.length);
+    const usedIds = new Set();
+    const sessions = [];
+
+    for (let k = 0; k < count; k++) {
+      const topicIdx = sessionPlan[k];
+      // Evenly-spaced index into availableDates
+      const dateIdx = count <= 1
+        ? 0
+        : Math.min(availableDates.length - 1, Math.round(k * (availableDates.length - 1) / (count - 1)));
+
+      // Deduplicate within this exam's session set
+      let id = makeSessionId(exam.id, topicIdx);
+      let n = 2;
+      while (usedIds.has(id)) { id = makeSessionId(exam.id, topicIdx, n); n++; }
+      usedIds.add(id);
+
+      sessions.push({
+        id,
+        examId: exam.id,
+        date: availableDates[dateIdx],
+        topic: (exam.topics && exam.topics[topicIdx]) || `Topic review ${topicIdx + 1}`,
+        status: "pending",
+        completedAt: null,
+        durationSec: 0,
+        durationMin: sessionLengthMin, // ← first time sessions carry a real planned duration
+      });
+    }
+
+    result.set(exam.id, { sessions, budgetWarning });
+  }
+
+  return result;
+}
+
 // ─── reconciliation ─────────────────────────────────────────────────────────
 
 // Only examDate/topicCount affect scheduling — completionPct, confidencePct,
@@ -113,9 +286,9 @@ function fingerprintForScheduling(exam) {
 }
 
 function reconcileSchedule(oldExams, newExams, schedule) {
+  const profile = window.getProfile ? window.getProfile() : {};
   const oldById = new Map(oldExams.map((e) => [e.id, e]));
   const newById = new Map(newExams.map((e) => [e.id, e]));
-  const today = window.fmtDateKey(new Date());
   let sessions = schedule.sessions.slice();
 
   // 1. Removed exams: drop pending sessions, keep completed ones as history.
@@ -125,41 +298,33 @@ function reconcileSchedule(oldExams, newExams, schedule) {
     }
   }
 
-  // 2. New exams: seed from scratch.
+  // 2+3. Identify exams that need a new session plan: brand-new exams, or
+  //      existing ones whose examDate or topicCount changed.
+  const needsReplanning = new Set();
   for (const newExam of newExams) {
     if (!oldById.has(newExam.id)) {
-      sessions = sessions.concat(seedSessionsForExam(newExam, []));
+      needsReplanning.add(newExam.id); // new exam
+    } else {
+      const oldExam = oldById.get(newExam.id);
+      if (fingerprintForScheduling(oldExam) !== fingerprintForScheduling(newExam)) {
+        needsReplanning.add(newExam.id); // changed date or topicCount
+      }
     }
   }
 
-  // 3. Existing exams: only touch scheduling if examDate/topicCount changed.
-  for (const newExam of newExams) {
-    const oldExam = oldById.get(newExam.id);
-    if (!oldExam) continue; // handled in step 2
-    if (fingerprintForScheduling(oldExam) === fingerprintForScheduling(newExam)) continue;
+  if (needsReplanning.size > 0) {
+    // Budget is shared across ALL active exams (urgency fractions sum to 1) —
+    // run the engine once on the full portfolio so splits are correct.
+    // Only the exams in needsReplanning actually get their pending sessions
+    // replaced; unchanged exams keep whatever they have.
+    const budgetPlan = allocateBudget(newExams, profile);
 
-    const examSessions = sessions.filter((s) => s.examId === newExam.id);
-    const others = sessions.filter((s) => s.examId !== newExam.id);
-    const completed = examSessions.filter((s) => s.status === "completed");
-    const daysLeft = window.daysAway(newExam.examDate);
-    const topicCount = Math.max(1, newExam.topicCount || 10);
-    const stillValidPending = examSessions.filter((s) =>
-      s.status !== "completed" && s.date >= today && s.date <= newExam.examDate && topicIndexFromId(s.id) < topicCount
-    );
-
-    const desired = daysLeft >= 0 ? Math.max(1, window.sessionsNeeded(newExam.completionPct || 0, daysLeft)) : 0;
-    let finalPending = stillValidPending;
-    if (stillValidPending.length < desired) {
-      finalPending = stillValidPending.concat(
-        seedSessionsForExam(newExam, completed.concat(stillValidPending), desired - stillValidPending.length)
-      );
-    } else if (stillValidPending.length > desired) {
-      // Trim furthest-out first — simple, deterministic; the seam for future
-      // spaced-repetition/AI-rescheduling logic to replace, not a smart policy today.
-      finalPending = stillValidPending.slice().sort((a, b) => a.date.localeCompare(b.date)).slice(0, desired);
+    for (const examId of needsReplanning) {
+      const plan = budgetPlan.get(examId);
+      const completed = sessions.filter((s) => s.examId === examId && s.status === "completed");
+      const others = sessions.filter((s) => s.examId !== examId);
+      sessions = others.concat(completed, plan ? plan.sessions : []);
     }
-
-    sessions = others.concat(completed, finalPending);
   }
 
   return { version: 1, sessions };
@@ -353,4 +518,5 @@ Object.assign(window, {
   recordCompletedSession, secondsStudiedThisWeek,
   reconcileSchedule, buildScheduleView, seedSessionsForExam, migrateSchedule, migrateSession,
   adaptSchedule, relabelPendingSessions, topicIndexFromId,
+  allocateBudget, availableStudyDaysPerWeek,
 });
