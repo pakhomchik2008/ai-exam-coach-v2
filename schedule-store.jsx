@@ -330,6 +330,33 @@ function reconcileSchedule(oldExams, newExams, schedule) {
   return { version: 1, sessions };
 }
 
+// Re-runs the budget engine across every active (not-yet-happened) exam and
+// replaces all of their pending sessions — completed sessions are untouched.
+// This is the Phase 5 counterpart to reconcileSchedule's per-exam replanning:
+// reconcileSchedule fires when an EXAM changes (new/date/topicCount), this
+// fires when the PROFILE changes (weeklyHours/daysPerWeek/sessionLengthMin/
+// blackoutSlots) — a budget input that affects every exam's plan at once,
+// not just one.
+function replanAllSchedules() {
+  const exams = window.getExams ? window.getExams() : [];
+  const profile = window.getProfile ? window.getProfile() : {};
+  const schedule = getSchedule();
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  const activeIds = new Set(exams.filter((e) => new Date(e.examDate) > today).map((e) => e.id));
+  if (!activeIds.size) return schedule;
+
+  const budgetPlan = allocateBudget(exams, profile);
+  const untouched = schedule.sessions.filter((s) => !activeIds.has(s.examId) || s.status === "completed");
+  const replanned = [];
+  activeIds.forEach((examId) => {
+    const plan = budgetPlan.get(examId);
+    if (plan) replanned.push(...plan.sessions);
+  });
+
+  return saveSchedule({ version: 1, sessions: untouched.concat(replanned) });
+}
+
 // ─── view (pure, cheap, derived — not persisted) ───────────────────────────
 
 let _viewArgs = null;
@@ -518,5 +545,5 @@ Object.assign(window, {
   recordCompletedSession, secondsStudiedThisWeek,
   reconcileSchedule, buildScheduleView, seedSessionsForExam, migrateSchedule, migrateSession,
   adaptSchedule, relabelPendingSessions, topicIndexFromId,
-  allocateBudget, availableStudyDaysPerWeek,
+  allocateBudget, availableStudyDaysPerWeek, replanAllSchedules,
 });
