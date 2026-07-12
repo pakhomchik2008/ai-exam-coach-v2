@@ -39,7 +39,10 @@ function Exams({ t, onPlanReady }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{exam.name}</h3>
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)}</p>
-            <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{exam.examBoard}</p>
+            <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+              {exam.examBoard}
+              {exam.importance >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● High priority</span>}
+            </p>
           </div>
           <span style={{ flexShrink: 0, borderRadius: "var(--radius-full)", padding: "2px 8px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", background: past ? "var(--slate-100)" : soon ? "var(--amber-100)" : "var(--emerald-100)", color: past ? "var(--slate-500)" : soon ? "var(--amber-700)" : "var(--emerald-700)" }}>
             {past ? t.exams_past_label : `${days}${t.exams_days_away}`}
@@ -138,6 +141,8 @@ function Exams({ t, onPlanReady }) {
     const [examBoard, setExamBoard] = React.useState(lastExam.examBoard || "");
     const [topicCount, setTopicCount] = React.useState(lastExam.topicCount || 10);
     const [topicsText, setTopicsText] = React.useState("");
+    const [importance, setImportance] = React.useState(5);
+    const [notes, setNotes] = React.useState("");
     const [useFullWizard, setUseFullWizard] = React.useState(false);
     const canSave = name.trim() && examDate >= todayISO && Number(topicCount) >= 1;
 
@@ -171,6 +176,8 @@ function Exams({ t, onPlanReady }) {
           targetGrade: lastExam.targetGrade || "A",
           currentGrade: lastExam.currentGrade || "C",
           gradingSystem: lastExam.gradingSystem || null,
+          importance,
+          notes: notes.trim(),
         }],
         profilePatch: null,
       });
@@ -222,6 +229,16 @@ function Exams({ t, onPlanReady }) {
               style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
             />
           </div>
+          <div>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Importance — {importance}/10</label>
+            <input type="range" min={1} max={10} value={importance} onChange={(e) => setImportance(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>
+              Notes <span style={{ color: "var(--text-faint)", fontWeight: "normal", fontSize: "var(--text-xs)" }}>(optional)</span>
+            </label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="e.g. Closed book, bring calculator" style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+          </div>
           <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Grading defaulted from your last exam. <button type="button" onClick={() => setUseFullWizard(true)} style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", padding: 0 }}>Need different grading? Use full wizard</button></p>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
@@ -234,12 +251,21 @@ function Exams({ t, onPlanReady }) {
 
   function ExamDetailModal({ exam, ev, onClose, onSave, onDelete }) {
     const [confirmDelete, setConfirmDelete] = React.useState(false);
+    const [editing, setEditingMode] = React.useState(false);
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const [examDate, setExamDate] = React.useState(exam.examDate);
+    const [topicCount, setTopicCount] = React.useState(exam.topicCount);
+    const [targetGrade, setTargetGrade] = React.useState(exam.targetGrade);
+    const [importance, setImportance] = React.useState(exam.importance || 5);
+    const [notes, setNotes] = React.useState(exam.notes || "");
+
     const coverage = ev ? ev.coverage : (exam.completionPct || 0);
     const readiness = ev ? ev.readiness : 0;
-    const topicCount = Math.max(1, exam.topicCount || 10);
-    const coveredTopics = Math.round((coverage / 100) * topicCount);
+    const topicCountDisplay = Math.max(1, exam.topicCount || 10);
+    const coveredTopics = Math.round((coverage / 100) * topicCountDisplay);
     const predictedGrade = ev ? ev.predictedGrade : "–";
     const probability = ev ? ev.probability : 0;
+    const canSaveEdit = examDate >= todayISO && Number(topicCount) >= 1 && String(targetGrade).trim();
 
     React.useEffect(() => {
       if (!confirmDelete) return;
@@ -252,45 +278,96 @@ function Exams({ t, onPlanReady }) {
       return () => document.removeEventListener("keydown", fn);
     }, []);
 
+    function saveEdit() {
+      onSave({ examDate, topicCount: Number(topicCount), targetGrade: String(targetGrade).trim(), importance, notes: notes.trim() });
+    }
+
+    const editInputStyle = { width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" };
+
     return (
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: exam.color, flexShrink: 0 }} />
-            <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{exam.name}</h2>
-          </div>
-          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} topics</p>
-
-          {/* Stats row */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)" }}>
-            <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-              <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{readiness}%</div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Readiness</div>
-            </div>
-            <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-              <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{predictedGrade}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Predicted</div>
-            </div>
-            <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-              <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{probability}%</div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Target chance</div>
-            </div>
+            <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", flex: 1 }}>{exam.name}</h2>
+            {!editing && (
+              <button onClick={() => setEditingMode(true)} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Edit</button>
+            )}
           </div>
 
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
-              <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCount} · {coverage}%</strong>
-            </div>
-            <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${coverage}%`, background: exam.color, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
-            </div>
-            <p style={{ margin: "8px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.5 }}>
-              Updates automatically as you study — mark topics as covered on the session recap.
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Close</button>
-          </div>
+          {editing ? (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Exam date</label>
+                  <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={editInputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Topics</label>
+                  <input type="number" min={1} value={topicCount} onChange={(e) => setTopicCount(e.target.value)} style={editInputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Target grade</label>
+                <input value={targetGrade} onChange={(e) => setTargetGrade(e.target.value)} style={editInputStyle} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Importance — {importance}/10</label>
+                <input type="range" min={1} max={10} value={importance} onChange={(e) => setImportance(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Notes</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...editInputStyle, resize: "vertical", lineHeight: 1.6 }} />
+              </div>
+              <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+                <button onClick={() => setEditingMode(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
+                <button onClick={saveEdit} disabled={!canSaveEdit} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSaveEdit ? "var(--indigo-600)" : "var(--slate-200)", color: canSaveEdit ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSaveEdit ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>Save changes</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} topics</p>
+              {(exam.importance != null && exam.importance !== 5) && (
+                <p style={{ margin: 0, fontSize: "var(--text-xs)", color: exam.importance >= 8 ? "var(--red-600)" : "var(--text-faint)", fontWeight: exam.importance >= 8 ? "var(--weight-semibold)" : "normal" }}>
+                  {"★".repeat(Math.ceil(exam.importance / 2))}{"☆".repeat(5 - Math.ceil(exam.importance / 2))} Importance {exam.importance}/10
+                </p>
+              )}
+              {exam.notes && (
+                <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)", background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px", lineHeight: 1.5 }}>{exam.notes}</p>
+              )}
+
+              {/* Stats row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)" }}>
+                <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{readiness}%</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Readiness</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{predictedGrade}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Predicted</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{probability}%</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Target chance</div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
+                  <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCountDisplay} · {coverage}%</strong>
+                </div>
+                <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${coverage}%`, background: exam.color, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+                </div>
+                <p style={{ margin: "8px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.5 }}>
+                  Updates automatically as you study — mark topics as covered on the session recap.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+                <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Close</button>
+              </div>
+            </>
+          )}
           <button onClick={() => confirmDelete ? onDelete() : setConfirmDelete(true)}
             style={{ border: "none", background: "transparent", color: confirmDelete ? "var(--red-600)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: "4px 0", textAlign: "center" }}>
             {confirmDelete ? "Click again to confirm delete" : "Delete exam"}
