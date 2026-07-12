@@ -22,6 +22,7 @@ function migrateProfile(raw) {
     email: typeof p.email === "string" ? p.email : "",
     reminderEnabled: typeof p.reminderEnabled === "boolean" ? p.reminderEnabled : true,
     reminderHour: isFiniteNumber(p.reminderHour) && p.reminderHour >= 0 && p.reminderHour <= 23 ? Math.round(p.reminderHour) : 9,
+    hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
     _v: PROFILE_SCHEMA_VERSION,
   };
 }

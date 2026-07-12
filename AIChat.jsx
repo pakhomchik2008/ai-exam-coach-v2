@@ -1451,6 +1451,17 @@ function LessonEngine({ topic, mode, onExit }) {
   // re-renders. Only a genuine completion (done → true) banks XP; exiting early
   // never sets done, so partial-lesson XP is deliberately not awarded.
   const xpCommittedRef = React.useRef(false);
+  // One-time coachmark explaining Learn mode, shown only the very first time
+  // this student opens it (profile-store.jsx persists the dismissal so it
+  // never reappears once seen — same shape as every other "seen it" flag
+  // would use in this app, there just wasn't one yet).
+  const [showLearnTooltip, setShowLearnTooltip] = React.useState(
+    () => mode === "learn" && !!window.getProfile && !window.getProfile().hasSeenLearnTooltip
+  );
+  const dismissLearnTooltip = () => {
+    setShowLearnTooltip(false);
+    if (window.saveProfile) window.saveProfile({ hasSeenLearnTooltip: true });
+  };
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
   const brain = window.getBrain ? window.getBrain() : {};
@@ -1997,6 +2008,25 @@ ${STEP_TYPES}`;
   const estTotalMin = plan.estimatedMinutes || Math.max(2, Math.round(totalSteps * 0.5));
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+    // First-time Learn coachmark — dismissible, never reappears once seen
+    showLearnTooltip && React.createElement("div", {
+      style: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 },
+      onClick: dismissLearnTooltip,
+    },
+      React.createElement("div", {
+        style: { background: "var(--surface-card)", borderRadius: 20, padding: "28px 26px", maxWidth: 360, boxShadow: "0 24px 60px rgba(0,0,0,0.3)", animation: "fadeUp 0.3s ease-out" },
+        onClick: (e) => e.stopPropagation(),
+      },
+        React.createElement("span", { style: { fontSize: 36 } }, "🧠"),
+        React.createElement("h2", { style: { fontSize: 18, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 8px" } }, "Welcome to Learn"),
+        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" } },
+          "This is a structured lesson — a few short steps that teach a concept, then check you understood it right away."),
+        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 20px" } },
+          "Rate each step's difficulty as you go, or tap ", React.createElement("strong", null, "Ask AI"), " (bottom-right) any time you want something explained differently."),
+        React.createElement("button", {
+          onClick: dismissLearnTooltip,
+          style: { width: "100%", padding: "12px 0", background: "#4f46e5", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }
+        }, "Got it →"))),
     // Progress header
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       // Meta-strip
