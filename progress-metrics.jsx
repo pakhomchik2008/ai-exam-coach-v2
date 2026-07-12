@@ -9,7 +9,12 @@ function computeStreak() {
   const doneDates = new Set(sessions.filter((s) => s.status === "completed" && s.date).map((s) => s.date));
   if (doneDates.size === 0) return 0;
 
-  const fmt = (d) => d.toISOString().slice(0, 10);
+  // Local date key, not toISOString() — a UTC-based key can land on the
+  // wrong calendar day for any user west of UTC (e.g. 11pm PST is already
+  // "tomorrow" in UTC), silently breaking the streak right at the boundary
+  // it's supposed to protect ("today not yet studied shouldn't zero out a
+  // streak ending yesterday").
+  const fmt = window.fmtDateKey || ((d) => d.toISOString().slice(0, 10));
   let cursor = new Date();
   // Today not yet studied shouldn't zero out a real streak ending yesterday.
   if (!doneDates.has(fmt(cursor))) cursor.setDate(cursor.getDate() - 1);
