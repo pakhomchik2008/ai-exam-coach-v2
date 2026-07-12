@@ -56,8 +56,24 @@ function migrateSession(raw) {
     // "completed history survives no matter what" principle extended to
     // "a session you personally placed survives too."
     manual: raw.manual === true,
+    // "study" (default, backed by a real exam via examId) or "personal"
+    // (examId is the "__personal__" sentinel — never matches a real exam id,
+    // so it's structurally invisible to allocateBudget/reconcileSchedule/
+    // replanAllSchedules, which only ever look up sessions by a real exam's
+    // id. That's the entire mechanism behind "the AI scheduler never
+    // overwrites personal events" — no special-case code needed elsewhere.
+    type: raw.type === "personal" ? "personal" : "study",
+    category: typeof raw.category === "string" ? raw.category : null,
+    personalColor: typeof raw.personalColor === "string" && /^#[0-9a-fA-F]{6}$/.test(raw.personalColor) ? raw.personalColor : null,
+    notes: typeof raw.notes === "string" ? raw.notes : "",
+    // Shared by every instance of a recurring series (StudyCalendar.jsx's
+    // "Recurring Study Session" / repeating personal events) — null for a
+    // one-off session.
+    seriesId: typeof raw.seriesId === "string" && raw.seriesId ? raw.seriesId : null,
   };
 }
+
+const PERSONAL_EVENT_ID = "__personal__";
 
 function migrateSchedule(raw) {
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.sessions)) return { version: 1, sessions: [] };
@@ -472,6 +488,16 @@ function buildScheduleView(schedule, courses) {
   const examDates = {};
 
   schedule.sessions.forEach((s) => {
+    if (s.type === "personal") {
+      // Not tied to any exam — render with its own category color and the
+      // event's own title (StudyCalendar.jsx is still the primary place
+      // these are managed, but Schedule.jsx's month view shouldn't just
+      // silently drop them).
+      (sessionsByDay[s.date] = sessionsByDay[s.date] || []).push({
+        id: s.id, subject: s.topic, color: s.personalColor || "#64748B", topic: s.topic, status: s.status,
+      });
+      return;
+    }
     const c = courseById.get(s.examId);
     if (!c) return; // exam fully deleted (incl. its completed history)
     (sessionsByDay[s.date] = sessionsByDay[s.date] || []).push({
@@ -535,22 +561,71 @@ function saveSchedule(state) {
 // replanAllSchedules) — the whole point of a drag-to-edit calendar is that
 // edits stick even after the next AI replan.
 
-function addManualSession({ examId, topic, date, startTime, durationMin }) {
-  const schedule = getSchedule();
+function _manualId(examId) {
   // Date.now() alone can collide if two manual sessions are created within
   // the same millisecond (rapid double-click, or two calls issued
   // back-to-back in code); the random suffix makes that practically
   // impossible without changing the id format anything else depends on.
+  return `manual::${examId}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function addManualSession({ examId, topic, date, startTime, durationMin, type, category, personalColor, notes, seriesId }) {
+  const schedule = getSchedule();
+  const isPersonal = type === "personal";
   const session = migrateSession({
-    id: `manual::${examId}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`,
-    examId, date, startTime,
-    topic: topic || "Study session",
+    id: _manualId(isPersonal ? PERSONAL_EVENT_ID : examId),
+    examId: isPersonal ? PERSONAL_EVENT_ID : examId,
+    date, startTime,
+    topic: topic || (isPersonal ? "Event" : "Study session"),
     status: "pending",
     durationMin: durationMin || 45,
     manual: true,
+    type, category, personalColor, notes, seriesId,
   });
   if (!session) return schedule;
   return saveSchedule({ version: 1, sessions: schedule.sessions.concat([session]) });
+}
+
+// Materializes a recurring series as individual manual sessions — one per
+// matching weekday between startDate and endDate inclusive — rather than
+// storing a recurrence rule and expanding it at render time. Simpler and more
+// robust with no backend: every instance is independently a real session
+// (draggable/resizable/deletable on its own), and reconcileSchedule/
+// replanAllSchedules already leave manual sessions alone, so a whole series
+// naturally survives future AI replans without any recurrence-aware code
+// anywhere else. weekdays is an array of "mon".."sun" strings.
+function addRecurringSessions({ examId, topic, type, category, personalColor, notes, startTime, durationMin, weekdays, startDate, endDate }) {
+  const schedule = getSchedule();
+  const isPersonal = type === "personal";
+  const realExamId = isPersonal ? PERSONAL_EVENT_ID : examId;
+  const seriesId = `series::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`;
+  const wdSet = new Set(weekdays || []);
+  const WD = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+  const created = [];
+  const cur = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+  while (cur <= end) {
+    if (wdSet.has(WD[cur.getDay()])) {
+      const session = migrateSession({
+        id: _manualId(realExamId),
+        examId: realExamId,
+        date: window.fmtDateKey(cur),
+        startTime,
+        topic: topic || (isPersonal ? "Event" : "Study session"),
+        status: "pending",
+        durationMin: durationMin || 45,
+        manual: true,
+        type, category, personalColor, notes, seriesId,
+      });
+      if (session) created.push(session);
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  if (!created.length) return schedule;
+  saveSchedule({ version: 1, sessions: schedule.sessions.concat(created) });
+  return created;
 }
 
 // Used for both moving/resizing an engine-generated session (which promotes
@@ -566,6 +641,14 @@ function updateSession(id, patch) {
 function deleteSession(id) {
   const schedule = getSchedule();
   const sessions = schedule.sessions.filter((s) => s.id !== id || s.status === "completed");
+  return saveSchedule({ version: 1, sessions });
+}
+
+// Removes every pending instance of a recurring series at once (completed
+// instances stay, same history rule as deleteSession).
+function deleteSeries(seriesId) {
+  const schedule = getSchedule();
+  const sessions = schedule.sessions.filter((s) => s.seriesId !== seriesId || s.status === "completed");
   return saveSchedule({ version: 1, sessions });
 }
 
@@ -689,4 +772,5 @@ Object.assign(window, {
   adaptSchedule, relabelPendingSessions, topicIndexFromId,
   allocateBudget, availableStudyDaysPerWeek, replanAllSchedules,
   INTENSITY_MULTIPLIERS, addManualSession, updateSession, deleteSession,
+  addRecurringSessions, deleteSeries, PERSONAL_EVENT_ID,
 });
