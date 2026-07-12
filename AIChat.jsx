@@ -2209,23 +2209,22 @@ If no actions fit, omit the ACTIONS line entirely.`,
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } }, `${Math.round(weakest[0].retention * 100)}% retention · ~5 min`)),
         React.createElement("span", { style: { fontSize: 13, color: "var(--indigo-600)", fontWeight: 600 } }, "Continue →"))),
 
-    // Quick actions grid
+    // Quick actions grid — each fires the query straight away, using the
+    // student's weakest topic (or their exam name) so there's nothing to
+    // fill in. The header's Dashboard/Chat toggle is what lets them come
+    // back and fire a different one, so nothing here needs a manual step.
     React.createElement("div", null,
       React.createElement("p", { style: { margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Quick Actions"),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
         ...[
-          { text: "Explain a topic", icon: "📖", query: "Explain " },
-          { text: "Generate quiz", icon: "📝", query: "Quiz me on " },
-          { text: "Summarize notes", icon: "📄", query: "Summarize my notes on " },
-          { text: "Solve a problem", icon: "🧮", query: "Help me solve: " },
-          { text: "Test my knowledge", icon: "🎯", query: "Test my knowledge on " },
-          { text: "Make flashcards", icon: "🗂", query: "Create flashcards for " },
+          { text: "Explain a topic", icon: "📖", query: () => `Explain ${weakest[0]?.topicName || examViews[0]?.name || "a key topic for my exam"}` },
+          { text: "Generate quiz", icon: "📝", query: () => `Quiz me on ${weakest[0]?.topicName || examViews[0]?.name || "my weakest topic"}` },
+          { text: "Summarize notes", icon: "📄", query: () => `Summarize my notes on ${examViews[0]?.name || weakest[0]?.topicName || "my exam"}` },
+          { text: "Solve a problem", icon: "🧮", query: () => `Give me a problem to solve in ${weakest[0]?.topicName || examViews[0]?.name || "my exam"} and walk me through it` },
+          { text: "Test my knowledge", icon: "🎯", query: () => `Test my knowledge on ${examViews[0]?.name || weakest[0]?.topicName || "my exam"}` },
+          { text: "Make flashcards", icon: "🗂", query: () => `Create flashcards for ${weakest[0]?.topicName || examViews[0]?.name || "my exam"}` },
         ].map((a, i) => React.createElement("button", {
-          // Keep the dashboard visible — just prefill + focus the input so the
-          // student can finish naming the topic before anything is sent. Hiding
-          // the dashboard here (as before) swapped in an empty/stale chat view
-          // with nothing relevant on screen, which read as "everything vanished".
-          key: i, onClick: () => { setInput(a.query); requestAnimationFrame(() => inputRef.current && inputRef.current.focus()); },
+          key: i, onClick: () => send(a.query()),
           style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
         },
           React.createElement("span", { style: { fontSize: 18 } }, a.icon),
