@@ -58,6 +58,14 @@ function migrateExam(raw, index) {
     // missing entry just means "not weighted yet" (engine defaults to 5/5),
     // same graceful-degradation shape as every other optional AI field here.
     topicWeights: e.topicWeights && typeof e.topicWeights === "object" ? e.topicWeights : null,
+    // Whole-exam priority (1 low – 10 high), distinct from topicWeights[i]'s
+    // per-TOPIC importance. Feeds schedule-store.jsx's allocateBudget urgency
+    // formula — a 10 gets proportionally more of the weekly hour budget than
+    // a 1, on top of the existing topics/daysLeft factor.
+    importance: isFiniteNumber(e.importance) && e.importance >= 1 && e.importance <= 10 ? Math.round(e.importance) : 5,
+    // Freeform notes — never read by any scheduling logic, purely for the
+    // user's own reference (exam format reminders, what to bring, etc.).
+    notes: typeof e.notes === "string" ? e.notes : "",
     _v: EXAM_SCHEMA_VERSION,
   };
 }
@@ -239,6 +247,8 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     targetGrade: d.targetGrade,
     currentGrade: d.currentGrade,
     gradingSystem: d.gradingSystem,
+    importance: d.importance,
+    notes: d.notes,
   }, exams.length + i));
 
   saveExams([...exams, ...newExams]); // triggers reconcileSchedule automatically

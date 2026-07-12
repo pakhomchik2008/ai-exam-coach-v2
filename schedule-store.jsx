@@ -259,7 +259,10 @@ function allocateBudget(exams, profile) {
   function daysLeftFor(exam) {
     return Math.max(1, Math.ceil((new Date(exam.examDate) - today) / 86400000));
   }
-  function urgency(exam) { return (exam.topicCount || 10) / daysLeftFor(exam); }
+  // Whole-exam importance (1-10, exams-store.jsx) scales urgency directly —
+  // a 10 gets 2x the budget share of a 5 with the same topic count/deadline;
+  // a 1 gets half. Keeps the existing topics/daysLeft factor as the base.
+  function urgency(exam) { return ((exam.topicCount || 10) / daysLeftFor(exam)) * ((exam.importance || 5) / 5); }
   const totalUrgency = activeExams.reduce((s, e) => s + urgency(e), 0) || 1;
 
   // Day names that are fully blacked out (JS: 0=Sun,1=Mon,...,6=Sat)
