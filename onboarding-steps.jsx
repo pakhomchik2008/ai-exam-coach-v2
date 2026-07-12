@@ -196,6 +196,93 @@ function PlanRow({ row, copy, onSessions, noHistory }) {
 }
 function copy_label(copy) { return copy.s2_current; }
 
+// ── Availability grid — days/week, session length, weekly blackout times ───────
+// These three feed the hour-budget scheduler (schedule-store.jsx) directly:
+// without them the engine only had weeklyHours to work with and had no way to
+// turn "9h/week" into real dated sessions — see the audit that motivated this.
+// English-only for now, matching the precedent already set by AiHoursModal's
+// hardcoded placeholder text in this same file — i18n for these can follow later.
+function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots }) {
+  const DAY_LABELS = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+  const PERIOD_LABELS = { morning: "AM", afternoon: "PM", evening: "Eve" };
+  const days = window.WEEK_DAYS || Object.keys(DAY_LABELS);
+  const periods = window.DAY_PERIODS || Object.keys(PERIOD_LABELS);
+
+  const isAllDay = (day) => blackoutSlots.some((s) => s.day === day && s.period === "all");
+  const isPeriodOff = (day, period) => blackoutSlots.some((s) => s.day === day && (s.period === "all" || s.period === period));
+
+  const toggleAllDay = (day) => {
+    setBlackoutSlots((slots) => {
+      const otherDays = slots.filter((s) => s.day !== day);
+      return isAllDay(day) ? otherDays : [...otherDays, { day, period: "all" }];
+    });
+  };
+  const togglePeriod = (day, period) => {
+    setBlackoutSlots((slots) => {
+      const otherDays = slots.filter((s) => s.day !== day);
+      const daySlots = slots.filter((s) => s.day === day);
+      if (daySlots.some((s) => s.period === "all")) {
+        // Splitting "all day" into individual periods — every other period stays off, this one turns on.
+        return [...otherDays, ...periods.filter((p) => p !== period).map((p) => ({ day, period: p }))];
+      }
+      const wasOff = daySlots.some((s) => s.period === period);
+      const keep = daySlots.filter((s) => s.period !== period);
+      return [...otherDays, ...(wasOff ? keep : [...keep, { day, period }])];
+    });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <div>
+        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>Days per week</p>
+        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          {[3, 4, 5, 6, 7].map((n) => (
+            <button key={n} type="button" onClick={() => setDaysPerWeek(n)}
+              style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                border: daysPerWeek === n ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                background: daysPerWeek === n ? "var(--indigo-50)" : "var(--surface-card)",
+                color: daysPerWeek === n ? "var(--indigo-700)" : "var(--text-muted)" }}>{n}</button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>Session length</p>
+        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          {[30, 45, 60, 90].map((m) => (
+            <button key={m} type="button" onClick={() => setSessionLengthMin(m)}
+              style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                border: sessionLengthMin === m ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                background: sessionLengthMin === m ? "var(--indigo-50)" : "var(--surface-card)",
+                color: sessionLengthMin === m ? "var(--indigo-700)" : "var(--text-muted)" }}>{m}m</button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>When are you unavailable?</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {days.map((day) => (
+            <div key={day} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 34, fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "var(--weight-medium)" }}>{DAY_LABELS[day]}</span>
+              {periods.map((p) => (
+                <button key={p} type="button" onClick={() => togglePeriod(day, p)}
+                  style={{ flex: 1, minHeight: 32, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                    border: isPeriodOff(day, p) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
+                    background: isPeriodOff(day, p) ? "#fef2f2" : "var(--surface-card)",
+                    color: isPeriodOff(day, p) ? "#b91c1c" : "var(--text-faint)" }}>{PERIOD_LABELS[p]}</button>
+              ))}
+              <button type="button" onClick={() => toggleAllDay(day)}
+                style={{ flex: 1, minHeight: 32, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                  border: isAllDay(day) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
+                  background: isAllDay(day) ? "#fef2f2" : "var(--surface-card)",
+                  color: isAllDay(day) ? "#b91c1c" : "var(--text-faint)" }}>All</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── AI hours-estimate modal — Step 3's only AI entry point ─────────────────────
 // Manual slider is the primary path; this is purely an optional enhancement.
 // Any failure (parse error, network, etc.) closes the modal silently — no
@@ -239,4 +326,4 @@ function AiHoursModal({ subjects, examLabel, onApply, onClose }) {
   );
 }
 
-Object.assign(window, { CoachBubble, GradePicker, ChipGrid, UploadZone, AnalysisAnimation, PlanRow, AiHoursModal });
+Object.assign(window, { CoachBubble, GradePicker, ChipGrid, UploadZone, AnalysisAnimation, PlanRow, AiHoursModal, AvailabilityGrid });

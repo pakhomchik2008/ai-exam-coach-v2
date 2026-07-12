@@ -6,14 +6,37 @@
 // as exams-store.jsx/schedule-store.jsx.
 
 const PROFILE_KEY = "user_profile_v1";
-const PROFILE_SCHEMA_VERSION = 1;
+const PROFILE_SCHEMA_VERSION = 2;
+
+// Study-plan availability constraints — the actual inputs the hour-budget
+// engine (schedule-store.jsx) needs to turn "N hours/week" into real
+// sessions on real days. Before this, weeklyHours was the only availability
+// signal in the whole app; days/week, session length and blackout times
+// didn't exist anywhere, so the scheduler had no way to pack hours into a
+// realistic calendar and fell back to a fixed syllabus-coverage formula that
+// never reconciled with what the user actually said they could do.
+const WEEK_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const DAY_PERIODS = ["morning", "afternoon", "evening"];
 
 function isFiniteNumber(n) { return typeof n === "number" && Number.isFinite(n); }
+
+// { day: one of WEEK_DAYS, period: one of DAY_PERIODS or "all" for the whole day }
+function isValidBlackoutSlot(s) {
+  return s && typeof s === "object" && WEEK_DAYS.includes(s.day) && (s.period === "all" || DAY_PERIODS.includes(s.period));
+}
 
 function migrateProfile(raw) {
   const p = raw && typeof raw === "object" ? raw : {};
   return {
     weeklyHours: isFiniteNumber(p.weeklyHours) && p.weeklyHours > 0 ? Math.round(p.weeklyHours) : 12,
+    // How many distinct days/week those hours should be spread across —
+    // without this the scheduler can't tell "9h in 2 sessions" from "9h in 6".
+    daysPerWeek: isFiniteNumber(p.daysPerWeek) && p.daysPerWeek >= 1 && p.daysPerWeek <= 7 ? Math.round(p.daysPerWeek) : 5,
+    // Preferred single-session length, minutes — replaces the hardcoded 45min
+    // assumption baked into Dashboard/CourseDetail/TodaysMission/AIPlan.
+    sessionLengthMin: isFiniteNumber(p.sessionLengthMin) && p.sessionLengthMin >= 15 && p.sessionLengthMin <= 180 ? Math.round(p.sessionLengthMin) : 45,
+    // Recurring weekly no-study windows (e.g. Friday evening, all Sunday).
+    blackoutSlots: Array.isArray(p.blackoutSlots) ? p.blackoutSlots.filter(isValidBlackoutSlot) : [],
     materials: Array.isArray(p.materials) ? p.materials.filter((x) => typeof x === "string") : ["notes", "papers"],
     prefs: Array.isArray(p.prefs) ? p.prefs.filter((x) => typeof x === "string") : ["chat", "recall", "spaced"],
     lang: typeof p.lang === "string" && p.lang ? p.lang : "en",
@@ -57,4 +80,4 @@ function saveProfile(patch) {
   return next;
 }
 
-Object.assign(window, { PROFILE_KEY, getProfile, saveProfile, subscribeProfile, migrateProfile, hasProfile });
+Object.assign(window, { PROFILE_KEY, getProfile, saveProfile, subscribeProfile, migrateProfile, hasProfile, WEEK_DAYS, DAY_PERIODS });
