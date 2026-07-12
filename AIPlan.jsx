@@ -38,10 +38,15 @@ function AIPlan({ examIds, onStart, t }) {
   }, [phase]);
 
   // ── Compute plan data ────────────────────────────────────────────────────
-  const exams = React.useMemo(() => window.getExams(), []);
+  // Bumped whenever a tier tile is clicked — saveProfile({planIntensity})
+  // writes synchronously and triggers replanAllSchedules (profile-store.jsx),
+  // but the useMemo calls below have empty/exams-only deps and won't re-read
+  // localStorage on their own, so this forces the refetch.
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const exams = React.useMemo(() => window.getExams(), [refreshKey]);
   const courses = React.useMemo(() => window.deriveCourses(exams), [exams]);
-  const schedule = React.useMemo(() => window.getSchedule(), []);
-  const profile = React.useMemo(() => window.getProfile(), []);
+  const schedule = React.useMemo(() => window.getSchedule(), [refreshKey]);
+  const profile = React.useMemo(() => window.getProfile(), [refreshKey]);
 
   const active = courses.filter(c => c.daysAway >= 0);
   const pending = schedule.sessions.filter(s => s.status === "pending");
@@ -65,24 +70,50 @@ function AIPlan({ examIds, onStart, t }) {
   const weakest = active.length > 0 ? active.reduce((a, b) => b.gradeProbability < a.gradeProbability ? b : a, active[0]) : null;
 
   // ── Plan intensity tiers ─────────────────────────────────────────────────
-  // Three reference points shown as informational tiles. "Balanced" = the
-  // actual plan that was just generated. Minimal and Ambitious are projections
-  // so the user understands what adjusting their availability would change.
-  const totalTopics = active.reduce((s, c) => s + (c.topicCount || 10), 0) || 10;
+  // Each tile's h/wk and sessions/wk come from actually running the real
+  // budget engine (window.allocateBudget) with that tier's multiplier — not
+  // a heuristic guess — so what's shown here is exactly what you'll get if
+  // you click it. "Balanced" (1x) reflects weeklyHours exactly as entered in
+  // Settings; Minimal/Ambitious scale it via INTENSITY_MULTIPLIERS
+  // (schedule-store.jsx), same constant the engine itself uses.
   const weeksUntilLast = Math.max(1, lastExamDays / 7);
-  const sessionHours = sessionMinDefault / 60;
-  const minSpw = Math.max(1, Math.round(totalTopics / weeksUntilLast * 0.6));
-  const ambSpw = Math.min(active.length * 7 || 7, Math.ceil(sessionsPerWeek * 1.5));
   const GRADE_STEPS = ["C", "B", "A", "A*"];
   const targetGradeStr = active.length > 0
     ? (active.reduce((a, c) => GRADE_STEPS.indexOf(c.targetGrade) > GRADE_STEPS.indexOf(a) ? c.targetGrade : a, active[0].targetGrade))
     : "A";
   const gi = GRADE_STEPS.indexOf(targetGradeStr);
-  const TIERS = [
-    { id: "minimal",   label: "Minimal",   spw: minSpw,          grade: GRADE_STEPS[Math.max(0, gi - 1)],  color: "var(--amber-600)",   desc: L("Cover each topic once — just enough","Кожну тему один раз","Каждую тему один раз","Couvrir chaque sujet","Jeden Thema einmal") },
-    { id: "balanced",  label: "Balanced",  spw: sessionsPerWeek,  grade: targetGradeStr,                    color: "var(--indigo-600)",  desc: L("Spaced repetition, your budget","Інтервальне повторення","Интервальное повторение","Répétition espacée","Verteilte Wiederholung"), current: true },
-    { id: "ambitious", label: "Ambitious", spw: ambSpw,           grade: GRADE_STEPS[Math.min(GRADE_STEPS.length - 1, gi + 1)],  color: "var(--emerald-600)",  desc: L("Deep mastery, extra sessions","Глибоке засвоєння","Глубокое освоение","Maîtrise approfondie","Tiefes Lernen") },
-  ];
+
+  const TIERS = React.useMemo(() => {
+    const MULT = window.INTENSITY_MULTIPLIERS || { minimal: 0.55, balanced: 1, ambitious: 1.5 };
+    const defs = [
+      { id: "minimal",   label: "Minimal",   gradeIdx: gi - 1, color: "var(--amber-600)",   desc: L("Cover each topic once — just enough","Кожну тему один раз","Каждую тему один раз","Couvrir chaque sujet","Jeden Thema einmal") },
+      { id: "balanced",  label: "Balanced",  gradeIdx: gi,     color: "var(--indigo-600)",  desc: L("Spaced repetition, your budget","Інтервальне повторення","Интервальное повторение","Répétition espacée","Verteilte Wiederholung") },
+      { id: "ambitious", label: "Ambitious", gradeIdx: gi + 1, color: "var(--emerald-600)", desc: L("Deep mastery, extra sessions","Глибоке засвоєння","Глубокое освоение","Maîtrise approfondie","Tiefes Lernen") },
+    ];
+    return defs.map((tier) => {
+      let hours = 0, sess = 0;
+      if (window.allocateBudget) {
+        const plan = window.allocateBudget(exams, { ...profile, planIntensity: tier.id });
+        plan.forEach((entry) => {
+          sess += entry.sessions.length;
+          hours += entry.sessions.reduce((s, x) => s + (x.durationMin ?? sessionMinDefault) / 60, 0);
+        });
+      }
+      return {
+        ...tier,
+        hpw: Math.round((hours / weeksUntilLast) * 10) / 10,
+        spw: Math.max(0, Math.round(sess / weeksUntilLast)),
+        grade: GRADE_STEPS[Math.max(0, Math.min(GRADE_STEPS.length - 1, tier.gradeIdx))],
+        current: tier.id === profile.planIntensity,
+      };
+    });
+  }, [exams, profile, weeksUntilLast, gi, sessionMinDefault]);
+
+  function selectTier(tierId) {
+    if (tierId === profile.planIntensity || !window.saveProfile) return;
+    window.saveProfile({ planIntensity: tierId });
+    setRefreshKey((k) => k + 1);
+  }
 
   // ── Weekly load bars ─────────────────────────────────────────────────────
   const weeklyLoad = React.useMemo(() => {
@@ -285,12 +316,14 @@ function AIPlan({ examIds, onStart, t }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
             {TIERS.map(tier => (
-              <div key={tier.id} style={{
+              <button key={tier.id} type="button" onClick={() => selectTier(tier.id)} style={{
                 borderRadius: "var(--radius-xl)",
                 border: tier.current ? `2px solid ${tier.color}` : "1px solid var(--border-default)",
                 background: tier.current ? tier.color + "0d" : "var(--surface-card)",
                 padding: "16px 14px",
                 position: "relative",
+                textAlign: "left", cursor: "pointer", fontFamily: "var(--font-sans)",
+                transition: "border-color 0.15s ease, background 0.15s ease",
               }}>
                 {tier.current && (
                   <div style={{ position: "absolute", top: 8, right: 10, fontSize: 10, fontWeight: 700, color: tier.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -299,7 +332,7 @@ function AIPlan({ examIds, onStart, t }) {
                 )}
                 <div style={{ fontSize: 14, fontWeight: 700, color: tier.color, marginBottom: 4 }}>{tier.label}</div>
                 <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-strong)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
-                  {Math.round(tier.spw * sessionHours * 10) / 10}
+                  {tier.hpw}
                   <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>h/wk</span>
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-body)", margin: "6px 0 4px" }}>
@@ -307,7 +340,7 @@ function AIPlan({ examIds, onStart, t }) {
                   <span style={{ color: "var(--text-faint)" }}> · {tier.spw} {L("sess/wk","сес/тиж","сес/нед","séan/sem","Sit/Wo")}</span>
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text-faint)", lineHeight: 1.4 }}>{tier.desc}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
