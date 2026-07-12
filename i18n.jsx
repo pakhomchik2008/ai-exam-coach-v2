@@ -2,7 +2,7 @@
 const LANGS = {
   en: {
     code: "en", flag: "🇬🇧", label: "English",
-    nav_dashboard: "Dashboard", nav_chat: "AI Coach", nav_schedule: "Schedule", nav_exams: "Exams",
+    nav_dashboard: "Dashboard", nav_chat: "AI Coach", nav_schedule: "Schedule", nav_calendar: "Calendar", nav_exams: "Exams",
     nav_progress: "Progress", nav_settings: "Settings", nav_logout: "Log out",
     nav_study: "Study", nav_journal: "Mistake Journal",
     dash_today: "Today", dash_this_week: "This week",
@@ -64,7 +64,7 @@ const LANGS = {
   },
   uk: {
     code: "uk", flag: "🇺🇦", label: "Українська",
-    nav_dashboard: "Головна", nav_chat: "AI Коуч", nav_schedule: "Розклад", nav_exams: "Іспити",
+    nav_dashboard: "Головна", nav_chat: "AI Коуч", nav_schedule: "Розклад", nav_calendar: "Календар", nav_exams: "Іспити",
     nav_progress: "Прогрес", nav_settings: "Налаштування", nav_logout: "Вийти",
     nav_study: "Навчання", nav_journal: "Журнал помилок",
     dash_today: "Сьогодні", dash_this_week: "Цього тижня",
@@ -126,7 +126,7 @@ const LANGS = {
   },
   fr: {
     code: "fr", flag: "🇫🇷", label: "Français",
-    nav_dashboard: "Tableau de bord", nav_chat: "Coach IA", nav_schedule: "Planning", nav_exams: "Examens",
+    nav_dashboard: "Tableau de bord", nav_chat: "Coach IA", nav_schedule: "Planning", nav_calendar: "Calendrier", nav_exams: "Examens",
     nav_progress: "Progrès", nav_settings: "Paramètres", nav_logout: "Déconnexion",
     nav_study: "Étudier", nav_journal: "Journal des erreurs",
     dash_today: "Aujourd'hui", dash_this_week: "Cette semaine",
@@ -188,7 +188,7 @@ const LANGS = {
   },
   de: {
     code: "de", flag: "🇩🇪", label: "Deutsch",
-    nav_dashboard: "Dashboard", nav_chat: "KI-Coach", nav_schedule: "Zeitplan", nav_exams: "Prüfungen",
+    nav_dashboard: "Dashboard", nav_chat: "KI-Coach", nav_schedule: "Zeitplan", nav_calendar: "Kalender", nav_exams: "Prüfungen",
     nav_progress: "Fortschritt", nav_settings: "Einstellungen", nav_logout: "Abmelden",
     nav_study: "Lernen", nav_journal: "Fehlerjournal",
     dash_today: "Heute", dash_this_week: "Diese Woche",
@@ -250,7 +250,7 @@ const LANGS = {
   },
   ru: {
     code: "ru", flag: "🇷🇺", label: "Русский",
-    nav_dashboard: "Главная", nav_chat: "AI Коуч", nav_schedule: "Расписание", nav_exams: "Экзамены",
+    nav_dashboard: "Главная", nav_chat: "AI Коуч", nav_schedule: "Расписание", nav_calendar: "Календарь", nav_exams: "Экзамены",
     nav_progress: "Прогресс", nav_settings: "Настройки", nav_logout: "Выйти",
     nav_study: "Учёба", nav_journal: "Журнал ошибок",
     dash_today: "Сегодня", dash_this_week: "На этой неделе",

@@ -24,6 +24,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     { id: "study",     label: t.nav_study },
     { id: "journal",   label: t.nav_journal },
     { id: "schedule",  label: t.nav_schedule },
+    { id: "calendar",  label: "📅 " + (t.nav_calendar || "Calendar") },
     { id: "exams",     label: t.nav_exams },
     { id: "progress",  label: t.nav_progress },
     { id: "settings",  label: t.nav_settings },
