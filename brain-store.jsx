@@ -72,6 +72,8 @@ function blankTopic(examId, topicIdx, topicName) {
     lastSeen: null,    // ISO of last review
     dueDate: null,     // ISO date this topic wants review again
     history: [],       // [{ at, event, delta }] — capped
+    quickCheckStreak: 0,     // consecutive 100% Quick Checks on this topic
+    quickCheckDifficulty: 1, // 1..5 — rises as the streak proves mastery
   };
 }
 
@@ -148,6 +150,38 @@ function recordConfidence({ examId, topicIdx, topicName, rating }) {
 }
 
 function clamp(min, max, n) { return Math.max(min, Math.min(max, n)); }
+
+// Adaptive Quick Check difficulty. A perfect (100%) Quick Check extends the
+// topic's streak; every 5th consecutive perfect result bumps difficulty up
+// one notch (capped at 5). Any non-perfect result resets the streak but never
+// lowers difficulty already earned — matches how the rest of this store never
+// "un-learns" progress on a single bad review (mastery decays instead of
+// resetting to 0). Returns { topic, leveledUp } so the caller can celebrate.
+function recordQuickCheckResult({ examId, topicIdx, topicName, perfect }) {
+  const map = getMastery();
+  const key = topicKey(examId, topicIdx);
+  const t = { ...(map[key] || blankTopic(examId, topicIdx, topicName)) };
+  if (topicName) t.topicName = topicName;
+  let leveledUp = false;
+  if (perfect) {
+    t.quickCheckStreak = (t.quickCheckStreak || 0) + 1;
+    if (t.quickCheckStreak % 5 === 0 && (t.quickCheckDifficulty || 1) < 5) {
+      t.quickCheckDifficulty = (t.quickCheckDifficulty || 1) + 1;
+      leveledUp = true;
+    }
+  } else {
+    t.quickCheckStreak = 0;
+  }
+  map[key] = t;
+  _write(MASTERY_KEY, map);
+  _bump();
+  return { topic: t, leveledUp };
+}
+
+function getQuickCheckDifficulty(examId, topicIdx) {
+  const t = getMastery()[topicKey(examId, topicIdx)];
+  return t && t.quickCheckDifficulty ? t.quickCheckDifficulty : 1;
+}
 
 // Marks a set of this exam's topics as "studied this session" — the explicit
 // coverage signal the user gives on the recap screen ("which of my 10 topics
@@ -554,6 +588,7 @@ Object.assign(window, {
   MASTERY_KEY, KB_KEY, MEMORY_KEY, XP_KEY,
   getXp, addXp, xpLevel,
   topicKey, getMastery, applyReview, recordReview, recordConfidence, retention,
+  recordQuickCheckResult, getQuickCheckDifficulty,
   markTopicsStudied, coverageForExam, syncCompletionFromCoverage,
   simulateReadinessGain, recommendNextAction, brainCourses,
   gradeFromReadiness, readinessForGrade,
