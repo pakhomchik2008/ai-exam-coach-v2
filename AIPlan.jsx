@@ -46,10 +46,13 @@ function AIPlan({ examIds, onStart, t }) {
   const active = courses.filter(c => c.daysAway >= 0);
   const pending = schedule.sessions.filter(s => s.status === "pending");
   const totalSessions = pending.length;
-  const totalHours = Math.round(totalSessions * 0.75 * 10) / 10;
+  // Real planned hours using durationMin from Phase 3 budget engine; old
+  // sessions without durationMin fall back to profile.sessionLengthMin ?? 45.
+  const sessionMinDefault = profile.sessionLengthMin ?? 45;
+  const totalHours = Math.round(pending.reduce((s, sess) => s + (sess.durationMin ?? sessionMinDefault) / 60, 0) * 10) / 10;
   const studyDayCount = new Set(pending.map(s => s.date)).size;
   const lastExamDays = active.length > 0 ? Math.max(...active.map(c => c.daysAway)) : 30;
-  const restDayCount = Math.max(0, Math.round(lastExamDays / 7)); // ~1 rest day/week
+  const restDayCount = Math.max(0, Math.round(lastExamDays / 7));
   const sessionsPerWeek = lastExamDays > 0 ? Math.round(totalSessions / Math.max(1, lastExamDays / 7)) : totalSessions;
   const lastExamDateStr = active.length > 0
     ? new Date(Date.now() + Math.max(...active.map(c => c.daysAway)) * 86400000).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
@@ -60,6 +63,50 @@ function AIPlan({ examIds, onStart, t }) {
 
   // Weakest course for reasoning
   const weakest = active.length > 0 ? active.reduce((a, b) => b.gradeProbability < a.gradeProbability ? b : a, active[0]) : null;
+
+  // ── Plan intensity tiers ─────────────────────────────────────────────────
+  // Three reference points shown as informational tiles. "Balanced" = the
+  // actual plan that was just generated. Minimal and Ambitious are projections
+  // so the user understands what adjusting their availability would change.
+  const totalTopics = active.reduce((s, c) => s + (c.topicCount || 10), 0) || 10;
+  const weeksUntilLast = Math.max(1, lastExamDays / 7);
+  const sessionHours = sessionMinDefault / 60;
+  const minSpw = Math.max(1, Math.round(totalTopics / weeksUntilLast * 0.6));
+  const ambSpw = Math.min(active.length * 7 || 7, Math.ceil(sessionsPerWeek * 1.5));
+  const GRADE_STEPS = ["C", "B", "A", "A*"];
+  const targetGradeStr = active.length > 0
+    ? (active.reduce((a, c) => GRADE_STEPS.indexOf(c.targetGrade) > GRADE_STEPS.indexOf(a) ? c.targetGrade : a, active[0].targetGrade))
+    : "A";
+  const gi = GRADE_STEPS.indexOf(targetGradeStr);
+  const TIERS = [
+    { id: "minimal",   label: "Minimal",   spw: minSpw,          grade: GRADE_STEPS[Math.max(0, gi - 1)],  color: "var(--amber-600)",   desc: L("Cover each topic once — just enough","Кожну тему один раз","Каждую тему один раз","Couvrir chaque sujet","Jeden Thema einmal") },
+    { id: "balanced",  label: "Balanced",  spw: sessionsPerWeek,  grade: targetGradeStr,                    color: "var(--indigo-600)",  desc: L("Spaced repetition, your budget","Інтервальне повторення","Интервальное повторение","Répétition espacée","Verteilte Wiederholung"), current: true },
+    { id: "ambitious", label: "Ambitious", spw: ambSpw,           grade: GRADE_STEPS[Math.min(GRADE_STEPS.length - 1, gi + 1)],  color: "var(--emerald-600)",  desc: L("Deep mastery, extra sessions","Глибоке засвоєння","Глубокое освоение","Maîtrise approfondie","Tiefes Lernen") },
+  ];
+
+  // ── Weekly load bars ─────────────────────────────────────────────────────
+  const weeklyLoad = React.useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const buckets = {};
+    pending.forEach(s => {
+      const d = new Date(s.date + "T00:00:00");
+      const dow = (d.getDay() + 6) % 7;
+      const mon = new Date(d); mon.setDate(d.getDate() - dow);
+      const key = window.fmtDateKey(mon);
+      if (!buckets[key]) buckets[key] = { hours: 0, count: 0 };
+      buckets[key].hours += (s.durationMin ?? sessionMinDefault) / 60;
+      buckets[key].count++;
+    });
+    return Object.entries(buckets)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, 10)
+      .map(([key, data], i) => ({
+        key,
+        label: i === 0 ? L("This wk","Цей","Эта","Cette","Diese") : i === 1 ? L("Next wk","Наст.","Сл.","Proch.","Nächste") : `${L("Wk","Тиж","Нед","Sem","Wo")} ${i + 1}`,
+        hours: Math.round(data.hours * 10) / 10,
+        count: data.count,
+      }));
+  }, [pending, sessionMinDefault]);
 
   // ── Calendar data (2 weeks) ──────────────────────────────────────────────
   const WEEKDAY_SLOTS = ["17:00", "18:00", "19:00"];
@@ -226,6 +273,45 @@ function AIPlan({ examIds, onStart, t }) {
           </h1>
         </div>
 
+        {/* ── Plan intensity tiers ────────────────────────────── */}
+        <div style={{ marginBottom: 24, animation: "fadeUp 0.6s ease 0.08s both" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 12 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>
+              {L("Study intensity","Інтенсивність","Интенсивность","Intensité","Intensität")}
+            </h2>
+            <span style={{ fontSize: 13, color: "var(--text-faint)" }}>
+              {L("— based on your availability","— за вашим бюджетом","— по вашему бюджету","— selon vos disponibilités","— basierend auf Ihrer Zeit")}
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            {TIERS.map(tier => (
+              <div key={tier.id} style={{
+                borderRadius: "var(--radius-xl)",
+                border: tier.current ? `2px solid ${tier.color}` : "1px solid var(--border-default)",
+                background: tier.current ? tier.color + "0d" : "var(--surface-card)",
+                padding: "16px 14px",
+                position: "relative",
+              }}>
+                {tier.current && (
+                  <div style={{ position: "absolute", top: 8, right: 10, fontSize: 10, fontWeight: 700, color: tier.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                    ✓ {L("Your plan","Ваш план","Ваш план","Votre plan","Ihr Plan")}
+                  </div>
+                )}
+                <div style={{ fontSize: 14, fontWeight: 700, color: tier.color, marginBottom: 4 }}>{tier.label}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-strong)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
+                  {Math.round(tier.spw * sessionHours * 10) / 10}
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>h/wk</span>
+                </div>
+                <div style={{ fontSize: 13, color: "var(--text-body)", margin: "6px 0 4px" }}>
+                  {L("Predicted","Прогноз","Прогноз","Prévu","Prognose")} <strong style={{ color: tier.color }}>{tier.grade}</strong>
+                  <span style={{ color: "var(--text-faint)" }}> · {tier.spw} {L("sess/wk","сес/тиж","сес/нед","séan/sem","Sit/Wo")}</span>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-faint)", lineHeight: 1.4 }}>{tier.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* ── Overall prediction ───────────────────────────────── */}
         <div style={{ background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border-subtle)", padding: 32, marginBottom: 24, animation: "fadeUp 0.6s ease 0.1s both" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40, flexWrap: "wrap" }}>
@@ -274,6 +360,46 @@ function AIPlan({ examIds, onStart, t }) {
           <StatCard value={restDayCount} label={L("Rest days","Дні відп.","Дни отд.","Jours repos","Ruhetage")} sub={L("built in","заплановано","запланировано","intégrés","eingeplant")} />
           <StatCard value={lastExamDateStr} label={L("Last exam","Ост. іспит","Посл. экзамен","Dernier exam","Letzte Prüfung")} sub={`${lastExamDays} ${L("days away","днів","дней","jours","Tage")}`} />
         </div>
+
+        {/* ── Weekly load bars ────────────────────────────────── */}
+        {weeklyLoad.length > 0 && (
+          <div style={{ marginBottom: 24, animation: "fadeUp 0.6s ease 0.25s both", background: "var(--surface-card)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", padding: "20px 20px 16px" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 16 }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-strong)" }}>
+                {L("Week-by-week load","Навантаження по тижнях","Нагрузка по неделям","Charge hebdomadaire","Wöchentliche Last")}
+              </h2>
+              <span style={{ fontSize: 12, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
+                {totalHours}h {L("total","всього","всего","au total","gesamt")}
+              </span>
+            </div>
+            {(() => {
+              const maxH = Math.max(...weeklyLoad.map(w => w.hours), 0.1);
+              return (
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", height: 80 }}>
+                  {weeklyLoad.map(w => (
+                    <div key={w.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      {w.hours > 0 && (
+                        <div style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>{w.hours}h</div>
+                      )}
+                      <div style={{
+                        width: "100%",
+                        height: `${Math.max(4, (w.hours / maxH) * 52)}px`,
+                        background: w.hours === 0 ? "var(--border-default)" : "linear-gradient(180deg, var(--indigo-500), var(--indigo-600))",
+                        borderRadius: "3px 3px 0 0",
+                        opacity: w.hours === 0 ? 0.35 : 0.9,
+                        transition: "height 0.4s ease",
+                      }} />
+                      <div style={{ fontSize: 8, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.03em", textAlign: "center", lineHeight: 1.2, whiteSpace: "nowrap" }}>{w.label}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+            <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-faint)" }}>
+              {studyDayCount} {L("study days planned","навчальних днів","учебных дней","jours d'étude prévus","Lerntage geplant")} · {sessionsPerWeek} {L("sessions/week avg","сесій/тижд. сер.","сессий/нед. сред.","séances/sem moy.","Sit/Woche Ø")}
+            </div>
+          </div>
+        )}
 
         {/* ── Weekly Calendar ─────────────────────────────────── */}
         <div style={{ marginBottom: 24, animation: "fadeUp 0.6s ease 0.3s both" }}>
