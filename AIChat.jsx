@@ -9,6 +9,7 @@ const COACH_MODES = [
   { id: "review", emoji: "⚡", label: "Quick Check", desc: "5 questions · 2 min" },
   { id: "practice", emoji: "🎯", label: "Practice", desc: "Exam questions" },
   { id: "speed", emoji: "🏎️", label: "Speed Round", desc: "20 Qs × 30 sec" },
+  { id: "exam_sim", emoji: "📝", label: "Exam Simulation", desc: "Full mock exam · timed" },
   { id: "chat", emoji: "💬", label: "Chat", desc: "Ask anything" },
 ];
 
@@ -1412,6 +1413,269 @@ RULES:
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false))));
 }
 
+// ─── EXAM SIMULATION ─────────────────────────────────────────────────────────
+// A full timed mock exam for ONE subject, covering ALL of its topics (not just
+// weak ones) — distinct from Practice (untimed, topic-picked, reveals per
+// question) and Speed Round (per-question 30s clock, weak-topics only). Here
+// the clock is a single exam-wide countdown and nothing is revealed until the
+// whole paper is submitted, matching how a real exam actually works.
+function ExamSimEngine({ examViews, onExit }) {
+  const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
+  const [examId, setExamId] = React.useState(examViews[0]?.id || null);
+  const [questions, setQuestions] = React.useState(null);
+  const [answers, setAnswers] = React.useState([]);
+  const [idx, setIdx] = React.useState(0);
+  const [error, setError] = React.useState(null);
+  const [timeLeft, setTimeLeft] = React.useState(0);
+  const [timeLimitSec, setTimeLimitSec] = React.useState(0);
+  const [showFinishConfirm, setShowFinishConfirm] = React.useState(false);
+  const [autoSubmitted, setAutoSubmitted] = React.useState(false);
+  const finishedRef = React.useRef(false);
+
+  const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
+  const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
+  const questionCount = Math.max(12, Math.min(24, examTopics.length > 0 ? examTopics.length * 2 : 16));
+  const estMinutes = Math.round(questionCount * 1.5);
+
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  const finishExam = (auto) => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    setAutoSubmitted(!!auto);
+    let correctCount = 0;
+    questions.forEach((q, i) => {
+      const sel = answers[i];
+      if (sel === null || sel === undefined) return; // unanswered — no signal to record, but still counts wrong in the score below
+      const isCorrect = sel === q.correct;
+      if (isCorrect) correctCount++;
+      const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
+      if (resolved && window.recordReview) {
+        window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+      }
+      if (!isCorrect && resolved && window.logMistake) {
+        window.logMistake({ topic: resolved?.topicName || q.topic, question: q.question, examId: resolved?.examId, topicIdx: resolved?.topicIdx });
+      }
+    });
+    const pct = Math.round((correctCount / questions.length) * 100);
+    const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0);
+    if (window.addXp) window.addXp(xpEarned);
+    _sfx.complete();
+    setPhase("summary");
+  };
+
+  // Exam-wide countdown — runs only during the session, independent of which
+  // question is on screen (unlike Speed Round's per-question timer).
+  React.useEffect(() => {
+    if (phase !== "session") return;
+    const t = setInterval(() => {
+      setTimeLeft((s) => {
+        if (s <= 1) { clearInterval(t); finishExam(true); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [phase]);
+
+  // ── Setup screen ──
+  if (phase === "setup" || (phase === "loading" && error)) {
+    const startExam = async () => {
+      if (!selectedExam) return;
+      setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
+      try {
+        const complete = window.brainComplete || ((a) => window.claude.complete(a));
+        const topicList = examTopics.length > 0 ? examTopics.join(", ") : selectedExam.name;
+        const system = `You are an exam board setting a real mock exam paper for "${selectedExam.name}". Create exactly ${questionCount} exam-style multiple-choice questions covering ALL of these topics, spread as evenly as possible: ${topicList}.
+
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
+
+FORMAT: {"questions":[{"question":"...", "options":["A","B","C","D"], "correct":0, "explanation":"1-2 sentences", "topic":"which topic this tests"}]}
+
+RULES:
+- Exactly 4 options per question, "correct" is a 0-based index.
+- Cover every topic in the list at least once before repeating any.
+- Mix conceptual, calculation and applied questions at genuine exam difficulty — this is a real paper, not a warm-up.
+- explanation teaches WHY the right answer is right.
+- No duplicate concepts.`;
+
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long — try again.")), 60000));
+        const raw = await Promise.race([
+          complete({ system, messages: [{ role: "user", content: `Generate a full mock exam on: ${topicList}` }] }),
+          timeout,
+        ]);
+        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        const secs = Math.round(parsed.questions.length * 1.5) * 60;
+        setQuestions(parsed.questions);
+        setAnswers(new Array(parsed.questions.length).fill(null));
+        setIdx(0);
+        setTimeLeft(secs);
+        setTimeLimitSec(secs);
+        setPhase("session");
+      } catch (e) {
+        console.error("Exam simulation generation failed:", e);
+        setError(e.message || "Failed to generate exam");
+        setPhase("setup");
+      }
+    };
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
+      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
+        React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "📝 Exam Simulation")),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, "A full timed mock exam covering every topic in one subject — no answers revealed until you submit, just like the real thing."),
+
+      error && React.createElement("div", { style: { padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, marginBottom: 16 } },
+        React.createElement("p", { style: { margin: 0, fontSize: 13, color: "#b91c1c" } }, error)),
+
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, "Subject"),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 } },
+        ...examViews.map((e) => React.createElement("button", {
+          key: e.id, onClick: () => setExamId(e.id),
+          style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", background: examId === e.id ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${examId === e.id ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+        },
+          React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: examId === e.id ? "var(--indigo-700)" : "var(--text-strong)" } }, e.name),
+          React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, `${(e.topics || []).length || "?"} topics`)))),
+
+      selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
+        ...[
+          { val: questionCount, label: "Questions" },
+          { val: `~${estMinutes}m`, label: "Time limit" },
+          { val: examTopics.length || "All", label: "Topics" },
+        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center" } },
+          React.createElement("p", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.val),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
+
+      _btn(selectedExam ? "Start exam →" : "Add a subject first", startExam, true, !selectedExam));
+  }
+
+  // ── Loading ──
+  if (phase === "loading") {
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
+      React.createElement(CoachIcon, { size: 56 }),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Assembling your mock exam..."),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, selectedExam?.name),
+      React.createElement("div", { style: { display: "flex", gap: 6 } },
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+  }
+
+  // ── Summary ──
+  if (phase === "summary") {
+    const total = questions.length;
+    const answeredCount = answers.filter((a) => a !== null && a !== undefined).length;
+    const correctCount = questions.filter((q, i) => answers[i] === q.correct).length;
+    const pct = Math.round((correctCount / total) * 100);
+    const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0); // display only — actually awarded once in finishExam()
+    const predictedGrade = window.gradeFromReadiness ? window.gradeFromReadiness(pct) : null;
+    const timeUsed = timeLimitSec - timeLeft;
+
+    const byTopic = {};
+    questions.forEach((q, i) => {
+      const t = q.topic || "Unknown";
+      if (!byTopic[t]) byTopic[t] = { correct: 0, total: 0 };
+      byTopic[t].total++;
+      if (answers[i] === q.correct) byTopic[t].correct++;
+    });
+    const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
+
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 20px 24px", overflowY: "auto" } },
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 4px 20px", animation: "fadeUp 0.5s ease-out" } },
+        React.createElement("span", { style: { fontSize: 52, marginBottom: 6 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : pct >= 40 ? "💪" : "📖"),
+        React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, autoSubmitted ? "Time's up!" : "Exam Submitted"),
+        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, `${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`),
+        predictedGrade && React.createElement("div", { style: { marginTop: 10 } }, _badge("#ede9fe", "#6d28d9", `Predicted grade: ${predictedGrade}`))),
+
+      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 20 } },
+        ...[
+          { val: `${pct}%`, label: "Score", color: pct >= 70 ? "#15803d" : "#b91c1c" },
+          { val: `${answeredCount}/${total}`, label: "Answered", color: "var(--indigo-600)" },
+          { val: mmss(timeUsed), label: "Time used", color: "var(--text-strong)" },
+          { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
+        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 4px" } },
+          React.createElement("p", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: s.color } }, s.val),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
+
+      weakTopics.length > 0 && React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 20 } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase" } }, "Focus on:"),
+        ...weakTopics.map((t, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "#b45309" } }, `• ${t}`))),
+
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" } }, "Full review"),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 } },
+        ...questions.map((q, i) => {
+          const sel = answers[i];
+          const answered = sel !== null && sel !== undefined;
+          const isCorrect = answered && sel === q.correct;
+          return React.createElement("div", { key: i, style: { background: "var(--surface-card)", border: `1px solid ${answered ? (isCorrect ? "#bbf7d0" : "#fecaca") : "var(--border-subtle)"}`, borderRadius: 12, padding: "12px 14px" } },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 } },
+              React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.5 } }, `${i + 1}. ${q.question}`),
+              React.createElement("span", { style: { fontSize: 15, flexShrink: 0 } }, !answered ? "⬜" : isCorrect ? "✅" : "❌")),
+            React.createElement("p", { style: { margin: "0 0 2px", fontSize: 12, color: "var(--text-muted)" } },
+              answered ? `Your answer: ${(q.options || [])[sel]}` : "Not answered"),
+            !isCorrect && React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, color: "#15803d", fontWeight: 600 } }, `Correct: ${(q.options || [])[q.correct]}`),
+            React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 } }, q.explanation));
+        })),
+
+      _btn("Done →", onExit, true, false));
+  }
+
+  // ── Session (question) view ──
+  if (!questions) return null;
+  const q = questions[idx];
+  const total = questions.length;
+  const answeredCount = answers.filter((a) => a !== null && a !== undefined).length;
+  const unansweredCount = total - answeredCount;
+
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+    // Header — exam-wide timer, not per-question
+    React.createElement("div", { style: { padding: "12px 20px 0" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `Question ${idx + 1} of ${total}`),
+        React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } },
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: timeLeft <= 120 ? "#b91c1c" : "var(--text-strong)" } }, `⏱ ${mmss(timeLeft)}`),
+          React.createElement("button", { onClick: () => setShowFinishConfirm(true),
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Finish exam"))),
+      // Progress dots — filled once answered, outlined if not, current is wider
+      React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 8 } },
+        ...questions.map((_, i) => {
+          const answered = answers[i] !== null && answers[i] !== undefined;
+          return React.createElement("div", {
+            key: i, onClick: () => setIdx(i),
+            style: { flex: i === idx ? 2 : 1, height: 5, borderRadius: 3, cursor: "pointer", background: i === idx ? "#6366f1" : answered ? "#c7d2fe" : "var(--border-subtle)", transition: "background 0.3s" }
+          });
+        }))),
+
+    // Finish confirmation banner
+    showFinishConfirm && React.createElement("div", { style: { margin: "0 20px 12px", padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12 } },
+      React.createElement("p", { style: { margin: "0 0 8px", fontSize: 13, color: "#92400e" } },
+        unansweredCount > 0 ? `${unansweredCount} question${unansweredCount > 1 ? "s" : ""} left unanswered — submit anyway?` : "Submit your exam now?"),
+      React.createElement("div", { style: { display: "flex", gap: 8 } },
+        _btn("Cancel", () => setShowFinishConfirm(false), false, false),
+        _btn("Submit →", () => finishExam(false), true, false))),
+
+    // Question content
+    React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 20px 80px" } },
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
+        q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("#f5f3ff", "#7c3aed", q.topic)),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+          ...(q.options || []).map((opt, i) => {
+            const isSel = answers[idx] === i;
+            return React.createElement("button", {
+              key: i, onClick: () => setAnswers((a) => { const next = [...a]; next[idx] = i; return next; }),
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: isSel ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${isSel ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: isSel ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            },
+              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: isSel ? "var(--indigo-500)" : "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: isSel ? "white" : "#9ca3af", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+          })))),
+
+    // Prev / Next navigation
+    React.createElement("div", { style: { padding: "12px 20px 20px", display: "flex", gap: 10 } },
+      idx > 0 && _btn("← Prev", () => setIdx(idx - 1), false, false),
+      idx + 1 < total
+        ? _btn("Next →", () => setIdx(idx + 1), true, false)
+        : _btn("Review & submit →", () => setShowFinishConfirm(true), true, false)));
+}
+
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
 
 // ─── Difficulty vote helpers ─────────────────────────────────────────────────
@@ -2461,6 +2725,11 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   // Speed Round mode
   if (mode === "speed") {
     return React.createElement(SpeedRoundEngine, { examViews, onExit: exitToLobby });
+  }
+
+  // Exam Simulation — full timed mock exam covering ALL topics of one subject
+  if (mode === "exam_sim") {
+    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby });
   }
 
   // Topic picker for Learn mode
