@@ -64,6 +64,7 @@ function StudyCalendar({ t, onGoToExams }) {
   const [armedDelete, setArmedDelete] = React.useState(null);
   const [createSpec, setCreateSpec] = React.useState(null); // { date, startTime, type, recurring }
   const [fabOpen, setFabOpen] = React.useState(false);
+  const [aiProposal, setAiProposal] = React.useState(null);
 
   // ── sidebar filters (visual only — never changes what's stored) ─────────
   const [hiddenExamIds, setHiddenExamIds] = React.useState(() => new Set());
@@ -193,6 +194,30 @@ function StudyCalendar({ t, onGoToExams }) {
     }
   }
 
+  // ── AI Actions (schedule-store.jsx's propose* functions) ────────────────
+  // Every action computes a diff for the CURRENTLY VIEWED week without
+  // touching storage, then shows it in AiProposalModal for Accept/Reject.
+  const AI_ACTIONS = [
+    { id: "optimize-week", label: "Optimize Week", emoji: "✨", fn: "proposeOptimizeWeek" },
+    { id: "resolve-conflicts", label: "Resolve Conflicts", emoji: "⚡", fn: "proposeResolveConflicts" },
+    { id: "fill-empty", label: "Fill Empty Slots", emoji: "🧩", fn: "proposeFillEmptySlots" },
+    { id: "reschedule-missed", label: "Reschedule Missed", emoji: "↻", fn: "proposeRescheduleMissed" },
+    { id: "suggest-best-time", label: "Suggest Best Time", emoji: "🎯", fn: "proposeSuggestBestTime" },
+  ];
+  function runAiAction(fnName) {
+    if (!window[fnName]) return;
+    const weekStartKey = calFmtDate(weekDays[0]);
+    const weekEndKey = calFmtDate(weekDays[6]);
+    const proposal = fnName === "proposeRescheduleMissed" ? window[fnName]() : window[fnName](weekStartKey, weekEndKey);
+    setAiProposal(proposal);
+  }
+  function acceptProposal() {
+    if (aiProposal && window.applyProposal) window.applyProposal(aiProposal);
+    setAiProposal(null);
+    setRefreshKey((k) => k + 1);
+  }
+  function rejectProposal() { setAiProposal(null); }
+
   const activeExams = exams.filter((e) => new Date(e.examDate) > new Date());
   const weekLabel = `${weekDays[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${weekDays[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
 
@@ -220,6 +245,7 @@ function StudyCalendar({ t, onGoToExams }) {
           hiddenExamIds={hiddenExamIds} toggleExamFilter={toggleExamFilter}
           showPersonal={showPersonal} setShowPersonal={setShowPersonal}
           onGoToExams={onGoToExams}
+          aiActions={AI_ACTIONS} onRunAiAction={runAiAction}
         />
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -320,13 +346,72 @@ function StudyCalendar({ t, onGoToExams }) {
           onClose={() => setCreateSpec(null)}
           onCreate={() => { setCreateSpec(null); setRefreshKey((k) => k + 1); }} />
       )}
+
+      {aiProposal && (
+        <AiProposalModal proposal={aiProposal} courseById={courseById} onAccept={acceptProposal} onReject={rejectProposal} />
+      )}
+    </div>
+  );
+}
+
+// ─── AI proposal preview (Accept/Reject) ────────────────────────────────────
+
+function AiProposalModal({ proposal, courseById, onAccept, onReject }) {
+  const { title, summary, moves = [], adds = [], removes = [] } = proposal;
+  const totalChanges = moves.length + adds.length + removes.length;
+
+  React.useEffect(() => {
+    const fn = (e) => { if (e.key === "Escape") onReject(); };
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, []);
+
+  return (
+    <div onClick={onReject} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 420, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-lg)" }}>
+        <h3 style={{ margin: "0 0 4px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{title}</h3>
+        <p style={{ margin: "0 0 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{summary}</p>
+
+        {totalChanges > 0 ? (
+          <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, paddingRight: 4 }}>
+            {removes.map((r, i) => (
+              <div key={"r" + i} style={{ fontSize: 12, color: "var(--red-600)", background: "var(--red-50, #FEF2F2)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
+                🗑 {r.label}
+              </div>
+            ))}
+            {moves.map((m, i) => (
+              <div key={"m" + i} style={{ fontSize: 12, color: "var(--text-body)", background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
+                <div>↕ {m.label}</div>
+                <div style={{ color: "var(--text-faint)", marginTop: 2 }}>{m.before.date} {m.before.startTime || ""} → <strong style={{ color: "var(--indigo-600)" }}>{m.after.date} {m.after.startTime || ""}</strong></div>
+              </div>
+            ))}
+            {adds.map((a, i) => (
+              <div key={"a" + i} style={{ fontSize: 12, color: "var(--emerald-700)", background: "var(--emerald-50, #ECFDF5)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
+                ＋ {a.label}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16 }}>Nothing to change — you're already in good shape here.</p>
+        )}
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onReject} style={{ flex: 1, border: "1px solid var(--border-default)", background: "var(--surface-page)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
+            Reject
+          </button>
+          <button onClick={onAccept} disabled={totalChanges === 0}
+            style={{ flex: 1, border: "none", background: totalChanges ? "var(--indigo-600)" : "var(--slate-200)", color: totalChanges ? "#fff" : "var(--text-faint)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: totalChanges ? "pointer" : "default", fontWeight: 700, fontFamily: "var(--font-sans)" }}>
+            Accept {totalChanges > 0 ? `(${totalChanges})` : ""}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── left sidebar ───────────────────────────────────────────────────────────
 
-function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, hiddenExamIds, toggleExamFilter, showPersonal, setShowPersonal, onGoToExams }) {
+function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, hiddenExamIds, toggleExamFilter, showPersonal, setShowPersonal, onGoToExams, aiActions, onRunAiAction }) {
   const weekMonday = calMondayOf(new Date());
   const weekSunday = new Date(weekMonday); weekSunday.setDate(weekSunday.getDate() + 6);
   const weekMondayKey = calFmtDate(weekMonday);
@@ -356,6 +441,26 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
 
   return (
     <aside style={{ width: 252, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* AI Actions */}
+      {aiActions && (
+        <div style={card}>
+          <p style={sectionTitle}>✨ AI Actions</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {aiActions.map((a) => (
+              <button key={a.id} onClick={() => onRunAiAction(a.fn)} style={{
+                display: "flex", alignItems: "center", gap: 8, textAlign: "left",
+                border: "1px solid var(--border-default)", background: "var(--surface-page)",
+                borderRadius: "var(--radius-lg)", padding: "8px 10px", cursor: "pointer",
+                fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: "var(--text-body)",
+              }}>
+                <span>{a.emoji}</span>{a.label}
+              </button>
+            ))}
+          </div>
+          <p style={{ margin: "8px 0 0", fontSize: 10, color: "var(--text-faint)", lineHeight: 1.4 }}>Every action previews its changes — nothing applies until you Accept.</p>
+        </div>
+      )}
+
       {/* Upcoming Exams */}
       <div style={card}>
         <p style={sectionTitle}>Upcoming Exams</p>

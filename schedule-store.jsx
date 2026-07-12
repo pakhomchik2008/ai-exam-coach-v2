@@ -224,6 +224,10 @@ function _minutesToHHMM(mins) {
   const h = Math.floor(wrapped / 60), m = wrapped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
+function _hhmmToMinutes(hhmm) {
+  const [h, m] = (hhmm || "17:00").split(":").map(Number);
+  return h * 60 + m;
+}
 
 function allocateBudget(exams, profile) {
   const {
@@ -729,43 +733,251 @@ function relabelPendingSessions(examId, topics) {
 
 // ─── adaptive rescheduling ──────────────────────────────────────────────
 // When sessions are overdue (date < today, still pending), redistribute
-// them into the remaining prep window. Returns { adapted: boolean,
-// changes: string[] } describing what moved and why.
-function adaptSchedule() {
-  const schedule = getSchedule();
+// them into the remaining prep window. Pure — computes moves/removes without
+// touching storage — so both adaptSchedule() (applies immediately, used by
+// Dashboard.jsx on load) and proposeRescheduleMissed() (returns the same
+// computation as a preview for StudyCalendar.jsx's Accept/Reject flow) share
+// one implementation instead of two copies that could drift apart.
+function _computeAdaptMoves(sessions, exams) {
   const today = window.fmtDateKey(new Date());
-  const exams = window.getExams();
   const examById = new Map(exams.map(e => [e.id, e]));
-
-  const overdue = schedule.sessions.filter(s => s.status === "pending" && s.date < today);
-  if (overdue.length === 0) return { adapted: false, changes: [] };
-
-  const changes = [];
-  let sessions = schedule.sessions.slice();
+  const overdue = sessions.filter(s => s.status === "pending" && s.date < today);
+  const moves = [], removes = [];
+  let working = sessions.slice();
 
   overdue.forEach(s => {
     const exam = examById.get(s.examId);
     if (!exam) return;
     const daysLeft = window.daysAway(exam.examDate);
     if (daysLeft <= 0) {
-      sessions = sessions.filter(x => x.id !== s.id);
-      changes.push(`Removed "${s.topic}" for ${exam.name} (exam already passed)`);
+      removes.push({ sessionId: s.id, label: `Remove "${s.topic}" for ${exam.name} (exam already passed)` });
+      working = working.filter(x => x.id !== s.id);
       return;
     }
-    const futureCount = sessions.filter(x => x.examId === s.examId && x.status === "pending" && x.date >= today).length;
+    const futureCount = working.filter(x => x.examId === s.examId && x.status === "pending" && x.date >= today).length;
     const spread = Math.max(1, Math.round(daysLeft / Math.max(1, futureCount + 1)));
     const offset = Math.min(spread, Math.max(1, Math.ceil(Math.random() * Math.min(7, daysLeft))));
     const d = new Date(); d.setDate(d.getDate() + offset);
     if (d.getDay() === 0) d.setDate(d.getDate() + 1);
     const newDate = window.fmtDateKey(d);
-    sessions = sessions.map(x => x.id === s.id ? { ...x, date: newDate } : x);
-    changes.push(`Moved "${s.topic}" (${exam.name}) to ${newDate}`);
+    moves.push({ sessionId: s.id, before: { date: s.date, startTime: s.startTime }, after: { date: newDate, startTime: s.startTime }, label: `Move "${s.topic}" (${exam.name}) to ${newDate}` });
+    working = working.map(x => x.id === s.id ? { ...x, date: newDate } : x);
   });
 
-  if (changes.length > 0) {
-    saveSchedule({ version: 1, sessions });
+  return { moves, removes };
+}
+
+function adaptSchedule() {
+  const schedule = getSchedule();
+  const exams = window.getExams();
+  const { moves, removes } = _computeAdaptMoves(schedule.sessions, exams);
+  if (!moves.length && !removes.length) return { adapted: false, changes: [] };
+
+  let sessions = schedule.sessions.slice();
+  removes.forEach((r) => { sessions = sessions.filter((x) => x.id !== r.sessionId); });
+  moves.forEach((m) => { sessions = sessions.map((x) => x.id === m.sessionId ? { ...x, ...m.after } : x); });
+  saveSchedule({ version: 1, sessions });
+
+  return { adapted: true, changes: [...removes.map((r) => r.label), ...moves.map((m) => m.label)] };
+}
+
+// ─── AI actions (StudyCalendar.jsx's "✨ AI Actions" panel) ────────────────
+// Every action here is a pure "propose" function: it computes a diff
+// (moves/adds/removes) against the CURRENT schedule without saving anything,
+// so the calendar can show a before/after preview and let the user Accept
+// or Reject before a single byte changes. applyProposal() is the only
+// function that actually writes, and only runs on Accept.
+//
+// These operate on real scheduling data through the same engine as
+// allocateBudget (time-slot packing, blackout-aware free intervals) rather
+// than calling the Claude API — this app's dev preview has no /api/complete
+// route, and more importantly these are genuinely deterministic scheduling
+// operations (rebalance, deconflict, fill gaps), not generative text, so a
+// real API round-trip would add latency and cost for no accuracy benefit.
+
+function _weekWeekdayList(weekStartKey, blackoutSlots, daysPerWeek) {
+  const totalAvailDays = availableStudyDaysPerWeek(blackoutSlots);
+  const effectiveDaysPerWeek = Math.max(1, Math.min(daysPerWeek || 5, totalAvailDays));
+  const WEEKDAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const fullyBlocked = new Set((blackoutSlots || []).filter((b) => b.period === "all").map((b) => b.day));
+  const studyWeekdays = WEEKDAY_ORDER.filter((d) => !fullyBlocked.has(d)).slice(0, effectiveDaysPerWeek);
+  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const dates = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStartKey + "T00:00:00"); d.setDate(d.getDate() + i);
+    if (studyWeekdays.includes(JS_DAY_NAMES[d.getDay()])) dates.push(window.fmtDateKey(d));
   }
-  return { adapted: changes.length > 0, changes };
+  return dates;
+}
+
+// Rebalances this week's AI-planned (non-manual, non-personal, incomplete)
+// sessions evenly across the week's study days — fixes the common "5
+// sessions crammed into 2 days, rest empty" pattern without touching
+// anything the user has hand-placed.
+function proposeOptimizeWeek(weekStartKey, weekEndKey) {
+  const schedule = getSchedule();
+  const exams = window.getExams();
+  const profile = window.getProfile ? window.getProfile() : {};
+  const examById = new Map(exams.map((e) => [e.id, e]));
+  const sessionLengthMin = profile.sessionLengthMin || 45;
+
+  const candidates = schedule.sessions.filter((s) => !s.manual && s.type !== "personal" && s.status !== "completed" && s.date >= weekStartKey && s.date <= weekEndKey);
+  if (!candidates.length) return { id: "optimize-week", title: "Optimize Week", summary: "No AI-planned sessions to rebalance this week.", moves: [], adds: [], removes: [] };
+
+  const dates = _weekWeekdayList(weekStartKey, profile.blackoutSlots, profile.daysPerWeek);
+  if (!dates.length) return { id: "optimize-week", title: "Optimize Week", summary: "No available study days this week.", moves: [], adds: [], removes: [] };
+
+  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const sorted = candidates.slice().sort((a, b) => a.examId.localeCompare(b.examId) || a.id.localeCompare(b.id));
+  const perDateCounters = {};
+  const moves = [];
+  sorted.forEach((s, i) => {
+    const date = dates[i % dates.length];
+    const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
+    const slotIdx = perDateCounters[date] || 0;
+    perDateCounters[date] = slotIdx + 1;
+    const startTime = _minutesToHHMM(_slotStartMinutes(_freeIntervalsForWeekday(weekday, profile.blackoutSlots || []), slotIdx, s.durationMin || sessionLengthMin));
+    if (date !== s.date || startTime !== s.startTime) {
+      const exam = examById.get(s.examId);
+      moves.push({ sessionId: s.id, before: { date: s.date, startTime: s.startTime }, after: { date, startTime }, label: `Move "${s.topic}" (${exam?.name || ""}) to ${date} ${startTime}` });
+    }
+  });
+  return { id: "optimize-week", title: "Optimize Week", summary: moves.length ? `${moves.length} session(s) rebalanced for better spacing` : "This week is already well-balanced.", moves, adds: [], removes: [] };
+}
+
+// Detects overlapping sessions on the same day and pushes the later one to
+// right after the earlier one ends, within that day's free time.
+function proposeResolveConflicts(weekStartKey, weekEndKey) {
+  const schedule = getSchedule();
+  const profile = window.getProfile ? window.getProfile() : {};
+  const sessionLengthMin = profile.sessionLengthMin || 45;
+  const inWeek = schedule.sessions.filter((s) => s.status !== "completed" && s.date >= weekStartKey && s.date <= weekEndKey);
+  const byDate = {};
+  inWeek.forEach((s) => { (byDate[s.date] = byDate[s.date] || []).push(s); });
+
+  const moves = [];
+  Object.keys(byDate).forEach((date) => {
+    const daySessions = byDate[date].slice().sort((a, b) => _hhmmToMinutes(a.startTime) - _hhmmToMinutes(b.startTime));
+    let occupiedUntil = -1;
+    daySessions.forEach((s) => {
+      const start = _hhmmToMinutes(s.startTime);
+      const dur = s.durationMin || sessionLengthMin;
+      if (start < occupiedUntil) {
+        const newStart = occupiedUntil;
+        moves.push({ sessionId: s.id, before: { date: s.date, startTime: s.startTime }, after: { date: s.date, startTime: _minutesToHHMM(newStart) }, label: `Move "${s.topic}" later on ${date} to avoid overlap` });
+        occupiedUntil = newStart + dur;
+      } else {
+        occupiedUntil = start + dur;
+      }
+    });
+  });
+  return { id: "resolve-conflicts", title: "Resolve Conflicts", summary: moves.length ? `${moves.length} overlapping session(s) found` : "No conflicts found this week.", moves, adds: [], removes: [] };
+}
+
+// Finds genuinely free time in this week's study days and, if any active
+// exam has topics with zero completed sessions, proposes filling the gap
+// with one. Capped at 5 additions per run so it never floods the week.
+function proposeFillEmptySlots(weekStartKey, weekEndKey) {
+  const schedule = getSchedule();
+  const exams = window.getExams().filter((e) => new Date(e.examDate) > new Date());
+  const profile = window.getProfile ? window.getProfile() : {};
+  if (!exams.length) return { id: "fill-empty", title: "Fill Empty Slots", summary: "No active exams to schedule.", moves: [], adds: [], removes: [] };
+
+  const sessionLengthMin = profile.sessionLengthMin || 45;
+  const dates = _weekWeekdayList(weekStartKey, profile.blackoutSlots, profile.daysPerWeek);
+  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+  const existingCountByDate = {};
+  schedule.sessions.forEach((s) => { if (s.status !== "completed" && s.date >= weekStartKey && s.date <= weekEndKey) existingCountByDate[s.date] = (existingCountByDate[s.date] || 0) + 1; });
+
+  function uncoveredTopicIdx(exam) {
+    const done = new Set(schedule.sessions.filter((s) => s.examId === exam.id && s.status === "completed").map((s) => topicIndexFromId(s.id)));
+    const count = Math.max(1, exam.topicCount || 10);
+    for (let i = 0; i < count; i++) if (!done.has(i)) return i;
+    return 0;
+  }
+
+  const MAX_ADDS = 5;
+  const adds = [];
+  let examCursor = 0;
+  for (const date of dates) {
+    if (adds.length >= MAX_ADDS) break;
+    const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
+    const intervals = _freeIntervalsForWeekday(weekday, profile.blackoutSlots || []);
+    const existingCount = existingCountByDate[date] || 0;
+    const dayEndMin = intervals.length ? intervals[intervals.length - 1][1] : 22 * 60;
+    const nextSlot = _slotStartMinutes(intervals, existingCount, sessionLengthMin);
+    if (existingCount > 0 && nextSlot >= dayEndMin) continue; // this day's free intervals are already full
+
+    const exam = exams[examCursor % exams.length]; examCursor++;
+    const topicIdx = uncoveredTopicIdx(exam);
+    const topic = (exam.topics && exam.topics[topicIdx]) || `Topic review ${topicIdx + 1}`;
+    const startTime = _minutesToHHMM(nextSlot);
+    adds.push({ session: { examId: exam.id, topic, date, startTime, durationMin: sessionLengthMin, type: "study" }, label: `Add "${topic}" (${exam.name}) on ${date} ${startTime}` });
+    existingCountByDate[date] = existingCount + 1;
+  }
+  return { id: "fill-empty", title: "Fill Empty Slots", summary: adds.length ? `${adds.length} new session(s) proposed to use free time` : "No meaningful free slots found this week.", moves: [], adds, removes: [] };
+}
+
+// Same computation adaptSchedule() applies immediately (used on Dashboard
+// load) — exposed as a preview so the calendar's Accept/Reject flow covers
+// it too, instead of that one action silently bypassing the preview pattern.
+function proposeRescheduleMissed() {
+  const schedule = getSchedule();
+  const exams = window.getExams();
+  const { moves, removes } = _computeAdaptMoves(schedule.sessions, exams);
+  const summary = moves.length || removes.length
+    ? `${moves.length} session(s) rescheduled${removes.length ? `, ${removes.length} removed (exam passed)` : ""}`
+    : "Nothing overdue — you're all caught up.";
+  return { id: "reschedule-missed", title: "Auto Reschedule Missed Sessions", summary, moves, adds: [], removes };
+}
+
+// Looks at when the user has actually completed sessions in the past (falls
+// back to a sensible evening default with no history) and proposes shifting
+// this week's still-editable sessions to cluster around that hour.
+function proposeSuggestBestTime(weekStartKey, weekEndKey) {
+  const schedule = getSchedule();
+  const profile = window.getProfile ? window.getProfile() : {};
+  const sessionLengthMin = profile.sessionLengthMin || 45;
+  const completed = schedule.sessions.filter((s) => s.status === "completed" && s.startTime);
+
+  let bestHour = 17;
+  let basis = "a default evening slot — complete a few sessions and this will learn your real pattern";
+  if (completed.length >= 3) {
+    const hourCounts = {};
+    completed.forEach((s) => { const h = Math.floor(_hhmmToMinutes(s.startTime) / 60); hourCounts[h] = (hourCounts[h] || 0) + 1; });
+    let best = null, bestCount = -1;
+    Object.entries(hourCounts).forEach(([h, c]) => { if (c > bestCount) { bestCount = c; best = Number(h); } });
+    if (best != null) { bestHour = best; basis = `${bestCount} of your completed sessions started around ${String(bestHour).padStart(2, "0")}:00`; }
+  }
+
+  const candidates = schedule.sessions.filter((s) => !s.manual && s.type !== "personal" && s.status !== "completed" && s.date >= weekStartKey && s.date <= weekEndKey);
+  const perDateCounters = {};
+  const moves = [];
+  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  candidates.forEach((s) => {
+    const weekday = JS_DAY_NAMES[new Date(s.date + "T00:00:00").getDay()];
+    const intervals = _freeIntervalsForWeekday(weekday, profile.blackoutSlots || []);
+    const anchored = intervals.map(([st, en]) => [Math.max(st, bestHour * 60), en]).filter(([st, en]) => en > st);
+    const useIntervals = anchored.length ? anchored : intervals;
+    const slotIdx = perDateCounters[s.date] || 0;
+    perDateCounters[s.date] = slotIdx + 1;
+    const newStart = _minutesToHHMM(_slotStartMinutes(useIntervals, slotIdx, s.durationMin || sessionLengthMin));
+    if (newStart !== s.startTime) moves.push({ sessionId: s.id, before: { date: s.date, startTime: s.startTime }, after: { date: s.date, startTime: newStart }, label: `Shift "${s.topic}" to ${newStart}` });
+  });
+
+  return { id: "suggest-best-time", title: "Suggest Best Study Time", summary: `Based on ${basis}. ${moves.length} session(s) would move into this window.`, moves, adds: [], removes: [] };
+}
+
+// The only function that actually writes — call after the user clicks
+// Accept on a preview. Moves/adds/removes are applied via the same
+// updateSession/addManualSession/deleteSession every other write path uses,
+// so accepted AI changes get manual:true just like a hand-drag — they won't
+// be silently reverted by the next budget replan either.
+function applyProposal(proposal) {
+  (proposal.removes || []).forEach((r) => deleteSession(r.sessionId));
+  (proposal.moves || []).forEach((m) => updateSession(m.sessionId, m.after));
+  (proposal.adds || []).forEach((a) => addManualSession(a.session));
 }
 
 Object.assign(window, {
@@ -776,4 +988,6 @@ Object.assign(window, {
   allocateBudget, availableStudyDaysPerWeek, replanAllSchedules,
   INTENSITY_MULTIPLIERS, addManualSession, updateSession, deleteSession,
   addRecurringSessions, deleteSeries, PERSONAL_EVENT_ID,
+  proposeOptimizeWeek, proposeResolveConflicts, proposeFillEmptySlots,
+  proposeRescheduleMissed, proposeSuggestBestTime, applyProposal,
 });
