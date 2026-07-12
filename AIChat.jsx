@@ -2070,7 +2070,6 @@ function ChatMode({ onExit, initialQuery }) {
   const [messages, setMessages] = React.useState(() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } });
   const [input, setInput] = React.useState("");
   const [typing, setTyping] = React.useState(false);
-  const [showDash, setShowDash] = React.useState(true);
   const bodyRef = React.useRef(null);
   const inputRef = React.useRef(null);
   const historyRef = React.useRef((() => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; } })());
@@ -2110,12 +2109,11 @@ function ChatMode({ onExit, initialQuery }) {
 
   React.useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); localStorage.setItem(HISTORY_KEY, JSON.stringify(historyRef.current)); } catch {} }, [messages]);
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight; }, [messages, typing]);
-  React.useEffect(() => { if (initialQuery && !handled.current) { handled.current = true; setShowDash(false); setTimeout(() => send(initialQuery), 100); } }, [initialQuery]);
+  React.useEffect(() => { if (initialQuery && !handled.current) { handled.current = true; setTimeout(() => send(initialQuery), 100); } }, [initialQuery]);
 
-  // Proactive AI message after 3s of being in chat view (not dashboard)
+  // Proactive AI message after 3s on first open with no messages
   React.useEffect(() => {
-    if (showDash || proactiveRef.current || !weakest.length) return;
-    if (messages.length > 0) return;
+    if (proactiveRef.current || !weakest.length || messages.length > 0) return;
     const t = setTimeout(() => {
       if (proactiveRef.current) return;
       proactiveRef.current = true;
@@ -2126,7 +2124,7 @@ function ChatMode({ onExit, initialQuery }) {
       ]);
     }, 3000);
     return () => clearTimeout(t);
-  }, [showDash]);
+  }, []);
 
   const pushAI = (text, actions) => {
     historyRef.current = [...historyRef.current, { role: "assistant", content: text }];
@@ -2136,7 +2134,6 @@ function ChatMode({ onExit, initialQuery }) {
   const send = async (raw) => {
     const text = (typeof raw === "string" ? raw : "").trim();
     if (!text || typing) return;
-    setShowDash(false);
     historyRef.current = [...historyRef.current, { role: "user", content: text }];
     setMessages((m) => [...m, { id: Date.now() + Math.random(), role: "user", text }]);
     setInput("");
@@ -2173,8 +2170,8 @@ If no actions fit, omit the ACTIONS line entirely.`,
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  // ── AI Dashboard (shown before first message) ──
-  const renderDashboard = () => React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: 16 } },
+  // ── AI Dashboard — always shown at top ──
+  const renderDashboard = () => React.createElement("div", { style: { padding: "20px", display: "flex", flexDirection: "column", gap: 16 } },
     // Hero greeting
     React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, padding: "20px", background: "linear-gradient(135deg,#eef2ff,#e0e7ff)", borderRadius: 18 } },
       React.createElement("div", { style: { position: "relative" } },
@@ -2230,8 +2227,8 @@ If no actions fit, omit the ACTIONS line entirely.`,
           React.createElement("span", { style: { fontSize: 18 } }, a.icon),
           React.createElement("span", { style: { fontSize: 13, fontWeight: 500, color: "var(--text-body)" } }, a.text))))));
 
-  // ── Chat messages view ──
-  const renderChat = () => React.createElement("div", { ref: bodyRef, style: { flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12, background: "var(--surface-page)" } },
+  // ── Chat messages — rendered below dashboard ──
+  const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 12 } },
     ...messages.map((m) =>
       React.createElement(React.Fragment, { key: m.id },
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
@@ -2263,14 +2260,15 @@ If no actions fit, omit the ACTIONS line entirely.`,
         React.createElement("div", null,
           React.createElement("span", { style: { fontSize: 14, fontWeight: 700, color: "var(--text-strong)" } }, "AI Coach"),
           React.createElement("span", { style: { fontSize: 11, color: "#059669", marginLeft: 8 } }, "Ready to help"))),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        messages.length > 0 && React.createElement("button", { onClick: () => setShowDash(!showDash), style: { background: "transparent", border: "1px solid var(--border-default)", color: "var(--text-muted)", borderRadius: 8, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)" } }, showDash ? "Chat" : "Dashboard"),
-        React.createElement("button", { onClick: () => { try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(HISTORY_KEY); } catch {} onExit(); }, style: { background: "transparent", border: "1px solid var(--border-default)", color: "var(--text-muted)", borderRadius: 8, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)" } }, "Exit"))),
+      React.createElement("button", { onClick: () => { try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(HISTORY_KEY); } catch {} onExit(); }, style: { background: "transparent", border: "1px solid var(--border-default)", color: "var(--text-muted)", borderRadius: 8, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)" } }, "Exit")),
 
-    // Main content — dashboard or chat
-    showDash ? renderDashboard() : renderChat(),
+    // Single scrollable area: dashboard always on top, chat messages below
+    React.createElement("div", { ref: bodyRef, style: { flex: 1, overflowY: "auto", background: "var(--surface-page)" } },
+      renderDashboard(),
+      messages.length > 0 && React.createElement("div", { style: { borderTop: "1px solid var(--border-subtle)", margin: "0 20px" } }),
+      messages.length > 0 && renderChat()),
 
-    // Suggestion chips (shown when input is empty and no typing)
+    // Suggestion chips (shown when input is empty and not typing)
     !typing && !input.trim() && messages.length > 0 && React.createElement("div", { style: { padding: "6px 16px", display: "flex", gap: 6, overflowX: "auto", background: "var(--surface-page)" } },
       ...suggestions.map((s, i) => React.createElement("button", {
         key: i, onClick: () => send(s.text),
