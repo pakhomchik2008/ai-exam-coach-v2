@@ -552,12 +552,27 @@ function QuickCheckEngine({ topic, onExit }) {
   const [fillInput, setFillInput] = React.useState("");
   const [results, setResults] = React.useState([]);
   const [done, setDone] = React.useState(false);
+  const [levelUp, setLevelUp] = React.useState(false);
   const startTime = React.useRef(Date.now());
+  const recordedRef = React.useRef(false);
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  // Adaptive difficulty: rises as this topic racks up perfect Quick Checks
+  // (see recordQuickCheckResult in brain-store.jsx) — read once per topic so
+  // it stays stable for the duration of this session.
+  const difficulty = React.useMemo(() => (resolved && window.getQuickCheckDifficulty) ? window.getQuickCheckDifficulty(resolved.examId, resolved.topicIdx) : 1, [resolved]);
+  const DIFFICULTY_LABELS = ["Beginner", "Standard", "Challenging", "Advanced", "Expert"];
+  const DIFFICULTY_MIXES = [
+    "3 easy, 2 medium — keep it approachable.",
+    "1 easy, 3 medium, 1 hard. Order easy→hard.",
+    "3 medium, 2 hard — this student has been acing recent checks.",
+    "1 medium, 4 hard — push them, they've mastered the basics.",
+    "5 hard, exam-level questions — no easy warm-ups, this student is highly proficient.",
+  ];
 
   React.useEffect(() => {
-    setLoading(true); setError(null); setQuestions(null); setIdx(0); setSelected(null); setRevealed(false); setResults([]); setDone(false); setFillInput("");
+    setLoading(true); setError(null); setQuestions(null); setIdx(0); setSelected(null); setRevealed(false); setResults([]); setDone(false); setFillInput(""); setLevelUp(false);
+    recordedRef.current = false;
     startTime.current = Date.now();
     (async () => {
       try {
@@ -576,7 +591,7 @@ FORMAT: {"questions":[...5 items...],"sessionTitle":"Short title for this check"
 RULES:
 - Exactly 5 questions. Mix MCQ and fill-in-blank (at least 1 fill).
 - Questions test RECALL of key facts, formulas, definitions — not obscure trivia.
-- Difficulty: 1 easy, 3 medium, 1 hard. Order easy→hard.
+- Difficulty: ${DIFFICULTY_MIXES[difficulty - 1]}
 - Explanations are 1 sentence max — concise, helpful if wrong.
 - Each question covers a DIFFERENT subtopic/concept.
 - "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").`;
@@ -655,7 +670,14 @@ RULES:
     const xpEarned = correct * 20 + (pct === 100 ? 50 : 0);
     const elapsed = Math.round((Date.now() - startTime.current) / 1000);
     const wrongTopics = results.filter((r) => !r.correct).map((r) => r.topic);
-    if (window.addXp && total > 0) window.addXp(xpEarned);
+    if (!recordedRef.current && total > 0) {
+      recordedRef.current = true;
+      if (window.addXp) window.addXp(xpEarned);
+      if (resolved && window.recordQuickCheckResult) {
+        const { leveledUp } = window.recordQuickCheckResult({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, perfect: pct === 100 });
+        if (leveledUp) { setLevelUp(true); _sfx.complete(); }
+      }
+    }
 
     const emoji = pct === 100 ? "🔥" : pct >= 80 ? "🧠" : pct >= 60 ? "💪" : "📖";
     const message = pct === 100 ? `${topic} locked in!` : pct >= 80 ? "Almost perfect!" : pct >= 60 ? "Good, but room to grow" : "Let's review this topic";
@@ -667,6 +689,12 @@ RULES:
       React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } },
         `${correct}/${total} ✓`),
       React.createElement("p", { style: { fontSize: 15, color: "var(--text-muted)", margin: "0 0 24px", textAlign: "center" } }, message),
+
+      levelUp && React.createElement("div", {
+        style: { width: "100%", maxWidth: 340, background: "linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius: 14, padding: "14px 18px", marginBottom: 20, textAlign: "center", animation: "fadeUp 0.4s ease-out" }
+      },
+        React.createElement("p", { style: { margin: 0, fontSize: 15, fontWeight: 700, color: "white" } }, `🎉 Difficulty up — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]}!`),
+        React.createElement("p", { style: { margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.85)" } }, `5 perfect Quick Checks in a row on ${topic}`)),
 
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 24 } },
         ...[
@@ -744,7 +772,9 @@ RULES:
     // Progress header
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `${idx + 1} of ${total}`),
+        React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `${idx + 1} of ${total}`),
+          difficulty > 1 && React.createElement("span", { style: { background: "#ede9fe", color: "#6d28d9", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, DIFFICULTY_LABELS[difficulty - 1])),
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
           results.length > 0 && React.createElement("span", { style: { background: "#f0fdf4", color: "#15803d", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${results.filter((r) => r.correct).length}/${results.length} ✓`),
           React.createElement("button", { onClick: () => { setDone(true); _sfx.complete(); },
