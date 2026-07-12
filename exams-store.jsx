@@ -50,6 +50,14 @@ function migrateExam(raw, index) {
     // in ai-enrichment.jsx.
     topics: Array.isArray(e.topics) ? e.topics.filter((t) => typeof t === "string" && t) : null,
     topicsStatus: ["idle", "pending", "ready", "failed"].includes(e.topicsStatus) ? e.topicsStatus : "idle",
+    // Per-topic difficulty/importance (1-10 each), keyed by index into `topics`
+    // — a sibling field rather than changing `topics` itself to objects, so
+    // every existing consumer that reads `exam.topics[i]` as a plain string
+    // (Dashboard, brain-store, schedule-store, exam-wizard) keeps working
+    // unmodified. Feeds the hour-budget scheduler's per-topic weighting; a
+    // missing entry just means "not weighted yet" (engine defaults to 5/5),
+    // same graceful-degradation shape as every other optional AI field here.
+    topicWeights: e.topicWeights && typeof e.topicWeights === "object" ? e.topicWeights : null,
     _v: EXAM_SCHEMA_VERSION,
   };
 }

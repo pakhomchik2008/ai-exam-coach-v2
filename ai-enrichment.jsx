@@ -108,16 +108,29 @@ async function requestTopicNames(examId, exam, files) {
     } else {
       content = `List exactly ${count} specific topics typically covered in "${exam.name}" at "${exam.examBoard || "a standard"}" level. Each a short topic name (2-5 words), most foundational first. Use your knowledge of this subject's real curriculum.`;
     }
-    const system = `You are listing real syllabus topics for an exam-prep app. Output ONLY valid JSON, no markdown: {"topics":["topic name","topic name",...]}. Exactly ${count} items, each under 5 words.`;
+    // difficulty/importance ride along in the same call — no extra latency —
+    // and land in the sibling topicWeights field (exams-store.jsx) so the
+    // hour-budget scheduler can weight study time per topic instead of
+    // splitting it evenly.
+    const system = `You are listing real syllabus topics for an exam-prep app. Output ONLY valid JSON, no markdown: {"topics":[{"name":"topic name","difficulty":N,"importance":N}]}. Exactly ${count} items, each name under 5 words, most foundational first. difficulty = how conceptually hard this topic typically is for students (1 easy – 10 hard). importance = how central this topic is to the overall exam / how often it's tested (1 minor – 10 core). Both integers.`;
     const raw = await window.claude.complete({ system, messages: [{ role: "user", content }] });
     const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
     const parsed = JSON.parse(clean);
-    const topics = (Array.isArray(parsed.topics) ? parsed.topics : [])
-      .filter((t) => typeof t === "string" && t.trim())
+    const items = (Array.isArray(parsed.topics) ? parsed.topics : [])
+      .filter((t) => t && typeof t.name === "string" && t.name.trim())
       .slice(0, count);
-    if (!topics.length) throw new Error("no topics returned");
+    if (!items.length) throw new Error("no topics returned");
+    const topics = items.map((t) => t.name.trim());
+    const topicWeights = {};
+    items.forEach((t, i) => {
+      const d = Number(t.difficulty), imp = Number(t.importance);
+      topicWeights[i] = {
+        difficulty: Number.isFinite(d) && d >= 1 && d <= 10 ? Math.round(d) : 5,
+        importance: Number.isFinite(imp) && imp >= 1 && imp <= 10 ? Math.round(imp) : 5,
+      };
+    });
 
-    patchExamAi(examId, { topics, topicsStatus: "ready" });
+    patchExamAi(examId, { topics, topicsStatus: "ready", topicWeights });
     if (window.relabelPendingSessions) window.relabelPendingSessions(examId, topics);
   } catch {
     patchExamAi(examId, { topicsStatus: "failed" });

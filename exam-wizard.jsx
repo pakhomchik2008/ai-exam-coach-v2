@@ -17,14 +17,14 @@ const EXAM_WIZARD_PRESETS = {
 // controls used in "ask" (full, always expanded) and "collapsed" (prefilled,
 // starts collapsed with an Edit toggle) modes. One component, used both
 // ways: improving it improves both flows.
-function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWeeklyHours, materials, setMaterials, prefs, setPrefs, toggle, onAiEstimate }) {
+function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWeeklyHours, materials, setMaterials, prefs, setPrefs, toggle, onAiEstimate, daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots }) {
   const [expanded, setExpanded] = React.useState(!collapsedByDefault);
   const accent = "var(--indigo-600)";
 
   if (!expanded) {
     const materialLabels = window.MATERIALS.filter((m) => materials.has(m.id)).map((m) => m[lang] || m.en);
     const prefLabels = window.PREFERENCES.filter((p) => prefs.has(p.id)).map((p) => p[lang] || p.en);
-    const summary = [`${weeklyHours} ${c.s3_hours}`, materialLabels.join(", "), prefLabels.join(", ")].filter(Boolean).join(" · ");
+    const summary = [`${weeklyHours} ${c.s3_hours}`, `${daysPerWeek}d/wk`, `${sessionLengthMin}m`, materialLabels.join(", "), prefLabels.join(", ")].filter(Boolean).join(" · ");
     return (
       <div style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
         <div style={{ minWidth: 0 }}>
@@ -72,6 +72,10 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
           </button>
         )}
       </div>
+      <window.AvailabilityGrid
+        daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
+        sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
+        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} />
       <div>
         <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_materials}</p>
         <window.ChipGrid items={window.MATERIALS} selected={materials} onToggle={toggle(setMaterials)} lang={lang} />
@@ -175,6 +179,9 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
   // ── global settings (prefilled from profile; only persisted if touched) ──
   const [weeklyHours, setWeeklyHours] = React.useState(profile.weeklyHours);
+  const [daysPerWeek, setDaysPerWeek] = React.useState(profile.daysPerWeek);
+  const [sessionLengthMin, setSessionLengthMin] = React.useState(profile.sessionLengthMin);
+  const [blackoutSlots, setBlackoutSlots] = React.useState(() => profile.blackoutSlots);
   const [materials, setMaterials] = React.useState(() => new Set(profile.materials));
   const [prefs, setPrefs] = React.useState(() => new Set(profile.prefs));
   const toggle = (setFn) => (id) => setFn((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -207,7 +214,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       sessionsPerWeekHint: sessionsBySubject[s.id] ?? null,
     }));
     const profilePatch = cfg.globalSettings !== "hidden"
-      ? { weeklyHours, materials: [...materials], prefs: [...prefs] }
+      ? { weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, materials: [...materials], prefs: [...prefs] }
       : null;
 
     const newExams = window.commitExamWizard({ examDrafts, profilePatch });
@@ -443,6 +450,9 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
             </div>
             <GlobalSettingsSection c={c} lang={lang} collapsedByDefault={cfg.globalSettings === "collapsed"}
               weeklyHours={weeklyHours} setWeeklyHours={setWeeklyHours}
+              daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
+              sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
+              blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots}
               materials={materials} setMaterials={setMaterials}
               prefs={prefs} setPrefs={setPrefs} toggle={toggle}
               onAiEstimate={cfg.aiEnrichment ? () => setAiModalOpen(true) : null} />
