@@ -26,13 +26,24 @@ function addDaysISO(d, days) { const x = new Date(d); x.setDate(x.getDate() + da
 // records can never crash a downstream read. Runs on every read AND write.
 function migrateExam(raw, index) {
   const e = raw && typeof raw === "object" ? raw : {};
+  const courseId = typeof e.courseId === "string" && e.courseId ? e.courseId : null;
+  // Course-backed exams mirror topics/topicCount/topicWeights from the shared
+  // Course on every read/write, so every existing consumer of these three
+  // fields (schedule-store.jsx, brain-store.jsx, Dashboard...) needs zero
+  // code changes — see course-store.jsx header comment + plan §2/§3.
+  const course = courseId && window.getCourse ? window.getCourse(courseId) : null;
+  const courseMirror = course && course.topics.length ? (() => {
+    const topicWeights = {};
+    course.topics.forEach((t, i) => { topicWeights[i] = { difficulty: t.difficulty, importance: t.importance }; });
+    return { topics: course.topics.map((t) => t.name), topicCount: course.topics.length, topicWeights };
+  })() : null;
   return {
     id: typeof e.id === "string" && e.id ? e.id : "e" + Date.now() + "_" + index,
     name: typeof e.name === "string" && e.name.trim() ? e.name : "Untitled exam",
     color: VALID_COLOR_RE.test(e.color) ? e.color : FALLBACK_COLORS[index % FALLBACK_COLORS.length],
     examDate: isValidDateString(e.examDate) ? e.examDate : addDaysISO(new Date(), 30),
     examBoard: typeof e.examBoard === "string" && e.examBoard ? e.examBoard : "Custom",
-    topicCount: isFiniteNumber(e.topicCount) && e.topicCount > 0 ? Math.round(e.topicCount) : 10,
+    topicCount: courseMirror ? courseMirror.topicCount : (isFiniteNumber(e.topicCount) && e.topicCount > 0 ? Math.round(e.topicCount) : 10),
     completionPct: clampPct(e.completionPct, 0),
     confidencePct: clampPct(e.confidencePct, 50), // neutral midpoint, not 0 — "no data yet" shouldn't read as "failing"
     targetGrade: typeof e.targetGrade === "string" && e.targetGrade ? e.targetGrade : "A",
@@ -48,8 +59,8 @@ function migrateExam(raw, index) {
     // AI-generated topic names (replaces generic "Topic review N" labels once
     // ready) — same fire-and-forget shape as aiPlanStatus, see requestTopicNames
     // in ai-enrichment.jsx.
-    topics: Array.isArray(e.topics) ? e.topics.filter((t) => typeof t === "string" && t) : null,
-    topicsStatus: ["idle", "pending", "ready", "failed"].includes(e.topicsStatus) ? e.topicsStatus : "idle",
+    topics: courseMirror ? courseMirror.topics : (Array.isArray(e.topics) ? e.topics.filter((t) => typeof t === "string" && t) : null),
+    topicsStatus: courseMirror ? "ready" : (["idle", "pending", "ready", "failed"].includes(e.topicsStatus) ? e.topicsStatus : "idle"),
     // Per-topic difficulty/importance (1-10 each), keyed by index into `topics`
     // — a sibling field rather than changing `topics` itself to objects, so
     // every existing consumer that reads `exam.topics[i]` as a plain string
@@ -57,7 +68,7 @@ function migrateExam(raw, index) {
     // unmodified. Feeds the hour-budget scheduler's per-topic weighting; a
     // missing entry just means "not weighted yet" (engine defaults to 5/5),
     // same graceful-degradation shape as every other optional AI field here.
-    topicWeights: e.topicWeights && typeof e.topicWeights === "object" ? e.topicWeights : null,
+    topicWeights: courseMirror ? courseMirror.topicWeights : (e.topicWeights && typeof e.topicWeights === "object" ? e.topicWeights : null),
     // Whole-exam priority (1 low – 10 high), distinct from topicWeights[i]'s
     // per-TOPIC importance. Feeds schedule-store.jsx's allocateBudget urgency
     // formula — a 10 gets proportionally more of the weekly hour budget than
@@ -257,6 +268,8 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     gradingSystem: d.gradingSystem,
     importance: d.importance,
     notes: d.notes,
+    courseId: d.courseId,
+    kind: d.kind,
   }, exams.length + i));
 
   saveExams([...exams, ...newExams]); // triggers reconcileSchedule automatically
