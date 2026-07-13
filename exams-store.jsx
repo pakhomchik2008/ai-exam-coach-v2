@@ -66,6 +66,14 @@ function migrateExam(raw, index) {
     // Freeform notes — never read by any scheduling logic, purely for the
     // user's own reference (exam format reminders, what to bring, etc.).
     notes: typeof e.notes === "string" ? e.notes : "",
+    // Course-first fields (see course-store.jsx): courseId is null for every
+    // legacy exam (topics/topicWeights above stay authoritative for them,
+    // unchanged forever). When set, this exam's topics/topicWeights fields
+    // are a MIRROR of the shared course's data, kept in sync by whatever
+    // writes the course — never edited directly for a course-backed exam,
+    // so schedule-store.jsx/brain-store.jsx need zero changes to keep working.
+    courseId: typeof e.courseId === "string" && e.courseId ? e.courseId : null,
+    kind: ["exam", "midterm", "final", "resit", "mock", "certification"].includes(e.kind) ? e.kind : "exam",
     _v: EXAM_SCHEMA_VERSION,
   };
 }

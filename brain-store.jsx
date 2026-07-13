@@ -77,7 +77,51 @@ function blankTopic(examId, topicIdx, topicName) {
   };
 }
 
-function getMastery() { return _read(MASTERY_KEY, {}); }
+// Raw legacy flat map only — internal use, never exported directly. All the
+// write functions below use this (not the merged getMastery()) so a
+// course-backed exam's reconstructed entries never get accidentally
+// persisted back into the legacy store.
+function _legacyGetMastery() { return _read(MASTERY_KEY, {}); }
+
+function _findExam(examId) {
+  const exams = window.getExams ? window.getExams() : [];
+  return exams.find((e) => e.id === examId) || null;
+}
+
+// Course-first adapter (see course-store.jsx): for an exam with a courseId,
+// mastery for that exam's topics actually lives on the shared Course, keyed
+// by the topic's STABLE id (not array index) — this is what makes progress
+// genuinely shared across every exam (midterm/final/resit/mock) that points
+// at the same course. Reconstructs a legacy-shaped entry so every existing
+// reader keeps working unmodified.
+function _courseTopicToLegacyEntry(exam, course, topicIdx) {
+  const topic = course.topics[topicIdx];
+  if (!topic) return null;
+  const stored = course.progress.topicMastery[topic.id];
+  const base = stored || blankTopic(exam.id, topicIdx, topic.name);
+  return { ...base, examId: exam.id, topicIdx, topicName: topic.name };
+}
+
+// PUBLIC getMastery(): the legacy flat map, PLUS reconstructed entries for
+// every course-backed exam's topics — one consistent "examId::topicIdx"
+// shape regardless of whether an exam is legacy or course-backed, so
+// schedule-store/AIChat/Dashboard/StudySession need zero changes.
+function getMastery() {
+  const legacy = _legacyGetMastery();
+  const exams = window.getExams ? window.getExams() : [];
+  const courseBacked = exams.filter((e) => e.courseId);
+  if (!courseBacked.length) return legacy;
+  const merged = { ...legacy };
+  courseBacked.forEach((exam) => {
+    const course = window.getCourse ? window.getCourse(exam.courseId) : null;
+    if (!course) return;
+    course.topics.forEach((topic, i) => {
+      const entry = _courseTopicToLegacyEntry(exam, course, i);
+      if (entry) merged[topicKey(exam.id, i)] = entry;
+    });
+  });
+  return merged;
+}
 
 // Retention right now under an exponential forgetting curve. A topic never
 // reviewed (no lastSeen) returns its raw mastery so it doesn't spuriously read
@@ -122,7 +166,19 @@ function applyReview(topic, correct, quality) {
 // correct: boolean. quality (0..1, optional) lets a graded free answer nudge
 // more finely than a binary right/wrong. Returns the updated topic.
 function recordReview({ examId, topicIdx, topicName, correct, quality }) {
-  const map = getMastery();
+  const exam = _findExam(examId);
+  if (exam && exam.courseId && window.getCourse) {
+    const course = window.getCourse(exam.courseId);
+    const topic = course && course.topics[topicIdx];
+    if (course && topic) {
+      const base = course.progress.topicMastery[topic.id] || blankTopic(examId, topicIdx, topic.name);
+      const t = applyReview(base, correct, quality);
+      window.saveCourseTopicMastery(exam.courseId, topic.id, t);
+      _bump();
+      return { ...t, examId, topicIdx, topicName: topic.name };
+    }
+  }
+  const map = _legacyGetMastery();
   const key = topicKey(examId, topicIdx);
   const base = { ...(map[key] || blankTopic(examId, topicIdx, topicName)) };
   if (topicName) base.topicName = topicName;
@@ -137,11 +193,24 @@ function recordReview({ examId, topicIdx, topicName, correct, quality }) {
 // or a 0..1 value). Kept separate from mastery: how sure you *feel* and how
 // well you actually *did* are different signals, and readiness blends both.
 function recordConfidence({ examId, topicIdx, topicName, rating }) {
-  const map = getMastery();
+  const conf = rating > 1 ? clamp01((rating - 1) / 3) : clamp01(rating); // accept 1..4 or 0..1
+  const exam = _findExam(examId);
+  if (exam && exam.courseId && window.getCourse) {
+    const course = window.getCourse(exam.courseId);
+    const topic = course && course.topics[topicIdx];
+    if (course && topic) {
+      const base = course.progress.topicMastery[topic.id] || blankTopic(examId, topicIdx, topic.name);
+      const t = { ...base, confidence: conf, lastSeen: base.lastSeen || nowISO() };
+      window.saveCourseTopicMastery(exam.courseId, topic.id, t);
+      _bump();
+      return { ...t, examId, topicIdx, topicName: topic.name };
+    }
+  }
+  const map = _legacyGetMastery();
   const key = topicKey(examId, topicIdx);
   const t = { ...(map[key] || blankTopic(examId, topicIdx, topicName)) };
   if (topicName) t.topicName = topicName;
-  t.confidence = rating > 1 ? clamp01((rating - 1) / 3) : clamp01(rating); // accept 1..4 or 0..1
+  t.confidence = conf;
   t.lastSeen = t.lastSeen || nowISO();
   map[key] = t;
   _write(MASTERY_KEY, map);
@@ -157,11 +226,7 @@ function clamp(min, max, n) { return Math.max(min, Math.min(max, n)); }
 // lowers difficulty already earned — matches how the rest of this store never
 // "un-learns" progress on a single bad review (mastery decays instead of
 // resetting to 0). Returns { topic, leveledUp } so the caller can celebrate.
-function recordQuickCheckResult({ examId, topicIdx, topicName, perfect }) {
-  const map = getMastery();
-  const key = topicKey(examId, topicIdx);
-  const t = { ...(map[key] || blankTopic(examId, topicIdx, topicName)) };
-  if (topicName) t.topicName = topicName;
+function _applyQuickCheck(t, perfect) {
   let leveledUp = false;
   if (perfect) {
     t.quickCheckStreak = (t.quickCheckStreak || 0) + 1;
@@ -172,6 +237,27 @@ function recordQuickCheckResult({ examId, topicIdx, topicName, perfect }) {
   } else {
     t.quickCheckStreak = 0;
   }
+  return leveledUp;
+}
+
+function recordQuickCheckResult({ examId, topicIdx, topicName, perfect }) {
+  const exam = _findExam(examId);
+  if (exam && exam.courseId && window.getCourse) {
+    const course = window.getCourse(exam.courseId);
+    const topic = course && course.topics[topicIdx];
+    if (course && topic) {
+      const t = { ...(course.progress.topicMastery[topic.id] || blankTopic(examId, topicIdx, topic.name)) };
+      const leveledUp = _applyQuickCheck(t, perfect);
+      window.saveCourseTopicMastery(exam.courseId, topic.id, t);
+      _bump();
+      return { topic: { ...t, examId, topicIdx, topicName: topic.name }, leveledUp };
+    }
+  }
+  const map = _legacyGetMastery();
+  const key = topicKey(examId, topicIdx);
+  const t = { ...(map[key] || blankTopic(examId, topicIdx, topicName)) };
+  if (topicName) t.topicName = topicName;
+  const leveledUp = _applyQuickCheck(t, perfect);
   map[key] = t;
   _write(MASTERY_KEY, map);
   _bump();
@@ -191,7 +277,22 @@ function getQuickCheckDifficulty(examId, topicIdx) {
 // old manual "topics covered" slider that granted progress for zero work.
 function markTopicsStudied(examId, topicIdxs, topicNames) {
   if (!examId || !Array.isArray(topicIdxs) || topicIdxs.length === 0) return;
-  const map = getMastery();
+  const exam = _findExam(examId);
+  if (exam && exam.courseId && window.getCourse) {
+    const course = window.getCourse(exam.courseId);
+    if (course) {
+      topicIdxs.forEach((idx, i) => {
+        const topic = course.topics[idx];
+        if (!topic) return;
+        const base = course.progress.topicMastery[topic.id] || blankTopic(examId, idx, (topicNames && topicNames[i]) || topic.name);
+        window.saveCourseTopicMastery(exam.courseId, topic.id, applyReview(base, true, 0.6));
+      });
+      syncCompletionFromCoverage(examId, getMastery());
+      _bump();
+      return;
+    }
+  }
+  const map = _legacyGetMastery();
   topicIdxs.forEach((idx, i) => {
     const key = topicKey(examId, idx);
     const base = { ...(map[key] || blankTopic(examId, idx, topicNames && topicNames[i])) };
@@ -232,8 +333,28 @@ function syncCompletionFromCoverage(examId, masteryMap) {
 // ─── knowledge base (from uploads) ───────────────────────────────────────────
 
 function getKnowledgeBase() { return _read(KB_KEY, {}); }
-function getExamKB(examId) { return getKnowledgeBase()[examId] || null; }
+
+// Course-first adapter: a course-backed exam's KB lives on course.knowledgeBase
+// (shape-identical: {status, chapters, glossary, sourceFiles, extractedAt,
+// updatedAt}) so it's shared across every exam pointing at that course —
+// legacy (no-courseId) exams keep reading/writing the old per-exam flat map.
+function getExamKB(examId) {
+  const exam = _findExam(examId);
+  if (exam && exam.courseId && window.getCourse) {
+    const course = window.getCourse(exam.courseId);
+    if (course) return course.knowledgeBase;
+  }
+  return getKnowledgeBase()[examId] || null;
+}
 function saveExamKB(examId, kb) {
+  const exam = _findExam(examId);
+  if (exam && exam.courseId && window.getCourse && window.saveCourse) {
+    const course = window.getCourse(exam.courseId);
+    const nextKb = { ...(course ? course.knowledgeBase : {}), ...kb, updatedAt: nowISO() };
+    const saved = window.saveCourse(exam.courseId, { knowledgeBase: nextKb });
+    _bump();
+    return saved ? saved.knowledgeBase : nextKb;
+  }
   const all = getKnowledgeBase();
   all[examId] = { ...(all[examId] || {}), ...kb, updatedAt: nowISO() };
   _write(KB_KEY, all);
