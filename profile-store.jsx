@@ -50,6 +50,9 @@ function migrateProfile(raw) {
     reminderEnabled: typeof p.reminderEnabled === "boolean" ? p.reminderEnabled : true,
     reminderHour: isFiniteNumber(p.reminderHour) && p.reminderHour >= 0 && p.reminderHour <= 23 ? Math.round(p.reminderHour) : 9,
     hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
+    country: typeof p.country === "string" ? p.country : "",
+    educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",
+    currentYear: typeof p.currentYear === "string" ? p.currentYear : "",
     _v: PROFILE_SCHEMA_VERSION,
   };
 }
