@@ -55,7 +55,7 @@
 <script type="text/babel" src="schedule-store.jsx?v=budget8"></script>
 <script type="text/babel" src="profile-store.jsx?v=budget2"></script>
 <script type="text/babel" src="auth-store.jsx?v=sb1"></script>
-<script type="text/babel" src="mistakes-store.jsx?v=brain1"></script>
+<script type="text/babel" src="mistakes-store.jsx?v=dash1"></script>
 <script type="text/babel" src="progress-metrics.jsx?v=fix1"></script>
 <script type="text/babel" src="brain-store.jsx?v=fix7"></script>
 <script type="text/babel" src="ai-enrichment.jsx?v=fix7"></script>
@@ -71,14 +71,14 @@
 <script type="text/babel" src="Dashboard.jsx?v=slim2"></script>
 <script type="text/babel" src="CourseDetail.jsx?v=fix5"></script>
 <script type="text/babel" src="DayDetail.jsx"></script>
-<script type="text/babel" src="AIChat.jsx?v=coach30"></script>
+<script type="text/babel" src="AIChat.jsx?v=coach31"></script>
 <script type="text/babel" src="TodaysMission.jsx"></script>
 <script type="text/babel" src="StudySession.jsx?v=chat2"></script>
 <script type="text/babel" src="SessionRecap.jsx?v=chat1"></script>
 <script type="text/babel" src="AIPlan.jsx?v=phase4b"></script>
 <script type="text/babel" src="BurnoutAlert.jsx"></script>
 <script type="text/babel" src="StudyHub.jsx"></script>
-<script type="text/babel" src="MistakeJournal.jsx"></script>
+<script type="text/babel" src="MistakeJournal.jsx?v=dash1"></script>
 <script type="text/babel" src="Progress.jsx?v=brain1"></script>
 <script type="text/babel" src="Schedule.jsx"></script>
 <script type="text/babel" src="StudyCalendar.jsx?v=p5"></script>
@@ -264,7 +264,7 @@ function App() {
   const content =
       tab === "chat"     ? <window.AIChat t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />
     : tab === "study"    ? <window.StudyHub t={t} />
-    : tab === "journal"  ? <window.MistakeJournal t={t} />
+    : tab === "journal"  ? <window.MistakeJournal t={t} onGoToChat={goToChat} onGoToDashboard={() => setTab("dashboard")} />
     : tab === "schedule" ? <window.Schedule t={t} />
     : tab === "calendar" ? <window.StudyCalendar t={t} onGoToExams={() => setTab("exams")} />
     : tab === "exams"    ? <window.Exams t={t} onPlanReady={(newExams) => goPlanning(newExams)} />
