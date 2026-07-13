@@ -178,4 +178,34 @@ async function requestCourseExtraction(examId, exam, files) {
   }
 }
 
-Object.assign(window, { requestAiEnrichment, requestTopicNames, requestCourseExtraction, fileToClaudeContent, patchExamAi });
+// Reject nonsense manual topic entries ("asdf", "123123", "www") before they
+// ever reach a Course. Only reachable from CurriculumStep's last-resort manual
+// path (no curriculum match, user declined AI-generate and "no topic list").
+// Fails OPEN at every layer — no window.claude, a network error, or a missing
+// per-line result all default to ACCEPTING the line, so a transport hiccup
+// never hard-blocks exam creation. Rejected lines get a reason; good lines are
+// never held hostage by one bad line among them.
+async function validateManualTopics(lines) {
+  if (!Array.isArray(lines) || !lines.length) return { valid: [], rejected: [] };
+  if (!window.claude) return { valid: lines, rejected: [] };
+  const system = "You are checking whether each line is a plausible real study topic name (a subject/concept a student would revise) — not gibberish, a URL, a placeholder, or random characters. " +
+    'Output ONLY valid JSON, no markdown: {"results":[{"valid":true|false,"reason":"short reason if invalid, else null"}]}. One result per input line, same order, no extra items.';
+  const prompt = lines.map((l, i) => `${i + 1}. ${l}`).join("\n");
+  try {
+    const raw = await window.claude.complete({ system, messages: [{ role: "user", content: prompt }] });
+    const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
+    const parsed = JSON.parse(clean);
+    const results = Array.isArray(parsed.results) ? parsed.results : [];
+    const valid = [], rejected = [];
+    lines.forEach((line, i) => {
+      const r = results[i];
+      if (r && r.valid === false) rejected.push({ line, reason: (r.reason && String(r.reason)) || "Doesn't look like a real study topic" });
+      else valid.push(line);
+    });
+    return { valid, rejected };
+  } catch {
+    return { valid: lines, rejected: [] };
+  }
+}
+
+Object.assign(window, { requestAiEnrichment, requestTopicNames, requestCourseExtraction, fileToClaudeContent, patchExamAi, validateManualTopics });
