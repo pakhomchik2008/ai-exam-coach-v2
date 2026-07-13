@@ -163,7 +163,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
     id: "s" + Date.now(), name: "", color: "var(--subject-indigo)",
     current: exam.grade.current, target: exam.grade.target,
     examDate: defaultExamDate, topicCount: 10, examBoard: exam.board,
-    topicsText: "", syllabusUrl: "",
+    courseDraft: null, noTopicList: false, syllabusFiles: [], curriculumValid: false,
   });
   const [subjects, setSubjects] = React.useState(() => initialExam ? [{
     id: initialExam.id, name: initialExam.name, color: initialExam.color,
@@ -181,6 +181,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const addSubject = () => setSubjects((subs) => [...subs, {
     id: "s" + Date.now(), name: "", color: `var(--subject-${COLORS[subs.length % COLORS.length]})`,
     current: exam.grade.current, target: exam.grade.target, examDate: defaultExamDate, topicCount: 10, examBoard: exam.board,
+    courseDraft: null, noTopicList: false, syllabusFiles: [], curriculumValid: false,
   }]);
   const removeSubject = (id) => setSubjects((subs) => subs.filter((s) => s.id !== id));
   const setSubject = (id, patch) => setSubjects((subs) => subs.map((s) => s.id === id ? { ...s, ...patch } : s));
@@ -215,7 +216,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const accent = "var(--indigo-600)";
   const subjectsValid = subjects.length > 0 && subjects.every((s) =>
     !s.name.trim() || (s.name.trim() && s.examDate >= todayISO && Number(s.topicCount) >= 1));
-  const topicsProvided = subjects.every((s) => !s.name.trim() || (s.topicsText && s.topicsText.trim()) || (s.syllabusUrl && s.syllabusUrl.trim()) || (files && files.length > 0));
+  const topicsProvided = subjects.every((s) => !s.name.trim() || s.curriculumValid);
   const canNext = step === "profile" ? (country && educationLevel)
     : step === "subject" ? (subjects.some((s) => s.name.trim()) && subjectsValid && topicsProvided)
     : true;
@@ -226,17 +227,36 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   function handleFinish() {
     const named = subjects.filter((s) => s.name.trim());
     const rows = named.length ? named : subjects;
-    const examDrafts = rows.map((s) => ({
-      name: s.name.trim() || "My subject",
-      color: null, // resolved by commitExamWizard's FALLBACK_COLORS rotation
-      examDate: s.examDate,
-      examBoard: s.examBoard,
-      topicCount: Number(s.topicCount) || 10,
-      targetGrade: String(s.target),
-      currentGrade: String(s.current),
-      gradingSystem: exam.grade,
-      sessionsPerWeekHint: sessionsBySubject[s.id] ?? null,
-    }));
+
+    // Course-backed rows (curriculum hit, AI-confirmed, or manually validated
+    // via CurriculumStep) get their Course persisted now — from here on it's
+    // the source of truth for topics/topicWeights, mirrored onto the exam by
+    // migrateExam() (exams-store.jsx) on every read/write. Rows still pending
+    // ("I don't have a topic list") get no course — AI enrichment fills the
+    // legacy exam.topics fields the same way it always has.
+    const createdCourses = {}; // subject.id -> real, persisted Course
+    rows.forEach((s) => {
+      if (s.courseDraft && s.courseDraft.topics && s.courseDraft.topics.length && window.createCourse) {
+        createdCourses[s.id] = window.createCourse(s.courseDraft);
+      }
+    });
+
+    const examDrafts = rows.map((s) => {
+      const course = createdCourses[s.id];
+      return {
+        name: s.name.trim() || "My subject",
+        color: null, // resolved by commitExamWizard's FALLBACK_COLORS rotation
+        examDate: s.examDate,
+        examBoard: s.examBoard,
+        topicCount: course ? course.topics.length : (Number(s.topicCount) || 10),
+        targetGrade: String(s.target),
+        currentGrade: String(s.current),
+        gradingSystem: exam.grade,
+        sessionsPerWeekHint: sessionsBySubject[s.id] ?? null,
+        courseId: course ? course.id : null,
+        kind: "exam",
+      };
+    });
     const educationPatch = (country || educationLevel || currentYear) ? { country, educationLevel, currentYear } : {};
     const profilePatch = cfg.globalSettings !== "hidden"
       ? { weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, materials: [...materials], prefs: [...prefs], planIntensity: intensity, ...educationPatch }
@@ -256,14 +276,8 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       const extract = window.requestCourseExtraction || window.requestTopicNames;
       newExams.forEach((newExam, i) => {
         const s = rows[i];
-        const manualTopics = (s.topicsText || "").split("\n").map((t) => t.trim()).filter(Boolean);
-        if (manualTopics.length) {
-          // User typed their own topics — apply immediately, skip AI call entirely.
-          if (window.patchExamAi) window.patchExamAi(newExam.id, { topics: manualTopics, topicsStatus: "ready", topicCount: manualTopics.length });
-          if (window.relabelPendingSessions) window.relabelPendingSessions(newExam.id, manualTopics);
-        } else if (extract) {
-          extract(newExam.id, { ...newExam, syllabusUrl: s.syllabusUrl || "" }, files);
-        }
+        if (createdCourses[s.id]) return; // topics already resolved via Course — no AI call needed
+        if (extract) extract(newExam.id, newExam, (s.syllabusFiles && s.syllabusFiles.length) ? s.syllabusFiles : files);
       });
     }
 
@@ -488,32 +502,11 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               {subjects.map((s) => (
                 <div key={s.id} style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderLeft: `5px solid ${s.color}`, boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                    <input value={s.name} onChange={(e) => setSubject(s.id, { name: e.target.value })} placeholder={c.s2_name_ph}
-                      style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-sans)" }} />
-                    {subjects.length > 1 && (
+                  {subjects.length > 1 && (
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <button type="button" onClick={() => removeSubject(s.id)} aria-label="Remove" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 16, padding: 4 }}>✕</button>
-                    )}
-                  </div>
-                  {(() => {
-                    const presets = (window.SUBJECT_PRESETS || {})[examId] || [];
-                    const query = s.name.toLowerCase();
-                    const filtered = query.length >= 1 ? presets.filter((p) => p.toLowerCase().includes(query)) : presets;
-                    if (!filtered.length || s.name === filtered[0]) return null;
-                    return (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                        {filtered.slice(0, 8).map((p) => (
-                          <button key={p} type="button" onClick={() => setSubject(s.id, { name: p })}
-                            style={{ padding: "5px 10px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontFamily: "var(--font-sans)", cursor: "pointer",
-                              border: s.name === p ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
-                              background: s.name === p ? "var(--indigo-50)" : "var(--surface-page)",
-                              color: s.name === p ? "var(--indigo-700)" : "var(--text-body)", fontWeight: "var(--weight-medium)" }}>
-                            {p}
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                    </div>
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_examdate}</label>
@@ -535,25 +528,22 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     </select>
                   </div>
                   )}
-                  <div>
-                    <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>
-                      {lang === "uk" ? "Ваші теми" : lang === "ru" ? "Ваши темы" : lang === "fr" ? "Vos sujets" : lang === "de" ? "Ihre Themen" : "Your topics"} <span style={{ color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>*</span>
-                      <span style={{ color: "var(--text-faint)", fontWeight: "normal" }}> — {lang === "uk" ? "по одній на рядок, або завантажте файл нижче" : lang === "ru" ? "по одной на строку, или загрузите файл ниже" : lang === "fr" ? "un par ligne, ou téléchargez un fichier" : lang === "de" ? "eins pro Zeile, oder laden Sie eine Datei hoch" : "one per line, or upload a file below"}</span>
-                    </label>
-                    <textarea
-                      value={s.topicsText}
-                      onChange={(e) => setSubject(s.id, { topicsText: e.target.value })}
-                      rows={4}
-                      placeholder={lang === "uk" ? "напр.\nСили та рух\nЕнергія\nХвилі\nЕлектрика" : lang === "ru" ? "напр.\nСилы и движение\nЭнергия\nВолны\nЭлектричество" : "e.g.\nForces & Motion\nEnergy\nWaves\nElectricity"}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", resize: "vertical", lineHeight: 1.6 }}
-                    />
-                    <div style={{ marginTop: 6, position: "relative" }}>
-                      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, pointerEvents: "none" }}>🔗</span>
-                      <input type="url" value={s.syllabusUrl} onChange={(e) => setSubject(s.id, { syllabusUrl: e.target.value })}
-                        placeholder={lang === "uk" ? "або вставте посилання на силабус" : lang === "ru" ? "или вставьте ссылку на силлабус" : lang === "fr" ? "ou collez un lien vers le programme" : lang === "de" ? "oder Link zum Lehrplan einfügen" : "or paste a link to your syllabus / course page"}
-                        style={{ width: "100%", boxSizing: "border-box", paddingLeft: 30, paddingRight: 12, paddingTop: 9, paddingBottom: 9, fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
-                    </div>
-                  </div>
+                  <window.CurriculumStep
+                    countryId={country || null}
+                    qualificationId={examId}
+                    board={exam.boardOptions ? s.examBoard : null}
+                    specVersion={null}
+                    subject={s.name}
+                    onSubjectChange={(name) => setSubject(s.id, { name })}
+                    course={s.courseDraft}
+                    onCourseChange={(draft) => setSubject(s.id, { courseDraft: draft })}
+                    noTopicList={s.noTopicList}
+                    onNoTopicListChange={(v) => setSubject(s.id, { noTopicList: v })}
+                    files={s.syllabusFiles}
+                    onFilesChange={(fs) => setSubject(s.id, { syllabusFiles: fs })}
+                    compact={false}
+                    onValidationChange={(ok) => setSubject(s.id, { curriculumValid: ok })}
+                  />
                   <div>
                     <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s2_current}</p>
                     <window.GradePicker grade={exam.grade} value={s.current} onChange={(v) => setSubject(s.id, { current: v })} accent="var(--text-muted)" />
