@@ -80,7 +80,9 @@ async function requestAiEnrichment(examIds, context) {
     } catch { analysisLines = null; }
 
     const subjList = subjects.filter((s) => s.name && s.name.trim()).map((s) => `${s.name}: ${s.current} → ${s.target}`).join("; ") || "no subjects named";
-    const prompt = `Write a short (3-4 sentence), encouraging, specific study plan opener for a student preparing for ${examLabel || "their exam"}. Subjects and grade goals: ${subjList}. They can study ${weeklyHours} hours/week. Materials they have: ${materials.join(", ") || "none"}. Preferred study methods: ${prefs.join(", ") || "none"}. Be concrete about what to prioritise first. Do not invent specific percentages or exam dates — there's no study history yet.`;
+    const prof = window.getProfile ? window.getProfile() : {};
+    const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education level: ${prof.educationLevel}`, prof.currentYear && `year/grade: ${prof.currentYear}`].filter(Boolean).join(", ");
+    const prompt = `Write a short (3-4 sentence), encouraging, specific study plan opener for a student preparing for ${examLabel || "their exam"}.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} Subjects and grade goals: ${subjList}. They can study ${weeklyHours} hours/week. Materials they have: ${materials.join(", ") || "none"}. Preferred study methods: ${prefs.join(", ") || "none"}. Be concrete about what to prioritise first. Do not invent specific percentages or exam dates — there's no study history yet.`;
     const summary = await window.claude.complete(prompt);
     const finalSummary = analysisLines ? `${analysisLines.join(" · ")}\n\n${summary}` : summary;
     examIds.forEach((id) => patchExamAi(id, { aiPlanStatus: "ready", aiPlanSummary: finalSummary }));
@@ -106,7 +108,9 @@ async function requestTopicNames(examId, exam, files) {
       blocks.push({ type: "text", text: `Based on the material above, list exactly ${count} specific topics covered for "${exam.name}". Each a short topic name (2-5 words), most foundational first.` });
       content = blocks;
     } else {
-      content = `List exactly ${count} specific topics typically covered in "${exam.name}" at "${exam.examBoard || "a standard"}" level. Each a short topic name (2-5 words), most foundational first. Use your knowledge of this subject's real curriculum.`;
+      const prof = window.getProfile ? window.getProfile() : {};
+      const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education level: ${prof.educationLevel}`, prof.currentYear && `year/grade: ${prof.currentYear}`].filter(Boolean).join(", ");
+      content = `List exactly ${count} specific topics typically covered in "${exam.name}" at "${exam.examBoard || "a standard"}" level.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} Each a short topic name (2-5 words), most foundational first. Use your knowledge of this subject's real curriculum.`;
     }
     // difficulty/importance ride along in the same call — no extra latency —
     // and land in the sibling topicWeights field (exams-store.jsx) so the

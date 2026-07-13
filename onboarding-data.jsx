@@ -4,9 +4,11 @@
 // kind: "scale"  → ordered list of grade labels (best→worst), pick via segmented buttons
 // kind: "score"  → numeric range, pick via slider (min/max/step/suffix)
 const EXAM_TYPES = [
-  { id: "gcse",   label: "GCSE",       emoji: "🇬🇧", blurb: "9–1 grading",            board: "AQA · Edexcel · OCR",
+  { id: "gcse",   label: "GCSE",       emoji: "🇬🇧", blurb: "9–1 grading",            board: "AQA",
+    boardOptions: ["AQA", "Edexcel", "OCR", "WJEC"],
     grade: { kind: "scale", options: ["9","8","7","6","5","4","3"], current: "6", target: "8" } },
-  { id: "alevel", label: "A-Level",    emoji: "🇬🇧", blurb: "A*–E grading",           board: "AQA · Edexcel · OCR",
+  { id: "alevel", label: "A-Level",    emoji: "🇬🇧", blurb: "A*–E grading",           board: "AQA",
+    boardOptions: ["AQA", "Edexcel", "OCR", "WJEC"],
     grade: { kind: "scale", options: ["A*","A","B","C","D","E"], current: "B", target: "A" } },
   { id: "sat",    label: "SAT",        emoji: "🇺🇸", blurb: "400–1600",               board: "College Board",
     grade: { kind: "score", min: 400, max: 1600, step: 10, current: 1180, target: 1450 } },
@@ -179,4 +181,64 @@ const ONB = {
   },
 };
 
-Object.assign(window, { EXAM_TYPES, examType, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB });
+const COUNTRIES = [
+  { id: "gb", label: "United Kingdom", flag: "🇬🇧" },
+  { id: "us", label: "United States", flag: "🇺🇸" },
+  { id: "ua", label: "Ukraine", flag: "🇺🇦" },
+  { id: "pl", label: "Poland", flag: "🇵🇱" },
+  { id: "de", label: "Germany", flag: "🇩🇪" },
+  { id: "fr", label: "France", flag: "🇫🇷" },
+  { id: "other", label: "Other", flag: "🌍" },
+];
+
+const COUNTRY_TO_EXAM_TYPE = {
+  gb: "alevel",
+  us: "sat",
+  ua: "nmt",
+  pl: "matura",
+  de: "abitur",
+  fr: "ib",
+  other: "custom",
+};
+
+const EDUCATION_LEVELS = [
+  { id: "secondary", en: "Secondary school", uk: "Середня школа", ru: "Средняя школа", fr: "Collège/Lycée", de: "Sekundarschule" },
+  { id: "sixth_form", en: "Sixth form / High school", uk: "Старша школа", ru: "Старшая школа", fr: "Terminale", de: "Oberstufe" },
+  { id: "university", en: "University", uk: "Університет", ru: "Университет", fr: "Université", de: "Universität" },
+  { id: "postgrad", en: "Postgraduate", uk: "Аспірантура", ru: "Аспирантура", fr: "Master/Doctorat", de: "Postgraduiert" },
+  { id: "other", en: "Other", uk: "Інше", ru: "Другое", fr: "Autre", de: "Andere" },
+];
+
+// ─── Subject presets per exam type ─────────────────────────────────────────────
+const SUBJECT_PRESETS = {
+  gcse: ["Maths","English Language","English Literature","Biology","Chemistry","Physics","History","Geography","French","Spanish","German","Computer Science","Art & Design","Music","Business Studies","Drama","Religious Studies","Physical Education","Sociology","Economics"],
+  alevel: ["Mathematics","Further Mathematics","English Literature","Biology","Chemistry","Physics","History","Geography","French","Spanish","German","Computer Science","Art & Design","Music","Business Studies","Economics","Psychology","Sociology","Law","Film Studies","Physical Education"],
+  sat: ["Math","Reading & Writing"],
+  act: ["Math","English","Reading","Science"],
+  ap: ["AP Calculus AB","AP Calculus BC","AP Statistics","AP Physics 1","AP Physics C","AP Chemistry","AP Biology","AP Environmental Science","AP US History","AP World History","AP European History","AP English Language","AP English Literature","AP Computer Science A","AP Psychology","AP Economics (Micro)","AP Economics (Macro)","AP US Government","AP Spanish","AP French"],
+  ib: ["Mathematics AA","Mathematics AI","Physics","Chemistry","Biology","Environmental Systems","History","Geography","Economics","English A","English B","Computer Science","Visual Arts","Psychology","Philosophy"],
+  nmt: ["Українська мова","Математика","Історія України","Біологія","Хімія","Фізика","Географія","Англійська мова","Іноземна мова"],
+  matura: ["Matematyka","Język polski","Język angielski","Biologia","Chemia","Fizyka","Historia","Geografia","Informatyka","Wiedza o społeczeństwie","Język niemiecki","Język rosyjski"],
+  abitur: ["Mathematik","Deutsch","Englisch","Biologie","Chemie","Physik","Geschichte","Geographie","Informatik","Sozialkunde","Französisch","Kunst","Musik","Sport","Wirtschaft"],
+  uni: ["Mathematics","Physics","Chemistry","Biology","Computer Science","Economics","Psychology","History","English Literature","Philosophy","Sociology","Political Science","Law","Business Administration","Accounting","Finance","Marketing","Engineering","Medicine","Nursing","Architecture","Statistics","Linguistics","Geography","Environmental Science","Art History","Music"],
+  custom: [],
+};
+
+// ─── University year options ────────────────────────────────────────────────────
+const UNIVERSITY_YEARS = [
+  { id: "year1", label: "1st year", suggested: true },
+  { id: "year2", label: "2nd year" },
+  { id: "year3", label: "3rd year" },
+  { id: "year4", label: "4th year" },
+  { id: "masters", label: "Masters" },
+  { id: "phd", label: "PhD" },
+];
+
+// ─── Study intensity presets ────────────────────────────────────────────────────
+const INTENSITY_PRESETS = [
+  { id: "minimal",   emoji: "🌱", label: "Minimal",   blurb: "Light revision, weekdays only", multiplier: 0.7 },
+  { id: "balanced",  emoji: "⚖️", label: "Balanced",  blurb: "Steady pace, 5 days/week",      multiplier: 1.0, default: true },
+  { id: "ambitious", emoji: "🚀", label: "Ambitious", blurb: "Push hard, incl. weekends",     multiplier: 1.4 },
+];
+
+Object.assign(window, { EXAM_TYPES, examType, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB, COUNTRIES, COUNTRY_TO_EXAM_TYPE, EDUCATION_LEVELS, SUBJECT_PRESETS, UNIVERSITY_YEARS, INTENSITY_PRESETS });

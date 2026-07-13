@@ -95,13 +95,21 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const langs = Object.values(window.LANGS || {});
   const profile = React.useMemo(() => window.getProfile(), []);
 
+  // ── education profile (Phase 1) ─────────────────────────────────────────
+  const [country, setCountry] = React.useState(profile.country || "");
+  const [educationLevel, setEducationLevel] = React.useState(profile.educationLevel || "");
+  const [currentYear, setCurrentYear] = React.useState(profile.currentYear || "");
+  const needsProfile = cfg.showWelcome && !profile.country;
+
   // ── step list, built from config — no mode checks, just named flags ──────
   const stepKeys = React.useMemo(() => {
-    const ks = ["type", "subject"];
+    const ks = [];
+    if (needsProfile) ks.push("profile");
+    ks.push("type", "subject");
     if (cfg.globalSettings !== "hidden") ks.push("settings");
     ks.push("review");
     return ks;
-  }, [cfg.globalSettings]);
+  }, [cfg.globalSettings, needsProfile]);
   const [stepIdx, setStepIdx] = React.useState(() => cfg.showWelcome ? -1 : 0); // index into stepKeys; -1 = welcome
   const step = stepIdx === -1 ? "welcome" : stepKeys[stepIdx];
   const stepNum = (cfg.showWelcome ? 1 : 0) + stepIdx + 1;
@@ -155,7 +163,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
     id: "s" + Date.now(), name: "", color: "var(--subject-indigo)",
     current: exam.grade.current, target: exam.grade.target,
     examDate: defaultExamDate, topicCount: 10, examBoard: exam.board,
-    topicsText: "",
+    topicsText: "", syllabusUrl: "",
   });
   const [subjects, setSubjects] = React.useState(() => initialExam ? [{
     id: initialExam.id, name: initialExam.name, color: initialExam.color,
@@ -177,6 +185,19 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const removeSubject = (id) => setSubjects((subs) => subs.filter((s) => s.id !== id));
   const setSubject = (id, patch) => setSubjects((subs) => subs.map((s) => s.id === id ? { ...s, ...patch } : s));
 
+  // ── intensity + hours (intensity scales a stable base) ───────────────────
+  const [intensity, setIntensity] = React.useState(profile.planIntensity || "balanced");
+  const [baseWeeklyHours] = React.useState(profile.weeklyHours); // never changes; intensity multiplies it
+  const applyIntensity = (id) => {
+    const preset = (window.INTENSITY_PRESETS || []).find((p) => p.id === id);
+    if (!preset) return;
+    setIntensity(id);
+    setWeeklyHours(Math.max(2, Math.round(baseWeeklyHours * preset.multiplier)));
+    if (id === "ambitious") setDaysPerWeek((d) => Math.min(7, Math.max(d, 6)));
+    else if (id === "minimal") setDaysPerWeek((d) => Math.min(d, 4));
+    else setDaysPerWeek(5);
+  };
+
   // ── global settings (prefilled from profile; only persisted if touched) ──
   const [weeklyHours, setWeeklyHours] = React.useState(profile.weeklyHours);
   const [daysPerWeek, setDaysPerWeek] = React.useState(profile.daysPerWeek);
@@ -194,7 +215,10 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const accent = "var(--indigo-600)";
   const subjectsValid = subjects.length > 0 && subjects.every((s) =>
     !s.name.trim() || (s.name.trim() && s.examDate >= todayISO && Number(s.topicCount) >= 1));
-  const canNext = step !== "subject" || (subjects.some((s) => s.name.trim()) && subjectsValid);
+  const topicsProvided = subjects.every((s) => !s.name.trim() || (s.topicsText && s.topicsText.trim()) || (s.syllabusUrl && s.syllabusUrl.trim()) || (files && files.length > 0));
+  const canNext = step === "profile" ? (country && educationLevel)
+    : step === "subject" ? (subjects.some((s) => s.name.trim()) && subjectsValid && topicsProvided)
+    : true;
 
   function goNext() { setStepIdx((i) => Math.min(stepKeys.length - 1, i + 1)); }
   function goBack() { setStepIdx((i) => (i === 0 && cfg.showWelcome ? -1 : Math.max(0, i - 1))); }
@@ -213,9 +237,10 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       gradingSystem: exam.grade,
       sessionsPerWeekHint: sessionsBySubject[s.id] ?? null,
     }));
+    const educationPatch = (country || educationLevel || currentYear) ? { country, educationLevel, currentYear } : {};
     const profilePatch = cfg.globalSettings !== "hidden"
-      ? { weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, materials: [...materials], prefs: [...prefs] }
-      : null;
+      ? { weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, materials: [...materials], prefs: [...prefs], planIntensity: intensity, ...educationPatch }
+      : (Object.keys(educationPatch).length ? { planIntensity: intensity, ...educationPatch } : null);
 
     const newExams = window.commitExamWizard({ examDrafts, profilePatch });
 
@@ -237,7 +262,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
           if (window.patchExamAi) window.patchExamAi(newExam.id, { topics: manualTopics, topicsStatus: "ready", topicCount: manualTopics.length });
           if (window.relabelPendingSessions) window.relabelPendingSessions(newExam.id, manualTopics);
         } else if (extract) {
-          extract(newExam.id, newExam, files);
+          extract(newExam.id, { ...newExam, syllabusUrl: s.syllabusUrl || "" }, files);
         }
       });
     }
@@ -282,6 +307,85 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
         <div style={{ flex: 1, padding: "var(--space-3) var(--space-5) var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
 
           {step === "welcome" && <window.CoachBubble advisor={c.advisor}>{c.greeting}</window.CoachBubble>}
+
+          {step === "profile" && (<>
+            <div>
+              <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>
+                {lang === "uk" ? "Розкажіть про себе" : lang === "ru" ? "Расскажите о себе" : lang === "fr" ? "Parlez-nous de vous" : lang === "de" ? "Erzähl uns von dir" : "Tell us about yourself"}
+              </h2>
+              <p style={{ margin: "0 0 var(--space-4)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                {lang === "uk" ? "Це допоможе AI підлаштувати складність" : lang === "ru" ? "Это поможет AI подстроить сложность" : lang === "fr" ? "Cela aide l'IA à ajuster la difficulté" : lang === "de" ? "Das hilft der KI, den Schwierigkeitsgrad anzupassen" : "This helps AI adjust difficulty to your level"}
+              </p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)", marginBottom: "var(--space-2)" }}>
+                  {lang === "uk" ? "Країна" : lang === "ru" ? "Страна" : lang === "fr" ? "Pays" : lang === "de" ? "Land" : "Country"}
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+                  {window.COUNTRIES.map((co) => {
+                    const sel = country === co.id;
+                    return (
+                      <button key={co.id} type="button" onClick={() => { setCountry(co.id); const suggested = window.COUNTRY_TO_EXAM_TYPE[co.id]; if (suggested) pickExam(suggested); }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 48, padding: "var(--space-3)", borderRadius: "var(--radius-xl)", cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)",
+                          border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                          background: sel ? "var(--indigo-50)" : "var(--surface-card)", transition: "all var(--dur-fast) ease" }}>
+                        <span style={{ fontSize: 20 }}>{co.flag}</span>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: sel ? "var(--weight-bold)" : "var(--weight-medium)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{co.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)", marginBottom: "var(--space-2)" }}>
+                  {lang === "uk" ? "Рівень освіти" : lang === "ru" ? "Уровень образования" : lang === "fr" ? "Niveau d'études" : lang === "de" ? "Bildungsstufe" : "Education level"}
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                  {window.EDUCATION_LEVELS.map((lv) => {
+                    const sel = educationLevel === lv.id;
+                    const label = lv[lang] || lv.en;
+                    return (
+                      <button key={lv.id} type="button" onClick={() => setEducationLevel(lv.id)}
+                        style={{ minHeight: 44, padding: "var(--space-3) var(--space-4)", borderRadius: "var(--radius-xl)", cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)",
+                          border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                          background: sel ? "var(--indigo-50)" : "var(--surface-card)",
+                          fontWeight: sel ? "var(--weight-bold)" : "var(--weight-medium)",
+                          color: sel ? "var(--indigo-700)" : "var(--text-strong)", transition: "all var(--dur-fast) ease" }}>
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)", marginBottom: "var(--space-2)" }}>
+                  {lang === "uk" ? "Клас / курс (необов'язково)" : lang === "ru" ? "Класс / курс (необязательно)" : lang === "fr" ? "Année (optionnel)" : lang === "de" ? "Jahrgang (optional)" : "Year / grade (optional)"}
+                </label>
+                {(educationLevel === "university" || educationLevel === "postgrad") ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+                    {(window.UNIVERSITY_YEARS || []).map((yr) => {
+                      const sel = currentYear === yr.label;
+                      const suggested = yr.suggested && !currentYear;
+                      return (
+                        <button key={yr.id} type="button" onClick={() => setCurrentYear(yr.label)}
+                          style={{ padding: "8px 14px", borderRadius: "var(--radius-full)", fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", cursor: "pointer",
+                            border: sel ? "2px solid var(--indigo-500)" : suggested ? "1.5px solid var(--emerald-500)" : "1.5px solid var(--border-default)",
+                            background: sel ? "var(--indigo-50)" : suggested ? "var(--emerald-50)" : "var(--surface-card)",
+                            color: sel ? "var(--indigo-700)" : suggested ? "var(--emerald-700)" : "var(--text-body)",
+                            fontWeight: (sel || suggested) ? "var(--weight-semibold)" : "var(--weight-normal)" }}>
+                          {yr.label}{suggested ? " ✓" : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <input value={currentYear} onChange={(e) => setCurrentYear(e.target.value)} placeholder={lang === "uk" ? "напр. 11 клас" : lang === "ru" ? "напр. 11 класс" : lang === "fr" ? "ex. Terminale" : lang === "de" ? "z.B. 12. Klasse" : "e.g. Year 12"}
+                    style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
+                )}
+              </div>
+            </div>
+          </>)}
 
           {step === "type" && (<>
             <div>
@@ -391,6 +495,25 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                       <button type="button" onClick={() => removeSubject(s.id)} aria-label="Remove" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 16, padding: 4 }}>✕</button>
                     )}
                   </div>
+                  {(() => {
+                    const presets = (window.SUBJECT_PRESETS || {})[examId] || [];
+                    const query = s.name.toLowerCase();
+                    const filtered = query.length >= 1 ? presets.filter((p) => p.toLowerCase().includes(query)) : presets;
+                    if (!filtered.length || s.name === filtered[0]) return null;
+                    return (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                        {filtered.slice(0, 8).map((p) => (
+                          <button key={p} type="button" onClick={() => setSubject(s.id, { name: p })}
+                            style={{ padding: "5px 10px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontFamily: "var(--font-sans)", cursor: "pointer",
+                              border: s.name === p ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                              background: s.name === p ? "var(--indigo-50)" : "var(--surface-page)",
+                              color: s.name === p ? "var(--indigo-700)" : "var(--text-body)", fontWeight: "var(--weight-medium)" }}>
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_examdate}</label>
@@ -403,22 +526,33 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                         style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
                     </div>
                   </div>
+                  {exam.boardOptions && (
                   <div>
                     <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_board}</label>
-                    <input value={s.examBoard} onChange={(e) => setSubject(s.id, { examBoard: e.target.value })}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
+                    <select value={s.examBoard} onChange={(e) => setSubject(s.id, { examBoard: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", appearance: "auto" }}>
+                      {exam.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
                   </div>
+                  )}
                   <div>
                     <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>
-                      Your topics <span style={{ color: "var(--text-faint)", fontWeight: "normal" }}>(one per line — or leave blank and AI will suggest)</span>
+                      {lang === "uk" ? "Ваші теми" : lang === "ru" ? "Ваши темы" : lang === "fr" ? "Vos sujets" : lang === "de" ? "Ihre Themen" : "Your topics"} <span style={{ color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>*</span>
+                      <span style={{ color: "var(--text-faint)", fontWeight: "normal" }}> — {lang === "uk" ? "по одній на рядок, або завантажте файл нижче" : lang === "ru" ? "по одной на строку, или загрузите файл ниже" : lang === "fr" ? "un par ligne, ou téléchargez un fichier" : lang === "de" ? "eins pro Zeile, oder laden Sie eine Datei hoch" : "one per line, or upload a file below"}</span>
                     </label>
                     <textarea
                       value={s.topicsText}
                       onChange={(e) => setSubject(s.id, { topicsText: e.target.value })}
                       rows={4}
-                      placeholder={"e.g.\nForces & Motion\nEnergy\nWaves\nElectricity"}
+                      placeholder={lang === "uk" ? "напр.\nСили та рух\nЕнергія\nХвилі\nЕлектрика" : lang === "ru" ? "напр.\nСилы и движение\nЭнергия\nВолны\nЭлектричество" : "e.g.\nForces & Motion\nEnergy\nWaves\nElectricity"}
                       style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", resize: "vertical", lineHeight: 1.6 }}
                     />
+                    <div style={{ marginTop: 6, position: "relative" }}>
+                      <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, pointerEvents: "none" }}>🔗</span>
+                      <input type="url" value={s.syllabusUrl} onChange={(e) => setSubject(s.id, { syllabusUrl: e.target.value })}
+                        placeholder={lang === "uk" ? "або вставте посилання на силабус" : lang === "ru" ? "или вставьте ссылку на силлабус" : lang === "fr" ? "ou collez un lien vers le programme" : lang === "de" ? "oder Link zum Lehrplan einfügen" : "or paste a link to your syllabus / course page"}
+                        style={{ width: "100%", boxSizing: "border-box", paddingLeft: 30, paddingRight: 12, paddingTop: 9, paddingBottom: 9, fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
+                    </div>
                   </div>
                   <div>
                     <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s2_current}</p>
@@ -447,6 +581,29 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
             <div>
               <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{c.settings_title}</h2>
               <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.settings_sub}</p>
+            </div>
+            <div>
+              <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>
+                {lang === "uk" ? "Режим навчання" : lang === "ru" ? "Режим учёбы" : lang === "fr" ? "Intensité" : lang === "de" ? "Lernintensität" : "Study intensity"}
+              </p>
+              <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                {(window.INTENSITY_PRESETS || []).map((preset) => {
+                  const sel = intensity === preset.id;
+                  return (
+                    <button key={preset.id} type="button" onClick={() => applyIntensity(preset.id)}
+                      style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "var(--space-3) var(--space-2)", borderRadius: "var(--radius-xl)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                        border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                        background: sel ? "var(--indigo-50)" : "var(--surface-card)", transition: "all var(--dur-fast) ease" }}>
+                      <span style={{ fontSize: 20 }}>{preset.emoji}</span>
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{preset.label}</span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", textAlign: "center", lineHeight: 1.3 }}>{preset.blurb}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                📅 {lang === "uk" ? "У розділі Calendar можна змінити кожне заняття вручну" : lang === "ru" ? "В разделе Calendar можно изменить каждое занятие вручную" : lang === "fr" ? "Dans Calendar, vous pouvez ajuster chaque session" : lang === "de" ? "Im Kalender können Sie jede Einheit manuell anpassen" : "Fine-tune individual sessions anytime in Calendar view"}
+              </p>
             </div>
             <GlobalSettingsSection c={c} lang={lang} collapsedByDefault={cfg.globalSettings === "collapsed"}
               weeklyHours={weeklyHours} setWeeklyHours={setWeeklyHours}

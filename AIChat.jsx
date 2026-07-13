@@ -2482,9 +2482,11 @@ function ChatMode({ onExit, initialQuery }) {
     setTyping(true);
     try {
       const complete = window.brainComplete || ((a) => window.claude.complete(a));
+      const prof = window.getProfile ? window.getProfile() : {};
+      const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education: ${prof.educationLevel}`, prof.currentYear && `year: ${prof.currentYear}`].filter(Boolean).join(", ");
       const brainCtx = brain ? `Student context: ${examViews.map((e) => `${e.name} (${Math.round((e.readiness || 0) * 100)}% ready)`).join(", ")}. ${dueReviews.length} topics need review. Weakest: ${weakest.slice(0, 3).map((w) => w.topicName).join(", ")}.` : "";
       const reply = await complete({
-        system: `You are a brilliant, warm personal tutor. ${brainCtx}
+        system: `You are a brilliant, warm personal tutor.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} ${brainCtx}
 Answer clearly and concisely. Use **bold** for key terms. Keep responses under 100 words. Do NOT output JSON — just write natural text.
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
