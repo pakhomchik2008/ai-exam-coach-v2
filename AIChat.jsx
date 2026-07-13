@@ -2612,6 +2612,14 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
   const [reviewTopic, setReviewTopic] = React.useState(null);
+  // Captured copy of a plain-string initialQuery, decoupled from the prop
+  // itself. onConsumeQuery() nulls the PARENT's chatQuery in the same effect
+  // that sets mode:"chat" here — React renders this component with its
+  // latest props+state together, so by the time ChatMode mounts, the
+  // initialQuery PROP has already gone back to null and ChatMode's own
+  // "send it once" effect never fires. Stashing the value in local state
+  // before consuming it sidesteps that race entirely.
+  const [pendingChatQuery, setPendingChatQuery] = React.useState(null);
 
   const brain = React.useMemo(() => window.getBrain ? window.getBrain() : {}, []);
   const examViews = brain.examViews || [];
@@ -2622,13 +2630,14 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
   React.useEffect(() => {
     if (initialQuery && onConsumeQuery) {
-      onConsumeQuery();
       if (typeof initialQuery === "object" && initialQuery.mode === "learn" && initialQuery.topic) {
         setTopic(initialQuery.topic);
         setMode("learn");
       } else {
+        setPendingChatQuery(initialQuery);
         setMode("chat");
       }
+      onConsumeQuery();
     }
   }, [initialQuery]);
 
@@ -2640,7 +2649,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
   // Active mode screens
   if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby });
-  if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery });
+  if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery: pendingChatQuery });
 
   // Review mode — Quick Check session from the queue
   if (mode === "review" && reviewTopic) {
