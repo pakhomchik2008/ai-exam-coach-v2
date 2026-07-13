@@ -13,6 +13,18 @@ const COACH_MODES = [
   { id: "chat", emoji: "💬", label: "Chat", desc: "Ask anything" },
 ];
 
+// ChatMode's Quick Actions — query(topicName) is filled in only after the
+// student has actually picked an exam+topic via the picker flow (see
+// startPicker in ChatMode), never guessed.
+const QUICK_ACTIONS = [
+  { id: "explain", text: "Explain a topic", icon: "📖", query: (topicName) => `Explain ${topicName}` },
+  { id: "quiz", text: "Generate quiz", icon: "📝", query: (topicName) => `Quiz me on ${topicName}` },
+  { id: "notes", text: "Summarize notes", icon: "📄", query: (topicName) => `Summarize my notes on ${topicName}` },
+  { id: "solve", text: "Solve a problem", icon: "🧮", query: (topicName) => `Give me a problem to solve in ${topicName} and walk me through it` },
+  { id: "test", text: "Test my knowledge", icon: "🎯", query: (topicName) => `Test my knowledge on ${topicName}` },
+  { id: "flashcards", text: "Make flashcards", icon: "🗂", query: (topicName) => `Create flashcards for ${topicName}` },
+];
+
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
 function CoachIcon({ size = 32 }) {
@@ -2399,6 +2411,12 @@ function ChatMode({ onExit, initialQuery }) {
   const historyRef = React.useRef((() => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; } })());
   const handled = React.useRef(false);
   const proactiveRef = React.useRef(false);
+  // Quick Actions used to guess a topic (weakest[0] or examViews[0]) and fire
+  // immediately — with more than one exam, or a stale/mistyped exam in the
+  // list, that guess is frequently wrong ("Explain a topic" picking a random
+  // unrelated exam). Now it asks first: {action, step:"exam"|"topic", examId}.
+  const [pickerFlow, setPickerFlow] = React.useState(null);
+  const [pickerSearch, setPickerSearch] = React.useState("");
 
   const brain = React.useMemo(() => window.getBrain ? window.getBrain() : {}, []);
   const profile = brain.profile || {};
@@ -2490,6 +2508,22 @@ If no actions fit, omit the ACTIONS line entirely.`,
     }
   };
 
+  // A Quick Action was clicked — ask which exam (skipped if there's only
+  // one) then which topic, instead of guessing. No exams at all: nothing to
+  // pick, so fall back to the old generic phrasing (the AI will just ask).
+  function startPicker(actionId) {
+    if (examViews.length === 0) { send(QUICK_ACTIONS.find((a) => a.id === actionId).query("a key topic for my exam")); return; }
+    setPickerSearch("");
+    if (examViews.length === 1) { setPickerFlow({ action: actionId, step: "topic", examId: examViews[0].id }); return; }
+    setPickerFlow({ action: actionId, step: "exam" });
+  }
+  function pickerChooseTopic(topicName) {
+    const actionDef = QUICK_ACTIONS.find((a) => a.id === pickerFlow.action);
+    send(actionDef.query(topicName));
+    setPickerFlow(null);
+    setPickerSearch("");
+  }
+
   // Time-of-day greeting
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -2530,22 +2564,16 @@ If no actions fit, omit the ACTIONS line entirely.`,
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } }, `${Math.round(weakest[0].retention * 100)}% retention · ~5 min`)),
         React.createElement("span", { style: { fontSize: 13, color: "var(--indigo-600)", fontWeight: 600 } }, "Continue →"))),
 
-    // Quick actions grid — each fires the query straight away, using the
-    // student's weakest topic (or their exam name) so there's nothing to
-    // fill in. The header's Dashboard/Chat toggle is what lets them come
-    // back and fire a different one, so nothing here needs a manual step.
+    // Quick actions grid — asks which exam/topic first (via pickerFlow, see
+    // startPicker below) instead of guessing weakest[0]/examViews[0] and
+    // firing immediately. That guess was frequently wrong the moment a
+    // student had more than one exam, or any stale/mistyped exam in their
+    // list — "Explain a topic" could fire off explaining a random exam.
     React.createElement("div", null,
       React.createElement("p", { style: { margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Quick Actions"),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
-        ...[
-          { text: "Explain a topic", icon: "📖", query: () => `Explain ${weakest[0]?.topicName || examViews[0]?.name || "a key topic for my exam"}` },
-          { text: "Generate quiz", icon: "📝", query: () => `Quiz me on ${weakest[0]?.topicName || examViews[0]?.name || "my weakest topic"}` },
-          { text: "Summarize notes", icon: "📄", query: () => `Summarize my notes on ${examViews[0]?.name || weakest[0]?.topicName || "my exam"}` },
-          { text: "Solve a problem", icon: "🧮", query: () => `Give me a problem to solve in ${weakest[0]?.topicName || examViews[0]?.name || "my exam"} and walk me through it` },
-          { text: "Test my knowledge", icon: "🎯", query: () => `Test my knowledge on ${examViews[0]?.name || weakest[0]?.topicName || "my exam"}` },
-          { text: "Make flashcards", icon: "🗂", query: () => `Create flashcards for ${weakest[0]?.topicName || examViews[0]?.name || "my exam"}` },
-        ].map((a, i) => React.createElement("button", {
-          key: i, onClick: () => send(a.query()),
+        ...QUICK_ACTIONS.map((a, i) => React.createElement("button", {
+          key: i, onClick: () => startPicker(a.id),
           style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
         },
           React.createElement("span", { style: { fontSize: 18 } }, a.icon),
@@ -2574,6 +2602,64 @@ If no actions fit, omit the ACTIONS line entirely.`,
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },
         ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
 
+  // Renders the "which exam / which topic" step as an AI-styled chat bubble
+  // + selectable pills, appended right below the messages — a natural part
+  // of the conversation, not a separate screen.
+  const renderPicker = () => {
+    if (!pickerFlow) return null;
+    const bubble = (text) => React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 10 } },
+      React.createElement(CoachIcon, { size: 28 }),
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "10px 14px", fontSize: 13, color: "var(--text-body)" } }, text));
+    const cancelBtn = (onClick, label) => React.createElement("button", {
+      onClick, style: { alignSelf: "flex-start", border: "none", background: "transparent", color: "var(--text-faint)", fontSize: 12, cursor: "pointer", padding: "6px 0 0", fontFamily: "var(--font-sans)" }
+    }, label);
+
+    if (pickerFlow.step === "exam") {
+      return React.createElement("div", { style: { padding: "0 20px 16px" } },
+        bubble("Which exam would you like to study?"),
+        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginLeft: 38 } },
+          ...examViews.map((e) => React.createElement("button", {
+            key: e.id, onClick: () => setPickerFlow({ ...pickerFlow, step: "topic", examId: e.id }),
+            style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+          },
+            React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: "var(--text-strong)" } }, e.name),
+            React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)" } }, e.daysAway != null ? `Exam in ${e.daysAway}d` : ""))),
+          cancelBtn(() => setPickerFlow(null), "Cancel")));
+    }
+
+    // step === "topic"
+    const exam = examViews.find((e) => e.id === pickerFlow.examId);
+    const topics = ((exam && exam.topics) || []).map((tp) => ({
+      name: tp.topicName || tp.name, retention: tp.lastSeen ? Math.round(tp.retention * 100) : null, unseen: !tp.lastSeen,
+    })).sort((a, b) => (a.retention ?? -1) - (b.retention ?? -1));
+    const recommended = topics.filter((tp) => tp.unseen || (tp.retention != null && tp.retention < 60)).slice(0, 5);
+    const q = pickerSearch.trim().toLowerCase();
+    const searched = q ? topics.filter((tp) => tp.name.toLowerCase().includes(q)) : [];
+    const cameFromExamStep = examViews.length > 1;
+
+    const topicRow = (tp) => React.createElement("button", {
+      key: tp.name, onClick: () => pickerChooseTopic(tp.name),
+      style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+    },
+      React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: "var(--text-strong)" } }, tp.name),
+      React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: tp.unseen ? "var(--indigo-600)" : tp.retention < 30 ? "#b91c1c" : "#b45309" } }, tp.unseen ? "New" : `${tp.retention}%`));
+
+    return React.createElement("div", { style: { padding: "0 20px 16px" } },
+      bubble(exam ? `Great! Which topic in ${exam.name} should we focus on?` : "Which topic should we focus on?"),
+      React.createElement("div", { style: { marginLeft: 38, display: "flex", flexDirection: "column", gap: 10 } },
+        topics.length === 0 && React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: 0 } }, "No topics yet for this exam — try asking in your own words below."),
+        recommended.length > 0 && !q && React.createElement("div", null,
+          React.createElement("p", { style: { fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" } }, "AI Recommended"),
+          React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, ...recommended.map(topicRow))),
+        q && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
+          searched.length > 0 ? searched.map(topicRow) : React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: 0 } }, "No matching topics.")),
+        topics.length > 0 && React.createElement("input", {
+          value: pickerSearch, onChange: (e) => setPickerSearch(e.target.value), placeholder: "Search topic…",
+          style: { padding: "9px 12px", fontSize: 12, fontFamily: "var(--font-sans)", border: "1px solid var(--border-default)", borderRadius: 10, outline: "none", background: "var(--surface-page)" }
+        }),
+        cancelBtn(() => cameFromExamStep ? setPickerFlow({ action: pickerFlow.action, step: "exam" }) : setPickerFlow(null), cameFromExamStep ? "← Back" : "Cancel")));
+  };
+
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Header
     React.createElement("div", { style: { padding: "10px 20px", borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 48 } },
@@ -2590,7 +2676,8 @@ If no actions fit, omit the ACTIONS line entirely.`,
     React.createElement("div", { ref: bodyRef, style: { flex: 1, overflowY: "auto", background: "var(--surface-page)" } },
       renderDashboard(),
       messages.length > 0 && React.createElement("div", { style: { borderTop: "1px solid var(--border-subtle)", margin: "0 20px" } }),
-      messages.length > 0 && renderChat()),
+      messages.length > 0 && renderChat(),
+      renderPicker()),
 
     // Suggestion chips (shown when input is empty and not typing)
     !typing && !input.trim() && messages.length > 0 && React.createElement("div", { style: { padding: "6px 16px", display: "flex", gap: 6, overflowX: "auto", background: "var(--surface-page)" } },
