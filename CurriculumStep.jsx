@@ -34,6 +34,9 @@ function CurriculumStep({
   const [manualChecking, setManualChecking] = React.useState(false);
   const [fetchFailed, setFetchFailed] = React.useState(false);
   const [addTopicText, setAddTopicText] = React.useState("");
+  const [urlInput, setUrlInput] = React.useState("");
+  const [urlFetching, setUrlFetching] = React.useState(false);
+  const [urlError, setUrlError] = React.useState(null);
   // Tracks the subject name a resolution is IN PROGRESS for — read here
   // instead of the `subject` prop, since onSubjectChange(name) is an async
   // state update on the parent and buildCourseDraft/confirmDraft must not
@@ -147,6 +150,34 @@ function CurriculumStep({
       onCourseChange(null);
     }
     reportValidity(null, noTopicList, valid);
+  };
+
+  // URL import (Phase 6) — fetches the page server-side (api/fetch-url.js,
+  // SSRF-guarded) then extracts topics the same way an AI-generated syllabus
+  // is extracted. Lands in the SAME awaiting-confirmation panel as
+  // generateForMe — a fetched page is never written into a Course without
+  // the user clicking "Looks correct" first.
+  const importFromUrl = async () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    setUrlFetching(true);
+    setUrlError(null);
+    const text = window.fetchUrlText ? await window.fetchUrlText(url) : null;
+    if (!text || !text.trim()) {
+      setUrlFetching(false);
+      setUrlError("Couldn't fetch that page — check the link and try again.");
+      return;
+    }
+    const name = resolvedName || query;
+    const topics = window.extractTopicsFromText ? await window.extractTopicsFromText(name, text) : null;
+    setUrlFetching(false);
+    if (!topics) {
+      setUrlError("Couldn't find a topic list on that page.");
+      return;
+    }
+    setPendingRow({ source: "ai" });
+    setDraftTopics(topics.map((t) => ({ ...t })));
+    setStage("awaiting-confirmation");
   };
 
   const toggleNoTopicList = (v) => {
@@ -265,6 +296,18 @@ function CurriculumStep({
             <input type="file" accept="image/*" capture="environment" style={{ display: "none" }}
               onChange={(e) => { if (e.target.files && e.target.files.length) onFilesChange([...(files || []), ...Array.from(e.target.files)]); e.target.value = ""; }} />
           </label>
+          <div>
+            <p style={{ margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Or paste a link to the official specification/syllabus page</p>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://..." style={{ flex: 1, padding: "8px 10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)" }} />
+              <button type="button" onClick={importFromUrl} disabled={urlFetching || !urlInput.trim()}
+                style={{ padding: "8px 14px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: urlFetching ? "default" : "pointer", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
+                {urlFetching ? "Fetching…" : "Import"}
+              </button>
+            </div>
+            {urlError && <p style={{ margin: "6px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)" }}>{urlError}</p>}
+          </div>
           <div>
             <p style={{ margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Or paste/type topics, one per line — I'll check each one is real</p>
             <textarea value={manualText} onChange={(e) => setManualText(e.target.value)} rows={4}

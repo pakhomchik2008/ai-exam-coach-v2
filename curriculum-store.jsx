@@ -118,6 +118,51 @@ function clampInt(v, min, max, fallback) {
   return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
 }
 
+// ── URL import (Phase 6) — client-side fetch() of an arbitrary third-party
+//    URL is blocked by CORS almost universally, so this goes through the
+//    api/fetch-url.js serverless proxy (SSRF-guarded, no API key needed —
+//    it's a plain HTTP fetch, unrelated to api/complete.js's Anthropic key).
+async function fetchUrlText(url) {
+  try {
+    const resp = await fetch("/api/fetch-url", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) return null;
+    return typeof data.text === "string" ? data.text : null;
+  } catch {
+    return null;
+  }
+}
+
+// Same output contract as fetchAndCacheCurriculum's topics array (name/
+// difficulty/importance/subtopics) so a URL-imported page flows into
+// CurriculumStep's existing awaiting-confirmation verify UI unmodified —
+// pasted spec text is never written into a Course without a human check.
+async function extractTopicsFromText(subject, text) {
+  if (!window.claude || !text || !text.trim()) return null;
+  const system = "You are a curriculum expert reading a syllabus/specification page. Output ONLY valid JSON, no markdown: " +
+    '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10}]}. ' +
+    "List the real topics students are examined on, foundational first. If this page does not contain a real syllabus/topic list, return {\"topics\":[]}.";
+  const prompt = `Subject: ${subject || "(unspecified)"}\n\nPage content:\n${text.slice(0, 12000)}`;
+  let data;
+  try {
+    const raw = await window.claude.complete({ system, messages: [{ role: "user", content: prompt }] });
+    data = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+  } catch {
+    return null;
+  }
+  const topics = (Array.isArray(data && data.topics) ? data.topics : [])
+    .filter((t) => t && typeof t.name === "string" && t.name.trim())
+    .map((t) => ({
+      name: t.name.trim(),
+      difficulty: clampInt(t.difficulty, 1, 10, 5),
+      importance: clampInt(t.importance, 1, 10, 5),
+      subtopics: [],
+    }));
+  return topics.length ? topics : null;
+}
+
 // ── Mark a cached row as human-verified (called once a user confirms an
 //    AI-sourced Course built from it — see CurriculumStep.jsx). Subsequent
 //    users of the exact same combo skip the confirm-before-save step. ──────
@@ -137,4 +182,5 @@ function markCurriculumVerified(countryId, qualificationId, board, subject, spec
 Object.assign(window, {
   CURRICULUM_CACHE_KEY,
   getCurriculumCache, getCurriculum, searchCurriculumSubjects, fetchAndCacheCurriculum, markCurriculumVerified,
+  fetchUrlText, extractTopicsFromText,
 });
