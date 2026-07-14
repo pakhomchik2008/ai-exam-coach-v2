@@ -120,10 +120,27 @@ function buildLearnerContext(opts = {}) {
 
 // ─── central completion ───────────────────────────────────────────────────────
 
+// Language names the AI is told to answer in when the student's UI isn't
+// English — static UI strings already go through L()/window.LANGS per
+// screen, but every AI-generated response (chat replies, quiz questions,
+// flashcards, session recaps...) used to come back in English regardless,
+// since nothing ever told Claude what language to use.
+const AI_LANG_NAMES = { en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" };
+
+// Shared by every AI call site in the app (not just brainComplete) so a
+// direct window.claude.complete() caller — StudyHub.jsx, BurnoutAlert.jsx —
+// can prepend the same directive without duplicating the language map.
+function aiLangDirective() {
+  const langCode = (window.getProfile ? window.getProfile().lang : null) || "en";
+  return langCode !== "en"
+    ? `Respond in ${AI_LANG_NAMES[langCode] || langCode}, not English — the student's app is set to that language.`
+    : "";
+}
+
 async function brainComplete({ system, messages, prompt, includeContext = true, topicContext } = {}) {
   if (!window.claude) throw new Error("AI is not available");
   const ctx = includeContext ? buildLearnerContext({ topicContext }) : "";
-  const fullSystem = [ctx, system].filter(Boolean).join("\n\n");
+  const fullSystem = [aiLangDirective(), ctx, system].filter(Boolean).join("\n\n");
   const msgs = messages || [{ role: "user", content: prompt || "" }];
   return window.claude.complete({ system: fullSystem || undefined, messages: msgs });
 }
@@ -276,7 +293,7 @@ async function aiExtractCourse(examId, files) {
 }
 
 Object.assign(window, {
-  parseJSON, buildLearnerContext, brainComplete, brainCompleteJSON,
+  parseJSON, buildLearnerContext, brainComplete, brainCompleteJSON, aiLangDirective,
   aiTutorReply, aiGenerateQuiz, aiExplainDifferently, aiExtractCourse,
   createCoachSession, coachSessionSummary, commitCoachSession, resolveTopicForBrain,
 });

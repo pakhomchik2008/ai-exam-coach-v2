@@ -29,7 +29,8 @@ function BurnoutAlert({ t }) {
       const p = isIntensity
         ? `A student studied ${studyHours}h in 3 days (${pastDone} sessions). Write a 1-sentence warm, supportive message about sustainable study and rest. Don't be alarming.`
         : `A student missed ${totalMissed} sessions this week. Write a 1-sentence encouraging message about rebuilding consistency with a lighter schedule.`;
-      setAiMsg(await window.claude.complete(p));
+      const lang = window.aiLangDirective ? window.aiLangDirective() : "";
+      setAiMsg(await window.claude.complete(lang ? { system: lang, messages: [{ role: "user", content: p }] } : p));
     } catch { setAiMsg(null); }
     setLoading(false);
   };
