@@ -503,6 +503,10 @@ function getBrain() {
     const due = topics.filter((t) => t.lastSeen && t.retention < 0.7);
     const seenTopics = topics.filter((t) => t.lastSeen);
     const daysAway = window.daysAway ? window.daysAway(exam.examDate) : null;
+    // No topic reviewed yet: `readiness` above is still a real number (the
+    // neutral-confidence blend), but it's a placeholder, not a measurement —
+    // display code should show "Not started yet" rather than a percentage.
+    const started = seenTopics.length > 0;
 
     // Canonical derived metrics — the ONLY place these are computed.
     const confidence = seenTopics.length
@@ -520,7 +524,7 @@ function getBrain() {
     return {
       id: exam.id, name: exam.name, color: exam.color, examBoard: exam.examBoard,
       targetGrade: exam.targetGrade, examDate: exam.examDate, daysAway,
-      topics, readiness, projReadiness, confidence, coverage, predictedGrade, probability, risk, pace,
+      topics, readiness, projReadiness, confidence, coverage, predictedGrade, probability, risk, pace, started,
       weakestTopics: weakest, dueTopics: due,
       kb: kb[exam.id] || null,
       hasMaterials: !!(kb[exam.id] && kb[exam.id].chapters && kb[exam.id].chapters.length),
@@ -565,6 +569,7 @@ function brainCourses() {
     completionPct: e.coverage,
     confidencePct: e.confidence,
     readinessPct: e.readiness,
+    started: e.started,
     targetGrade: e.targetGrade,
     predictedGrade: e.predictedGrade,
     gradeProbability: e.probability,
@@ -614,7 +619,7 @@ function recommendNextAction() {
   else if (!t.lastSeen) reasons.push(`Biggest untouched gap in ${e.name}`);
   else reasons.push(`Lowest retention in ${e.name} (${Math.round(t.retention * 100)}%)`);
   if (days <= 14) reasons.push(`${e.name} exam in ${days} day${days === 1 ? "" : "s"}`);
-  if (e.readiness < 65) reasons.push(`${e.name} is ${e.readiness}% ready vs your ${e.targetGrade} target`);
+  if (e.started && e.readiness < 65) reasons.push(`${e.name} is ${e.readiness}% ready vs your ${e.targetGrade} target`);
 
   const gain = simulateReadinessGain(e.id, t.topicIdx, true);
   const sched = window.getSchedule ? window.getSchedule() : { sessions: [] };

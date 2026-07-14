@@ -65,6 +65,12 @@ function AIPlan({ examIds, onStart, t }) {
 
   const overallProb = active.length > 0 ? Math.round(active.reduce((a, c) => a + c.gradeProbability, 0) / active.length) : 0;
   const overallGrade = overallProb >= 80 ? "A" : overallProb >= 60 ? "B" : overallProb >= 40 ? "C" : "D";
+  // No course has a single completed session yet — the forecast trio below
+  // is a real formula output, but showing "D / 0% / High risk" for a plan
+  // nobody has started is discouraging rather than informative. Same promise
+  // the review step already makes ("Forecast unlocks after your first
+  // sessions") — this just actually keeps it here too.
+  const anyStarted = active.some((c) => c.started);
 
   // Weakest course for reasoning
   const weakest = active.length > 0 ? active.reduce((a, b) => b.gradeProbability < a.gradeProbability ? b : a, active[0]) : null;
@@ -176,7 +182,7 @@ function AIPlan({ examIds, onStart, t }) {
 
   // ── Reasoning cards ──────────────────────────────────────────────────────
   const reasons = [];
-  if (weakest) reasons.push({
+  if (weakest && weakest.started) reasons.push({
     icon: "🎯", title: L("Priority scheduling","Пріоритетне планування","Приоритетное планирование","Planification prioritaire","Prioritätsplanung"),
     text: L(
       `${weakest.name} is scheduled most frequently — it has the lowest success probability at ${weakest.gradeProbability}%. Focusing here gives the biggest grade improvement.`,
@@ -347,6 +353,17 @@ function AIPlan({ examIds, onStart, t }) {
 
         {/* ── Overall prediction ───────────────────────────────── */}
         <div style={{ background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border-subtle)", padding: 32, marginBottom: 24, animation: "fadeUp 0.6s ease 0.1s both" }}>
+          {!anyStarted ? (
+            <div style={{ textAlign: "center", padding: "8px 0" }}>
+              <div style={{ fontSize: 32 }}>🌱</div>
+              <p style={{ margin: "10px 0 0", fontSize: 15, fontWeight: 600, color: "var(--text-strong)" }}>
+                {L("Forecast unlocks after your first session","Прогноз з'явиться після першої сесії","Прогноз появится после первой сессии","La prévision se débloque après votre première séance","Prognose nach der ersten Sitzung verfügbar")}
+              </p>
+              <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-muted)" }}>
+                {L("A real grade prediction needs real data — start studying and it'll show up here.","Реальний прогноз потребує реальних даних — почніть навчання, і він з'явиться тут.","Реальному прогнозу нужны реальные данные — начните учиться, и он появится здесь.","Une vraie prévision a besoin de vraies données — commencez à étudier.","Eine echte Prognose braucht echte Daten — fang an zu lernen.")}
+              </p>
+            </div>
+          ) : (<>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40, flexWrap: "wrap" }}>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontSize: 64, fontWeight: 800, color: "var(--indigo-600)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>{overallGrade}</div>
@@ -373,15 +390,22 @@ function AIPlan({ examIds, onStart, t }) {
                   <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 500, color: "var(--text-body)" }}>
                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />{c.name}
                   </span>
-                  <span style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                    {c.predictedGrade} → <strong style={{ color: "var(--indigo-700)" }}>{c.targetGrade}</strong>
-                  </span>
-                  <ProgressBar value={c.gradeProbability} autoColor />
-                  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: pc }}>{c.gradeProbability}%</span>
+                  {c.started ? (<>
+                    <span style={{ fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                      {c.predictedGrade} → <strong style={{ color: "var(--indigo-700)" }}>{c.targetGrade}</strong>
+                    </span>
+                    <ProgressBar value={c.gradeProbability} autoColor />
+                    <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 13, fontWeight: 700, color: pc }}>{c.gradeProbability}%</span>
+                  </>) : (
+                    <span style={{ gridColumn: "2 / -1", textAlign: "right", fontSize: 12, color: "var(--text-faint)" }}>
+                      {L("Not started yet","Ще не почато","Ещё не начато","Pas encore commencé","Noch nicht begonnen")}
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
+          </>)}
         </div>
 
         {/* ── Stats grid ──────────────────────────────────────── */}

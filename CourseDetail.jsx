@@ -32,6 +32,10 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
   const readiness = Math.max(3, Math.min(99, Math.round(
     course.readinessPct + (sessions - (course.recommendedSessions || 3)) * 4
   )));
+  // No topic in this course has been reviewed yet — readiness/probability
+  // above are still the neutral placeholder blend, not a real forecast, so
+  // the hero swaps to a "not started" state instead of a fake prediction.
+  const started = !!course.started;
   const risk = prob >= 60 ? { id: "low", tone: "easy", label: L("Low", "Низький", "Низкий", "Faible", "Niedrig"), color: "var(--emerald-600)" }
     : prob >= 40 ? { id: "medium", tone: "medium", label: L("Medium", "Середній", "Средний", "Moyen", "Mittel"), color: "var(--amber-600)" }
     : { id: "high", tone: "hard", label: L("High", "Високий", "Высокий", "Élevé", "Hoch"), color: "var(--red-500)" };
@@ -108,6 +112,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
         <div ref={bodyRef} style={{ flex: 1, overflowY: "auto", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
 
           {/* Hero: readiness + probability + risk */}
+          {started ? (<>
           <div ref={secRefs.probability} style={{ ...sec("probability"), display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-5)", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
               <GaugeRing value={readiness} size={92} />
@@ -135,11 +140,26 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
               )}
             </div>
           </div>
+          </>) : (
+            <div ref={secRefs.probability} style={{ ...sec("probability"), display: "flex", flexDirection: "column", alignItems: "center", gap: 6, textAlign: "center", padding: "var(--space-6) var(--space-4)" }}>
+              <div style={{ fontSize: 32 }}>🌱</div>
+              <p style={{ margin: 0, fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+                {L("Not started yet", "Ще не почато", "Ещё не начато", "Pas encore commencé", "Noch nicht begonnen")}
+              </p>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)", maxWidth: 320 }}>
+                {L("Readiness and grade forecast unlock after your first session on this course.",
+                   "Готовність та прогноз оцінки з'являться після першої сесії з цього курсу.",
+                   "Готовность и прогноз оценки появятся после первой сессии по этому курсу.",
+                   "La préparation et la prévision de note se débloquent après votre première séance.",
+                   "Bereitschaft und Notenprognose erscheinen nach deiner ersten Sitzung.")}
+              </p>
+            </div>
+          )}
 
           {/* Target grade */}
           <div ref={secRefs.target} style={sec("target")}>
             <p style={eyebrow}>{L("Target grade", "Цільова оцінка", "Целевая оценка", "Note visée", "Zielnote")} · {grade ? grade.label : "A-Level"}</p>
-            <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{L("Predicted now", "Прогноз зараз", "Прогноз сейчас", "Prédit", "Aktuell prognostiziert")}: <strong style={{ color: "var(--text-body)" }}>{course.predictedGrade}</strong></p>
+            <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{L("Predicted now", "Прогноз зараз", "Прогноз сейчас", "Prédit", "Aktuell prognostiziert")}: <strong style={{ color: "var(--text-body)" }}>{started ? course.predictedGrade : "–"}</strong></p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
               {opts.map((g) => (
                 <button key={g} type="button" onClick={() => setTarget(g)} style={segBtn(String(target) === String(g))}>{g}</button>

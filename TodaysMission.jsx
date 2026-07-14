@@ -10,12 +10,15 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
   const difficultyColor = session.difficulty <= 1 ? "var(--emerald-600)" : session.difficulty >= 3 ? "var(--red-500)" : "var(--amber-600)";
 
   const estMinutes = session.est || 45;
+  const started = course ? course.started : false;
   const mastery = course ? course.readinessPct : 50;
   const probability = course ? course.gradeProbability : 50;
 
-  // "Why today?" reasoning — picks the most relevant reason
+  // "Why today?" reasoning — picks the most relevant reason. A course with
+  // no study history yet has no real risk/pace signal, so it always gets
+  // the neutral "first session" message instead of an alarming label.
   const whyToday = React.useMemo(() => {
-    if (!course) return L("This topic is scheduled for today in your AI plan.","Ця тема запланована на сьогодні.","Эта тема запланирована на сегодня.","Ce sujet est prévu pour aujourd'hui.","Dieses Thema ist für heute geplant.");
+    if (!course || !started) return L("This topic is scheduled for today in your AI plan.","Ця тема запланована на сьогодні.","Эта тема запланирована на сегодня.","Ce sujet est prévu pour aujourd'hui.","Dieses Thema ist für heute geplant.");
     if (course.riskLevel === "high") return L(
       `${course.name} has high risk — studying today keeps you on track to reach your ${course.targetGrade} target.`,
       `${course.name} має високий ризик — заняття сьогодні допоможе досягти ${course.targetGrade}.`,
@@ -66,7 +69,7 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
           <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase" }}>{L("Est. time","Час","Время","Durée","Dauer")}</div>
         </div>
         <div style={{ textAlign: "center", padding: "12px 8px", borderRadius: "var(--radius-lg)", background: "var(--surface-card)", border: "1px solid var(--border-default)" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text-strong)", fontFamily: "var(--font-mono)" }}>{mastery}%</div>
+          <div style={{ fontSize: started ? 20 : 13, fontWeight: 700, color: started ? "var(--text-strong)" : "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{started ? `${mastery}%` : "–"}</div>
           <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase" }}>{L("Mastery","Майстерність","Мастерство","Maîtrise","Meisterung")}</div>
         </div>
         <div style={{ textAlign: "center", padding: "12px 8px", borderRadius: "var(--radius-lg)", background: "var(--surface-card)", border: "1px solid var(--border-default)" }}>
@@ -74,7 +77,7 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
           <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase" }}>{L("Difficulty","Складність","Сложность","Difficulté","Schwierigkeit")}</div>
         </div>
         <div style={{ textAlign: "center", padding: "12px 8px", borderRadius: "var(--radius-lg)", background: "var(--surface-card)", border: "1px solid var(--border-default)" }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: probability >= 60 ? "var(--emerald-600)" : "var(--amber-600)", fontFamily: "var(--font-mono)" }}>{probability}%</div>
+          <div style={{ fontSize: started ? 20 : 13, fontWeight: 700, color: started ? (probability >= 60 ? "var(--emerald-600)" : "var(--amber-600)") : "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{started ? `${probability}%` : "–"}</div>
           <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-faint)", textTransform: "uppercase" }}>{L("Target prob.","Ймов.","Вероятн.","Probabilité","Wahrscheinl.")}</div>
         </div>
       </div>

@@ -29,6 +29,7 @@ function Exams({ t, onPlanReady }) {
     const past = days < 0;
     const soon = days >= 0 && days <= 7;
     const readiness = ev ? ev.readiness : 0;
+    const started = ev ? ev.started : false;
     const coverage = ev ? ev.coverage : 0;
     const pace = ev ? ev.pace : "on_track";
     const priority = window.computePriority ? window.computePriority(exam) : 5;
@@ -51,8 +52,8 @@ function Exams({ t, onPlanReady }) {
         </div>
         {!past && (
           <div style={{ margin: "var(--space-2) 0", display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: "var(--text-xs)", color: pace === "very_behind" || pace === "behind" ? "var(--red-500)" : "var(--emerald-600)", fontWeight: "var(--weight-medium)" }}>
-              {pace === "very_behind" || pace === "behind" ? `⚠️ Behind — ${readiness}% readiness` : `✓ ${readiness}% readiness`}
+            <span style={{ fontSize: "var(--text-xs)", color: !started ? "var(--text-faint)" : (pace === "very_behind" || pace === "behind") ? "var(--red-500)" : "var(--emerald-600)", fontWeight: "var(--weight-medium)" }}>
+              {!started ? "Not started yet" : (pace === "very_behind" || pace === "behind") ? `⚠️ Behind — ${readiness}% readiness` : `✓ ${readiness}% readiness`}
             </span>
           </div>
         )}
@@ -356,6 +357,7 @@ function Exams({ t, onPlanReady }) {
 
     const coverage = ev ? ev.coverage : (exam.completionPct || 0);
     const readiness = ev ? ev.readiness : 0;
+    const started = ev ? ev.started : false;
     const topicCountDisplay = Math.max(1, exam.topicCount || 10);
     const coveredTopics = Math.round((coverage / 100) * topicCountDisplay);
     const predictedGrade = ev ? ev.predictedGrade : "–";
@@ -433,15 +435,15 @@ function Exams({ t, onPlanReady }) {
               {/* Stats row */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)" }}>
                 <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{readiness}%</div>
+                  <div style={{ fontSize: started ? "var(--text-lg)" : "var(--text-xs)", fontWeight: "var(--weight-bold)", color: started ? "var(--text-strong)" : "var(--text-faint)" }}>{started ? `${readiness}%` : "Not started"}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Readiness</div>
                 </div>
                 <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{predictedGrade}</div>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{started ? predictedGrade : "–"}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Predicted</div>
                 </div>
                 <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{probability}%</div>
+                  <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{started ? `${probability}%` : "–"}</div>
                   <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Target chance</div>
                 </div>
               </div>
