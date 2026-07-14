@@ -39,6 +39,18 @@
   @keyframes revealUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
   html, body { margin: 0; min-height: 100%; background: var(--surface-page); }
   #root { min-height: 100vh; }
+
+  /* AppNav responsive collapse — the link row (9 items + lang picker + logout)
+     only fits desktop widths; below 680px it overflows/wraps illegibly, so it
+     swaps for a hamburger that opens a full vertical menu instead. */
+  .app-nav-links { display: flex; align-items: center; gap: 4px; }
+  .app-nav-hamburger { display: none; }
+  .app-nav-mobile-panel { display: none; }
+  @media (max-width: 680px) {
+    .app-nav-links { display: none; }
+    .app-nav-hamburger { display: flex; }
+    .app-nav-mobile-panel.is-open { display: flex; }
+  }
 </style>
 </head>
 <body>
@@ -66,7 +78,7 @@
 <script type="text/babel" src="curriculum-data.jsx?v=c2"></script>
 <script type="text/babel" src="curriculum-store.jsx?v=c5"></script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
-<script type="text/babel" src="AppNav.jsx?v=cal1"></script>
+<script type="text/babel" src="AppNav.jsx?v=cal2"></script>
 <script type="text/babel" src="Landing.jsx"></script>
 <script type="text/babel" src="onboarding-steps.jsx"></script>
 <script type="text/babel" src="Combobox.jsx?v=c1"></script>

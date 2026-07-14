@@ -30,7 +30,13 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     { id: "settings",  label: t.nav_settings },
   ];
   const [langOpen, setLangOpen] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
   const langs = Object.values(window.LANGS);
+
+  // Closing the mobile panel on every navigation/logout means a returning
+  // user never finds it stuck open from their last visit — same reason
+  // langOpen already closes itself after a pick.
+  const navigate = (id) => { onNavigate(id); setMobileOpen(false); };
 
   return (
     <nav style={{ borderBottom: "1px solid var(--border-default)", background: "var(--surface-card)" }}>
@@ -39,11 +45,12 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           <span aria-hidden="true" style={{ color: "var(--indigo-600)" }}>🤖</span>
           <span>AI Exam Coach</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+
+        <div className="app-nav-links">
           {links.map((l) => {
             const active = current === l.id;
             return (
-              <button key={l.id} onClick={() => onNavigate(l.id)} style={{
+              <button key={l.id} onClick={() => navigate(l.id)} style={{
                 border: "none", cursor: "pointer", borderRadius: "var(--radius-md)",
                 padding: "6px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
                 background: active ? "var(--slate-100)" : "transparent",
@@ -84,6 +91,52 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             )}
           </div>
 
+          <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
+        </div>
+
+        {/* Hamburger — CSS-hidden above 680px, so this never renders on desktop */}
+        <button className="app-nav-hamburger" aria-label={mobileOpen ? "Close menu" : "Open menu"} onClick={() => setMobileOpen(o => !o)} style={{
+          alignItems: "center", justifyContent: "center", width: "36px", height: "36px",
+          border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)",
+          background: "var(--surface-card)", cursor: "pointer", fontSize: "18px", padding: 0,
+        }}>{mobileOpen ? "✕" : "☰"}</button>
+      </div>
+
+      {/* Mobile panel — CSS-hidden above 680px regardless of mobileOpen, so a
+          desktop resize while it happens to be true never leaves it stuck visible */}
+      <div className={"app-nav-mobile-panel" + (mobileOpen ? " is-open" : "")} style={{
+        flexDirection: "column", gap: "2px", padding: "8px 16px 14px",
+        borderTop: "1px solid var(--border-subtle)", background: "var(--surface-card)",
+      }}>
+        {links.map((l) => {
+          const active = current === l.id;
+          return (
+            <button key={l.id} onClick={() => navigate(l.id)} style={{
+              border: "none", cursor: "pointer", borderRadius: "var(--radius-md)", textAlign: "left",
+              padding: "10px 12px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)",
+              background: active ? "var(--slate-100)" : "transparent",
+              color: active ? "var(--text-strong)" : "var(--text-body)",
+              fontWeight: active ? "var(--weight-medium)" : "var(--weight-normal)",
+            }}>{l.label}</button>
+          );
+        })}
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)" }}>
+          {langs.map((l) => (
+            <button key={l.code} onClick={() => onLangChange(l.code)} style={{
+              display: "flex", alignItems: "center", gap: "4px", padding: "6px 10px",
+              border: "1px solid var(--border-default)", borderRadius: "var(--radius-full)", cursor: "pointer",
+              fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)",
+              background: lang === l.code ? "var(--indigo-50)" : "var(--surface-card)",
+              color: lang === l.code ? "var(--indigo-700)" : "var(--text-body)",
+              fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)",
+            }}>
+              <span>{l.flag}</span><span>{l.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ marginTop: "8px" }}>
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
