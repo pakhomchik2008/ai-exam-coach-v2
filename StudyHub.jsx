@@ -77,6 +77,41 @@ function StudyHub({ t }) {
     } catch {}
   }, [state.mode, state.topic, state.flashcards, state.quiz, state.videos, state.currentCard, state.flippedCards, state.quizAnswers]);
 
+  // Real per-topic suggestions from the student's own courses, so "Try
+  // these" points at what they're actually studying for instead of random
+  // trivia (England Football, Quantum Physics…) that has nothing to do with
+  // their exams. Due reviews (already-studied, now decaying) come first
+  // since those are the most useful thing to jump back into; topics with no
+  // review history yet fill any remaining slots so a freshly-added exam
+  // still gets relevant chips on day one. Never padded with generic filler —
+  // if a student only has 2 real topics, they see 2 chips, not 2 real + 4 fake.
+  const realTopicChips = React.useMemo(() => {
+    const brain = window.getBrain ? window.getBrain() : null;
+    if (!brain || !brain.examViews || !brain.examViews.length) return null;
+    const seen = new Set();
+    const out = [];
+    for (const t of (brain.dueReviews || [])) {
+      if (out.length >= 6) break;
+      const key = t.topicName + '|' + t.examName;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ l: `📘 ${t.topicName}`, v: `${t.topicName} — a topic from ${t.examName}. Cover the core concepts and common exam-style questions.` });
+    }
+    if (out.length < 6) {
+      for (const ev of brain.examViews) {
+        for (const tp of ev.topics || []) {
+          if (out.length >= 6) break;
+          const key = tp.topicName + '|' + ev.name;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({ l: `📘 ${tp.topicName}`, v: `${tp.topicName} — a topic from ${ev.name}. Cover the core concepts and common exam-style questions.` });
+        }
+        if (out.length >= 6) break;
+      }
+    }
+    return out.length ? out : null;
+  }, []);
+
   const studyProfile = window.getProfile ? window.getProfile() : {};
   const prefHint = (studyProfile.prefs && studyProfile.prefs.length) || (studyProfile.materials && studyProfile.materials.length)
     ? `\n\nStudent preferences: prefers ${(studyProfile.prefs || []).join(', ') || 'default'} learning modes, uses ${(studyProfile.materials || []).join(', ') || 'various'} materials. Tailor difficulty and examples accordingly.`
@@ -293,7 +328,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   };
 
   const buildExampleChips = () => {
-    const chips = [
+    const chips = realTopicChips || [
       { l: '⚽ England Football', v: 'England National Football Team — history, players and major tournaments' },
       { l: '🔬 Photosynthesis', v: 'Photosynthesis — light reactions, Calvin cycle and chlorophyll' },
       { l: '∫ Calculus', v: 'Calculus — derivatives, integrals and limits' },
@@ -525,7 +560,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       buildErrorEl(errorMsg),
       buildStartBtnEl(hasInput, isExtractingFile, () => { if (hasInput && !isExtractingFile) analyze(); }),
       React.createElement('div', { style: { marginTop: '20px' } },
-        React.createElement('p', { style: { fontSize: '10px', color: '#9ca3af', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' } }, 'Try these'),
+        React.createElement('p', { style: { fontSize: '10px', color: '#9ca3af', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' } }, realTopicChips ? 'From your courses' : 'Try these'),
         React.createElement('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '7px' } }, ...buildExampleChips())
       )
     )
