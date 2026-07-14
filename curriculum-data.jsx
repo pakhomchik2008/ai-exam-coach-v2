@@ -95,4 +95,39 @@ const CURRICULUM_SEED = [
   },
 ];
 
-Object.assign(window, { CURRICULUM_SEED });
+// Real, publicly-known subject/course NAMES (no topics) for qualifications
+// that don't have full hand-curated syllabi yet — these are official exam
+// board / awarding body subject titles (GCSE, A-Level, AP, IB), not invented
+// courses, so listing the NAME is honest even though we don't have the real
+// topic breakdown. Exists purely so autocomplete feels populated instead of
+// dead-ending in "not found" for completely ordinary subjects like Biology
+// or Sociology — selecting one skips straight to AI-generate (still
+// confirm-before-save, still labelled source:"ai", never silently accepted).
+const KNOWN_SUBJECTS = {
+  gcse: [
+    "Mathematics", "English Language", "English Literature", "Combined Science", "Biology", "Chemistry", "Physics",
+    "Computer Science", "Geography", "History", "French", "Spanish", "German", "Religious Studies", "Art & Design",
+    "Business Studies", "Economics", "Psychology", "Sociology", "Physical Education", "Music", "Drama",
+    "Design & Technology", "Food Preparation & Nutrition", "Media Studies", "Statistics",
+  ],
+  alevel: [
+    "Mathematics", "Further Mathematics", "English Literature", "English Language", "Biology", "Chemistry", "Physics",
+    "Computer Science", "Geography", "History", "Economics", "Business", "Psychology", "Sociology", "Art & Design",
+    "Politics", "Law", "Philosophy", "Religious Studies", "French", "Spanish", "German", "Physical Education",
+    "Music", "Drama and Theatre", "Design & Technology", "Media Studies",
+  ],
+  ap: [
+    "AP Calculus AB", "AP Calculus BC", "AP Statistics", "AP Biology", "AP Chemistry", "AP Physics 1", "AP Physics 2",
+    "AP Physics C: Mechanics", "AP Computer Science A", "AP Computer Science Principles",
+    "AP English Language and Composition", "AP English Literature and Composition", "AP US History",
+    "AP World History", "AP European History", "AP Psychology", "AP Microeconomics", "AP Macroeconomics",
+    "AP Environmental Science", "AP Human Geography", "AP Art History", "AP Spanish Language", "AP French Language",
+  ],
+  ib: [
+    "Mathematics: Analysis and Approaches", "Mathematics: Applications and Interpretation", "Biology", "Chemistry",
+    "Physics", "English A: Literature", "Economics", "History", "Geography", "Psychology", "Computer Science",
+    "Business Management", "Visual Arts",
+  ],
+};
+
+Object.assign(window, { CURRICULUM_SEED, KNOWN_SUBJECTS });

@@ -78,7 +78,10 @@ function CurriculumStep({
   const searchOptions = React.useMemo(() => {
     if (!qualificationId || !query.trim()) return [];
     return (window.searchCurriculumSubjects ? window.searchCurriculumSubjects(countryId, qualificationId, board, query) : [])
-      .map((r) => ({ label: r.subject, sublabel: r.source === "official" ? "Verified curriculum" : (r.verifiedByUser ? "Community-verified" : "AI-generated"), value: r.subject }));
+      .map((r) => ({
+        label: r.subject, value: r.subject, known: r.source === "known",
+        sublabel: r.source === "official" ? "Verified curriculum" : r.source === "known" ? "Tap to build syllabus" : (r.verifiedByUser ? "Community-verified" : "AI-generated"),
+      }));
   }, [countryId, qualificationId, board, query]);
 
   const resolveSubject = (name) => {
@@ -103,8 +106,39 @@ function CurriculumStep({
     }
   };
 
-  const generateForMe = async () => {
-    const name = resolvedName;
+  // Picking a KNOWN_SUBJECTS option (a real, ordinary subject name we don't
+  // have cached topics for yet) skips the "not found" screen entirely and
+  // goes straight to AI-generate — the whole point is that a completely
+  // normal subject like Biology or Sociology should never look like a dead
+  // end. Still checks the cache first in case someone already generated and
+  // confirmed this exact combo, so it doesn't regenerate needlessly.
+  const selectKnownSubject = (name) => {
+    onSubjectChange(name);
+    setResolvedName(name);
+    const row = window.getCurriculum ? window.getCurriculum(countryId, qualificationId, board, name) : null;
+    if (row && (row.source === "official" || row.verifiedByUser)) {
+      const draft = buildCourseDraft(name, row, true);
+      onCourseChange(draft);
+      setStage("loaded");
+      reportValidity(draft, noTopicList, null);
+      return;
+    }
+    if (row) {
+      setPendingRow(row);
+      setDraftTopics(row.topics.map((t) => ({ ...t })));
+      setStage("awaiting-confirmation");
+      onCourseChange(null);
+      reportValidity(null, noTopicList, null);
+      return;
+    }
+    generateForMe(name);
+  };
+
+  // name is an explicit param (not read from resolvedName state) so this can
+  // be called immediately after selecting a KNOWN_SUBJECTS option, before
+  // resolvedName's setState from that same click has actually landed.
+  const generateForMe = async (nameArg) => {
+    const name = nameArg || resolvedName;
     setStage("fetching");
     setFetchFailed(false);
     const row = window.fetchAndCacheCurriculum ? await window.fetchAndCacheCurriculum(countryId, qualificationId, board, name, specVersion, uniContext) : null;
@@ -217,7 +251,7 @@ function CurriculumStep({
               reportValidity(null, noTopicList, null);
             }
           }}
-          onSelect={(opt) => { setQuery(opt.value); resolveSubject(opt.value); }}
+          onSelect={(opt) => { setQuery(opt.value); if (opt.known) selectKnownSubject(opt.value); else resolveSubject(opt.value); }}
           options={searchOptions}
           loading={false}
           noMatchSlot={stage === "idle" && query.trim().length >= 2 ? (

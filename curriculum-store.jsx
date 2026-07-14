@@ -60,7 +60,7 @@ function searchCurriculumSubjects(countryId, qualificationId, board, query) {
     const hay = [r.subject, ...(r.aliases || [])].map((s) => s.toLowerCase());
     return hay.some((s) => s.includes(q) || q.includes(s));
   });
-  // Dedup by subject name, seed rows first (Array.prototype.find below keeps first hit)
+  // Dedup by subject name, seed/cache rows first (kept ahead of KNOWN_SUBJECTS below)
   const seen = new Set();
   const out = [];
   for (const r of matches) {
@@ -68,6 +68,20 @@ function searchCurriculumSubjects(countryId, qualificationId, board, query) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ subject: r.subject, board: r.board, specVersion: r.specVersion, source: r.source });
+  }
+  // Real, publicly-known subject NAMES with no topics of their own yet (see
+  // curriculum-data.jsx's KNOWN_SUBJECTS) — this is what keeps autocomplete
+  // populated for completely ordinary subjects instead of dead-ending in
+  // "not found." Selecting one skips straight to AI-generate (CurriculumStep
+  // routes source:"known" through the same fetch+confirm path as the
+  // not-found panel's "Generate it for me").
+  const known = (window.KNOWN_SUBJECTS && window.KNOWN_SUBJECTS[qualificationId]) || [];
+  for (const name of known) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    if (q && !(key.includes(q) || q.includes(key))) continue;
+    seen.add(key);
+    out.push({ subject: name, board: null, specVersion: null, source: "known" });
   }
   return out;
 }
