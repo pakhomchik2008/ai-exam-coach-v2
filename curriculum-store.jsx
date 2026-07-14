@@ -75,15 +75,25 @@ function searchCurriculumSubjects(countryId, qualificationId, board, query) {
 // ── AI-backed fetch-and-cache — only called when getCurriculum() returned
 //    null for a subject the user committed to. Reuses window.claude.complete
 //    exactly like ai-enrichment.jsx's requestTopicNames — no new transport. ──
-async function fetchAndCacheCurriculum(countryId, qualificationId, board, subject, specVersion) {
+// context is freeform, user-supplied (e.g. "University of Warwick, Computer
+// Systems Engineering, Year 1") — NOT a lookup against any institution
+// database (we don't have one, and won't fabricate one). It only sharpens
+// the AI prompt for university-level modules, where the qualification id
+// alone ("uni") carries none of the useful context a GCSE/A-Level board id
+// does. The row is still cached/labelled source:"ai" and still requires
+// confirm-before-save, same as every other AI-generated row.
+async function fetchAndCacheCurriculum(countryId, qualificationId, board, subject, specVersion, context) {
   if (!window.claude) return null;
   const system = "You are a curriculum expert. Output ONLY valid JSON, no markdown, no commentary: " +
     '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10,"subtopics":["...","..."]}]}. ' +
     "List the real syllabus topics students are actually examined on, foundational topics first (this order IS the recommended study order). " +
     "8-14 topics is typical; use your judgment for the subject's real scope. Each topic gets 2-5 short subtopics.";
-  const boardLabel = board ? ` (${board} exam board)` : "";
-  const versionLabel = specVersion ? `, ${specVersion} specification` : "";
-  const prompt = `List the syllabus topics for "${subject}" under the ${qualificationId}${boardLabel} qualification in ${countryId}${versionLabel}. Use your knowledge of this subject's real curriculum.`;
+  const isUni = qualificationId === "uni";
+  const contextLabel = context && context.trim() ? ` (${context.trim()})` : "";
+  const countryLabel = countryId ? ` in ${countryId}` : "";
+  const prompt = isUni
+    ? `List the syllabus topics for the university module/course "${subject}"${contextLabel}${countryLabel}. Use your knowledge of typical curricula for this kind of module at this level — if you recognise the specific institution/programme, use its real structure; otherwise use the general real-world structure for a module with this name and level.`
+    : `List the syllabus topics for "${subject}" under the ${qualificationId}${board ? ` (${board} exam board)` : ""} qualification${countryLabel}${specVersion ? `, ${specVersion} specification` : ""}. Use your knowledge of this subject's real curriculum.`;
 
   let data;
   try {

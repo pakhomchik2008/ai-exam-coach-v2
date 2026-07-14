@@ -37,6 +37,12 @@ function CurriculumStep({
   const [urlInput, setUrlInput] = React.useState("");
   const [urlFetching, setUrlFetching] = React.useState(false);
   const [urlError, setUrlError] = React.useState(null);
+  // Freeform, user-typed context for university-level modules (e.g.
+  // "University of Warwick, Computer Systems Engineering, Year 1") — sharpens
+  // the AI-generate prompt for a qualificationId ("uni") that on its own
+  // carries none of the useful context a GCSE/A-Level board id does. NOT a
+  // lookup against any institution database — we don't have one.
+  const [uniContext, setUniContext] = React.useState("");
   // Tracks the subject name a resolution is IN PROGRESS for — read here
   // instead of the `subject` prop, since onSubjectChange(name) is an async
   // state update on the parent and buildCourseDraft/confirmDraft must not
@@ -101,7 +107,7 @@ function CurriculumStep({
     const name = resolvedName;
     setStage("fetching");
     setFetchFailed(false);
-    const row = window.fetchAndCacheCurriculum ? await window.fetchAndCacheCurriculum(countryId, qualificationId, board, name, specVersion) : null;
+    const row = window.fetchAndCacheCurriculum ? await window.fetchAndCacheCurriculum(countryId, qualificationId, board, name, specVersion, uniContext) : null;
     if (!row) {
       setStage("not-found");
       setFetchFailed(true);
@@ -195,11 +201,26 @@ function CurriculumStep({
         <p style={label}>Subject</p>
         <window.Combobox
           value={query} placeholder="e.g. Chemistry"
-          onChange={(v) => { setQuery(v); onSubjectChange(v); }}
+          onChange={(v) => {
+            setQuery(v);
+            onSubjectChange(v);
+            // Any manual retype invalidates whatever we last resolved (or
+            // failed to resolve) — otherwise a stale "not found" panel from
+            // an earlier attempt stays visible underneath the open dropdown
+            // while the user is still typing a different subject.
+            if (stage !== "idle") {
+              setStage("idle");
+              setDraftTopics(null);
+              setPendingRow(null);
+              setFetchFailed(false);
+              onCourseChange(null);
+              reportValidity(null, noTopicList, null);
+            }
+          }}
           onSelect={(opt) => { setQuery(opt.value); resolveSubject(opt.value); }}
           options={searchOptions}
           loading={false}
-          noMatchSlot={query.trim().length >= 2 ? (
+          noMatchSlot={stage === "idle" && query.trim().length >= 2 ? (
             <div style={{ padding: "10px 12px" }}>
               <button type="button" onMouseDown={(e) => { e.preventDefault(); resolveSubject(query.trim()); }}
                 style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)" }}>
@@ -271,6 +292,14 @@ function CurriculumStep({
           <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
             {fetchFailed ? "Couldn't reach AI just now — try again, or use one of these:" : "My course isn't listed yet."}
           </p>
+          {qualificationId === "uni" && (
+            <div>
+              <input type="text" value={uniContext} onChange={(e) => setUniContext(e.target.value)}
+                placeholder="University / programme (optional) — e.g. Warwick, Computer Systems Engineering, Year 1"
+                style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)" }} />
+              <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Helps the AI guess get closer — still needs your confirmation either way.</p>
+            </div>
+          )}
           <button type="button" onClick={generateForMe}
             style={{ textAlign: "left", padding: "10px 12px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)" }}>
             ✨ Generate it for me
