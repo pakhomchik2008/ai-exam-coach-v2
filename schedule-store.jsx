@@ -185,7 +185,14 @@ const DAY_PERIOD_RANGES = { morning: [6 * 60, 12 * 60], afternoon: [12 * 60, 17 
 const SLOT_GAP_MIN = 15; // breathing room between back-to-back sessions
 
 function _freeIntervalsForWeekday(weekday, blackoutSlots) {
-  let intervals = [[6 * 60, 22 * 60]];
+  // A brand-new profile has an empty blackoutSlots array (nobody has ever
+  // opened the availability screen), and packing from a 06:00 base put every
+  // new user's first-ever session at 6am — unrealistic for someone in
+  // school/lectures most mornings. Once ANY preference is set, that's a real
+  // signal about how this student actually thinks about their day, so the
+  // full 06:00 base returns and their explicit choices are respected as-is.
+  const hasSetAvailability = (blackoutSlots || []).length > 0;
+  let intervals = [hasSetAvailability ? [6 * 60, 22 * 60] : [15 * 60, 22 * 60]];
   (blackoutSlots || []).filter((s) => s.day === weekday && s.period !== "all").forEach((b) => {
     const range = DAY_PERIOD_RANGES[b.period];
     if (!range) return;
