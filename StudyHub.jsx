@@ -116,16 +116,21 @@ function StudyHub({ t }) {
   const prefHint = (studyProfile.prefs && studyProfile.prefs.length) || (studyProfile.materials && studyProfile.materials.length)
     ? `\n\nStudent preferences: prefers ${(studyProfile.prefs || []).join(', ') || 'default'} learning modes, uses ${(studyProfile.materials || []).join(', ') || 'various'} materials. Tailor difficulty and examples accordingly.`
     : '';
+  // Text VALUES (flashcard front/back, video title/desc, chat replies) should
+  // follow the student's UI language — the JSON keys/schema stay in English,
+  // that's just field names, not content.
+  const langHint = window.aiLangDirective ? window.aiLangDirective() : '';
+  const langHintSuffix = langHint ? `\n\n${langHint}` : '';
   const SYSTEM_CARDS = `You are a study material generator. Output ONLY valid JSON — no markdown, no fences, nothing else before { or after }.
 
 Schema:
 {"topic":"short name","emoji":"1 emoji","flashcards":[{"front":"≤12 words","back":"≤25 words"}],"quiz":[{"q":"question","o":["A","B","C","D"],"c":0,"e":"≤18 word explanation"}]}
 
-Rules: EXACTLY 5 flashcards. EXACTLY 4 quiz questions (c = index of correct option). All content specific and educational. For images/PDFs: identify the subject first.${prefHint}`;
+Rules: EXACTLY 5 flashcards. EXACTLY 4 quiz questions (c = index of correct option). All content specific and educational. For images/PDFs: identify the subject first.${prefHint}${langHintSuffix}`;
 
   const SYSTEM_VIDEOS = `You are a study assistant. Output ONLY valid JSON — no markdown, no fences.
 
-Schema: {"videos":[{"title":"video title","desc":"one sentence","q":"youtube search query","lvl":"Beginner"}]}
+Schema: {"videos":[{"title":"video title","desc":"one sentence","q":"youtube search query","lvl":"Beginner"}]}${langHintSuffix}
 
 Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search queries specific and effective.`;
 
@@ -495,7 +500,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     try {
       const ctx = flashcards.slice(0, 5).map(f => `• ${f.front}: ${f.back}`).join('\n');
       const history = nextMessages.map((m) => ({ role: m.role, content: m.text }));
-      const answer = await window.claude.complete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}`, messages: history });
+      const chatLangHint = window.aiLangDirective ? window.aiLangDirective() : '';
+      const answer = await window.claude.complete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}${chatLangHint ? `\n\n${chatLangHint}` : ''}`, messages: history });
       setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: answer }], isChatLoading: false }));
     } catch {
       setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: 'Sorry, something went wrong. Please try again.' }], isChatLoading: false }));
