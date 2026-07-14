@@ -114,11 +114,11 @@ function Exams({ t, onPlanReady }) {
           onCancel={() => setShowAdd(false)}
         />
       ) : (
-        <QuickAddModal
+        <AddExamModal
           lastExam={exams[exams.length - 1]}
+          lang={t.code || "en"}
           onClose={() => setShowAdd(false)}
           onSave={(newExams) => { setExams(window.getExams()); setShowAdd(false); if (onPlanReady && newExams) onPlanReady(newExams); }}
-          onFullWizard={() => {}}
         />
       ))}
       {editing && (
@@ -133,18 +133,49 @@ function Exams({ t, onPlanReady }) {
     </div>
   );
 
-  function QuickAddModal({ lastExam, onClose, onSave, onFullWizard }) {
+  function AddExamModal({ lastExam, lang, onClose, onSave }) {
     const defaultDate = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); })();
     const todayISO = new Date().toISOString().slice(0, 10);
+    const profile = React.useMemo(() => window.getProfile ? window.getProfile() : {}, []);
+    const suggestedQualId = (window.COUNTRY_TO_EXAM_TYPE && profile.country && window.COUNTRY_TO_EXAM_TYPE[profile.country]) || "gcse";
+
+    // "Same course as X" attaches a second Exam (resit/mock/final...) to an
+    // EXISTING courseId — no curriculum lookup, no new Course, shared mastery
+    // with lastExam. This is the actual payoff of Course-first (plan §9).
+    const [sameCourse, setSameCourse] = React.useState(false);
+    const [qualificationId, setQualificationId] = React.useState(suggestedQualId);
+    const qual = window.examType(qualificationId);
+
     const [name, setName] = React.useState("");
     const [examDate, setExamDate] = React.useState(defaultDate);
-    const [examBoard, setExamBoard] = React.useState(lastExam.examBoard || "");
-    const [topicCount, setTopicCount] = React.useState(lastExam.topicCount || 10);
-    const [topicsText, setTopicsText] = React.useState("");
-    const [importance, setImportance] = React.useState(5);
+    const [examBoard, setExamBoard] = React.useState(qual.board || "");
+    const [kind, setKind] = React.useState("exam");
     const [notes, setNotes] = React.useState("");
-    const [useFullWizard, setUseFullWizard] = React.useState(false);
-    const canSave = name.trim() && examDate >= todayISO && Number(topicCount) >= 1;
+    const [current, setCurrent] = React.useState(qual.grade.current);
+    const [target, setTarget] = React.useState(qual.grade.target);
+
+    // CurriculumStep-controlled draft — nothing persists until Add exam is clicked.
+    const [courseDraft, setCourseDraft] = React.useState(null);
+    const [noTopicList, setNoTopicList] = React.useState(false);
+    const [files, setFiles] = React.useState([]);
+    const [curriculumValid, setCurriculumValid] = React.useState(false);
+
+    React.useEffect(() => {
+      if (sameCourse) {
+        setName(lastExam.name);
+        setKind("resit");
+        return;
+      }
+      setName("");
+      setExamBoard(qual.board || "");
+      setCurrent(qual.grade.current);
+      setTarget(qual.grade.target);
+      setKind("exam");
+    }, [sameCourse, qualificationId]);
+
+    const canSave = sameCourse
+      ? name.trim() && examDate >= todayISO
+      : name.trim() && examDate >= todayISO && curriculumValid;
 
     React.useEffect(() => {
       const fn = (e) => { if (e.key === "Escape") onClose(); };
@@ -152,94 +183,158 @@ function Exams({ t, onPlanReady }) {
       return () => document.removeEventListener("keydown", fn);
     }, []);
 
-    if (useFullWizard) {
-      return (
-        <window.ExamWizard
-          config={window.EXAM_WIZARD_PRESETS.addExam}
-          lang={t.code || "en"}
-          onFinish={(newExams) => onSave(newExams)}
-          onCancel={onClose}
-        />
-      );
-    }
-
     function save() {
-      const manualTopics = topicsText.split("\n").map((l) => l.trim()).filter(Boolean);
-      const finalTopicCount = manualTopics.length || Number(topicCount) || 10;
+      let course = null;
+      if (!sameCourse && courseDraft && courseDraft.topics && courseDraft.topics.length && window.createCourse) {
+        course = window.createCourse(courseDraft);
+      }
+      const courseId = sameCourse ? lastExam.courseId : (course ? course.id : null);
       const newExams = window.commitExamWizard({
         examDrafts: [{
           name: name.trim(),
           color: null,
           examDate,
-          examBoard,
-          topicCount: finalTopicCount,
-          targetGrade: lastExam.targetGrade || "A",
-          currentGrade: lastExam.currentGrade || "C",
-          gradingSystem: lastExam.gradingSystem || null,
-          importance,
+          examBoard: sameCourse ? lastExam.examBoard : examBoard,
+          topicCount: sameCourse ? lastExam.topicCount : (course ? course.topics.length : 10),
+          targetGrade: sameCourse ? (lastExam.targetGrade || "A") : String(target),
+          currentGrade: sameCourse ? (lastExam.currentGrade || "C") : String(current),
+          gradingSystem: sameCourse ? (lastExam.gradingSystem || null) : qual.grade,
           notes: notes.trim(),
+          courseId,
+          kind,
         }],
         profilePatch: null,
       });
-      newExams.forEach((e) => {
-        if (manualTopics.length) {
-          if (window.patchExamAi) window.patchExamAi(e.id, { topics: manualTopics, topicsStatus: "ready", topicCount: manualTopics.length });
-          if (window.relabelPendingSessions) window.relabelPendingSessions(e.id, manualTopics);
-        } else {
-          const extract = window.requestCourseExtraction || window.requestTopicNames;
-          if (extract) extract(e.id, e, []);
-        }
-      });
+      if (!sameCourse && !course) {
+        // No course resolved ("I don't have a topic list") — same background
+        // AI-enrichment fallback the wizard uses.
+        const extract = window.requestCourseExtraction || window.requestTopicNames;
+        newExams.forEach((e) => { if (extract) extract(e.id, e, files); });
+      }
       onSave(newExams);
     }
 
     const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
+    const labelStyle = { display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" };
+    const KIND_OPTIONS = [
+      { id: "exam", label: "Exam" }, { id: "midterm", label: "Midterm" }, { id: "final", label: "Final" },
+      { id: "resit", label: "Resit" }, { id: "mock", label: "Mock" }, { id: "certification", label: "Cert" },
+    ];
 
     return (
       <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)", maxHeight: "90vh", overflowY: "auto" }}>
           <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
-          <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Subject name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chemistry" autoFocus style={inputStyle} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
-            <div>
-              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Exam date</label>
-              <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
+
+          {lastExam.courseId && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button type="button" onClick={() => setSameCourse(false)}
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                  border: !sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                  background: !sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: !sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
+                New subject
+              </button>
+              <button type="button" onClick={() => setSameCourse(true)}
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                  border: sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                  background: sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
+                Same course as {lastExam.name}
+              </button>
             </div>
+          )}
+
+          {sameCourse ? (
             <div>
-              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Topics</label>
-              <input type="number" min={1} value={topicCount} onChange={(e) => setTopicCount(e.target.value)} style={inputStyle} />
+              <label style={labelStyle}>Name</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${lastExam.name} Resit`} autoFocus style={inputStyle} />
             </div>
-          </div>
+          ) : (<>
+            <div>
+              <label style={labelStyle}>Qualification</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {window.EXAM_TYPES.map((e) => {
+                  const sel = qualificationId === e.id;
+                  return (
+                    <button key={e.id} type="button" onClick={() => setQualificationId(e.id)}
+                      style={{ padding: "6px 12px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                        border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                        background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
+                      {e.emoji} {e.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {qual.boardOptions && (
+              <div>
+                <label style={labelStyle}>Exam board</label>
+                <select value={examBoard} onChange={(e) => setExamBoard(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
+                  {qual.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+            )}
+          </>)}
+
           <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Exam board</label>
-            <input value={examBoard} onChange={(e) => setExamBoard(e.target.value)} placeholder="e.g. AQA" style={inputStyle} />
+            <label style={labelStyle}>Exam date</label>
+            <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
           </div>
-          <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>
-              Your topics <span style={{ color: "var(--text-faint)", fontWeight: "normal", fontSize: "var(--text-xs)" }}>(one per line — or leave blank)</span>
-            </label>
-            <textarea
-              value={topicsText}
-              onChange={(e) => setTopicsText(e.target.value)}
-              rows={3}
-              placeholder={"e.g.\nForces & Motion\nEnergy\nWaves"}
-              style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+
+          {!sameCourse && (
+            <window.CurriculumStep
+              countryId={profile.country || null}
+              qualificationId={qualificationId}
+              board={qual.boardOptions ? examBoard : null}
+              specVersion={null}
+              subject={name}
+              onSubjectChange={setName}
+              course={courseDraft}
+              onCourseChange={setCourseDraft}
+              noTopicList={noTopicList}
+              onNoTopicListChange={setNoTopicList}
+              files={files}
+              onFilesChange={setFiles}
+              compact
+              onValidationChange={setCurriculumValid}
             />
-          </div>
+          )}
+
+          {!sameCourse && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+              <div>
+                <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>Current</p>
+                <window.GradePicker grade={qual.grade} value={current} onChange={setCurrent} accent="var(--text-muted)" />
+              </div>
+              <div>
+                <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>Target</p>
+                <window.GradePicker grade={qual.grade} value={target} onChange={setTarget} accent="var(--indigo-600)" />
+              </div>
+            </div>
+          )}
+
           <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>Importance — {importance}/10</label>
-            <input type="range" min={1} max={10} value={importance} onChange={(e) => setImportance(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+            <label style={labelStyle}>Kind</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {KIND_OPTIONS.map((k) => {
+                const sel = kind === k.id;
+                return (
+                  <button key={k.id} type="button" onClick={() => setKind(k.id)}
+                    style={{ padding: "6px 12px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                      border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                      background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
+                    {k.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
           <div>
-            <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>
+            <label style={labelStyle}>
               Notes <span style={{ color: "var(--text-faint)", fontWeight: "normal", fontSize: "var(--text-xs)" }}>(optional)</span>
             </label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="e.g. Closed book, bring calculator" style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
           </div>
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>Grading defaulted from your last exam. <button type="button" onClick={() => setUseFullWizard(true)} style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", padding: 0 }}>Need different grading? Use full wizard</button></p>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
             <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>Add exam</button>
@@ -256,7 +351,6 @@ function Exams({ t, onPlanReady }) {
     const [examDate, setExamDate] = React.useState(exam.examDate);
     const [topicCount, setTopicCount] = React.useState(exam.topicCount);
     const [targetGrade, setTargetGrade] = React.useState(exam.targetGrade);
-    const [importance, setImportance] = React.useState(exam.importance || 5);
     const [notes, setNotes] = React.useState(exam.notes || "");
 
     const coverage = ev ? ev.coverage : (exam.completionPct || 0);
@@ -279,7 +373,7 @@ function Exams({ t, onPlanReady }) {
     }, []);
 
     function saveEdit() {
-      onSave({ examDate, topicCount: Number(topicCount), targetGrade: String(targetGrade).trim(), importance, notes: notes.trim() });
+      onSave({ examDate, topicCount: Number(topicCount), targetGrade: String(targetGrade).trim(), notes: notes.trim() });
     }
 
     const editInputStyle = { width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" };
@@ -310,10 +404,6 @@ function Exams({ t, onPlanReady }) {
               <div>
                 <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Target grade</label>
                 <input value={targetGrade} onChange={(e) => setTargetGrade(e.target.value)} style={editInputStyle} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Importance — {importance}/10</label>
-                <input type="range" min={1} max={10} value={importance} onChange={(e) => setImportance(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
               </div>
               <div>
                 <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Notes</label>
