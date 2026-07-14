@@ -246,6 +246,67 @@ function deriveCourses(exams) {
   return _coursesCache;
 }
 
+// ─── computed priority (replaces the old user-set Importance slider) ──────
+// 0..1 sub-scores, each answering one question about how urgently this exam
+// needs attention RIGHT NOW, blended into a single 1-10 read-time number
+// (never stored — recomputed live, so it moves as the exam date approaches
+// or as study progress changes, unlike the old static slider value).
+function clamp01(n) { return clamp(0, 1, n); }
+
+// current -> target grade distance, normalized 0 (already there/beyond) to
+// 1 (furthest possible gap for this grading scale). Handles both "scale"
+// (ordered best-to-worst labels, e.g. GCSE 9-1, A*-E) and "score" (numeric
+// range, e.g. SAT 400-1600) grading systems — see onboarding-data.jsx.
+function gradeGapScore(exam) {
+  const g = exam.gradingSystem;
+  if (!g) return 0.5; // no grading info on this exam -> neutral, don't skew priority either way
+  if (g.kind === "scale" && Array.isArray(g.options) && g.options.length > 1) {
+    const ci = g.options.indexOf(exam.currentGrade);
+    const ti = g.options.indexOf(exam.targetGrade);
+    if (ci === -1 || ti === -1) return 0.5;
+    return clamp01((ci - ti) / (g.options.length - 1)); // options are best-first, so a higher current index = further from target
+  }
+  if (g.kind === "score" && isFiniteNumber(g.min) && isFiniteNumber(g.max) && g.max > g.min) {
+    const cur = Number(exam.currentGrade), tgt = Number(exam.targetGrade);
+    if (!Number.isFinite(cur) || !Number.isFinite(tgt)) return 0.5;
+    return clamp01((tgt - cur) / (g.max - g.min));
+  }
+  return 0.5;
+}
+
+// Per-topic mastery/confidence/coverage from the shared Course when this
+// exam is course-backed (real spaced-repetition data — see course-store.jsx
+// + brain-store.jsx's adapter); falls back to the exam's own completionPct/
+// confidencePct (the same two numbers deriveCourse() above already treats
+// as the ground truth) when it isn't.
+function studyProgressScores(exam) {
+  const course = exam.courseId && window.getCourse ? window.getCourse(exam.courseId) : null;
+  if (course && course.topics.length) {
+    const mastery = course.progress.topicMastery;
+    const entries = course.topics.map((t) => mastery[t.id]).filter(Boolean);
+    const avgMastery = entries.length ? entries.reduce((s, e) => s + (e.mastery || 0), 0) / entries.length : 0;
+    const avgConfidence = entries.length ? entries.reduce((s, e) => s + (e.confidence || 0), 0) / entries.length : 0;
+    const reviewed = course.topics.filter((t) => mastery[t.id] && mastery[t.id].lastSeen).length;
+    return {
+      masteryScore: clamp01(1 - avgMastery),
+      confidenceScore: clamp01(1 - avgConfidence),
+      coverageScore: clamp01(1 - reviewed / course.topics.length),
+    };
+  }
+  const completion = (exam.completionPct || 0) / 100;
+  const confidence = (exam.confidencePct ?? 50) / 100;
+  return { masteryScore: clamp01(1 - completion), confidenceScore: clamp01(1 - confidence), coverageScore: clamp01(1 - completion) };
+}
+
+function computePriority(exam) {
+  const daysLeft = daysAway(exam.examDate);
+  if (daysLeft <= 0) return 1; // already happened — nothing left to prioritize, regardless of how it went
+  const proximityScore = clamp01(1 - daysLeft / 120); // 120+ days out reads as "not urgent"
+  const { masteryScore, confidenceScore, coverageScore } = studyProgressScores(exam);
+  const raw = proximityScore * 0.30 + gradeGapScore(exam) * 0.20 + masteryScore * 0.20 + confidenceScore * 0.15 + coverageScore * 0.15;
+  return clamp(1, 10, Math.round(raw * 9) + 1);
+}
+
 // ─── single commit path for exam-wizard.jsx ────────────────────────────────
 // Both onboarding and Add Exam build exam objects exclusively through this
 // function — there is exactly one place that resolves a final color, assigns
@@ -298,5 +359,5 @@ function commitExamWizard({ examDrafts, profilePatch }) {
 Object.assign(window, {
   EXAMS_KEY, getExams, getExamsSnapshot, saveExams, subscribeExams,
   daysAway, fmtDateKey, sessionsNeeded, requiredPct, migrateExam,
-  deriveCourse, deriveCourses, commitExamWizard,
+  deriveCourse, deriveCourses, commitExamWizard, computePriority,
 });

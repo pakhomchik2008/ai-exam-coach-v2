@@ -31,6 +31,7 @@ function Exams({ t, onPlanReady }) {
     const readiness = ev ? ev.readiness : 0;
     const coverage = ev ? ev.coverage : 0;
     const pace = ev ? ev.pace : "on_track";
+    const priority = window.computePriority ? window.computePriority(exam) : 5;
     const [hover, setHover] = React.useState(false);
     return (
       <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={() => setEditing(exam)}
@@ -41,7 +42,7 @@ function Exams({ t, onPlanReady }) {
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)}</p>
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
               {exam.examBoard}
-              {exam.importance >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● High priority</span>}
+              {!past && priority >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● High priority</span>}
             </p>
           </div>
           <span style={{ flexShrink: 0, borderRadius: "var(--radius-full)", padding: "2px 8px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", background: past ? "var(--slate-100)" : soon ? "var(--amber-100)" : "var(--emerald-100)", color: past ? "var(--slate-500)" : soon ? "var(--amber-700)" : "var(--emerald-700)" }}>
@@ -417,11 +418,14 @@ function Exams({ t, onPlanReady }) {
           ) : (
             <>
               <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} topics</p>
-              {(exam.importance != null && exam.importance !== 5) && (
-                <p style={{ margin: 0, fontSize: "var(--text-xs)", color: exam.importance >= 8 ? "var(--red-600)" : "var(--text-faint)", fontWeight: exam.importance >= 8 ? "var(--weight-semibold)" : "normal" }}>
-                  {"★".repeat(Math.ceil(exam.importance / 2))}{"☆".repeat(5 - Math.ceil(exam.importance / 2))} Importance {exam.importance}/10
-                </p>
-              )}
+              {(() => {
+                const priority = window.computePriority ? window.computePriority(exam) : 5;
+                return (
+                  <p style={{ margin: 0, fontSize: "var(--text-xs)", color: priority >= 8 ? "var(--red-600)" : "var(--text-faint)", fontWeight: priority >= 8 ? "var(--weight-semibold)" : "normal" }}>
+                    {"★".repeat(Math.ceil(priority / 2))}{"☆".repeat(5 - Math.ceil(priority / 2))} Priority {priority}/10
+                  </p>
+                );
+              })()}
               {exam.notes && (
                 <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)", background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px", lineHeight: 1.5 }}>{exam.notes}</p>
               )}
