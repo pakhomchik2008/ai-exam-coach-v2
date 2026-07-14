@@ -215,7 +215,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
   const accent = "var(--indigo-600)";
   const subjectsValid = subjects.length > 0 && subjects.every((s) =>
-    !s.name.trim() || (s.name.trim() && s.examDate >= todayISO && Number(s.topicCount) >= 1));
+    !s.name.trim() || (s.name.trim() && s.examDate >= todayISO));
   const topicsProvided = subjects.every((s) => !s.name.trim() || s.curriculumValid);
   const canNext = step === "profile" ? (country && educationLevel)
     : step === "subject" ? (subjects.some((s) => s.name.trim()) && subjectsValid && topicsProvided)
@@ -507,17 +507,14 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                       <button type="button" onClick={() => removeSubject(s.id)} aria-label="Remove" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 16, padding: 4 }}>✕</button>
                     </div>
                   )}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_examdate}</label>
-                      <input type="date" value={s.examDate} min={todayISO} onChange={(e) => setSubject(s.id, { examDate: e.target.value })}
-                        style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_topics}</label>
-                      <input type="number" min={1} value={s.topicCount} onChange={(e) => setSubject(s.id, { topicCount: e.target.value })}
-                        style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
-                    </div>
+                  {/* Topic count used to live here as a manual guess the student typed
+                      before seeing any real syllabus — CurriculumStep below now owns
+                      topic count end to end (resolved, typed-in, or "no list" opt-out),
+                      so asking for a second, contradictory number up front is gone. */}
+                  <div>
+                    <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_examdate}</label>
+                    <input type="date" value={s.examDate} min={todayISO} onChange={(e) => setSubject(s.id, { examDate: e.target.value })}
+                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
                   </div>
                   {exam.boardOptions && (
                   <div>
