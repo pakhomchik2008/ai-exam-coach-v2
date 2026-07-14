@@ -2430,12 +2430,21 @@ function ChatMode({ onExit, initialQuery }) {
   const nextExam = React.useMemo(() => {
     const exams = window.getExams ? window.getExams() : [];
     const now = Date.now();
-    return exams.filter((e) => new Date(e.date).getTime() > now).sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null;
+    return exams.filter((e) => new Date(e.examDate).getTime() > now).sort((a, b) => new Date(a.examDate) - new Date(b.examDate))[0] || null;
   }, []);
-  const daysToExam = nextExam ? Math.ceil((new Date(nextExam.date).getTime() - Date.now()) / 86400000) : null;
+  const daysToExam = nextExam ? Math.ceil((new Date(nextExam.examDate).getTime() - Date.now()) / 86400000) : null;
 
-  // Average readiness
-  const avgReadiness = examViews.length > 0 ? Math.round(examViews.reduce((a, e) => a + (e.readiness || 0), 0) / examViews.length) : null;
+  // Average readiness — only exams with an actual review count, since an
+  // unstudied exam's readiness is a neutral placeholder, not a measurement.
+  const startedExamViews = examViews.filter((e) => e.started);
+  const avgReadiness = startedExamViews.length > 0 ? Math.round(startedExamViews.reduce((a, e) => a + (e.readiness || 0), 0) / startedExamViews.length) : null;
+
+  // Today's Recommendation — prefer a real due review (an already-studied
+  // topic whose retention has decayed) over `weakest`, which also contains
+  // topics nobody has opened yet (they default to 0% retention and would
+  // otherwise always "win" as the weakest, permanently hiding real reviews).
+  const recTopic = dueReviews.length > 0 ? dueReviews[0] : (weakest.length > 0 ? weakest[0] : null);
+  const recIsReview = dueReviews.length > 0;
 
   // Suggestion chips — context-aware
   const suggestions = React.useMemo(() => {
@@ -2453,17 +2462,28 @@ function ChatMode({ onExit, initialQuery }) {
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight; }, [messages, typing]);
   React.useEffect(() => { if (initialQuery && !handled.current) { handled.current = true; setTimeout(() => send(initialQuery), 100); } }, [initialQuery]);
 
-  // Proactive AI message after 3s on first open with no messages
+  // Proactive AI message after 3s on first open with no messages. Prefers a
+  // real due review (an already-studied topic whose retention decayed) —
+  // `weakest` also contains topics nobody has opened yet, which have no real
+  // retention to report, so those get an invite instead of a fabricated %.
   React.useEffect(() => {
-    if (proactiveRef.current || !weakest.length || messages.length > 0) return;
+    if (proactiveRef.current || (!dueReviews.length && !weakest.length) || messages.length > 0) return;
     const t = setTimeout(() => {
       if (proactiveRef.current) return;
       proactiveRef.current = true;
-      const w = weakest[0];
-      pushAI(`I noticed your **${w.topicName}** retention is at ${Math.round(w.retention * 100)}%. Want me to explain it or run 5 quick questions?`, [
-        { text: "Explain it", icon: "📖" },
-        { text: "5 quick questions", icon: "⚡" },
-      ]);
+      if (dueReviews.length) {
+        const w = dueReviews[0];
+        pushAI(`I noticed your **${w.topicName}** retention is at ${Math.round(w.retention * 100)}%. Want me to explain it or run 5 quick questions?`, [
+          { text: "Explain it", icon: "📖" },
+          { text: "5 quick questions", icon: "⚡" },
+        ]);
+      } else {
+        const w = weakest[0];
+        pushAI(`You haven't started **${w.topicName}** yet. Want a quick intro or 5 practice questions to dive in?`, [
+          { text: "Give me an intro", icon: "📖" },
+          { text: "5 quick questions", icon: "⚡" },
+        ]);
+      }
     }, 3000);
     return () => clearTimeout(t);
   }, []);
@@ -2484,7 +2504,7 @@ function ChatMode({ onExit, initialQuery }) {
       const complete = window.brainComplete || ((a) => window.claude.complete(a));
       const prof = window.getProfile ? window.getProfile() : {};
       const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education: ${prof.educationLevel}`, prof.currentYear && `year: ${prof.currentYear}`].filter(Boolean).join(", ");
-      const brainCtx = brain ? `Student context: ${examViews.map((e) => `${e.name} (${Math.round((e.readiness || 0) * 100)}% ready)`).join(", ")}. ${dueReviews.length} topics need review. Weakest: ${weakest.slice(0, 3).map((w) => w.topicName).join(", ")}.` : "";
+      const brainCtx = brain ? `Student context: ${examViews.map((e) => `${e.name} (${e.started ? `${e.readiness}% ready` : "not started yet"})`).join(", ")}. ${dueReviews.length} topics need review. Weakest: ${weakest.slice(0, 3).map((w) => w.topicName).join(", ")}.` : "";
       const reply = await complete({
         system: `You are a brilliant, warm personal tutor.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} ${brainCtx}
 Answer clearly and concisely. Use **bold** for key terms. Keep responses under 100 words. Do NOT output JSON — just write natural text.
@@ -2545,7 +2565,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
     React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 12px", textAlign: "center" } },
         React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Readiness"),
-        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: avgReadiness >= 70 ? "#15803d" : avgReadiness >= 40 ? "#b45309" : "#b91c1c" } }, avgReadiness != null ? `${avgReadiness}%` : "—")),
+        React.createElement("p", { style: { margin: "4px 0 0", fontSize: avgReadiness != null ? 22 : 14, fontWeight: 700, color: avgReadiness == null ? "var(--text-faint)" : avgReadiness >= 70 ? "#15803d" : avgReadiness >= 40 ? "#b45309" : "#b91c1c" } }, avgReadiness != null ? `${avgReadiness}%` : "New")),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 12px", textAlign: "center" } },
         React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Next Exam"),
         React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: daysToExam != null && daysToExam <= 7 ? "#b91c1c" : "var(--text-strong)" } }, daysToExam != null ? `${daysToExam}d` : "—")),
@@ -2554,16 +2574,16 @@ If no actions fit, omit the ACTIONS line entirely.`,
         React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: dueReviews.length > 0 ? "#b45309" : "#15803d" } }, dueReviews.length))),
 
     // Today's recommendation
-    weakest.length > 0 && React.createElement("div", {
-      onClick: () => send(`Explain ${weakest[0].topicName}`),
+    recTopic && React.createElement("div", {
+      onClick: () => send(`Explain ${recTopic.topicName}`),
       style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: "16px 18px", cursor: "pointer" }
     },
       React.createElement("p", { style: { margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Today's Recommendation"),
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-        React.createElement("span", { style: { fontSize: 24 } }, "📖"),
+        React.createElement("span", { style: { fontSize: 24 } }, recIsReview ? "📖" : "🌱"),
         React.createElement("div", { style: { flex: 1 } },
-          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, `Review ${weakest[0].topicName}`),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } }, `${Math.round(weakest[0].retention * 100)}% retention · ~5 min`)),
+          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, recIsReview ? `Review ${recTopic.topicName}` : `Get started with ${recTopic.topicName}`),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } }, recIsReview ? `${Math.round(recTopic.retention * 100)}% retention · ~5 min` : "New topic · ~5 min")),
         React.createElement("span", { style: { fontSize: 13, color: "var(--indigo-600)", fontWeight: 600 } }, "Continue →"))),
 
     // Quick actions grid — asks which exam/topic first (via pickerFlow, see

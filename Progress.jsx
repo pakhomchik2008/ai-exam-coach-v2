@@ -19,7 +19,9 @@ function Progress({ t }) {
   };
 
   const weakest = React.useMemo(() => {
-    const active = examViews.filter((e) => e.daysAway == null || e.daysAway >= 0);
+    // Only compare exams that have actually been studied — an exam nobody
+    // has touched yet has a placeholder readiness number, not a real "low" one.
+    const active = examViews.filter((e) => (e.daysAway == null || e.daysAway >= 0) && e.started);
     if (!active.length) return null;
     return active.reduce((a, b) => b.readiness < a.readiness ? b : a);
   }, [brain]);
@@ -110,11 +112,11 @@ function Progress({ t }) {
                 <div key={ev.id}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-sm)", marginBottom: 4 }}>
                     <span style={{ color: "var(--text-body)" }}>{ev.name}</span>
-                    <span style={{ color: el.color, fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)" }}>
-                      {el.emoji} {el.label} · {ev.readiness}%
+                    <span style={{ color: ev.started ? el.color : "var(--text-faint)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)" }}>
+                      {ev.started ? `${el.emoji} ${el.label} · ${ev.readiness}%` : "Not started yet"}
                     </span>
                   </div>
-                  <ProgressBar value={ev.readiness} autoColor />
+                  <ProgressBar value={ev.started ? ev.readiness : 0} autoColor />
                 </div>
               );
             })}

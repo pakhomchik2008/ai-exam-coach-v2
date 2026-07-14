@@ -7,11 +7,13 @@ function BurnoutAlert({ t }) {
   const [loading, setLoading] = React.useState(false);
 
   const week = window.deriveWeek();
-  // Past days Mon-Wed (indices 0-2 since today = Wed in mock data)
-  const past = week.slice(0, 3);
+  // Only days strictly before today count as "past" — a session scheduled
+  // for later this week isn't "missed" just because it hasn't happened yet.
+  const todayIdx = week.findIndex((d) => d.today);
+  const past = todayIdx >= 0 ? week.slice(0, todayIdx) : [];
   const pastDone = past.reduce((a, d) => a + d.completed, 0);
   const studyHours = Math.round(pastDone * 0.75 * 10) / 10; // ~45 min each
-  const totalMissed = week.reduce((a, d) => a + Math.max(0, d.scheduled - d.completed), 0);
+  const totalMissed = past.reduce((a, d) => a + Math.max(0, d.scheduled - d.completed), 0);
 
   const dismiss = () => { setDismissed(true); try { sessionStorage.setItem('burnout_dismissed','1'); } catch {} };
 

@@ -211,6 +211,10 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   // per-course card, so the summary can never disagree with the detail.
   const overallProb = brain.overallProbability;
   const overallGrade = brain.overallPredictedGrade;
+  // brain.overallProbability/overallPredictedGrade average in every active
+  // course's placeholder forecast even when nobody has studied anything yet —
+  // gate the stat tile on at least one course actually having a review.
+  const anyCourseStarted = activeCourses.some((c) => c.started);
   const focus = hasCourses ? activeCourses.reduce((a, b) => (b.gradeProbability < a.gradeProbability ? b : a), activeCourses[0]) : null;
   const focusSession = hasCourses ? (todaySessions.find((s) => s.subject === focus.name) || todaySessions[0] || null) : null;
 
@@ -273,7 +277,10 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
                 <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: textC }}>{nearest.subject}</span>
               </div>
               <p style={{ margin: 0, fontSize: "var(--text-xs)", color: textC, opacity: 0.8 }}>
-                {nearest.readinessPct}% {L("ready","готовність","готовность","prêt","bereit")} · {L("target","ціль","цель","objectif","Ziel")}: {nearest.targetGrade}
+                {nearest.started
+                  ? `${nearest.readinessPct}% ${L("ready","готовність","готовность","prêt","bereit")}`
+                  : L("Not started yet","Ще не почато","Ещё не начато","Pas encore commencé","Noch nicht begonnen")}
+                {" · "}{L("target","ціль","цель","objectif","Ziel")}: {nearest.targetGrade}
               </p>
             </div>
             {urgent.length > 1 && (
@@ -397,7 +404,9 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       {/* ── Stats row ─────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-3)" }}>
         {[
-          { value: overallGrade, label: L("Predicted","Прогноз","Прогноз","Prévu","Prognose"), sub: `${overallProb}% ${L("probability","ймовірність","вероятность","probabilité","Wahrscheinl.")}`, color: overallProb >= 60 ? "var(--emerald-600)" : overallProb >= 40 ? "var(--amber-600)" : "var(--red-500)" },
+          anyCourseStarted
+            ? { value: overallGrade, label: L("Predicted","Прогноз","Прогноз","Prévu","Prognose"), sub: `${overallProb}% ${L("probability","ймовірність","вероятность","probabilité","Wahrscheinl.")}`, color: overallProb >= 60 ? "var(--emerald-600)" : overallProb >= 40 ? "var(--amber-600)" : "var(--red-500)" }
+            : { value: "–", label: L("Predicted","Прогноз","Прогноз","Prévu","Prognose"), sub: L("not started yet","ще не почато","ещё не начато","pas commencé","noch nicht begonnen"), color: "var(--text-faint)" },
           { value: `${hoursStudied}/${weeklyGoalH}h`, label: L("This week","Цей тиждень","Эта неделя","Cette sem.","Diese Woche"), sub: `${weekPct}% ${L("of goal","цілі","цели","de l'objectif","des Ziels")}`, color: weekPct >= 100 ? "var(--emerald-600)" : "var(--indigo-600)" },
           { value: `${totalHours}h`, label: L("Remaining","Залишилось","Осталось","Restant","Verbleibend"), sub: `${totalPending} ${L("sessions","сесій","сессий","séances","Sitzungen")}`, color: "var(--text-strong)" },
           { value: `${streak}🔥`, label: L("Streak","Серія","Серия","Série","Serie"), sub: streak > 0 ? L("days","днів","дней","jours","Tage") : L("start today!","почніть!","начните!","commencez !","jetzt starten!"), color: streak > 0 ? "var(--amber-600)" : "var(--text-faint)" },
@@ -490,12 +499,18 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject}</span>
                 </span>
-                <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
-                  {c.predictedGrade} <span style={{ color: "var(--text-faint)" }}>→</span> <strong style={{ color: "var(--indigo-700)" }}>{c.targetGrade}</strong>
-                </span>
-                <span style={{ padding: "2px 8px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", background: riskBadge.bg, color: riskBadge.fg }}>{riskBadge.text}</span>
-                <ProgressBar value={c.gradeProbability} autoColor />
-                <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: pc }}>{c.gradeProbability}%</span>
+                {c.started ? (<>
+                  <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
+                    {c.predictedGrade} <span style={{ color: "var(--text-faint)" }}>→</span> <strong style={{ color: "var(--indigo-700)" }}>{c.targetGrade}</strong>
+                  </span>
+                  <span style={{ padding: "2px 8px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", background: riskBadge.bg, color: riskBadge.fg }}>{riskBadge.text}</span>
+                  <ProgressBar value={c.gradeProbability} autoColor />
+                  <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: pc }}>{c.gradeProbability}%</span>
+                </>) : (
+                  <span style={{ gridColumn: "2 / -1", textAlign: "right", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                    {L("Not started yet","Ще не почато","Ещё не начато","Pas encore commencé","Noch nicht begonnen")}
+                  </span>
+                )}
               </div>
             );
           })}

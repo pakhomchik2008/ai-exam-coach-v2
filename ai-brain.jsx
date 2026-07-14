@@ -49,7 +49,7 @@ function buildLearnerContext(opts = {}) {
     lines.push("\n── THEIR EXAMS ──");
     b.examViews.forEach((e) => {
       const days = e.daysAway == null ? "" : e.daysAway < 0 ? " (passed)" : ` — exam in ${e.daysAway} days`;
-      lines.push(`\n📘 ${e.name} (${e.examBoard || "unknown board"}), target ${e.targetGrade}, ${e.readiness}% ready${days}`);
+      lines.push(`\n📘 ${e.name} (${e.examBoard || "unknown board"}), target ${e.targetGrade}, ${e.started ? `${e.readiness}% ready` : "not started yet"}${days}`);
 
       // Per-topic mastery breakdown — this is what makes the tutor KNOW the student
       const topicLines = [];

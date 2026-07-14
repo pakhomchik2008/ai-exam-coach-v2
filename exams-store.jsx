@@ -190,6 +190,14 @@ function deriveCourse(exam) {
   const readinessPct = clamp(0, 100, Math.round(
     completionPct * 0.7 + confidencePct * 0.3
   ));
+  // completionPct is a real signal (only rises once a session actually
+  // finishes — see syncCompletionFromCoverage in brain-store.jsx); confidencePct
+  // starts at a neutral 50 specifically so a zero-activity exam doesn't score
+  // as "failing" — but that same neutral default is what makes readinessPct
+  // land on a nonzero 15% for an exam nobody has touched yet. `started` lets
+  // display code show "Not started yet" instead of a discouraging percentage.
+  const started = completionPct > 0
+    || (window.getSchedule ? window.getSchedule().sessions.some((s) => s.examId === exam.id && s.status === "completed") : false);
 
   const predictedGrade = letterBand(gradeProbability);
   const targetGrade = exam.targetGrade || "A";
@@ -223,6 +231,7 @@ function deriveCourse(exam) {
     completionPct,
     confidencePct,
     readinessPct,
+    started,
     targetGrade,
     predictedGrade,
     gradeProbability,
