@@ -341,7 +341,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
                 {rec.readinessGain > 0 && (
                   <div style={{ position: "absolute", inset: 0, width: `${rec.readinessProjected}%`, background: "repeating-linear-gradient(45deg, var(--emerald-300), var(--emerald-300) 4px, transparent 4px, transparent 8px)", borderRadius: "var(--radius-full)" }} />
                 )}
-                <div style={{ position: "absolute", inset: 0, width: `${rec.readinessNow}%`, background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.5s ease" }} />
+                <div style={{ position: "absolute", inset: 0, transform: `scaleX(${rec.readinessNow / 100})`, transformOrigin: "left", background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform 0.5s ease" }} />
               </div>
               {rec.readinessGain > 0 && (
                 <p style={{ margin: "6px 0 0", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-semibold)" }}>
@@ -537,14 +537,15 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       {/* Toast */}
       <div style={{
         position: "fixed", bottom: 28, right: 28, zIndex: 9999,
-        background: "var(--slate-900)", color: "#fff",
+        background: "rgba(15, 23, 42, 0.82)", backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
+        border: "1px solid rgba(255, 255, 255, 0.08)", color: "#fff",
         borderRadius: "var(--radius-xl)", padding: "12px 20px",
         fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
         display: "flex", alignItems: "center", gap: 10,
         boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
         transform: toast ? "translateY(0)" : "translateY(80px)",
         opacity: toast ? 1 : 0,
-        transition: "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease",
+        transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease",
         pointerEvents: "none",
       }}>
         <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--emerald-500)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</span>
