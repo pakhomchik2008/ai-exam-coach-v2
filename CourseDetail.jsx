@@ -174,7 +174,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
               <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)" }}>{confidence}%</span>
             </div>
             <div style={{ height: 10, background: "var(--surface-sunken, var(--surface-muted))", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${confidence}%`, background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+              <div style={{ height: "100%", width: "100%", transform: `scaleX(${confidence / 100})`, transformOrigin: "left", background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
             </div>
             <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
               {L("Measured from your quiz results and session ratings — it moves as you study.",
