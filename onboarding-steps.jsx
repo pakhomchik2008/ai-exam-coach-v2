@@ -108,7 +108,7 @@ function UploadZone({ files, onAdd, onRemove, copy }) {
               <span aria-hidden="true">📎</span>
               <span style={{ flex: 1, fontSize: "var(--text-sm)", color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
               {f.size != null && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{(f.size / 1024).toFixed(0)} KB</span>}
-              <button type="button" onClick={() => onRemove(i)} aria-label="Remove" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 16, lineHeight: 1, padding: 2 }}>✕</button>
+              <button type="button" onClick={() => onRemove(i)} aria-label={copy.remove} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 16, lineHeight: 1, padding: 2 }}>✕</button>
             </div>
           ))}
         </div>
@@ -169,7 +169,7 @@ function PlanRow({ row, copy, onSessions, noHistory }) {
         </div>
         {noHistory ? (
           <div style={{ textAlign: "right", maxWidth: 140 }}>
-            <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.4 }}>Forecast unlocks after your first sessions</p>
+            <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.4 }}>{copy.forecast_locked}</p>
           </div>
         ) : (
           <div style={{ textAlign: "right" }}>
@@ -202,9 +202,9 @@ function copy_label(copy) { return copy.s2_current; }
 // turn "9h/week" into real dated sessions — see the audit that motivated this.
 // English-only for now, matching the precedent already set by AiHoursModal's
 // hardcoded placeholder text in this same file — i18n for these can follow later.
-function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots }) {
-  const DAY_LABELS = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-  const PERIOD_LABELS = { morning: "AM", afternoon: "PM", evening: "Eve" };
+function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots, copy }) {
+  const DAY_LABELS = copy.day_abbr || { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+  const PERIOD_LABELS = copy.period_abbr || { morning: "AM", afternoon: "PM", evening: "Eve" };
   const days = window.WEEK_DAYS || Object.keys(DAY_LABELS);
   const periods = window.DAY_PERIODS || Object.keys(PERIOD_LABELS);
 
@@ -234,7 +234,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       <div>
-        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>Days per week</p>
+        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{copy.s2_days_per_week}</p>
         <div style={{ display: "flex", gap: "var(--space-2)" }}>
           {[3, 4, 5, 6, 7].map((n) => (
             <button key={n} type="button" onClick={() => setDaysPerWeek(n)}
@@ -246,7 +246,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
         </div>
       </div>
       <div>
-        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>Session length</p>
+        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{copy.s2_session_length}</p>
         <div style={{ display: "flex", gap: "var(--space-2)" }}>
           {[30, 45, 60, 90].map((m) => (
             <button key={m} type="button" onClick={() => setSessionLengthMin(m)}
@@ -258,7 +258,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
         </div>
       </div>
       <div>
-        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>When are you unavailable?</p>
+        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{copy.s2_when_unavailable}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {days.map((day) => (
             <div key={day} style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -274,7 +274,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
                 style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
                   border: isAllDay(day) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
                   background: isAllDay(day) ? "#fef2f2" : "var(--surface-card)",
-                  color: isAllDay(day) ? "#b91c1c" : "var(--text-faint)" }}>All</button>
+                  color: isAllDay(day) ? "#b91c1c" : "var(--text-faint)" }}>{copy.all_day}</button>
             </div>
           ))}
         </div>
@@ -287,7 +287,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
 // Manual slider is the primary path; this is purely an optional enhancement.
 // Any failure (parse error, network, etc.) closes the modal silently — no
 // error state exists here at all, by design.
-function AiHoursModal({ subjects, examLabel, onApply, onClose }) {
+function AiHoursModal({ subjects, examLabel, onApply, onClose, copy }) {
   const [weekDescription, setWeekDescription] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
@@ -309,16 +309,16 @@ function AiHoursModal({ subjects, examLabel, onApply, onClose }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-4)" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 380, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-        <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>✨ Let AI estimate this</p>
-        <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Tell me about school, work, sports — anything that affects your free time.</p>
+        <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{copy.ai_estimate_title}</p>
+        <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{copy.ai_estimate_sub}</p>
         <textarea value={weekDescription} onChange={(e) => setWeekDescription(e.target.value)} rows={3} autoFocus
-          placeholder="e.g. school 9-5, karate 7-11 on Tuesdays and Thursdays"
+          placeholder={copy.ai_estimate_placeholder}
           style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", resize: "vertical" }} />
         <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-1)" }}>
-          <button type="button" onClick={onClose} style={{ flex: 1, minHeight: 44, border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
+          <button type="button" onClick={onClose} style={{ flex: 1, minHeight: 44, border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{copy.cancel}</button>
           <button type="button" onClick={submit} disabled={loading}
             style={{ flex: 1, minHeight: 44, border: "none", background: loading ? "var(--slate-200)" : "var(--indigo-600)", color: loading ? "var(--text-faint)" : "#fff", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
-            {loading ? "Thinking…" : "Estimate"}
+            {loading ? copy.thinking : copy.estimate}
           </button>
         </div>
       </div>
