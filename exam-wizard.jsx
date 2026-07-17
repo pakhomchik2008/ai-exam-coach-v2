@@ -68,14 +68,14 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
         {onAiEstimate && (
           <button type="button" onClick={onAiEstimate}
             style={{ display: "block", margin: "var(--space-4) auto 0", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-            ✨ Let AI estimate this for me
+            {c.ai_estimate_link}
           </button>
         )}
       </div>
       <window.AvailabilityGrid
         daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
         sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
-        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} />
+        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} copy={c} />
       <div>
         <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_materials}</p>
         <window.ChipGrid items={window.MATERIALS} selected={materials} onToggle={toggle(setMaterials)} lang={lang} />
@@ -302,7 +302,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                 </button>
               ))}
               {onCancel && (
-                <button onClick={onCancel} aria-label="Close" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: "var(--text-lg)", padding: "2px", lineHeight: 1 }}>✕</button>
+                <button onClick={onCancel} aria-label={c.close} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: "var(--text-lg)", padding: "2px", lineHeight: 1 }}>✕</button>
               )}
             </div>
           </div>
@@ -345,7 +345,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                           border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
                           background: sel ? "var(--indigo-50)" : "var(--surface-card)", transition: "all var(--dur-fast) ease" }}>
                         <span style={{ fontSize: 20 }}>{co.flag}</span>
-                        <span style={{ fontSize: "var(--text-sm)", fontWeight: sel ? "var(--weight-bold)" : "var(--weight-medium)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{co.label}</span>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: sel ? "var(--weight-bold)" : "var(--weight-medium)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{co[lang] || co.en}</span>
                       </button>
                     );
                   })}
@@ -379,16 +379,16 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                 {(educationLevel === "university" || educationLevel === "postgrad") ? (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
                     {(window.UNIVERSITY_YEARS || []).map((yr) => {
-                      const sel = currentYear === yr.label;
+                      const sel = currentYear === yr.en;
                       const suggested = yr.suggested && !currentYear;
                       return (
-                        <button key={yr.id} type="button" onClick={() => setCurrentYear(yr.label)}
+                        <button key={yr.id} type="button" onClick={() => setCurrentYear(yr.en)}
                           style={{ padding: "8px 14px", borderRadius: "var(--radius-full)", fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", cursor: "pointer",
                             border: sel ? "2px solid var(--indigo-500)" : suggested ? "1.5px solid var(--emerald-500)" : "1.5px solid var(--border-default)",
                             background: sel ? "var(--indigo-50)" : suggested ? "var(--emerald-50)" : "var(--surface-card)",
                             color: sel ? "var(--indigo-700)" : suggested ? "var(--emerald-700)" : "var(--text-body)",
                             fontWeight: (sel || suggested) ? "var(--weight-semibold)" : "var(--weight-normal)" }}>
-                          {yr.label}{suggested ? " ✓" : ""}
+                          {yr[lang] || yr.en}{suggested ? " ✓" : ""}
                         </button>
                       );
                     })}
@@ -416,21 +416,23 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                         boxShadow: sel ? "var(--shadow-sm)" : "none", transition: "all var(--dur-fast) ease" }}>
                       <span aria-hidden="true" style={{ fontSize: 20 }}>{e.emoji}</span>
                       <span style={{ fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{e.label}</span>
-                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{e.blurb}</span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{e.blurb[lang] || e.blurb.en}</span>
                     </button>
                   );
                 })}
               </div>
               {examId === "custom" && (
                 <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-                  <p style={{ margin: 0, fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>How are your exams graded?</p>
+                  <p style={{ margin: 0, fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>
+                    {lang === "uk" ? "Як оцінюються ваші іспити?" : lang === "ru" ? "Как оцениваются ваши экзамены?" : lang === "fr" ? "Comment vos examens sont-ils notés ?" : lang === "de" ? "Wie werden deine Prüfungen benotet?" : "How are your exams graded?"}
+                  </p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
                     {[
-                      { id: "percentage", emoji: "💯", label: "Percentage", blurb: "0–100" },
-                      { id: "letter", emoji: "🔤", label: "Letter grades", blurb: "A, B, C…" },
-                      { id: "gpa", emoji: "🎓", label: "GPA", blurb: "0–4.0" },
-                      { id: "points", emoji: "🔢", label: "Points", blurb: "your own range" },
-                      { id: "custom", emoji: "✏️", label: "Custom", blurb: "fully freeform" },
+                      { id: "percentage", emoji: "💯", label: { en: "Percentage", uk: "Відсотки", ru: "Проценты", fr: "Pourcentage", de: "Prozent" }, blurb: { en: "0–100", uk: "0–100", ru: "0–100", fr: "0–100", de: "0–100" } },
+                      { id: "letter", emoji: "🔤", label: { en: "Letter grades", uk: "Літерні оцінки", ru: "Буквенные оценки", fr: "Notes en lettres", de: "Buchstabennoten" }, blurb: { en: "A, B, C…", uk: "A, B, C…", ru: "A, B, C…", fr: "A, B, C…", de: "A, B, C…" } },
+                      { id: "gpa", emoji: "🎓", label: { en: "GPA", uk: "GPA", ru: "GPA", fr: "GPA", de: "GPA" }, blurb: { en: "0–4.0", uk: "0–4.0", ru: "0–4.0", fr: "0–4.0", de: "0–4.0" } },
+                      { id: "points", emoji: "🔢", label: { en: "Points", uk: "Бали", ru: "Баллы", fr: "Points", de: "Punkte" }, blurb: { en: "your own range", uk: "власний діапазон", ru: "свой диапазон", fr: "votre propre échelle", de: "eigener Bereich" } },
+                      { id: "custom", emoji: "✏️", label: { en: "Custom", uk: "Власний", ru: "Свой", fr: "Personnalisé", de: "Eigene" }, blurb: { en: "fully freeform", uk: "повністю довільний", ru: "полностью произвольный", fr: "entièrement libre", de: "völlig frei" } },
                     ].map((opt) => {
                       const sel = customGradeType === opt.id;
                       return (
@@ -440,8 +442,8 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                             background: sel ? "var(--indigo-50)" : "var(--surface-page)",
                             boxShadow: sel ? "var(--shadow-sm)" : "none", transition: "all var(--dur-fast) ease" }}>
                           <span aria-hidden="true" style={{ fontSize: 18 }}>{opt.emoji}</span>
-                          <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{opt.label}</span>
-                          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{opt.blurb}</span>
+                          <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{opt.label[lang] || opt.label.en}</span>
+                          <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{opt.blurb[lang] || opt.blurb.en}</span>
                         </button>
                       );
                     })}
@@ -530,6 +532,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     qualificationId={examId}
                     board={exam.boardOptions ? s.examBoard : null}
                     specVersion={null}
+                    lang={lang}
                     subject={s.name}
                     onSubjectChange={(name) => setSubject(s.id, { name })}
                     course={s.courseDraft}
@@ -582,8 +585,8 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                         border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
                         background: sel ? "var(--indigo-50)" : "var(--surface-card)", transition: "all var(--dur-fast) ease" }}>
                       <span style={{ fontSize: 20 }}>{preset.emoji}</span>
-                      <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{preset.label}</span>
-                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", textAlign: "center", lineHeight: 1.3 }}>{preset.blurb}</span>
+                      <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{preset.label[lang] || preset.label.en}</span>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", textAlign: "center", lineHeight: 1.3 }}>{preset.blurb[lang] || preset.blurb.en}</span>
                     </button>
                   );
                 })}
@@ -643,7 +646,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       {aiModalOpen && (
         <window.AiHoursModal subjects={subjects} examLabel={exam.label}
           onApply={(h) => { setWeeklyHours(h); setAiModalOpen(false); }}
-          onClose={() => setAiModalOpen(false)} />
+          onClose={() => setAiModalOpen(false)} copy={c} />
       )}
     </div>
   );

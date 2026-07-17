@@ -90,7 +90,7 @@ function Exams({ t, onPlanReady }) {
       <section>
         <p style={{ margin: "0 0 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.exams_upcoming}</p>
         {upcoming.length === 0 ? (
-          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>No exams yet — add one to get started.</p>
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t.exams_empty_upcoming}</p>
         ) : (
           <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {upcoming.map((e) => <ExamCard key={e.id} exam={e} />)}
@@ -100,7 +100,7 @@ function Exams({ t, onPlanReady }) {
       <section>
         <p style={{ margin: "0 0 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.exams_past}</p>
         {pastExams.length === 0 ? (
-          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>No past exams yet — they'll show up here once a date passes.</p>
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t.exams_empty_past}</p>
         ) : (
           <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
             {pastExams.map((e) => <ExamCard key={e.id} exam={e} />)}
@@ -219,8 +219,8 @@ function Exams({ t, onPlanReady }) {
     const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
     const labelStyle = { display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" };
     const KIND_OPTIONS = [
-      { id: "exam", label: "Exam" }, { id: "midterm", label: "Midterm" }, { id: "final", label: "Final" },
-      { id: "resit", label: "Resit" }, { id: "mock", label: "Mock" }, { id: "certification", label: "Cert" },
+      { id: "exam", label: t.exams_kind_exam }, { id: "midterm", label: t.exams_kind_midterm }, { id: "final", label: t.exams_kind_final },
+      { id: "resit", label: t.exams_kind_resit }, { id: "mock", label: t.exams_kind_mock }, { id: "certification", label: t.exams_kind_cert },
     ];
 
     return (
@@ -234,25 +234,25 @@ function Exams({ t, onPlanReady }) {
                 style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
                   border: !sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
                   background: !sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: !sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
-                New subject
+                {t.exams_new_subject}
               </button>
               <button type="button" onClick={() => setSameCourse(true)}
                 style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
                   border: sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
                   background: sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
-                Same course as {lastExam.name}
+                {t.exams_same_course(lastExam.name)}
               </button>
             </div>
           )}
 
           {sameCourse ? (
             <div>
-              <label style={labelStyle}>Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${lastExam.name} Resit`} autoFocus style={inputStyle} />
+              <label style={labelStyle}>{t.exams_name}</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} autoFocus style={inputStyle} />
             </div>
           ) : (<>
             <div>
-              <label style={labelStyle}>Qualification</label>
+              <label style={labelStyle}>{t.exams_qualification}</label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {window.EXAM_TYPES.map((e) => {
                   const sel = qualificationId === e.id;
@@ -269,7 +269,7 @@ function Exams({ t, onPlanReady }) {
             </div>
             {qual.boardOptions && (
               <div>
-                <label style={labelStyle}>Exam board</label>
+                <label style={labelStyle}>{t.exams_board}</label>
                 <select value={examBoard} onChange={(e) => setExamBoard(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
                   {qual.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
@@ -278,7 +278,7 @@ function Exams({ t, onPlanReady }) {
           </>)}
 
           <div>
-            <label style={labelStyle}>Exam date</label>
+            <label style={labelStyle}>{t.exams_date}</label>
             <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
           </div>
 
@@ -288,6 +288,7 @@ function Exams({ t, onPlanReady }) {
               qualificationId={qualificationId}
               board={qual.boardOptions ? examBoard : null}
               specVersion={null}
+              lang={lang}
               subject={name}
               onSubjectChange={setName}
               course={courseDraft}
@@ -304,18 +305,18 @@ function Exams({ t, onPlanReady }) {
           {!sameCourse && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
               <div>
-                <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>Current</p>
+                <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{t.exams_current}</p>
                 <window.GradePicker grade={qual.grade} value={current} onChange={setCurrent} accent="var(--text-muted)" />
               </div>
               <div>
-                <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>Target</p>
+                <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>{t.exams_target}</p>
                 <window.GradePicker grade={qual.grade} value={target} onChange={setTarget} accent="var(--indigo-600)" />
               </div>
             </div>
           )}
 
           <div>
-            <label style={labelStyle}>Kind</label>
+            <label style={labelStyle}>{t.exams_kind}</label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {KIND_OPTIONS.map((k) => {
                 const sel = kind === k.id;
@@ -333,13 +334,13 @@ function Exams({ t, onPlanReady }) {
 
           <div>
             <label style={labelStyle}>
-              Notes <span style={{ color: "var(--text-faint)", fontWeight: "normal", fontSize: "var(--text-xs)" }}>(optional)</span>
+              {t.exams_notes} <span style={{ color: "var(--text-faint)", fontWeight: "normal", fontSize: "var(--text-xs)" }}>{t.exams_optional}</span>
             </label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="e.g. Closed book, bring calculator" style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t.exams_notes_ph} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
           </div>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
-            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>Add exam</button>
+            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
+            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
           </div>
         </div>
       </div>
