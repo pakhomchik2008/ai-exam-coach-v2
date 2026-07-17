@@ -2,10 +2,11 @@
 // AI chat tutor. The chat makes the student THINK during the session (not just
 // passively read), and passes the conversation to the recap so every session
 // leaves a real record of what was discussed.
-function StudySession({ session, onDone, onCancel }) {
+function StudySession({ session, onDone, onCancel, t }) {
   const { RatingButtons, Button } = window.AIExamCoachDesignSystem_99e467;
   const [seconds, setSeconds] = React.useState(0);
   const [showRating, setShowRating] = React.useState(false);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
 
   const s = session;
 
@@ -186,14 +187,14 @@ Rules:
       {/* Subject header */}
       <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", borderLeft: `var(--border-accent-width) solid ${s.color}`, background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)" }}>
         <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: s.color, fontWeight: "var(--weight-medium)" }}>{s.subject}</p>
-        <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Review {s.review}</p>
+        <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{L("Review","Повторення","Повторение","Révision","Wiederholung")} {s.review}</p>
       </div>
 
       {/* Timer */}
       <div style={{ marginTop: "var(--space-6)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-8)", textAlign: "center" }}>
         <h1 style={{ margin: 0, fontSize: "var(--text-3xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{s.topic}</h1>
         <p style={{ marginTop: "var(--space-8)", fontFamily: "var(--font-mono)", fontSize: "var(--text-4xl)", color: "var(--text-body)" }}>{mm}:{ss}</p>
-        <p style={{ marginTop: "var(--space-1)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Auto-stops at 60 minutes</p>
+        <p style={{ marginTop: "var(--space-1)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{L("Auto-stops at 60 minutes","Автоматично зупиняється через 60 хвилин","Автоматически останавливается через 60 минут","S'arrête automatiquement après 60 minutes","Stoppt automatisch nach 60 Minuten")}</p>
       </div>
 
       {/* AI Chat tutor — hidden during rating to keep focus on self-assessment */}
@@ -215,11 +216,13 @@ Rules:
           >
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 18 }}>🤖</span>
-              {chatOpen ? "Close AI tutor" : "Think it through — chat with AI tutor"}
+              {chatOpen
+                ? L("Close AI tutor","Закрити AI-репетитора","Закрыть AI-репетитора","Fermer le tuteur IA","KI-Tutor schließen")
+                : L("Think it through — chat with AI tutor","Обміркуй це — чат з AI-репетитором","Обдумай это — чат с AI-репетитором","Réfléchissez-y — discutez avec le tuteur IA","Denk darüber nach — chatte mit dem KI-Tutor")}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {userMsgCount > 0 && !chatOpen && (
-                <span style={{ background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-full)", padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>{userMsgCount} exchanges</span>
+                <span style={{ background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-full)", padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>{userMsgCount} {L("exchanges","обмінів","обменов","échanges","Nachrichten")}</span>
               )}
               <span style={{ opacity: 0.6, fontSize: 11 }}>{chatOpen ? "▲" : "▼"}</span>
             </span>
@@ -266,7 +269,7 @@ Rules:
               {/* Quick-start prompts — shown only before first user message */}
               {userMsgCount === 0 && !chatLoading && (
                 <div style={{ padding: "0 var(--space-4) var(--space-3)", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  <p style={{ width: "100%", margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "var(--weight-medium)" }}>Quick start:</p>
+                  <p style={{ width: "100%", margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "var(--weight-medium)" }}>{L("Quick start:","Швидкий старт:","Быстрый старт:","Démarrage rapide :","Schnellstart:")}</p>
                   {QUICK_PROMPTS.map((p, i) => (
                     <button key={i} onClick={() => sendChat(p)}
                       style={{ padding: "6px 13px", borderRadius: "var(--radius-full)", border: "1.5px solid #a5b4fc", background: "transparent", color: "var(--indigo-600)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s ease" }}>
@@ -283,7 +286,7 @@ Rules:
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-                  placeholder="Answer, ask, or think out loud..."
+                  placeholder={L("Answer, ask, or think out loud...","Відповідай, запитуй або міркуй уголос...","Отвечай, спрашивай или думай вслух...","Répondez, demandez ou réfléchissez à voix haute...","Antworte, frag oder denke laut nach...")}
                   disabled={chatLoading}
                   style={{ flex: 1, border: "1px solid var(--border-default)", borderRadius: "var(--radius-full)", padding: "10px 16px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", outline: "none", background: "var(--surface-page)", color: "var(--text-body)" }}
                 />
@@ -302,7 +305,7 @@ Rules:
       {/* Mid-session quiz */}
       {activeQuiz && (
         <div style={{ marginTop: "var(--space-6)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", animation: "revealUp 0.4s ease-out" }}>
-          <span style={{ display: "inline-block", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "white", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ QUICK CHECK</span>
+          <span style={{ display: "inline-block", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "white", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ {L("QUICK CHECK","ШВИДКА ПЕРЕВІРКА","БЫСТРАЯ ПРОВЕРКА","VÉRIFICATION RAPIDE","SCHNELLCHECK")}</span>
           <p style={{ fontWeight: 700, fontSize: 14, margin: "var(--space-3) 0 11px", color: "var(--text-strong)", lineHeight: 1.45 }}>{activeQuiz.question}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {activeQuiz.options.map((opt, oi) => {
@@ -328,23 +331,23 @@ Rules:
               {(quizSelected === activeQuiz.correct ? "✅ " : "💡 ") + activeQuiz.explanation}
             </div>
           )}
-          {quizAnswered && <Button variant="secondary" size="md" fullWidth onClick={() => setActiveQuizIdx(null)} style={{ marginTop: "var(--space-4)" }}>Continue studying</Button>}
+          {quizAnswered && <Button variant="secondary" size="md" fullWidth onClick={() => setActiveQuizIdx(null)} style={{ marginTop: "var(--space-4)" }}>{L("Continue studying","Продовжити навчання","Продолжить обучение","Continuer à étudier","Weiter lernen")}</Button>}
         </div>
       )}
 
       {/* Action buttons */}
       {!showRating && activeQuizIdx === null ? (
         <div style={{ marginTop: "var(--space-6)", display: "flex", gap: "var(--space-3)" }}>
-          <Button variant="primary" size="lg" fullWidth onClick={handleFinish}>I've finished studying this</Button>
-          <Button variant="secondary" size="lg" onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" size="lg" fullWidth onClick={handleFinish}>{L("I've finished studying this","Я закінчив вивчати це","Я закончил изучать это","J'ai fini d'étudier ceci","Ich habe das fertig gelernt")}</Button>
+          <Button variant="secondary" size="lg" onClick={onCancel}>{L("Cancel","Скасувати","Отмена","Annuler","Abbrechen")}</Button>
         </div>
       ) : activeQuizIdx !== null ? (
         <div style={{ marginTop: "var(--space-6)" }}>
-          <Button variant="secondary" size="lg" onClick={onCancel}>Cancel</Button>
+          <Button variant="secondary" size="lg" onClick={onCancel}>{L("Cancel","Скасувати","Отмена","Annuler","Abbrechen")}</Button>
         </div>
       ) : showRating ? (
         <div style={{ marginTop: "var(--space-6)" }}>
-          <p style={{ textAlign: "center", color: "var(--text-body)", marginBottom: "var(--space-3)" }}>How well did you know it?</p>
+          <p style={{ textAlign: "center", color: "var(--text-body)", marginBottom: "var(--space-3)" }}>{L("How well did you know it?","Наскільки добре ти це знав?","Насколько хорошо ты это знал?","À quel point le saviez-vous ?","Wie gut kanntest du das?")}</p>
           <RatingButtons onRate={(rating) => {
             const answeredIdx = Object.keys(quizAnswers).map(Number);
             const quizCorrect = answeredIdx.filter((i) => quizzes && quizzes[i] && quizAnswers[i] === quizzes[i].correct).length;
