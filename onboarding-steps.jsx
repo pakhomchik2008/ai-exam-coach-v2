@@ -265,13 +265,13 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
               <span style={{ width: 34, fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "var(--weight-medium)" }}>{DAY_LABELS[day]}</span>
               {periods.map((p) => (
                 <button key={p} type="button" onClick={() => togglePeriod(day, p)}
-                  style={{ flex: 1, minHeight: 32, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                  style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
                     border: isPeriodOff(day, p) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
                     background: isPeriodOff(day, p) ? "#fef2f2" : "var(--surface-card)",
                     color: isPeriodOff(day, p) ? "#b91c1c" : "var(--text-faint)" }}>{PERIOD_LABELS[p]}</button>
               ))}
               <button type="button" onClick={() => toggleAllDay(day)}
-                style={{ flex: 1, minHeight: 32, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
                   border: isAllDay(day) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
                   background: isAllDay(day) ? "#fef2f2" : "var(--surface-card)",
                   color: isAllDay(day) ? "#b91c1c" : "var(--text-faint)" }}>All</button>
