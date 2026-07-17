@@ -275,7 +275,7 @@ function App() {
   const goAfterAuth = () => { setRoute(window.hasProfile && window.hasProfile() ? "app" : "onboarding"); setTab("dashboard"); };
 
   if (route === "landing")
-    return <window.Landing onContinue={goAfterAuth} />;
+    return <window.Landing onContinue={goAfterAuth} t={t} lang={lang} onLangChange={setLang} />;
   if (route === "onboarding")
     return <window.Onboarding onFinish={(newExams) => goPlanning(newExams)} lang={lang} onLangChange={setLang} />;
   if (route === "planning")
