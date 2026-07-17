@@ -140,9 +140,22 @@ function aiLangDirective() {
 async function brainComplete({ system, messages, prompt, includeContext = true, topicContext } = {}) {
   if (!window.claude) throw new Error("AI is not available");
   const ctx = includeContext ? buildLearnerContext({ topicContext }) : "";
-  const fullSystem = [aiLangDirective(), ctx, system].filter(Boolean).join("\n\n");
+  // `system` (the caller's static task instructions) goes FIRST and carries
+  // the cache breakpoint; per-student context (ctx) changes every session so
+  // it goes after — prompt caching only reuses a stable PREFIX, and the old
+  // [langDirective, ctx, system] order put the volatile block first, which
+  // made the whole prompt cache-ineligible regardless of any marker.
+  // Note: Haiku 4.5's minimum cacheable prefix is 4096 tokens, so this block
+  // alone may land under that on many calls — it won't error, it'll just
+  // silently not cache (verify via response.usage.cache_read_input_tokens).
+  // It engages more reliably for students with several active exams (larger
+  // ctx) and once a Sonnet-based tier ships (lower minimum: 1024 tokens).
+  const dynamic = [aiLangDirective(), ctx].filter(Boolean).join("\n\n");
+  const systemBlocks = [];
+  if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });
+  if (dynamic) systemBlocks.push({ type: "text", text: dynamic });
   const msgs = messages || [{ role: "user", content: prompt || "" }];
-  return window.claude.complete({ system: fullSystem || undefined, messages: msgs });
+  return window.claude.complete({ system: systemBlocks.length ? systemBlocks : undefined, messages: msgs });
 }
 
 async function brainCompleteJSON(opts, fallback = null) {
@@ -207,6 +220,19 @@ function commitCoachSession(session) {
     const existing = new Set(mem.strengths || []);
     session.diagnosedStrengths.forEach((s) => existing.add(s));
     window.updateMemory({ strengths: [...existing].slice(0, 20) });
+  }
+  // Record a concrete, grounded note per session — `rememberNote` previously
+  // had zero callers anywhere in the app, so `mem.notes` (which
+  // buildLearnerContext injects into every AI call as "Remember: ...") was
+  // permanently empty. Only real, computed numbers go in here — no invented
+  // "learning style" or "preferred explanation" labels, since nothing in the
+  // session tracker actually measures those yet.
+  if (window.rememberNote && session.topicsCovered.length) {
+    const summary = coachSessionSummary(session);
+    if (summary.quizTotal > 0) {
+      const topics = session.topicsCovered.map((t) => t.topicName).join(", ");
+      window.rememberNote(`${topics}: ${summary.quizAccuracy}% on ${summary.quizTotal} questions (${new Date().toLocaleDateString()})`);
+    }
   }
 }
 
