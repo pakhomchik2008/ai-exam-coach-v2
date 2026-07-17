@@ -72,7 +72,8 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             {langOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
-                background: "var(--surface-card)", border: "1px solid var(--border-default)",
+                background: "rgba(255, 255, 255, 0.75)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
+                border: "1px solid var(--border-default)",
                 borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
                 overflow: "hidden", minWidth: "160px",
               }}>
@@ -80,7 +81,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
                   <button key={l.code} onClick={() => { onLangChange(l.code); setLangOpen(false); }} style={{
                     display: "flex", alignItems: "center", gap: "var(--space-2)", width: "100%", textAlign: "left",
                     padding: "10px 14px", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    fontSize: "var(--text-sm)", background: lang === l.code ? "var(--indigo-50)" : "var(--surface-card)",
+                    fontSize: "var(--text-sm)", background: lang === l.code ? "var(--indigo-50)" : "transparent",
                     color: lang === l.code ? "var(--indigo-700)" : "var(--text-body)",
                     fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)",
                   }}>
@@ -96,7 +97,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
 
         {/* Hamburger — CSS-hidden above 680px, so this never renders on desktop */}
         <button className="app-nav-hamburger" aria-label={mobileOpen ? "Close menu" : "Open menu"} onClick={() => setMobileOpen(o => !o)} style={{
-          alignItems: "center", justifyContent: "center", width: "36px", height: "36px",
+          alignItems: "center", justifyContent: "center", width: "44px", height: "44px",
           border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)",
           background: "var(--surface-card)", cursor: "pointer", fontSize: "18px", padding: 0,
         }}>{mobileOpen ? "✕" : "☰"}</button>
@@ -113,6 +114,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           return (
             <button key={l.id} onClick={() => navigate(l.id)} style={{
               border: "none", cursor: "pointer", borderRadius: "var(--radius-md)", textAlign: "left",
+              display: "flex", alignItems: "center", minHeight: "44px",
               padding: "10px 12px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)",
               background: active ? "var(--slate-100)" : "transparent",
               color: active ? "var(--text-strong)" : "var(--text-body)",
