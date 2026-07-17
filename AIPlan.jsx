@@ -266,7 +266,7 @@ function AIPlan({ examIds, onStart, t }) {
 
         {/* Progress bar */}
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "rgba(255,255,255,0.1)" }}>
-          <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #6366f1, #a855f7)", transition: "width 0.6s ease", borderRadius: "0 2px 2px 0" }} />
+          <div style={{ height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg, #6366f1, #a855f7)", transition: "transform 0.6s ease", borderRadius: "0 2px 2px 0" }} />
         </div>
       </div>
     );
@@ -440,11 +440,13 @@ function AIPlan({ examIds, onStart, t }) {
                       )}
                       <div style={{
                         width: "100%",
-                        height: `${Math.max(4, (w.hours / maxH) * 52)}px`,
+                        height: "52px",
+                        transform: `scaleY(${Math.max(4 / 52, w.hours / maxH)})`,
+                        transformOrigin: "bottom",
                         background: w.hours === 0 ? "var(--border-default)" : "linear-gradient(180deg, var(--indigo-500), var(--indigo-600))",
                         borderRadius: "3px 3px 0 0",
                         opacity: w.hours === 0 ? 0.35 : 0.9,
-                        transition: "height 0.4s ease",
+                        transition: "transform 0.4s ease",
                       }} />
                       <div style={{ fontSize: 8, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.03em", textAlign: "center", lineHeight: 1.2, whiteSpace: "nowrap" }}>{w.label}</div>
                     </div>
@@ -501,7 +503,7 @@ function AIPlan({ examIds, onStart, t }) {
         </div>
 
         {/* ── Reasoning cards ─────────────────────────────────── */}
-        <div ref={reasonsRef} style={{ marginBottom: 40, scrollMarginTop: 16, animation: "fadeUp 0.6s ease 0.4s both", borderRadius: "var(--radius-2xl)", padding: whyGlow ? 16 : 0, background: whyGlow ? "var(--indigo-50)" : "transparent", transition: "background 0.4s ease, padding 0.4s ease" }}>
+        <div ref={reasonsRef} style={{ marginBottom: 40, scrollMarginTop: 16, animation: "fadeUp 0.6s ease 0.4s both", borderRadius: "var(--radius-2xl)", padding: whyGlow ? 16 : 0, background: whyGlow ? "var(--indigo-50)" : "transparent", transition: "background 0.4s ease" }}>
           <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>
             💡 {L("Why this plan?","Чому саме цей план?","Почему именно этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
           </h2>

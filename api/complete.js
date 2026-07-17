@@ -22,6 +22,9 @@ export default async function handler(req, res) {
     return;
   }
 
+  // `system` may be a plain string (legacy callers) or an array of content
+  // blocks with `cache_control` for prompt caching (ai-brain.jsx's
+  // brainComplete) — forwarded to Anthropic as-is either way.
   const { system, messages, prompt } = req.body || {};
   // Accept either {messages} (from brainComplete) or {prompt} (legacy fallback)
   const msgs = messages || (prompt ? [{ role: "user", content: prompt }] : null);

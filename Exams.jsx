@@ -59,7 +59,7 @@ function Exams({ t, onPlanReady }) {
         )}
         <p style={{ margin: "var(--space-2) 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{exam.topicCount} {t.exams_topics} · {coverage}% covered</p>
         <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${coverage}%`, background: "var(--action-primary)", borderRadius: "var(--radius-full)", transition: "width var(--dur-slow) var(--ease-out)" }} />
+          <div style={{ height: "100%", width: "100%", transform: `scaleX(${coverage / 100})`, transformOrigin: "left", background: "var(--action-primary)", borderRadius: "var(--radius-full)", transition: "transform var(--dur-slow) var(--ease-out)" }} />
         </div>
       </div>
     );
@@ -453,7 +453,7 @@ function Exams({ t, onPlanReady }) {
                   <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCountDisplay} · {coverage}%</strong>
                 </div>
                 <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${coverage}%`, background: exam.color, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+                  <div style={{ height: "100%", width: "100%", transform: `scaleX(${coverage / 100})`, transformOrigin: "left", background: exam.color, borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
                 </div>
                 <p style={{ margin: "8px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.5 }}>
                   Updates automatically as you study — mark topics as covered on the session recap.

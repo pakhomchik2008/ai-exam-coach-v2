@@ -497,7 +497,7 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
           <span style={{ fontSize: 12, color: "var(--text-faint)" }}>/ {goalHours}h</span>
         </div>
         <div style={{ height: 6, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${goalPct}%`, background: goalPct >= 100 ? "var(--emerald-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+          <div style={{ height: "100%", width: "100%", transform: `scaleX(${goalPct / 100})`, transformOrigin: "left", background: goalPct >= 100 ? "var(--emerald-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
         </div>
         <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-faint)" }}>{Math.round(plannedHoursThisWeek * 10) / 10}h planned this week</p>
       </div>
