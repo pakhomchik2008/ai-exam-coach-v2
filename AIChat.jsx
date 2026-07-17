@@ -122,7 +122,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
     // Checkpoint complete — show mini summary
     const cpCorrect = cpResults.filter(Boolean).length;
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "linear-gradient(135deg, #f0fdf4 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "4px solid #22c55e", textAlign: "center" } },
+      React.createElement("div", { style: { background: "linear-gradient(135deg, #f0fdf4 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid #22c55e", textAlign: "center" } },
         React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f0fdf4", "#15803d", "📊 CHECKPOINT RESULTS")),
         React.createElement("p", { style: { fontSize: 36, fontWeight: 700, color: cpCorrect === questions.length ? "#15803d" : "#b45309", margin: "8px 0" } }, `${cpCorrect}/${questions.length}`),
         React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 16px" } },
@@ -347,7 +347,7 @@ RULES:
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
       React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)" } }, "This takes a moment — lots of material to prepare"),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
@@ -369,7 +369,7 @@ RULES:
         totalAnswered > 0 && React.createElement("span", null, `${correctCount}/${totalAnswered} ✓`),
         React.createElement("button", { onClick: () => { if (phase !== "roadmap") commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit"))),
     React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-      React.createElement("div", { style: { height: "100%", width: `${progressPct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s ease" } })),
+      React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${progressPct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "transform 0.4s ease" } })),
     React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 4, display: "block" } }, plan.title));
 
   // ─── ROADMAP ──────────────────────────────────────────────────────────────
@@ -971,7 +971,7 @@ RULES:
       pickMode === "ai" && React.createElement("div", { style: { marginBottom: 20 } },
         aiLoading && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "16px", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14 } },
           React.createElement("div", { style: { display: "flex", gap: 4 } },
-            ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.15 + "s" } }))),
+            ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.15 + "s" } }))),
           React.createElement("span", { style: { fontSize: 13, color: "var(--text-muted)" } }, "AI is picking your weakest topics...")),
         !aiLoading && aiTopics && React.createElement("div", null,
           React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, "AI selected these topics for you"),
@@ -1032,7 +1032,7 @@ RULES:
       chosenTopics.length > 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", maxWidth: 340 } },
         ...chosenTopics.map((n, i) => React.createElement("span", { key: i, style: { padding: "4px 10px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 11, color: "var(--indigo-700)", fontWeight: 600 } }, n))),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
@@ -1114,7 +1114,7 @@ RULES:
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, `${results.filter((r) => r.correct).length}✓ ${results.filter((r) => !r.correct).length}✗`)),
       // Timer bar
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: `${timerPct}%`, background: timerColor, borderRadius: 2, transition: "width 1s linear, background 0.3s" } })),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${timerPct / 100})`, transformOrigin: "left", background: timerColor, borderRadius: 2, transition: "transform 1s linear, background 0.3s" } })),
       // Progress dots
       React.createElement("div", { style: { display: "flex", gap: 3, marginTop: 6, justifyContent: "center" } },
         ...questions.map((_, i) => {
@@ -1355,7 +1355,7 @@ RULES:
           React.createElement("button", { onClick: () => setPhase("summary"),
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End exam"))),
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: `${pctDone}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "width 0.4s" } }))),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "transform 0.4s" } }))),
 
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
@@ -1996,7 +1996,7 @@ ${STEP_TYPES}`;
       React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Building your lesson..."),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
@@ -2062,7 +2062,7 @@ ${STEP_TYPES}`;
 
   // ─── Step renderers ────────────────────────────────────────────────────────
   const renderTeach = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "4px solid var(--indigo-500)" } },
+    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--indigo-500)" } },
       React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", "📖 CONCEPT")),
       s.title && React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
       React.createElement("div", { style: { fontSize: 15, lineHeight: 1.75, color: "var(--text-body)", marginBottom: 16 }, dangerouslySetInnerHTML: { __html: _md(s.body) } }),
@@ -2202,7 +2202,7 @@ ${STEP_TYPES}`;
     const steps = s.steps || [];
     const allVisible = stepsRevealed >= steps.length;
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "4px solid #8b5cf6" } },
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid #8b5cf6" } },
         React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f5f3ff", "#7c3aed", "📝 WORKED EXAMPLE")),
         s.title && React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 0 } },
@@ -2321,7 +2321,7 @@ ${STEP_TYPES}`;
       ),
       // Progress bar
       React.createElement("div", { style: { height: 5, background: "var(--surface-muted)", borderRadius: 3, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 3, transition: "width 0.4s ease" } })),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 3, transition: "transform 0.4s ease" } })),
       // Bottom row: title + exit
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 } },
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, plan.title),
@@ -2352,7 +2352,7 @@ ${STEP_TYPES}`;
             ? React.createElement("div", { style: { fontSize: 13, color: "var(--text-body)", lineHeight: 1.65 }, dangerouslySetInnerHTML: { __html: _md(askReply) } })
             : askLoading
               ? React.createElement("div", { style: { display: "flex", gap: 5, padding: "20px 0", justifyContent: "center" } },
-                  ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))
+                  ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))
               : React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: 0 } }, "Ask anything about this step — I'll explain it differently, give a hint, or go deeper.")),
         // Input
         React.createElement("div", { style: { padding: "10px 12px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 8 } },
@@ -2504,9 +2504,13 @@ function ChatMode({ onExit, initialQuery }) {
       const complete = window.brainComplete || ((a) => window.claude.complete(a));
       const prof = window.getProfile ? window.getProfile() : {};
       const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education: ${prof.educationLevel}`, prof.currentYear && `year: ${prof.currentYear}`].filter(Boolean).join(", ");
-      const brainCtx = brain ? `Student context: ${examViews.map((e) => `${e.name} (${e.started ? `${e.readiness}% ready` : "not started yet"})`).join(", ")}. ${dueReviews.length} topics need review. Weakest: ${weakest.slice(0, 3).map((w) => w.topicName).join(", ")}.` : "";
+      // Exam/readiness/weakest-topic context is NOT built here — brainComplete()
+      // already injects a fresher, richer version via buildLearnerContext()
+      // (ai-brain.jsx). A second copy used to be hand-built from a `brain`
+      // snapshot memoized once at mount, so it could silently go stale and
+      // disagree with the live one inside the same prompt.
       const reply = await complete({
-        system: `You are a brilliant, warm personal tutor.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} ${brainCtx}
+        system: `You are a brilliant, warm personal tutor.${profileCtx ? ` Student profile: ${profileCtx}.` : ""}
 Answer clearly and concisely. Use **bold** for key terms. Keep responses under 100 words. Do NOT output JSON — just write natural text.
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
@@ -2622,7 +2626,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
     typing && React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
       React.createElement(CoachIcon, { size: 28 }),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "aiTyping 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
 
   // Renders the "which exam / which topic" step as an AI-styled chat bubble
   // + selectable pills, appended right below the messages — a natural part
