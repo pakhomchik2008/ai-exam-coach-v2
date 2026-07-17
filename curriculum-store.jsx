@@ -101,7 +101,8 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
   const system = "You are a curriculum expert. Output ONLY valid JSON, no markdown, no commentary: " +
     '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10,"subtopics":["...","..."]}]}. ' +
     "List the real syllabus topics students are actually examined on, foundational topics first (this order IS the recommended study order). " +
-    "8-14 topics is typical; use your judgment for the subject's real scope. Each topic gets 2-5 short subtopics.";
+    "8-14 topics is typical; use your judgment for the subject's real scope. Each topic gets 2-5 short subtopics." +
+    (window.aiLangDirective ? ` ${window.aiLangDirective()}` : "");
   const isUni = qualificationId === "uni";
   const contextLabel = context && context.trim() ? ` (${context.trim()})` : "";
   const countryLabel = countryId ? ` in ${countryId}` : "";
@@ -167,7 +168,8 @@ async function extractTopicsFromText(subject, text) {
   if (!window.claude || !text || !text.trim()) return null;
   const system = "You are a curriculum expert reading a syllabus/specification page. Output ONLY valid JSON, no markdown: " +
     '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10}]}. ' +
-    "List the real topics students are examined on, foundational first. If this page does not contain a real syllabus/topic list, return {\"topics\":[]}.";
+    "List the real topics students are examined on, foundational first. If this page does not contain a real syllabus/topic list, return {\"topics\":[]}." +
+    (window.aiLangDirective ? ` ${window.aiLangDirective()}` : "");
   const prompt = `Subject: ${subject || "(unspecified)"}\n\nPage content:\n${text.slice(0, 12000)}`;
   let data;
   try {

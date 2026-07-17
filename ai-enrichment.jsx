@@ -72,7 +72,7 @@ async function requestAiEnrichment(examIds, context) {
         const subjList = subjects.filter((s) => s.name && s.name.trim()).map((s) => s.name).join(", ") || "no subjects specified";
         content = `No files were uploaded. Student is preparing to study: ${subjList}. They selected these material types they own: ${materials.join(", ") || "none"}.`;
       }
-      const system = `You are reviewing material a student provided while setting up an exam-prep app. Output ONLY valid JSON, no markdown: {"lines":["short finding","short finding","short finding","short finding"]}. Each line under 8 words. Be honest — if the content isn't study material, say that plainly instead of inventing topics or numbers.`;
+      const system = `You are reviewing material a student provided while setting up an exam-prep app. Output ONLY valid JSON, no markdown: {"lines":["short finding","short finding","short finding","short finding"]}. Each line under 8 words. Be honest — if the content isn't study material, say that plainly instead of inventing topics or numbers.${window.aiLangDirective ? ` ${window.aiLangDirective()}` : ""}`;
       const raw = await window.claude.complete({ system, messages: [{ role: "user", content }] });
       const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
       const parsed = JSON.parse(clean);
@@ -82,7 +82,7 @@ async function requestAiEnrichment(examIds, context) {
     const subjList = subjects.filter((s) => s.name && s.name.trim()).map((s) => `${s.name}: ${s.current} → ${s.target}`).join("; ") || "no subjects named";
     const prof = window.getProfile ? window.getProfile() : {};
     const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education level: ${prof.educationLevel}`, prof.currentYear && `year/grade: ${prof.currentYear}`].filter(Boolean).join(", ");
-    const prompt = `Write a short (3-4 sentence), encouraging, specific study plan opener for a student preparing for ${examLabel || "their exam"}.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} Subjects and grade goals: ${subjList}. They can study ${weeklyHours} hours/week. Materials they have: ${materials.join(", ") || "none"}. Preferred study methods: ${prefs.join(", ") || "none"}. Be concrete about what to prioritise first. Do not invent specific percentages or exam dates — there's no study history yet.`;
+    const prompt = `Write a short (3-4 sentence), encouraging, specific study plan opener for a student preparing for ${examLabel || "their exam"}.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} Subjects and grade goals: ${subjList}. They can study ${weeklyHours} hours/week. Materials they have: ${materials.join(", ") || "none"}. Preferred study methods: ${prefs.join(", ") || "none"}. Be concrete about what to prioritise first. Do not invent specific percentages or exam dates — there's no study history yet.${window.aiLangDirective ? ` ${window.aiLangDirective()}` : ""}`;
     const summary = await window.claude.complete(prompt);
     const finalSummary = analysisLines ? `${analysisLines.join(" · ")}\n\n${summary}` : summary;
     examIds.forEach((id) => patchExamAi(id, { aiPlanStatus: "ready", aiPlanSummary: finalSummary }));
@@ -116,7 +116,7 @@ async function requestTopicNames(examId, exam, files) {
     // and land in the sibling topicWeights field (exams-store.jsx) so the
     // hour-budget scheduler can weight study time per topic instead of
     // splitting it evenly.
-    const system = `You are listing real syllabus topics for an exam-prep app. Output ONLY valid JSON, no markdown: {"topics":[{"name":"topic name","difficulty":N,"importance":N}]}. Exactly ${count} items, each name under 5 words, most foundational first. difficulty = how conceptually hard this topic typically is for students (1 easy – 10 hard). importance = how central this topic is to the overall exam / how often it's tested (1 minor – 10 core). Both integers.`;
+    const system = `You are listing real syllabus topics for an exam-prep app. Output ONLY valid JSON, no markdown: {"topics":[{"name":"topic name","difficulty":N,"importance":N}]}. Exactly ${count} items, each name under 5 words, most foundational first. difficulty = how conceptually hard this topic typically is for students (1 easy – 10 hard). importance = how central this topic is to the overall exam / how often it's tested (1 minor – 10 core). Both integers.${window.aiLangDirective ? ` ${window.aiLangDirective()}` : ""}`;
     const raw = await window.claude.complete({ system, messages: [{ role: "user", content }] });
     const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
     const parsed = JSON.parse(clean);
