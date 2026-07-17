@@ -6,15 +6,21 @@
 // correctly, only the ones logged as wrong, so the only honest percentage
 // is "of your logged mistakes, how many have you since fixed."
 
-const MJ_TIME_FILTERS = [
-  { id: "all", label: "All time" },
-  { id: "7d", label: "Last 7 days" },
-  { id: "30d", label: "Last 30 days" },
-];
-const MJ_SORTS = [
-  { id: "newest", label: "Newest" },
-  { id: "oldest", label: "Oldest" },
-];
+function mjL(t, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[(t && t.code) || "en"] || en; }
+
+function mjTimeFilters(t) {
+  return [
+    { id: "all", label: mjL(t, "All time", "Весь час", "Всё время", "Tout le temps", "Gesamte Zeit") },
+    { id: "7d", label: mjL(t, "Last 7 days", "Останні 7 днів", "Последние 7 дней", "7 derniers jours", "Letzte 7 Tage") },
+    { id: "30d", label: mjL(t, "Last 30 days", "Останні 30 днів", "Последние 30 дней", "30 derniers jours", "Letzte 30 Tage") },
+  ];
+}
+function mjSorts(t) {
+  return [
+    { id: "newest", label: mjL(t, "Newest", "Спочатку нові", "Сначала новые", "Plus récent", "Neueste") },
+    { id: "oldest", label: mjL(t, "Oldest", "Спочатку старі", "Сначала старые", "Plus ancien", "Älteste") },
+  ];
+}
 
 function mjFmtDuration(ms) {
   if (ms == null) return "—";
@@ -32,9 +38,23 @@ function mjNextQuarterHour() {
 }
 const MJ_PRIORITY_COLOR = { high: "var(--red-600)", medium: "var(--amber-600)", low: "var(--emerald-600)" };
 const MJ_PRIORITY_BG = { high: "#FEF2F2", medium: "#FFFBEB", low: "#ECFDF5" };
-const MJ_PRIORITY_LABEL = { high: "High Priority", medium: "Medium Priority", low: "Low Priority" };
+function mjPriorityLabel(t, tone) {
+  return {
+    high: mjL(t, "High Priority", "Високий пріоритет", "Высокий приоритет", "Priorité élevée", "Hohe Priorität"),
+    medium: mjL(t, "Medium Priority", "Середній пріоритет", "Средний приоритет", "Priorité moyenne", "Mittlere Priorität"),
+    low: mjL(t, "Low Priority", "Низький пріоритет", "Низкий приоритет", "Priorité faible", "Niedrige Priorität"),
+  }[tone];
+}
+function mjPriorityShort(t, tone) {
+  return {
+    high: mjL(t, "High", "Високий", "Высокий", "Élevé", "Hoch"),
+    medium: mjL(t, "Medium", "Середній", "Средний", "Moyen", "Mittel"),
+    low: mjL(t, "Low", "Низький", "Низкий", "Faible", "Niedrig"),
+  }[tone];
+}
 
 function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const bump = () => setRefreshKey((k) => k + 1);
 
@@ -48,7 +68,7 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
   const badges = React.useMemo(() => window.computeMistakeBadges(), [refreshKey]);
   const xp = React.useMemo(() => window.xpLevel ? window.xpLevel() : null, [refreshKey]);
 
-  const mjSubject = React.useCallback((m) => examById.get(m.examId)?.name || m.topic || "General", [examById]);
+  const mjSubject = React.useCallback((m) => examById.get(m.examId)?.name || m.topic || L("General", "Загальне", "Общее", "Général", "Allgemein"), [examById, t]);
   const subjects = React.useMemo(() => [...new Set(mistakes.map(mjSubject))].sort(), [mistakes, mjSubject]);
 
   const [statusFilter, setStatusFilter] = React.useState("all"); // all | pending | recovered | repeated | high-priority
@@ -99,7 +119,7 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
       type: tp.examId ? "study" : "personal",
       category: tp.examId ? null : "custom",
       personalColor: tp.examId ? null : "#6366F1",
-      topic: `Review: ${tp.topic}`,
+      topic: `${L("Review", "Повторення", "Повторение", "Révision", "Wiederholung")}: ${tp.topic}`,
       date: window.fmtDateKey(new Date()),
       startTime: mjNextQuarterHour(),
       durationMin: Math.max(15, tp.estReviewMin),
@@ -108,7 +128,7 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
   }
 
   if (mistakes.length === 0) {
-    return <MJEmptyState onGoToDashboard={onGoToDashboard} onGoToChat={onGoToChat} />;
+    return <MJEmptyState t={t} onGoToDashboard={onGoToDashboard} onGoToChat={onGoToChat} />;
   }
 
   const weakest = topics[0] || null;
@@ -122,33 +142,33 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>Mistake Journal</h1>
-          <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>Your AI coach's map of what's holding your grade back — and exactly what to fix next.</p>
+          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}</h1>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{L("Your AI coach's map of what's holding your grade back — and exactly what to fix next.", "Карта вашого AI-коуча: що стримує вашу оцінку — і що виправити далі.", "Карта вашего AI-коуча: что сдерживает вашу оценку — и что исправить дальше.", "La carte de votre coach IA : ce qui freine votre note — et quoi corriger ensuite.", "Die Karte deines KI-Coaches: was deine Note bremst — und was als Nächstes zu tun ist.")}</p>
         </div>
         <button onClick={() => { window.clearAllMistakes(); bump(); }} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", borderRadius: "var(--radius-lg)", padding: "8px 14px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
-          Clear all
+          {L("Clear all", "Очистити все", "Очистить всё", "Tout effacer", "Alles löschen")}
         </button>
       </div>
 
       {/* Section 1 — analytics header */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
-        <MJStatCard value={summary.recoveryRate != null ? `${summary.recoveryRate}%` : "—"} label="Recovery Rate" color="var(--indigo-600)" />
-        <MJStatCard value={summary.pendingCount} label="Mistakes Remaining" color="var(--red-600)" />
-        <MJStatCard value={summary.recoveredCount} label="Recovered" color="var(--emerald-600)" />
-        <MJStatCard value={summary.dueTodayCount} label="Today's Reviews" color="var(--amber-600)" />
-        <MJStatCard value={`${summary.streak}🔥`} label="Current Streak" color={summary.streak > 0 ? "var(--amber-600)" : "var(--text-faint)"} />
-        <MJStatCard value={mjFmtDuration(summary.avgRecoveryMs)} label="Avg. Recovery Time" color="var(--indigo-600)" />
+        <MJStatCard value={summary.recoveryRate != null ? `${summary.recoveryRate}%` : "—"} label={L("Recovery Rate", "Рівень відновлення", "Уровень восстановления", "Taux de récupération", "Erholungsrate")} color="var(--indigo-600)" />
+        <MJStatCard value={summary.pendingCount} label={L("Mistakes Remaining", "Залишилось помилок", "Осталось ошибок", "Erreurs restantes", "Verbleibende Fehler")} color="var(--red-600)" />
+        <MJStatCard value={summary.recoveredCount} label={L("Recovered", "Виправлено", "Исправлено", "Récupérées", "Behoben")} color="var(--emerald-600)" />
+        <MJStatCard value={summary.dueTodayCount} label={L("Today's Reviews", "Повторення сьогодні", "Повторения сегодня", "Révisions du jour", "Heutige Wiederholungen")} color="var(--amber-600)" />
+        <MJStatCard value={`${summary.streak}🔥`} label={L("Current Streak", "Поточна серія", "Текущая серия", "Série actuelle", "Aktuelle Serie")} color={summary.streak > 0 ? "var(--amber-600)" : "var(--text-faint)"} />
+        <MJStatCard value={mjFmtDuration(summary.avgRecoveryMs)} label={L("Avg. Recovery Time", "Сер. час відновлення", "Сред. время восстановления", "Temps moyen de récupération", "Ø Erholungszeit")} color="var(--indigo-600)" />
       </div>
 
       {/* Section 2 — AI Insight */}
-      {weakest && <MJAiInsight topic={weakest} onGoToChat={onGoToChat} onStartReview={() => startReviewOn(weakest.topic)} />}
+      {weakest && <MJAiInsight t={t} topic={weakest} onGoToChat={onGoToChat} onStartReview={() => startReviewOn(weakest.topic)} />}
 
       {/* Section 10 — Today's Priority */}
-      {priorityTopic && <MJTodaysPriority topic={priorityTopic} onStartReview={() => startReviewOn(priorityTopic.topic)} />}
+      {priorityTopic && <MJTodaysPriority t={t} topic={priorityTopic} onStartReview={() => startReviewOn(priorityTopic.topic)} />}
 
       {/* Section 11 — AI Actions */}
       <MJAiActions
-        topics={topics} pendingCount={summary.pendingCount}
+        t={t} topics={topics} pendingCount={summary.pendingCount}
         onGoToChat={onGoToChat}
         onExplainAll={() => onGoToChat && onGoToChat(`I have ${summary.pendingCount} unresolved mistakes across these topics: ${topics.map((tp) => tp.topic).join(", ")}. What's the common thread, and what should I focus on first?`)}
         onSnoozeAll={() => { window.snoozeOverdueMistakes(); bump(); }}
@@ -157,47 +177,47 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
       />
 
       {/* Section 12 — gamification */}
-      <MJGamification xp={xp} summary={summary} badges={badges} />
+      <MJGamification t={t} xp={xp} summary={summary} badges={badges} />
 
       {/* Section 3 — weakest topics */}
       <div>
-        <h2 style={{ margin: "0 0 10px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>Weakest Topics</h2>
+        <h2 style={{ margin: "0 0 10px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{L("Weakest Topics", "Найслабші теми", "Самые слабые темы", "Sujets les plus faibles", "Schwächste Themen")}</h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {topics.map((tp) => <MJTopicRow key={tp.topic} tp={tp} onStartReview={() => startReviewOn(tp.topic)} />)}
+          {topics.map((tp) => <MJTopicRow key={tp.topic} t={t} tp={tp} onStartReview={() => startReviewOn(tp.topic)} />)}
         </div>
       </div>
 
       {/* Section 4 — trends */}
-      <MJTrends trends={trends} />
+      <MJTrends t={t} trends={trends} />
 
       {/* Section 5 — review queue */}
       <div ref={reviewSectionRef}>
-        <h2 style={{ margin: "0 0 10px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>Review Queue</h2>
+        <h2 style={{ margin: "0 0 10px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{L("Review Queue", "Черга повторення", "Очередь повторения", "File de révision", "Wiederholungswarteschlange")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
-          <MJQueueCard label="Overdue" items={queue.overdue} accent="var(--red-600)" onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
-          <MJQueueCard label="Due Today" items={queue.dueToday} accent="var(--amber-600)" completionPct={dueTodayCompletionPct} onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
-          <MJQueueCard label="Tomorrow" items={queue.dueTomorrow} accent="var(--indigo-600)" onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
-          <MJQueueCard label="Later" items={queue.later} accent="var(--text-faint)" onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
+          <MJQueueCard t={t} label={L("Overdue", "Прострочено", "Просрочено", "En retard", "Überfällig")} items={queue.overdue} accent="var(--red-600)" onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
+          <MJQueueCard t={t} label={L("Due Today", "На сьогодні", "На сегодня", "Aujourd'hui", "Heute fällig")} items={queue.dueToday} accent="var(--amber-600)" completionPct={dueTodayCompletionPct} onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
+          <MJQueueCard t={t} label={L("Tomorrow", "Завтра", "Завтра", "Demain", "Morgen")} items={queue.dueTomorrow} accent="var(--indigo-600)" onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
+          <MJQueueCard t={t} label={L("Later", "Пізніше", "Позже", "Plus tard", "Später")} items={queue.later} accent="var(--text-faint)" onStartReview={() => { setStatusFilter("pending"); scrollToReview(); }} />
         </div>
       </div>
 
       {/* Section 6+7 — filters & search */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by question, topic, or subject…"
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={L("Search by question, topic, or subject…", "Пошук за питанням, темою або предметом…", "Поиск по вопросу, теме или предмету…", "Rechercher par question, sujet ou matière…", "Suche nach Frage, Thema oder Fach…")}
           style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-full)", outline: "none" }} />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <MJChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>All</MJChip>
-          <MJChip active={statusFilter === "pending"} onClick={() => setStatusFilter("pending")}>Unreviewed</MJChip>
-          <MJChip active={statusFilter === "recovered"} onClick={() => setStatusFilter("recovered")}>Reviewed</MJChip>
-          <MJChip active={statusFilter === "repeated"} onClick={() => setStatusFilter("repeated")}>Repeated Mistakes</MJChip>
-          <MJChip active={statusFilter === "high-priority"} onClick={() => setStatusFilter("high-priority")}>High Priority</MJChip>
+          <MJChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>{L("All", "Усі", "Все", "Tous", "Alle")}</MJChip>
+          <MJChip active={statusFilter === "pending"} onClick={() => setStatusFilter("pending")}>{L("Unreviewed", "Не переглянуто", "Не просмотрено", "Non révisées", "Nicht wiederholt")}</MJChip>
+          <MJChip active={statusFilter === "recovered"} onClick={() => setStatusFilter("recovered")}>{L("Reviewed", "Переглянуто", "Просмотрено", "Révisées", "Wiederholt")}</MJChip>
+          <MJChip active={statusFilter === "repeated"} onClick={() => setStatusFilter("repeated")}>{L("Repeated Mistakes", "Повторні помилки", "Повторные ошибки", "Erreurs répétées", "Wiederholte Fehler")}</MJChip>
+          <MJChip active={statusFilter === "high-priority"} onClick={() => setStatusFilter("high-priority")}>{L("High Priority", "Високий пріоритет", "Высокий приоритет", "Priorité élevée", "Hohe Priorität")}</MJChip>
           {subjects.map((s) => (
             <MJChip key={s} active={subjectFilter === s} onClick={() => setSubjectFilter(subjectFilter === s ? "all" : s)}>{s}</MJChip>
           ))}
-          {MJ_TIME_FILTERS.map((f) => (
+          {mjTimeFilters(t).map((f) => (
             <MJChip key={f.id} active={timeFilter === f.id} onClick={() => setTimeFilter(f.id)}>{f.label}</MJChip>
           ))}
-          {MJ_SORTS.map((s) => (
+          {mjSorts(t).map((s) => (
             <MJChip key={s.id} active={sortOrder === s.id} onClick={() => setSortOrder(s.id)}>{s.label}</MJChip>
           ))}
         </div>
@@ -205,11 +225,11 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
 
       {/* Section 8+9 — mistake cards */}
       {filtered.length === 0 ? (
-        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", textAlign: "center", padding: "var(--space-6) 0" }}>No mistakes match these filters.</p>
+        <p style={{ fontSize: "var(--text-sm)", color: "var(--text-faint)", textAlign: "center", padding: "var(--space-6) 0" }}>{L("No mistakes match these filters.", "Жодна помилка не відповідає цим фільтрам.", "Ни одна ошибка не соответствует этим фильтрам.", "Aucune erreur ne correspond à ces filtres.", "Keine Fehler entsprechen diesen Filtern.")}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           {filtered.map((m) => (
-            <MJMistakeCard key={m.id} m={m} subject={mjSubject(m)} open={openId === m.id}
+            <MJMistakeCard key={m.id} t={t} m={m} subject={mjSubject(m)} open={openId === m.id}
               onToggle={() => setOpenId(openId === m.id ? null : m.id)}
               onRetryDone={bump}
               onRemove={() => { window.clearMistake(m.id); bump(); }}
@@ -236,28 +256,35 @@ function MJStatCard({ value, label, color }) {
 
 // ─── Section 2 — AI Insight ─────────────────────────────────────────────────
 
-function MJAiInsight({ topic, onGoToChat, onStartReview }) {
+function MJAiInsight({ t, topic, onGoToChat, onStartReview }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const gain = Math.min(15, Math.max(2, Math.round((100 - topic.masteryPct) * 0.15)));
   return (
     <div style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), #F5F3FF)", border: "1px solid var(--indigo-100)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 18 }}>✨</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--indigo-700)", textTransform: "uppercase", letterSpacing: "0.05em" }}>AI Insight</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--indigo-700)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{L("AI Insight", "AI-інсайт", "AI-инсайт", "Analyse IA", "KI-Einblick")}</span>
       </div>
       <p style={{ margin: 0, fontSize: "var(--text-base)", color: "var(--text-strong)", lineHeight: 1.5 }}>
-        You consistently struggle with <strong>{topic.topic}</strong> — {topic.pendingHere} mistake{topic.pendingHere === 1 ? "" : "s"} still unresolved, {topic.masteryPct}% recovered so far.
+        {L(
+          `You consistently struggle with ${topic.topic} — ${topic.pendingHere} mistake${topic.pendingHere === 1 ? "" : "s"} still unresolved, ${topic.masteryPct}% recovered so far.`,
+          `Ви постійно маєте труднощі з темою «${topic.topic}» — ще ${topic.pendingHere} помилок не виправлено, ${topic.masteryPct}% вже відновлено.`,
+          `Вы постоянно испытываете трудности с темой «${topic.topic}» — ещё ${topic.pendingHere} ошибок не исправлено, ${topic.masteryPct}% уже восстановлено.`,
+          `Vous avez régulièrement des difficultés avec « ${topic.topic} » — ${topic.pendingHere} erreur(s) encore non résolue(s), ${topic.masteryPct}% récupéré jusqu'ici.`,
+          `Du hast wiederholt Schwierigkeiten mit „${topic.topic}" — noch ${topic.pendingHere} ungelöste Fehler, bisher ${topic.masteryPct}% behoben.`
+        )}
       </p>
       <div style={{ fontSize: 13, color: "var(--text-body)", lineHeight: 1.8 }}>
-        <div>• Review <strong>{topic.topic}</strong></div>
-        <div>• Complete {topic.pendingHere} practice question{topic.pendingHere === 1 ? "" : "s"}</div>
-        <div>• Estimated readiness increase: <strong style={{ color: "var(--indigo-700)" }}>+{gain}%</strong></div>
+        <div>• {L("Review", "Повторити", "Повторить", "Réviser", "Wiederholen")} <strong>{topic.topic}</strong></div>
+        <div>• {L(`Complete ${topic.pendingHere} practice question${topic.pendingHere === 1 ? "" : "s"}`, `Виконати ${topic.pendingHere} практичних питань`, `Выполнить ${topic.pendingHere} практических вопросов`, `Terminer ${topic.pendingHere} question(s) d'entraînement`, `${topic.pendingHere} Übungsfragen abschließen`)}</div>
+        <div>• {L("Estimated readiness increase:", "Очікуване зростання готовності:", "Ожидаемый рост готовности:", "Augmentation de préparation estimée :", "Geschätzte Steigerung der Bereitschaft:")} <strong style={{ color: "var(--indigo-700)" }}>+{gain}%</strong></div>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-        <button onClick={onStartReview} style={{ border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Start Review</button>
+        <button onClick={onStartReview} style={{ border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Start Review", "Почати повторення", "Начать повторение", "Commencer la révision", "Wiederholung starten")}</button>
         <button onClick={() => onGoToChat && onGoToChat(`I keep getting "${topic.topic}" questions wrong. Can you explain what's likely tripping me up and how to fix it?`)}
-          style={{ border: "1px solid var(--indigo-200)", background: "var(--surface-card)", color: "var(--indigo-700)", borderRadius: "var(--radius-lg)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Explain Weakness</button>
+          style={{ border: "1px solid var(--indigo-200)", background: "var(--surface-card)", color: "var(--indigo-700)", borderRadius: "var(--radius-lg)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Explain Weakness", "Пояснити слабкість", "Объяснить слабость", "Expliquer la faiblesse", "Schwäche erklären")}</button>
         <button onClick={() => onGoToChat && onGoToChat({ mode: "learn", topic: topic.topic })}
-          style={{ border: "1px solid var(--indigo-200)", background: "var(--surface-card)", color: "var(--indigo-700)", borderRadius: "var(--radius-lg)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Generate Lesson</button>
+          style={{ border: "1px solid var(--indigo-200)", background: "var(--surface-card)", color: "var(--indigo-700)", borderRadius: "var(--radius-lg)", padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Generate Lesson", "Створити урок", "Создать урок", "Générer une leçon", "Lektion erstellen")}</button>
       </div>
     </div>
   );
@@ -265,45 +292,47 @@ function MJAiInsight({ topic, onGoToChat, onStartReview }) {
 
 // ─── Section 10 — Today's Priority ──────────────────────────────────────────
 
-function MJTodaysPriority({ topic, onStartReview }) {
+function MJTodaysPriority({ t, topic, onStartReview }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const gain = Math.min(15, Math.max(2, Math.round((100 - topic.masteryPct) * 0.15)));
   return (
     <div style={{ borderRadius: "var(--radius-2xl)", border: `1.5px solid ${MJ_PRIORITY_COLOR[topic.priority]}33`, background: MJ_PRIORITY_BG[topic.priority], padding: "var(--space-4) var(--space-5)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
       <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: MJ_PRIORITY_COLOR[topic.priority], textTransform: "uppercase", letterSpacing: "0.05em" }}>Today's Priority</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: MJ_PRIORITY_COLOR[topic.priority], textTransform: "uppercase", letterSpacing: "0.05em" }}>{L("Today's Priority", "Пріоритет на сьогодні", "Приоритет на сегодня", "Priorité du jour", "Heutige Priorität")}</div>
         <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-strong)", marginTop: 2 }}>{topic.topic}</div>
       </div>
       <div style={{ display: "flex", gap: 20 }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-strong)" }}>{topic.estReviewMin} min</div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Est. Time</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-strong)" }}>{topic.estReviewMin} {L("min", "хв", "мин", "min", "Min")}</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{L("Est. Time", "Оцін. час", "Оцен. время", "Temps estimé", "Geschätzte Zeit")}</div>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: MJ_PRIORITY_COLOR[topic.priority] }}>{MJ_PRIORITY_LABEL[topic.priority].replace(" Priority", "")}</div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Impact</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: MJ_PRIORITY_COLOR[topic.priority] }}>{mjPriorityShort(t, topic.priority)}</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{L("Impact", "Вплив", "Влияние", "Impact", "Auswirkung")}</div>
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--emerald-600)" }}>+{gain}%</div>
-          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>Grade Increase</div>
+          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{L("Grade Increase", "Зростання оцінки", "Рост оценки", "Hausse de note", "Notensteigerung")}</div>
         </div>
       </div>
-      <button onClick={onStartReview} style={{ border: "none", background: MJ_PRIORITY_COLOR[topic.priority], color: "#fff", borderRadius: "var(--radius-lg)", padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Start Now</button>
+      <button onClick={onStartReview} style={{ border: "none", background: MJ_PRIORITY_COLOR[topic.priority], color: "#fff", borderRadius: "var(--radius-lg)", padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Start Now", "Почати зараз", "Начать сейчас", "Commencer maintenant", "Jetzt starten")}</button>
     </div>
   );
 }
 
 // ─── Section 11 — AI Actions ────────────────────────────────────────────────
 
-function MJAiActions({ topics, pendingCount, onGoToChat, onExplainAll, onSnoozeAll, onReviewDueToday, onCreateSession }) {
-  const topicNames = topics.map((tp) => tp.topic).join(", ") || "your weakest topics";
+function MJAiActions({ t, topics, pendingCount, onGoToChat, onExplainAll, onSnoozeAll, onReviewDueToday, onCreateSession }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
+  const topicNames = topics.map((tp) => tp.topic).join(", ") || L("your weakest topics", "ваші найслабші теми", "ваши самые слабые темы", "vos sujets les plus faibles", "deine schwächsten Themen");
   const actions = [
-    { label: "Generate Flashcards", emoji: "🗂️", onClick: () => onGoToChat && onGoToChat(`Make flashcards covering my weakest topics: ${topicNames}`) },
-    { label: "Generate Quiz", emoji: "📝", onClick: () => onGoToChat && onGoToChat(`Quiz me on: ${topicNames}`) },
-    { label: "Generate Lesson", emoji: "📖", onClick: () => onGoToChat && onGoToChat({ mode: "learn", topic: topics[0]?.topic }) , disabled: !topics.length },
-    { label: "Explain All", emoji: "💡", onClick: onExplainAll, disabled: !pendingCount },
-    { label: "Snooze Overdue", emoji: "😴", onClick: onSnoozeAll },
-    { label: "Review Due Today", emoji: "▶️", onClick: onReviewDueToday },
-    { label: "Create Study Session", emoji: "📅", onClick: onCreateSession, disabled: !topics.length },
+    { label: L("Generate Flashcards", "Створити картки", "Создать карточки", "Générer des cartes", "Karteikarten erstellen"), emoji: "🗂️", onClick: () => onGoToChat && onGoToChat(`Make flashcards covering my weakest topics: ${topicNames}`) },
+    { label: L("Generate Quiz", "Створити тест", "Создать тест", "Générer un quiz", "Quiz erstellen"), emoji: "📝", onClick: () => onGoToChat && onGoToChat(`Quiz me on: ${topicNames}`) },
+    { label: L("Generate Lesson", "Створити урок", "Создать урок", "Générer une leçon", "Lektion erstellen"), emoji: "📖", onClick: () => onGoToChat && onGoToChat({ mode: "learn", topic: topics[0]?.topic }) , disabled: !topics.length },
+    { label: L("Explain All", "Пояснити все", "Объяснить всё", "Tout expliquer", "Alles erklären"), emoji: "💡", onClick: onExplainAll, disabled: !pendingCount },
+    { label: L("Snooze Overdue", "Відкласти прострочені", "Отложить просроченные", "Reporter les retards", "Überfällige verschieben"), emoji: "😴", onClick: onSnoozeAll },
+    { label: L("Review Due Today", "Повторити на сьогодні", "Повторить на сегодня", "Réviser aujourd'hui", "Heute wiederholen"), emoji: "▶️", onClick: onReviewDueToday },
+    { label: L("Create Study Session", "Створити сесію навчання", "Создать сессию учёбы", "Créer une séance d'étude", "Lernsitzung erstellen"), emoji: "📅", onClick: onCreateSession, disabled: !topics.length },
   ];
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -322,28 +351,29 @@ function MJAiActions({ topics, pendingCount, onGoToChat, onExplainAll, onSnoozeA
 
 // ─── Section 12 — gamification ──────────────────────────────────────────────
 
-function MJGamification({ xp, summary, badges }) {
+function MJGamification({ t, xp, summary, badges }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   return (
     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 20, alignItems: "center" }}>
         {xp && (
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }}>⭐ Level {xp.level}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }}>⭐ {L("Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level}</div>
             <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{xp.into} / {xp.need} XP</div>
           </div>
         )}
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--emerald-600)" }}>{summary.recoveredCount} fixed</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Recovered mistakes</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--emerald-600)" }}>{L(`${summary.recoveredCount} fixed`, `${summary.recoveredCount} виправлено`, `${summary.recoveredCount} исправлено`, `${summary.recoveredCount} corrigées`, `${summary.recoveredCount} behoben`)}</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{L("Recovered mistakes", "Виправлені помилки", "Исправленные ошибки", "Erreurs récupérées", "Behobene Fehler")}</div>
         </div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: summary.streak > 0 ? "var(--amber-600)" : "var(--text-faint)" }}>{summary.streak}🔥</div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Review streak</div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{L("Review streak", "Серія повторень", "Серия повторений", "Série de révisions", "Wiederholungsserie")}</div>
         </div>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {badges.map((b) => (
-          <div key={b.id} title={b.unlocked ? "Unlocked" : "Not yet unlocked"} style={{
+          <div key={b.id} title={b.unlocked ? L("Unlocked", "Розблоковано", "Разблокировано", "Débloqué", "Freigeschaltet") : L("Not yet unlocked", "Ще не розблоковано", "Ещё не разблокировано", "Pas encore débloqué", "Noch nicht freigeschaltet")} style={{
             display: "flex", alignItems: "center", gap: 6, borderRadius: "var(--radius-full)", padding: "5px 12px",
             background: b.unlocked ? "var(--amber-50)" : "var(--surface-muted)", border: `1px solid ${b.unlocked ? "var(--amber-200)" : "var(--border-subtle)"}`,
             fontSize: 11, fontWeight: 700, color: b.unlocked ? "var(--amber-700)" : "var(--text-faint)",
@@ -359,31 +389,33 @@ function MJGamification({ xp, summary, badges }) {
 
 // ─── Section 3 — weakest topics ─────────────────────────────────────────────
 
-function MJTopicRow({ tp, onStartReview }) {
+function MJTopicRow({ t, tp, onStartReview }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   return (
     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
       <div style={{ flex: 1, minWidth: 140 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-strong)" }}>{tp.topic}</div>
-        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{tp.mistakes} mistake{tp.mistakes === 1 ? "" : "s"}</div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{L(`${tp.mistakes} mistake${tp.mistakes === 1 ? "" : "s"}`, `${tp.mistakes} помилок`, `${tp.mistakes} ошибок`, `${tp.mistakes} erreur(s)`, `${tp.mistakes} Fehler`)}</div>
       </div>
       <div style={{ width: 90 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-strong)" }}>{tp.masteryPct}% mastery</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-strong)" }}>{L(`${tp.masteryPct}% mastery`, `${tp.masteryPct}% засвоєння`, `${tp.masteryPct}% усвоения`, `${tp.masteryPct}% maîtrisé`, `${tp.masteryPct}% beherrscht`)}</div>
         <div style={{ height: 5, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden", marginTop: 3 }}>
           <div style={{ height: "100%", width: `${tp.masteryPct}%`, background: MJ_PRIORITY_COLOR[tp.priority], borderRadius: "var(--radius-full)" }} />
         </div>
       </div>
       <span style={{ borderRadius: "var(--radius-full)", padding: "3px 10px", fontSize: 11, fontWeight: 700, background: MJ_PRIORITY_BG[tp.priority], color: MJ_PRIORITY_COLOR[tp.priority], whiteSpace: "nowrap" }}>
-        {MJ_PRIORITY_LABEL[tp.priority]}
+        {mjPriorityLabel(t, tp.priority)}
       </span>
-      {tp.pendingHere > 0 && <span style={{ fontSize: 12, color: "var(--text-faint)", whiteSpace: "nowrap" }}>~{tp.estReviewMin} min</span>}
-      <button onClick={onStartReview} style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--indigo-600)", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Review</button>
+      {tp.pendingHere > 0 && <span style={{ fontSize: 12, color: "var(--text-faint)", whiteSpace: "nowrap" }}>~{tp.estReviewMin} {L("min", "хв", "мин", "min", "Min")}</span>}
+      <button onClick={onStartReview} style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--indigo-600)", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Review", "Повторити", "Повторить", "Réviser", "Wiederholen")}</button>
     </div>
   );
 }
 
 // ─── Section 4 — trends ──────────────────────────────────────────────────────
 
-function MJTrends({ trends }) {
+function MJTrends({ t, trends }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const maxVal = Math.max(1, ...trends.map((w) => Math.max(w.made, w.fixed)));
   const totalMade = trends.reduce((s, w) => s + w.made, 0);
   const totalDays = trends.length * 7;
@@ -391,23 +423,23 @@ function MJTrends({ trends }) {
   return (
     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>Mistake Trends</h2>
-        <span style={{ fontSize: 12, color: "var(--text-faint)" }}>~{avgPerDay} mistakes/day avg</span>
+        <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{L("Mistake Trends", "Динаміка помилок", "Динамика ошибок", "Tendances des erreurs", "Fehlertrends")}</h2>
+        <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{L(`~${avgPerDay} mistakes/day avg`, `~${avgPerDay} помилок/день у середньому`, `~${avgPerDay} ошибок/день в среднем`, `~${avgPerDay} erreurs/jour en moyenne`, `~${avgPerDay} Fehler/Tag im Ø`)}</span>
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 90 }}>
         {trends.map((w) => (
           <div key={w.weekStart} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end" }}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: "100%" }}>
-              <div title={`${w.made} made`} style={{ width: 10, height: `${Math.max(3, (w.made / maxVal) * 70)}px`, background: "var(--red-300, #FCA5A5)", borderRadius: 3 }} />
-              <div title={`${w.fixed} fixed`} style={{ width: 10, height: `${Math.max(3, (w.fixed / maxVal) * 70)}px`, background: "var(--emerald-400, #34D399)", borderRadius: 3 }} />
+              <div title={L(`${w.made} made`, `${w.made} зроблено`, `${w.made} сделано`, `${w.made} commises`, `${w.made} gemacht`)} style={{ width: 10, height: `${Math.max(3, (w.made / maxVal) * 70)}px`, background: "var(--red-300, #FCA5A5)", borderRadius: 3 }} />
+              <div title={L(`${w.fixed} fixed`, `${w.fixed} виправлено`, `${w.fixed} исправлено`, `${w.fixed} corrigées`, `${w.fixed} behoben`)} style={{ width: 10, height: `${Math.max(3, (w.fixed / maxVal) * 70)}px`, background: "var(--emerald-400, #34D399)", borderRadius: 3 }} />
             </div>
             <span style={{ fontSize: 9, color: "var(--text-faint)" }}>{w.weekStart.slice(5)}</span>
           </div>
         ))}
       </div>
       <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red-300, #FCA5A5)", marginRight: 4 }} />Mistakes made</span>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--emerald-400, #34D399)", marginRight: 4 }} />Recovered</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red-300, #FCA5A5)", marginRight: 4 }} />{L("Mistakes made", "Зроблено помилок", "Сделано ошибок", "Erreurs commises", "Fehler gemacht")}</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--emerald-400, #34D399)", marginRight: 4 }} />{L("Recovered", "Виправлено", "Исправлено", "Récupérées", "Behoben")}</span>
       </div>
     </div>
   );
@@ -415,23 +447,24 @@ function MJTrends({ trends }) {
 
 // ─── Section 5 — review queue ───────────────────────────────────────────────
 
-function MJQueueCard({ label, items, accent, completionPct, onStartReview }) {
+function MJQueueCard({ t, label, items, accent, completionPct, onStartReview }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const estMin = Math.max(1, Math.round(items.length * 1.5));
   return (
     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text-strong)" }}>{items.length}</div>
-      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{items.length === 1 ? "question" : "questions"} · {estMin} min</div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{items.length === 1 ? L("question", "питання", "вопрос", "question", "Frage") : L("questions", "питань", "вопросов", "questions", "Fragen")} · {estMin} {L("min", "хв", "мин", "min", "Min")}</div>
       {completionPct != null && (
         <div>
           <div style={{ height: 5, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${completionPct}%`, background: accent, borderRadius: "var(--radius-full)", transition: "width 0.4s ease" }} />
+            <div style={{ height: "100%", width: "100%", transform: `scaleX(${completionPct / 100})`, transformOrigin: "left", background: accent, borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 3 }}>{completionPct}% completed today</div>
+          <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 3 }}>{L(`${completionPct}% completed today`, `${completionPct}% виконано сьогодні`, `${completionPct}% выполнено сегодня`, `${completionPct}% terminé aujourd'hui`, `${completionPct}% heute erledigt`)}</div>
         </div>
       )}
       {items.length > 0 && (
-        <button onClick={onStartReview} style={{ alignSelf: "flex-start", border: "none", background: "transparent", color: accent, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0, marginTop: 2 }}>Start Review →</button>
+        <button onClick={onStartReview} style={{ alignSelf: "flex-start", border: "none", background: "transparent", color: accent, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0, marginTop: 2 }}>{L("Start Review →", "Почати повторення →", "Начать повторение →", "Commencer la révision →", "Wiederholung starten →")}</button>
       )}
     </div>
   );
@@ -453,13 +486,18 @@ function MJChip({ active, onClick, children }) {
 
 // ─── Section 8+9 — mistake card ─────────────────────────────────────────────
 
-function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGoToChat }) {
+function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, onGoToChat }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const [retryMode, setRetryMode] = React.useState("idle"); // idle | answering | pendingConfidence | wrongFeedback
   const [retryPicked, setRetryPicked] = React.useState(null);
   const [confidence, setConfidence] = React.useState(3);
   const recovered = m.status === "recovered";
   const priority = m.wrongCount >= 3 ? "high" : m.wrongCount === 2 ? "medium" : "low";
-  const difficulty = m.wrongCount >= 3 ? "Hard" : m.wrongCount === 2 ? "Challenging" : "Standard";
+  const difficulty = m.wrongCount >= 3
+    ? L("Hard", "Складно", "Сложно", "Difficile", "Schwer")
+    : m.wrongCount === 2
+    ? L("Challenging", "Непросто", "Непросто", "Corsé", "Anspruchsvoll")
+    : L("Standard", "Стандарт", "Стандарт", "Standard", "Standard");
 
   function pickRetry(i) {
     setRetryPicked(i);
@@ -478,6 +516,8 @@ function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGo
     onRetryDone();
   }
 
+  const dateLocale = (t && t.code) === "uk" ? "uk-UA" : (t && t.code) === "ru" ? "ru-RU" : (t && t.code) === "fr" ? "fr-FR" : (t && t.code) === "de" ? "de-DE" : "en-GB";
+
   return (
     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", overflow: "hidden", transition: "box-shadow 0.15s ease, transform 0.1s ease", boxShadow: open ? "var(--shadow-md)" : "var(--shadow-sm)" }}>
       <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -485,16 +525,16 @@ function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGo
           <span style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", background: "var(--indigo-50)", borderRadius: "var(--radius-full)", padding: "2px 10px" }}>{m.topic}</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: MJ_PRIORITY_COLOR[priority], background: MJ_PRIORITY_BG[priority], borderRadius: "var(--radius-full)", padding: "2px 10px" }}>{difficulty}</span>
           {subject !== m.topic && <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{subject}</span>}
-          <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{new Date(m.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
-          {m.wrongCount > 1 && <span style={{ fontSize: 11, color: "var(--red-600)", fontWeight: 700 }}>{m.wrongCount} failed attempts</span>}
-          {recovered && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--emerald-600)" }}>✓ Recovered</span>}
-          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-faint)" }}>~{Math.max(1, Math.round(m.wrongCount * 1.2))} min</span>
+          <span style={{ fontSize: 11, color: "var(--text-faint)" }}>{new Date(m.at).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}</span>
+          {m.wrongCount > 1 && <span style={{ fontSize: 11, color: "var(--red-600)", fontWeight: 700 }}>{L(`${m.wrongCount} failed attempts`, `${m.wrongCount} невдалих спроб`, `${m.wrongCount} неудачных попыток`, `${m.wrongCount} tentatives échouées`, `${m.wrongCount} fehlgeschlagene Versuche`)}</span>}
+          {recovered && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--emerald-600)" }}>✓ {L("Recovered", "Виправлено", "Исправлено", "Récupérée", "Behoben")}</span>}
+          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-faint)" }}>~{Math.max(1, Math.round(m.wrongCount * 1.2))} {L("min", "хв", "мин", "min", "Min")}</span>
         </div>
 
         {m.wrongCount >= 3 && !recovered && (
           <div style={{ fontSize: 12, color: "var(--red-700)", background: "#FEF2F2", borderRadius: "var(--radius-lg)", padding: "8px 10px", lineHeight: 1.5 }}>
-            ⚠ You've answered this incorrectly {m.wrongCount} times.<br />
-            <strong>AI Recommendation:</strong> review the prerequisite topic before attempting again.
+            ⚠ {L(`You've answered this incorrectly ${m.wrongCount} times.`, `Ви відповіли неправильно ${m.wrongCount} разів.`, `Вы ответили неправильно ${m.wrongCount} раз.`, `Vous avez répondu incorrectement ${m.wrongCount} fois.`, `Du hast dies ${m.wrongCount} Mal falsch beantwortet.`)}<br />
+            <strong>{L("AI Recommendation:", "Рекомендація AI:", "Рекомендация AI:", "Recommandation IA :", "KI-Empfehlung:")}</strong> {L("review the prerequisite topic before attempting again.", "повторіть попередню тему, перш ніж спробувати знову.", "повторите предыдущую тему, прежде чем пробовать снова.", "révisez le sujet préalable avant de réessayer.", "wiederhole das Grundlagenthema, bevor du es erneut versuchst.")}
           </div>
         )}
 
@@ -518,7 +558,7 @@ function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGo
                 })}
                 {m.explanation && (
                   <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
-                    <strong style={{ color: "var(--text-body)" }}>Step-by-step: </strong>{m.explanation}
+                    <strong style={{ color: "var(--text-body)" }}>{L("Step-by-step:", "Крок за кроком:", "Шаг за шагом:", "Étape par étape :", "Schritt für Schritt:")} </strong>{m.explanation}
                   </div>
                 )}
               </div>
@@ -526,7 +566,7 @@ function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGo
 
             {retryMode === "answering" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>Pick again — fresh attempt:</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>{L("Pick again — fresh attempt:", "Оберіть знову — нова спроба:", "Выберите снова — новая попытка:", "Choisissez à nouveau — nouvel essai :", "Wähle erneut — neuer Versuch:")}</p>
                 {(m.options || []).map((opt, i) => (
                   <button key={i} onClick={() => pickRetry(i)} style={{ textAlign: "left", fontSize: "var(--text-sm)", padding: "8px 12px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                     {opt}
@@ -537,35 +577,35 @@ function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGo
 
             {retryMode === "wrongFeedback" && (
               <div style={{ fontSize: 12, color: "var(--red-700)", background: "#FEF2F2", borderRadius: "var(--radius-lg)", padding: "10px 12px" }}>
-                Still tricky — this'll resurface for review tomorrow. {m.explanation && <span>{m.explanation}</span>}
-                <button onClick={() => setRetryMode("idle")} style={{ display: "block", marginTop: 6, border: "none", background: "transparent", color: "var(--red-600)", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)" }}>Close</button>
+                {L("Still tricky — this'll resurface for review tomorrow.", "Все ще складно — це знову з'явиться для повторення завтра.", "Всё ещё сложно — это снова появится для повторения завтра.", "Toujours difficile — cela réapparaîtra pour révision demain.", "Immer noch knifflig — das taucht morgen wieder zur Wiederholung auf.")} {m.explanation && <span>{m.explanation}</span>}
+                <button onClick={() => setRetryMode("idle")} style={{ display: "block", marginTop: 6, border: "none", background: "transparent", color: "var(--red-600)", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)" }}>{L("Close", "Закрити", "Закрыть", "Fermer", "Schließen")}</button>
               </div>
             )}
 
             {retryMode === "pendingConfidence" && (
               <div style={{ borderRadius: "var(--radius-lg)", background: "var(--emerald-50)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" }}>✓ Correct! How confident do you feel now?</p>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" }}>✓ {L("Correct! How confident do you feel now?", "Правильно! Наскільки ви впевнені зараз?", "Правильно! Насколько вы уверены сейчас?", "Correct ! Quel est votre niveau de confiance maintenant ?", "Richtig! Wie sicher fühlst du dich jetzt?")}</p>
                 <input type="range" min={1} max={5} value={confidence} onChange={(e) => setConfidence(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--emerald-600)" }} />
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-faint)" }}><span>Shaky</span><span>Confident</span></div>
-                <button onClick={confirmConfidence} style={{ alignSelf: "flex-start", border: "none", background: "var(--emerald-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "6px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Mark Recovered</button>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-faint)" }}><span>{L("Shaky", "Невпевнено", "Неуверенно", "Incertain", "Unsicher")}</span><span>{L("Confident", "Впевнено", "Уверенно", "Confiant", "Sicher")}</span></div>
+                <button onClick={confirmConfidence} style={{ alignSelf: "flex-start", border: "none", background: "var(--emerald-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "6px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Mark Recovered", "Позначити виправленим", "Отметить исправленным", "Marquer comme récupérée", "Als behoben markieren")}</button>
               </div>
             )}
 
             {m.confidence && recovered && (
-              <p style={{ margin: 0, fontSize: 11, color: "var(--text-faint)" }}>Confidence on recovery: {m.confidence}/5 · fixed in {mjFmtDuration(m.recoveredAt - m.at)}</p>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--text-faint)" }}>{L(`Confidence on recovery: ${m.confidence}/5 · fixed in ${mjFmtDuration(m.recoveredAt - m.at)}`, `Впевненість при виправленні: ${m.confidence}/5 · виправлено за ${mjFmtDuration(m.recoveredAt - m.at)}`, `Уверенность при исправлении: ${m.confidence}/5 · исправлено за ${mjFmtDuration(m.recoveredAt - m.at)}`, `Confiance à la récupération : ${m.confidence}/5 · corrigée en ${mjFmtDuration(m.recoveredAt - m.at)}`, `Sicherheit bei Behebung: ${m.confidence}/5 · behoben in ${mjFmtDuration(m.recoveredAt - m.at)}`)}</p>
             )}
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {!recovered && retryMode === "idle" && (
-                <button onClick={() => setRetryMode("answering")} style={{ border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Retry</button>
+                <button onClick={() => setRetryMode("answering")} style={{ border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Retry", "Спробувати знову", "Повторить попытку", "Réessayer", "Erneut versuchen")}</button>
               )}
               <button onClick={() => onGoToChat && onGoToChat(`Can you explain why the answer to this is "${m.options[m.correctIndex]}" and not "${m.options[m.selectedIndex] ?? "what I picked"}"? Question: "${m.question}"`)}
-                style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Explain</button>
+                style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Explain", "Пояснити", "Объяснить", "Expliquer", "Erklären")}</button>
               <button onClick={() => onGoToChat && onGoToChat({ mode: "learn", topic: m.topic })}
-                style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>AI Teach</button>
+                style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("AI Teach", "AI навчання", "AI обучение", "Cours IA", "KI-Unterricht")}</button>
               <button onClick={() => onGoToChat && onGoToChat(`Make flashcards to help me master "${m.topic}" — I got this wrong: "${m.question}"`)}
-                style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Generate Flashcards</button>
-              <button onClick={onRemove} style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontSize: 12, cursor: "pointer", padding: "7px 8px", fontFamily: "var(--font-sans)" }}>Remove</button>
+                style={{ border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Generate Flashcards", "Створити картки", "Создать карточки", "Générer des cartes", "Karteikarten erstellen")}</button>
+              <button onClick={onRemove} style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontSize: 12, cursor: "pointer", padding: "7px 8px", fontFamily: "var(--font-sans)" }}>{L("Remove", "Видалити", "Удалить", "Supprimer", "Entfernen")}</button>
             </div>
           </div>
         )}
@@ -576,18 +616,19 @@ function MJMistakeCard({ m, subject, open, onToggle, onRetryDone, onRemove, onGo
 
 // ─── Section 13 — empty state ───────────────────────────────────────────────
 
-function MJEmptyState({ onGoToDashboard, onGoToChat }) {
+function MJEmptyState({ t, onGoToDashboard, onGoToChat }) {
+  const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
-      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>Mistake Journal</h1>
+      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}</h1>
       <div style={{ borderRadius: "var(--radius-2xl)", border: "1px dashed var(--border-default)", background: "linear-gradient(135deg, var(--emerald-50), var(--indigo-50))", padding: "var(--space-8)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
         <span style={{ fontSize: 40 }}>🎉</span>
-        <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>Great job!</p>
-        <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)", maxWidth: 380 }}>You currently have no mistakes waiting for review. Keep taking quizzes and anything you get wrong will show up here automatically.</p>
+        <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{L("Great job!", "Чудова робота!", "Отличная работа!", "Excellent travail !", "Großartige Arbeit!")}</p>
+        <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)", maxWidth: 380 }}>{L("You currently have no mistakes waiting for review. Keep taking quizzes and anything you get wrong will show up here automatically.", "Наразі у вас немає помилок, що очікують на повторення. Продовжуйте проходити тести — все, що ви зробите неправильно, автоматично з'явиться тут.", "Сейчас у вас нет ошибок, ожидающих повторения. Продолжайте проходить тесты — всё, что вы сделаете неправильно, автоматически появится здесь.", "Vous n'avez actuellement aucune erreur en attente de révision. Continuez à faire des quiz — tout ce que vous répondrez de travers apparaîtra ici automatiquement.", "Du hast aktuell keine Fehler, die auf Wiederholung warten. Mach weiter Quizze — alles, was du falsch beantwortest, erscheint hier automatisch.")}</p>
         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
-          <button onClick={() => onGoToChat && onGoToChat("Give me a practice quiz to test myself.")} style={{ border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Practice More</button>
-          <button onClick={() => onGoToChat && onGoToChat("Give me a harder challenge quiz to push myself.")} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Generate Challenge</button>
-          {onGoToDashboard && <button onClick={onGoToDashboard} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>Return to Dashboard</button>}
+          <button onClick={() => onGoToChat && onGoToChat("Give me a practice quiz to test myself.")} style={{ border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Practice More", "Більше практики", "Больше практики", "Plus d'entraînement", "Mehr üben")}</button>
+          <button onClick={() => onGoToChat && onGoToChat("Give me a harder challenge quiz to push myself.")} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Generate Challenge", "Створити виклик", "Создать вызов", "Générer un défi", "Herausforderung erstellen")}</button>
+          {onGoToDashboard && <button onClick={onGoToDashboard} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Return to Dashboard", "Повернутися на головну", "Вернуться на главную", "Retour au tableau de bord", "Zurück zum Dashboard")}</button>}
         </div>
       </div>
     </div>
