@@ -37,12 +37,18 @@ function _allCurriculumRows() {
 }
 
 // ── Deterministic single-syllabus lookup — pure, synchronous, no AI call ───
+// Country is matched leniently: a falsy countryId argument means "caller
+// didn't pin a country", and qualificationId already discriminates strongly
+// (e.g. "nmt" only exists for Ukraine in the seed), so an exam picked without
+// an explicit country still resolves its official syllabus. This is what lets
+// the NMT add-exam flow find Хімія/Географія even when the profile has no
+// country set. Scales to any new single-country qualification for free.
 function getCurriculum(countryId, qualificationId, board, subject) {
   if (!subject) return null;
   const norm = (s) => String(s || "").toLowerCase().trim();
   const rows = _allCurriculumRows();
   return rows.find((r) =>
-    r.countryId === countryId &&
+    (!countryId || r.countryId === countryId) &&
     r.qualificationId === qualificationId &&
     (r.board || null) === (board || null) &&
     (norm(r.subject) === norm(subject) || (r.aliases || []).some((a) => norm(a) === norm(subject)))
@@ -53,7 +59,7 @@ function getCurriculum(countryId, qualificationId, board, subject) {
 function searchCurriculumSubjects(countryId, qualificationId, board, query) {
   const q = String(query || "").toLowerCase().trim();
   const rows = _allCurriculumRows().filter((r) =>
-    r.countryId === countryId && r.qualificationId === qualificationId && (r.board || null) === (board || null)
+    (!countryId || r.countryId === countryId) && r.qualificationId === qualificationId && (r.board || null) === (board || null)
   );
   const matches = rows.filter((r) => {
     if (!q) return true;
