@@ -310,7 +310,30 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
   return (
     <div style={{ minHeight: "100vh", background: "transparent", display: "flex", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
-      <style>{`@keyframes onb-spin{to{transform:rotate(360deg)}}@keyframes onb-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
+      <style>{`
+        @keyframes onb-spin{to{transform:rotate(360deg)}}
+        @keyframes onb-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+        /* Step entrance — spring-like ease-out (Apple response ~0.44s, critically
+           damped so no distracting overshoot on a screen that just appeared). */
+        @keyframes onb-step-in{from{opacity:0;transform:translateY(14px) scale(0.985)}to{opacity:1;transform:none}}
+        .onb-step{animation:onb-step-in .44s cubic-bezier(.16,1,.3,1) both}
+        /* Staggered reveal: each direct block of the step settles a beat after
+           the previous, so the eye is led down the page instead of hit all at once. */
+        .onb-step>*{animation:onb-rise .4s cubic-bezier(.16,1,.3,1) both}
+        .onb-step>*:nth-child(1){animation-delay:.03s}
+        .onb-step>*:nth-child(2){animation-delay:.08s}
+        .onb-step>*:nth-child(3){animation-delay:.13s}
+        .onb-step>*:nth-child(4){animation-delay:.18s}
+        .onb-step>*:nth-child(5){animation-delay:.22s}
+        /* Press feedback lives on pointer-down and is instant — directness. */
+        .onb-step button{transition:transform .12s cubic-bezier(.16,1,.3,1)}
+        .onb-step button:active:not(:disabled){transform:scale(.97)}
+        @media (prefers-reduced-motion: reduce){
+          .onb-step,.onb-step>*{animation:onb-fade .2s ease both}
+          .onb-step button:active:not(:disabled){transform:none}
+        }
+        @keyframes onb-fade{from{opacity:0}to{opacity:1}}
+      `}</style>
       <div style={{ width: "100%", maxWidth: 460, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
         <div style={{ padding: "var(--space-5) var(--space-5) var(--space-3)" }}>
@@ -320,8 +343,8 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {onLangChange && langs.map((l) => (
-                <button key={l.code} onClick={() => onLangChange(l.code)} title={l.label}
-                  style={{ border: lang === l.code ? "2px solid var(--indigo-500)" : "2px solid transparent", borderRadius: "var(--radius-full)", background: "transparent", cursor: "pointer", fontSize: "var(--text-lg)", padding: "2px", lineHeight: 1 }}>
+                <button key={l.code} onClick={() => onLangChange(l.code)} title={l.label} aria-label={l.label}
+                  style={{ border: lang === l.code ? "2px solid var(--indigo-500)" : "2px solid transparent", borderRadius: "var(--radius-full)", background: "transparent", cursor: "pointer", fontSize: "var(--text-lg)", minWidth: 40, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, lineHeight: 1 }}>
                   {l.flag}
                 </button>
               ))}
@@ -342,7 +365,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
           )}
         </div>
 
-        <div style={{ flex: 1, padding: "var(--space-3) var(--space-5) var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+        <div key={step} className="onb-step" style={{ flex: 1, padding: "var(--space-3) var(--space-5) var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
 
           {step === "welcome" && <window.CoachBubble advisor={c.advisor}>{c.greeting}</window.CoachBubble>}
 
