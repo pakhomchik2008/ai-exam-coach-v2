@@ -1,5 +1,7 @@
-// AI Exam Coach — Schedule screen (i18n-aware)
-function Schedule({ t }) {
+// AI Exam Coach — month-overview screen (i18n-aware). Rendered standalone
+// (legacy) or embedded as the "Month" view inside CalendarHub — embedded
+// mode drops the page h1 since the hub owns the heading.
+function Schedule({ t, embedded }) {
   const todayDate = new Date();
   const [cursor, setCursor] = React.useState(new Date(todayDate.getFullYear(), todayDate.getMonth(), 1));
   const [selected, setSelected] = React.useState(todayDate);
@@ -30,7 +32,8 @@ function Schedule({ t }) {
   const today = fmt(new Date());
   const selKey = selected ? fmt(selected) : null;
   const selSessions = selKey ? (SESSIONS_BY_DAY[selKey] || []) : [];
-  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const localeOf = (code) => code === "uk" ? "uk-UA" : code === "ru" ? "ru-RU" : code === "fr" ? "fr-FR" : code === "de" ? "de-DE" : "en-GB";
+  const monthLabel = (d) => d.toLocaleDateString(localeOf(t.code), { month: "long", year: "numeric" });
   const weekdays = [t.mon, t.tue, t.wed, t.thu, t.fri, t.sat, t.sun];
 
   const nextHint = React.useMemo(() => {
@@ -50,10 +53,10 @@ function Schedule({ t }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
-      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.schedule_title}</h1>
+      {!embedded && <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.schedule_title}</h1>}
       {nextHint && (
         <div style={{ borderRadius: "var(--radius-xl)", background: "var(--indigo-50)", border: "1px solid var(--indigo-100)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
-          <span style={{ color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)" }}>Next session:</span>
+          <span style={{ color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)" }}>{t.schedule_next || "Next session:"}</span>
           <span style={{ color: "var(--text-body)" }}>{nextHint}</span>
         </div>
       )}
@@ -61,7 +64,7 @@ function Schedule({ t }) {
         <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-3)" }}>
             <button onClick={() => changeMonth(-1)} style={{ border: "none", background: "transparent", cursor: "pointer", padding: "4px 8px", color: "var(--text-muted)", fontSize: "var(--text-lg)" }}>←</button>
-            <h2 style={{ margin: 0, fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{monthNames[cursor.getMonth()]} {cursor.getFullYear()}</h2>
+            <h2 style={{ margin: 0, fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", textTransform: "capitalize" }}>{monthLabel(cursor)}</h2>
             <button onClick={() => changeMonth(1)} style={{ border: "none", background: "transparent", cursor: "pointer", padding: "4px 8px", color: "var(--text-muted)", fontSize: "var(--text-lg)" }}>→</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "var(--space-1)", textAlign: "center", marginBottom: "var(--space-1)" }}>
@@ -78,10 +81,11 @@ function Schedule({ t }) {
               const colors = [...new Set(sess.map(s => s.color))].slice(0, 4);
               const completedCount = sess.filter((s) => s.status === "completed").length;
               const pendingCount = sess.length - completedCount;
+              const Ltip = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
               const tooltipParts = [];
-              if (pendingCount) tooltipParts.push(`${pendingCount} session${pendingCount > 1 ? "s" : ""} planned`);
-              if (completedCount) tooltipParts.push(`${completedCount} completed`);
-              if (exams.length) tooltipParts.push(exams.map((ex) => `${ex.subject} exam`).join(", "));
+              if (pendingCount) tooltipParts.push(Ltip(`${pendingCount} planned`, `${pendingCount} заплановано`, `${pendingCount} запланировано`, `${pendingCount} prévues`, `${pendingCount} geplant`));
+              if (completedCount) tooltipParts.push(Ltip(`${completedCount} completed`, `${completedCount} виконано`, `${completedCount} выполнено`, `${completedCount} terminées`, `${completedCount} erledigt`));
+              if (exams.length) tooltipParts.push(exams.map((ex) => Ltip(`${ex.subject} exam`, `іспит: ${ex.subject}`, `экзамен: ${ex.subject}`, `examen : ${ex.subject}`, `Prüfung: ${ex.subject}`)).join(", "));
               return (
                 <button key={key} onClick={() => setSelected(new Date(d))} title={tooltipParts.join(" · ") || undefined} style={{
                   minHeight: "64px", borderRadius: "var(--radius-lg)", textAlign: "left", padding: "6px", cursor: "pointer", fontFamily: "var(--font-sans)",
@@ -105,11 +109,12 @@ function Schedule({ t }) {
               );
             })}
           </div>
+          {(() => { const Lg = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en); return (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", marginTop: "var(--space-3)", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--text-muted)", display: "inline-block" }} /> Dot colour = subject with a session that day</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span aria-hidden="true">★</span> Exam date</span>
-            <span>Hover a date for a summary</span>
-          </div>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--text-muted)", display: "inline-block" }} /> {Lg("Dot colour = subject with a session that day", "Колір крапки = предмет із сесією того дня", "Цвет точки = предмет с сессией в тот день", "Couleur du point = matière avec une séance ce jour-là", "Punktfarbe = Fach mit Einheit an dem Tag")}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span aria-hidden="true">★</span> {Lg("Exam date", "Дата іспиту", "Дата экзамена", "Date d'examen", "Prüfungstermin")}</span>
+            <span>{Lg("Hover a date for a summary", "Наведіть на дату для підсумку", "Наведите на дату для сводки", "Survolez une date pour un résumé", "Datum für Zusammenfassung überfahren")}</span>
+          </div>); })()}
         </div>
         <aside style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)" }}>
           <h3 style={{ margin: "0 0 12px", fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>

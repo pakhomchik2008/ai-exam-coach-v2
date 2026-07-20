@@ -92,9 +92,9 @@ function AIPlan({ examIds, onStart, t }) {
   const TIERS = React.useMemo(() => {
     const MULT = window.INTENSITY_MULTIPLIERS || { minimal: 0.55, balanced: 1, ambitious: 1.5 };
     const defs = [
-      { id: "minimal",   label: "Minimal",   gradeIdx: gi - 1, color: "var(--amber-600)",   desc: L("Cover each topic once — just enough","Кожну тему один раз","Каждую тему один раз","Couvrir chaque sujet","Jeden Thema einmal") },
-      { id: "balanced",  label: "Balanced",  gradeIdx: gi,     color: "var(--indigo-600)",  desc: L("Spaced repetition, your budget","Інтервальне повторення","Интервальное повторение","Répétition espacée","Verteilte Wiederholung") },
-      { id: "ambitious", label: "Ambitious", gradeIdx: gi + 1, color: "var(--emerald-600)", desc: L("Deep mastery, extra sessions","Глибоке засвоєння","Глубокое освоение","Maîtrise approfondie","Tiefes Lernen") },
+      { id: "minimal",   label: L("Minimal","Мінімум","Минимум","Minimal","Minimal"),   gradeIdx: gi - 1, color: "var(--amber-600)",   desc: L("Cover each topic once — just enough","Кожну тему один раз","Каждую тему один раз","Couvrir chaque sujet","Jeden Thema einmal") },
+      { id: "balanced",  label: L("Balanced","Збалансовано","Сбалансированно","Équilibré","Ausgewogen"),  gradeIdx: gi,     color: "var(--indigo-600)",  desc: L("Spaced repetition, your budget","Інтервальне повторення","Интервальное повторение","Répétition espacée","Verteilte Wiederholung") },
+      { id: "ambitious", label: L("Ambitious","Амбітно","Амбициозно","Ambitieux","Ambitioniert"), gradeIdx: gi + 1, color: "var(--emerald-600)", desc: L("Deep mastery, extra sessions","Глибоке засвоєння","Глубокое освоение","Maîtrise approfondie","Tiefes Lernen") },
     ];
     return defs.map((tier) => {
       let hours = 0, sess = 0;
@@ -169,7 +169,7 @@ function AIPlan({ examIds, onStart, t }) {
         const isWE = dt.getDay() === 0 || dt.getDay() === 6;
         const slots = isWE ? WEEKEND_SLOTS : WEEKDAY_SLOTS;
         days.push({
-          key, dayName: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()],
+          key, dayName: [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat][dt.getDay()],
           dayNum: dt.getDate(), isToday: key === window.fmtDateKey(today),
           isSunday: dt.getDay() === 0,
           sessions: raw.map((s, i) => ({ ...s, time: slots[i % slots.length], end: endTime(slots[i % slots.length]) })),
@@ -231,10 +231,10 @@ function AIPlan({ examIds, onStart, t }) {
   if (phase === "planning") {
     const pct = Math.round((done / STEPS.length) * 100);
     return (
-      <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", overflow: "hidden" }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "linear-gradient(135deg, var(--ink-900) 0%, var(--indigo-800) 40%, var(--indigo-800) 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", overflow: "hidden" }}>
         {/* Pulsing coach icon */}
         <div style={{ animation: "pulse 2s ease-in-out infinite", marginBottom: 32 }}>
-          {window.CoachIcon ? <window.CoachIcon size={72} /> : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, color: "#fff" }}>🧠</div>}
+          {window.CoachIcon ? <window.CoachIcon size={72} /> : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-500))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, color: "#fff" }}>🧠</div>}
         </div>
 
         <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, color: "#fff", textAlign: "center" }}>
@@ -256,7 +256,7 @@ function AIPlan({ examIds, onStart, t }) {
                 transition: "opacity 0.4s ease, transform 0.4s ease",
               }}>
                 <span style={{ fontSize: 18, width: 28, textAlign: "center", flexShrink: 0 }}>
-                  {checked ? <span style={{ color: "#34d399", animation: "fadeUp 0.3s ease" }}>✓</span> : s.icon}
+                  {checked ? <span style={{ color: "var(--emerald-300)", animation: "fadeUp 0.3s ease" }}>✓</span> : s.icon}
                 </span>
                 <span style={{ fontSize: 14, color: checked ? "rgba(255,255,255,0.5)" : "#fff", transition: "color 0.3s ease" }}>{s.text}</span>
               </div>
@@ -266,7 +266,7 @@ function AIPlan({ examIds, onStart, t }) {
 
         {/* Progress bar */}
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "rgba(255,255,255,0.1)" }}>
-          <div style={{ height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg, #6366f1, #a855f7)", transition: "transform 0.6s ease", borderRadius: "0 2px 2px 0" }} />
+          <div style={{ height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg, var(--indigo-500), var(--indigo-500))", transition: "transform 0.6s ease", borderRadius: "0 2px 2px 0" }} />
         </div>
       </div>
     );
@@ -298,7 +298,7 @@ function AIPlan({ examIds, onStart, t }) {
               {L("Your AI Study Plan","Ваш AI план навчання","Ваш AI план обучения","Votre plan d'étude IA","Ihr KI-Lernplan")}
             </span>
             <button onClick={scrollToWhy} aria-label={L("Why this plan?","Чому цей план?","Почему этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
-              style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "1px solid var(--indigo-200, #c7d2fe)", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-full)", padding: "3px 10px 3px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "1px solid var(--indigo-200, var(--indigo-200))", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-full)", padding: "3px 10px 3px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
               <span style={{ display: "inline-flex", width: 15, height: 15, borderRadius: "50%", background: "var(--indigo-600)", color: "#fff", alignItems: "center", justifyContent: "center", fontSize: 10, fontStyle: "italic", fontWeight: 700 }}>i</span>
               {L("Why this plan?","Чому цей?","Почему?","Pourquoi ?","Warum?")}
             </button>
@@ -339,7 +339,7 @@ function AIPlan({ examIds, onStart, t }) {
                 <div style={{ fontSize: 14, fontWeight: 700, color: tier.color, marginBottom: 4 }}>{tier.label}</div>
                 <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-strong)", fontFamily: "var(--font-mono)", lineHeight: 1 }}>
                   {tier.hpw}
-                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>h/wk</span>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: "var(--text-muted)" }}>{L("h/wk","год/тижд","ч/нед","h/sem","Std./Wo")}</span>
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-body)", margin: "6px 0 4px" }}>
                   {L("Predicted","Прогноз","Прогноз","Prévu","Prognose")} <strong style={{ color: tier.color }}>{tier.grade}</strong>
@@ -352,7 +352,7 @@ function AIPlan({ examIds, onStart, t }) {
         </div>
 
         {/* ── Overall prediction ───────────────────────────────── */}
-        <div style={{ background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border-subtle)", padding: 32, marginBottom: 24, animation: "fadeUp 0.6s ease 0.1s both" }}>
+        <div style={{ background: "linear-gradient(135deg, var(--indigo-50), var(--indigo-50))", borderRadius: "var(--radius-2xl)", border: "1px solid var(--border-subtle)", padding: 32, marginBottom: 24, animation: "fadeUp 0.6s ease 0.1s both" }}>
           {!anyStarted ? (
             <div style={{ textAlign: "center", padding: "8px 0" }}>
               <div style={{ fontSize: 32 }}>🌱</div>
@@ -535,13 +535,13 @@ function AIPlan({ examIds, onStart, t }) {
         <div style={{ textAlign: "center", animation: "fadeUp 0.6s ease 0.5s both" }}>
           <button onClick={onStart} style={{
             border: "none", borderRadius: "var(--radius-2xl)", padding: "18px 48px",
-            background: "linear-gradient(135deg, var(--indigo-600), #7c3aed)",
+            background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))",
             color: "#fff", fontSize: 18, fontWeight: 700, cursor: "pointer",
-            fontFamily: "var(--font-sans)", boxShadow: "0 8px 30px rgba(99,102,241,0.35)",
+            fontFamily: "var(--font-sans)", boxShadow: "0 8px 30px rgba(34,124,99,0.35)",
             transition: "transform 0.15s ease, box-shadow 0.15s ease",
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(99,102,241,0.45)"; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(99,102,241,0.35)"; }}
+          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(34,124,99,0.45)"; }}
+          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(34,124,99,0.35)"; }}
           >
             ✨ {L("Start My AI Plan","Розпочати мій AI план","Начать мой AI план","Démarrer mon plan IA","Meinen KI-Plan starten")} →
           </button>

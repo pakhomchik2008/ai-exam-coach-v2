@@ -1,4 +1,20 @@
 // AI Exam Coach — top navigation + language switcher
+// FintechX redesign: sticky translucent bar, geometric logo mark,
+// ink-pill active state, no emoji in the link row.
+
+function NavLogoMark({ size = 26 }) {
+  // Rounded ink square with an emerald progress arc — "coached to ready".
+  return (
+    <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">
+      <rect width="26" height="26" rx="8" fill="var(--ink-900)" />
+      <path d="M13 6.5 a6.5 6.5 0 1 1 -6.2 8.5" fill="none"
+        stroke="var(--emerald-500)" strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="13" cy="13" r="2.4" fill="#FFFFFF" />
+    </svg>
+  );
+}
+window.NavLogoMark = NavLogoMark;
+
 function NavLogoutButton({ onLogout, label }) {
   const [confirm, setConfirm] = React.useState(false);
   React.useEffect(() => {
@@ -12,7 +28,7 @@ function NavLogoutButton({ onLogout, label }) {
       fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
       color: confirm ? "var(--red-600)" : "var(--text-faint)",
       fontWeight: confirm ? "var(--weight-semibold)" : "var(--weight-normal)",
-    }}>{confirm ? "Click again to confirm" : label}</button>
+    }}>{confirm ? ({ uk: "Натисніть ще раз", ru: "Нажмите ещё раз", fr: "Cliquez à nouveau", de: "Erneut klicken" }[(window.getProfile && window.getProfile().lang) || "en"] || "Click again to confirm") : label}</button>
   );
 }
 
@@ -20,11 +36,11 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const t = window.LANGS[lang] || window.LANGS.en;
   const links = [
     { id: "dashboard", label: t.nav_dashboard },
-    { id: "chat",      label: "🤖 " + (t.nav_chat || "AI Coach") },
+    { id: "chat",      label: t.nav_chat || "AI Coach" },
     { id: "study",     label: t.nav_study },
     { id: "journal",   label: t.nav_journal },
-    { id: "schedule",  label: t.nav_schedule },
-    { id: "calendar",  label: "📅 " + (t.nav_calendar || "Calendar") },
+    // "schedule" (month overview) merged into CalendarHub — one calendar tab.
+    { id: "calendar",  label: t.nav_calendar || "Calendar" },
     { id: "exams",     label: t.nav_exams },
     { id: "progress",  label: t.nav_progress },
     { id: "settings",  label: t.nav_settings },
@@ -39,10 +55,15 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const navigate = (id) => { onNavigate(id); setMobileOpen(false); };
 
   return (
-    <nav style={{ borderBottom: "1px solid var(--border-default)", background: "var(--surface-card)" }}>
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 50,
+      borderBottom: "1px solid var(--border-subtle)",
+      background: "rgba(255, 255, 255, 0.82)",
+      backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
+    }}>
       <div style={{ maxWidth: "var(--container-app)", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-sans)" }}>
-          <span aria-hidden="true" style={{ color: "var(--indigo-600)" }}>🤖</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "9px", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontSize: "var(--text-lg)" }}>
+          <NavLogoMark />
           <span>AI Exam Coach</span>
         </div>
 
@@ -51,11 +72,12 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             const active = current === l.id;
             return (
               <button key={l.id} onClick={() => navigate(l.id)} style={{
-                border: "none", cursor: "pointer", borderRadius: "var(--radius-md)",
-                padding: "6px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
-                background: active ? "var(--slate-100)" : "transparent",
-                color: active ? "var(--text-strong)" : "var(--text-muted)",
-                fontWeight: active ? "var(--weight-medium)" : "var(--weight-normal)",
+                border: "none", cursor: "pointer", borderRadius: "var(--radius-full)",
+                padding: "7px 13px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
+                background: active ? "var(--ink-900)" : "transparent",
+                color: active ? "var(--text-invert)" : "var(--text-muted)",
+                fontWeight: active ? "var(--weight-semibold)" : "var(--weight-medium)",
+                transition: "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)",
               }}>{l.label}</button>
             );
           })}
@@ -63,8 +85,8 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           {/* Language picker */}
           <div style={{ position: "relative", marginLeft: "var(--space-2)" }}>
             <button onClick={() => setLangOpen(o => !o)} style={{
-              border: "1px solid var(--border-default)", cursor: "pointer", borderRadius: "var(--radius-md)",
-              padding: "5px 10px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
+              border: "1px solid var(--border-default)", cursor: "pointer", borderRadius: "var(--radius-full)",
+              padding: "5px 11px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
               background: "var(--surface-card)", color: "var(--text-body)", display: "flex", alignItems: "center", gap: "4px",
             }}>
               <span>{t.flag}</span><span style={{ fontSize: "10px", color: "var(--text-faint)" }}>▾</span>
@@ -72,7 +94,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             {langOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
-                background: "rgba(255, 255, 255, 0.75)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
+                background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
                 border: "1px solid var(--border-default)",
                 borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
                 overflow: "hidden", minWidth: "160px",
@@ -113,12 +135,12 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           const active = current === l.id;
           return (
             <button key={l.id} onClick={() => navigate(l.id)} style={{
-              border: "none", cursor: "pointer", borderRadius: "var(--radius-md)", textAlign: "left",
+              border: "none", cursor: "pointer", borderRadius: "var(--radius-lg)", textAlign: "left",
               display: "flex", alignItems: "center", minHeight: "44px",
               padding: "10px 12px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)",
-              background: active ? "var(--slate-100)" : "transparent",
-              color: active ? "var(--text-strong)" : "var(--text-body)",
-              fontWeight: active ? "var(--weight-medium)" : "var(--weight-normal)",
+              background: active ? "var(--ink-900)" : "transparent",
+              color: active ? "var(--text-invert)" : "var(--text-body)",
+              fontWeight: active ? "var(--weight-semibold)" : "var(--weight-normal)",
             }}>{l.label}</button>
           );
         })}

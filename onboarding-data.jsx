@@ -78,8 +78,8 @@ function detectTimezone() {
 
 // ─── Default subjects pre-filled in step 2 (per advisor demo) ──────────────────
 const DEFAULT_SUBJECTS = [
-  { id: "bio",  name: "Biology",   color: "var(--subject-indigo)" },
-  { id: "chem", name: "Chemistry", color: "var(--subject-rose)" },
+  { id: "bio",  name: "Biology",   color: "#5B6BD6" },
+  { id: "chem", name: "Chemistry", color: "#D9536E" },
 ];
 
 // ─── New onboarding copy, all five languages ───────────────────────────────────

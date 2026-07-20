@@ -266,15 +266,15 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
               {periods.map((p) => (
                 <button key={p} type="button" onClick={() => togglePeriod(day, p)}
                   style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    border: isPeriodOff(day, p) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
-                    background: isPeriodOff(day, p) ? "#fef2f2" : "var(--surface-card)",
-                    color: isPeriodOff(day, p) ? "#b91c1c" : "var(--text-faint)" }}>{PERIOD_LABELS[p]}</button>
+                    border: isPeriodOff(day, p) ? "1.5px solid var(--red-500)" : "1.5px solid var(--border-default)",
+                    background: isPeriodOff(day, p) ? "var(--red-50)" : "var(--surface-card)",
+                    color: isPeriodOff(day, p) ? "var(--red-700)" : "var(--text-faint)" }}>{PERIOD_LABELS[p]}</button>
               ))}
               <button type="button" onClick={() => toggleAllDay(day)}
                 style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                  border: isAllDay(day) ? "1.5px solid #ef4444" : "1.5px solid var(--border-default)",
-                  background: isAllDay(day) ? "#fef2f2" : "var(--surface-card)",
-                  color: isAllDay(day) ? "#b91c1c" : "var(--text-faint)" }}>{copy.all_day}</button>
+                  border: isAllDay(day) ? "1.5px solid var(--red-500)" : "1.5px solid var(--border-default)",
+                  background: isAllDay(day) ? "var(--red-50)" : "var(--surface-card)",
+                  color: isAllDay(day) ? "var(--red-700)" : "var(--text-faint)" }}>{copy.all_day}</button>
             </div>
           ))}
         </div>

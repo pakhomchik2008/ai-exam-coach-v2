@@ -510,7 +510,7 @@ function buildScheduleView(schedule, courses) {
       // these are managed, but Schedule.jsx's month view shouldn't just
       // silently drop them).
       (sessionsByDay[s.date] = sessionsByDay[s.date] || []).push({
-        id: s.id, subject: s.topic, color: s.personalColor || "#64748B", topic: s.topic, status: s.status,
+        id: s.id, subject: s.topic, color: s.personalColor || "var(--slate-500)", topic: s.topic, status: s.status,
       });
       return;
     }

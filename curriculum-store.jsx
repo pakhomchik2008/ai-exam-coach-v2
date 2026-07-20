@@ -98,17 +98,31 @@ function searchCurriculumSubjects(countryId, qualificationId, board, query) {
 // confirm-before-save, same as every other AI-generated row.
 async function fetchAndCacheCurriculum(countryId, qualificationId, board, subject, specVersion, context) {
   if (!window.claude) return null;
-  const system = "You are a curriculum expert. Output ONLY valid JSON, no markdown, no commentary: " +
+  // Learner context: the OFFICIAL curriculum depends on far more than the
+  // subject name — country, education system, school year and qualification
+  // all change what "Mathematics" means. Everything known about the learner
+  // goes into the prompt so a 6th-grader in Ukraine gets the НУШ programme,
+  // not a generic global outline. Adding a new signal here = one line.
+  const profile = (window.getProfile && window.getProfile()) || {};
+  const learnerFacts = [
+    countryId ? `country: ${countryId}` : null,
+    profile.educationLevel ? `education level: ${profile.educationLevel}` : null,
+    profile.currentYear ? `school year/grade: ${profile.currentYear}` : null,
+    profile.lang ? `interface language: ${profile.lang}` : null,
+  ].filter(Boolean).join("; ");
+  const system = "You are a curriculum expert with deep knowledge of OFFICIAL national education programmes (state curricula, exam-board specifications, ministry syllabi). Output ONLY valid JSON, no markdown, no commentary: " +
     '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10,"subtopics":["...","..."]}]}. ' +
-    "List the real syllabus topics students are actually examined on, foundational topics first (this order IS the recommended study order). " +
-    "8-14 topics is typical; use your judgment for the subject's real scope. Each topic gets 2-5 short subtopics." +
+    "Base the list on the official programme for this learner's country, qualification and school year — NOT a generic global outline. " +
+    "List the COMPLETE set of examinable syllabus topics, foundational topics first (this order IS the recommended study order). " +
+    "Do not truncate: if the official programme has 30+ topics, list them all. Each topic gets 2-6 short subtopics." +
+    (learnerFacts ? ` Learner: ${learnerFacts}.` : "") +
     (window.aiLangDirective ? ` ${window.aiLangDirective()}` : "");
   const isUni = qualificationId === "uni";
   const contextLabel = context && context.trim() ? ` (${context.trim()})` : "";
   const countryLabel = countryId ? ` in ${countryId}` : "";
   const prompt = isUni
     ? `List the syllabus topics for the university module/course "${subject}"${contextLabel}${countryLabel}. Use your knowledge of typical curricula for this kind of module at this level — if you recognise the specific institution/programme, use its real structure; otherwise use the general real-world structure for a module with this name and level.`
-    : `List the syllabus topics for "${subject}" under the ${qualificationId}${board ? ` (${board} exam board)` : ""} qualification${countryLabel}${specVersion ? `, ${specVersion} specification` : ""}. Use your knowledge of this subject's real curriculum.`;
+    : `List the complete official syllabus topics for "${subject}" under the ${qualificationId}${board ? ` (${board} exam board)` : ""} qualification${countryLabel}${specVersion ? `, ${specVersion} specification` : ""}${profile.currentYear ? `, for a student in ${profile.currentYear}` : ""}. Follow the official curriculum for that country and qualification.`;
 
   let data;
   try {

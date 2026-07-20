@@ -1,6 +1,5 @@
 /* ============================================================
-   AI Exam Coach — base resets & primitives
-   Mirrors the product's globals.css (bg, body font, focus, anim).
+   AI Exam Coach — base resets & primitives · "FintechX" redesign
    ============================================================ */
 html, body {
   background: var(--surface-page);
@@ -15,7 +14,18 @@ body {
   margin: 0;
 }
 
-/* Accessible focus ring — matches product (2px emerald, 2px offset) */
+/* Headings inherit the tight, confident display voice by default */
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  letter-spacing: var(--tracking-tight);
+}
+
+::selection {
+  background: var(--emerald-100);
+  color: var(--slate-900);
+}
+
+/* Accessible focus ring — 2px emerald, 2px offset */
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;

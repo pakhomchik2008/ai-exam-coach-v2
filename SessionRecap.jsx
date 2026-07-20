@@ -64,7 +64,7 @@ function SessionRecap({ data, onClose, t }) {
   };
 
   const wrap = { maxWidth: "var(--container-read)", margin: "0 auto", textAlign: "center", animation: "revealUp 0.4s ease-out" };
-  const card = { borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", border: "1px solid var(--border-subtle)", padding: "var(--space-8) var(--space-6)" };
+  const card = { borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), var(--indigo-50))", border: "1px solid var(--border-subtle)", padding: "var(--space-8) var(--space-6)" };
 
   // ── PHASE 1: coverage ─────────────────────────────────────────────────────
   if (!result) {
@@ -174,7 +174,7 @@ function SessionRecap({ data, onClose, t }) {
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {coveredNames.map((n, i) => (
-                <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: "var(--radius-full)", background: "var(--emerald-50, #ecfdf5)", color: "var(--emerald-700)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)" }}>✓ {n}</span>
+                <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: "var(--radius-full)", background: "var(--emerald-50, var(--emerald-50))", color: "var(--emerald-700)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)" }}>✓ {n}</span>
               ))}
             </div>
           </div>
@@ -182,16 +182,16 @@ function SessionRecap({ data, onClose, t }) {
 
         {/* AI chat summary — shown if the student used the tutor chat */}
         {hadChat && (
-          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg,#eef2ff,#f5f3ff)", border: "1px solid #c7d2fe", padding: "var(--space-4)", textAlign: "left" }}>
+          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg,var(--indigo-50),var(--indigo-50))", border: "1px solid var(--indigo-200)", padding: "var(--space-4)", textAlign: "left" }}>
             <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)", display: "flex", alignItems: "center", gap: 6 }}>
-              <span>🤖</span> AI Tutor Summary
+              <span>🤖</span> {L("AI Tutor Summary","Підсумок AI-репетитора","Итоги AI-репетитора","Résumé du tuteur IA","KI-Tutor-Zusammenfassung")}
             </p>
             {summaryLoading && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--text-muted)", fontSize: "var(--text-sm)" }}>
                 <span style={{ display: "flex", gap: 3 }}>
-                  {[0,1,2].map((j) => <span key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "#a5b4fc", display: "inline-block", animation: `loadDot 1.2s ${j*0.2}s ease-in-out infinite` }} />)}
+                  {[0,1,2].map((j) => <span key={j} style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--indigo-200)", display: "inline-block", animation: `loadDot 1.2s ${j*0.2}s ease-in-out infinite` }} />)}
                 </span>
-                Summarising your session...
+                {L("Summarising your session...","Підсумовую вашу сесію...","Подвожу итоги сессии...","Résumé de votre séance...","Fasse deine Sitzung zusammen...")}
               </div>
             )}
             {chatSummary && (
@@ -201,14 +201,14 @@ function SessionRecap({ data, onClose, t }) {
             )}
             {!summaryLoading && !chatSummary && (
               <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-                You had {chatMsgs.filter((m) => m.role === "user").length} exchanges with the AI tutor — summary unavailable offline.
+                {L(`You had ${chatMsgs.filter((m) => m.role === "user").length} exchanges with the AI tutor — summary unavailable offline.`,`У вас було ${chatMsgs.filter((m) => m.role === "user").length} обмінів з AI-репетитором — підсумок недоступний офлайн.`,`У вас было ${chatMsgs.filter((m) => m.role === "user").length} обменов с AI-репетитором — итог недоступен офлайн.`,`Vous avez eu ${chatMsgs.filter((m) => m.role === "user").length} échanges avec le tuteur IA — résumé indisponible hors ligne.`,`Du hattest ${chatMsgs.filter((m) => m.role === "user").length} Austausche mit dem KI-Tutor — Zusammenfassung offline nicht verfügbar.`)}
               </p>
             )}
           </div>
         )}
 
         {r.streakAfter > r.streakBefore && (
-          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "#fff7ed", border: "1px solid #fed7aa", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-sm)", color: "#9a3412", fontWeight: "var(--weight-semibold)" }}>
+          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "var(--orange-50)", border: "1px solid var(--amber-200)", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-sm)", color: "var(--amber-700)", fontWeight: "var(--weight-semibold)" }}>
             🔥 {r.streakAfter}-{L("day streak — keep it going!", "денна серія — не зупиняйся!", "дневная серия — не останавливайся!", "jours d'affilée — continue !", "Tage-Serie — weiter so!")}
           </div>
         )}
@@ -216,7 +216,7 @@ function SessionRecap({ data, onClose, t }) {
         {(r.newAchievements || []).length > 0 && (
           <div style={{ marginTop: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
             {r.newAchievements.map((a) => (
-              <div key={a.id} style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <div key={a.id} style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "#fff", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                 <span style={{ fontSize: 20 }}>{a.emoji}</span>
                 {L("Achievement unlocked", "Досягнення", "Достижение", "Succès débloqué", "Erfolg freigeschaltet")} — {a.label}
               </div>

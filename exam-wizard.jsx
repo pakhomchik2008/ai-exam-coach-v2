@@ -88,9 +88,27 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
   );
 }
 
+// Own footer buttons — no dependency on the legacy _ds_bundle design system.
+function WizardButton({ variant = "primary", fullWidth, disabled, onClick, children }) {
+  const styles = {
+    primary:   { background: disabled ? "var(--slate-300)" : "var(--ink-900)", color: "#fff", border: "none", boxShadow: disabled ? "none" : "var(--shadow-md)" },
+    accent:    { background: disabled ? "var(--slate-300)" : "var(--indigo-600)", color: "#fff", border: "none", boxShadow: disabled ? "none" : "var(--shadow-sm)" },
+    secondary: { background: "var(--surface-card)", color: "var(--text-strong)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-sm)" },
+  }[variant];
+  return (
+    <button type="button" disabled={disabled} onClick={onClick} style={{
+      ...styles, flex: fullWidth ? 1 : "none", minHeight: 52, padding: "14px 26px",
+      borderRadius: "var(--radius-full)", fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)",
+      cursor: disabled ? "default" : "pointer", fontFamily: "var(--font-sans)",
+      transition: "transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)",
+    }}>{children}</button>
+  );
+}
+
 function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCancel }) {
   const cfg = config || EXAM_WIZARD_PRESETS.addExam;
-  const { Button } = window.AIExamCoachDesignSystem_99e467;
+  const Button = ({ variant, size, fullWidth, disabled, onClick, children }) =>
+    <WizardButton variant={variant} fullWidth={fullWidth} disabled={disabled} onClick={onClick}>{children}</WizardButton>;
   const c = window.ONB[lang] || window.ONB.en;
   const langs = Object.values(window.LANGS || {});
   const profile = React.useMemo(() => window.getProfile(), []);
@@ -173,9 +191,19 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   }] : [blankSubject()]);
   const loadDemoData = () => setSubjects(window.DEFAULT_SUBJECTS.map((s) => ({ ...s, current: exam.grade.current, target: exam.grade.target, examDate: defaultExamDate, topicCount: 10, examBoard: exam.board })));
   const pickExam = (id) => {
+    if (id === examId) return;
     const e = window.examType(id);
     setExamId(id);
-    setSubjects((subs) => subs.map((s) => ({ ...s, current: e.grade.current, target: e.grade.target, examBoard: s.examBoard || e.board })));
+    // Switching qualification INVALIDATES everything derived from the old
+    // one — syllabus draft, topic validation, uploaded specs, board, even the
+    // subject name (a "Mathematics" picked from the AQA list is not the same
+    // entity as НМТ математика). Only the exam date survives: it's the
+    // user's own deadline, not exam-type data.
+    setSubjects((subs) => subs.map((s) => ({
+      ...blankSubject(),
+      id: s.id, examDate: s.examDate,
+      current: e.grade.current, target: e.grade.target, examBoard: e.board,
+    })));
   };
   const COLORS = ["indigo", "rose", "teal", "violet", "orange", "cyan", "pink", "emerald"];
   const addSubject = () => setSubjects((subs) => [...subs, {
@@ -186,18 +214,14 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const removeSubject = (id) => setSubjects((subs) => subs.filter((s) => s.id !== id));
   const setSubject = (id, patch) => setSubjects((subs) => subs.map((s) => s.id === id ? { ...s, ...patch } : s));
 
-  // ── intensity + hours (intensity scales a stable base) ───────────────────
+  // ── intensity (single-apply) ─────────────────────────────────────────────
+  // The multiplier is applied ONCE, inside allocateBudget (schedule-store's
+  // INTENSITY_MULTIPLIERS). The old code ALSO rewrote weeklyHours here, so
+  // the multiplier hit twice and the user's own hours setting was silently
+  // destroyed — the "modes barely change anything / weirdly change my hours"
+  // bug. Now the tier is just saved; hours stay whatever the user set.
   const [intensity, setIntensity] = React.useState(profile.planIntensity || "balanced");
-  const [baseWeeklyHours] = React.useState(profile.weeklyHours); // never changes; intensity multiplies it
-  const applyIntensity = (id) => {
-    const preset = (window.INTENSITY_PRESETS || []).find((p) => p.id === id);
-    if (!preset) return;
-    setIntensity(id);
-    setWeeklyHours(Math.max(2, Math.round(baseWeeklyHours * preset.multiplier)));
-    if (id === "ambitious") setDaysPerWeek((d) => Math.min(7, Math.max(d, 6)));
-    else if (id === "minimal") setDaysPerWeek((d) => Math.min(d, 4));
-    else setDaysPerWeek(5);
-  };
+  const applyIntensity = (id) => setIntensity(id);
 
   // ── global settings (prefilled from profile; only persisted if touched) ──
   const [weeklyHours, setWeeklyHours] = React.useState(profile.weeklyHours);
@@ -285,14 +309,14 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(to bottom, var(--indigo-50), #FAF5FF)", display: "flex", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+    <div style={{ minHeight: "100vh", background: "transparent", display: "flex", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
       <style>{`@keyframes onb-spin{to{transform:rotate(360deg)}}@keyframes onb-rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}`}</style>
       <div style={{ width: "100%", maxWidth: 460, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
 
         <div style={{ padding: "var(--space-5) var(--space-5) var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-4)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontSize: "var(--text-base)" }}>
-              <span aria-hidden="true">🤖</span><span>AI Exam Coach</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontSize: "var(--text-base)" }}>
+              {window.NavLogoMark ? <window.NavLogoMark size={24} /> : <span aria-hidden="true">🤖</span>}<span>AI Exam Coach</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {onLangChange && langs.map((l) => (
@@ -310,7 +334,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
             <>
               <div style={{ display: "flex", gap: 6 }}>
                 {Array.from({ length: totalSteps }, (_, i) => i + 1).map((n) => (
-                  <div key={n} style={{ flex: 1, height: 5, borderRadius: "var(--radius-full)", background: n <= stepNum ? "var(--indigo-500)" : "var(--slate-200)", transition: "background var(--dur-normal) ease" }} />
+                  <div key={n} style={{ flex: 1, height: 6, borderRadius: "var(--radius-full)", background: n <= stepNum ? "var(--ink-900)" : "var(--slate-200)", transition: "background var(--dur-normal) ease" }} />
                 ))}
               </div>
               <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", fontWeight: "var(--weight-medium)" }}>{c.step_of(stepNum, totalSteps)}</p>
@@ -324,7 +348,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
           {step === "profile" && (<>
             <div>
-              <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>
+              <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>
                 {lang === "uk" ? "Розкажіть про себе" : lang === "ru" ? "Расскажите о себе" : lang === "fr" ? "Parlez-nous de vous" : lang === "de" ? "Erzähl uns von dir" : "Tell us about yourself"}
               </h2>
               <p style={{ margin: "0 0 var(--space-4)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
@@ -403,7 +427,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
           {step === "type" && (<>
             <div>
-              <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{c.s1_title}</h2>
+              <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{c.s1_title}</h2>
               <p style={{ margin: "0 0 var(--space-4)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.s1_sub}</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
                 {window.EXAM_TYPES.map((e) => {
@@ -486,8 +510,8 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                       )}
                       {customPassHelper && <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{customPassHelper}</p>}
                       <button type="button" onClick={applyCustomGrading}
-                        style={{ alignSelf: "flex-start", border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-lg)", padding: "12px 22px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                        Continue
+                        style={{ alignSelf: "flex-start", border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-full)", padding: "12px 22px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                        {lang === "uk" ? "Продовжити" : lang === "ru" ? "Продолжить" : lang === "fr" ? "Continuer" : lang === "de" ? "Weiter" : "Continue"}
                       </button>
                     </div>
                   )}
@@ -498,7 +522,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
           {step === "subject" && (<>
             <div>
-              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{c.s2_title}</h2>
+              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{c.s2_title}</h2>
               <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.s2_sub}</p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -561,7 +585,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
               {cfg.showWelcome && (
                 <button type="button" onClick={loadDemoData}
                   style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>
-                  Just exploring? Load demo data
+                  {lang === "uk" ? "Просто дивитесь? Завантажити демо-дані" : lang === "ru" ? "Просто смотрите? Загрузить демо-данные" : lang === "fr" ? "Juste curieux ? Charger les données démo" : lang === "de" ? "Nur am Schauen? Demodaten laden" : "Just exploring? Load demo data"}
                 </button>
               )}
             </div>
@@ -569,7 +593,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
           {step === "settings" && (<>
             <div>
-              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{c.settings_title}</h2>
+              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{c.settings_title}</h2>
               <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.settings_sub}</p>
             </div>
             <div>
@@ -612,7 +636,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
           {step === "review" && (<>
             <div>
-              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{c.s5_title}</h2>
+              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{c.s5_title}</h2>
               <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.s5_sub}</p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -633,7 +657,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
           </>)}
         </div>
 
-        <div style={{ position: "sticky", bottom: 0, padding: "var(--space-4) var(--space-5)", background: "linear-gradient(to top, #FAF5FF 70%, transparent)", display: "flex", gap: "var(--space-3)" }}>
+        <div style={{ position: "sticky", bottom: 0, padding: "var(--space-4) var(--space-5)", background: "linear-gradient(to top, var(--indigo-50) 70%, transparent)", display: "flex", gap: "var(--space-3)" }}>
           {step !== "welcome" && !(stepIdx === 0 && !cfg.showWelcome) && <Button variant="secondary" size="lg" onClick={goBack}>{c.back}</Button>}
           {step === "welcome"
             ? <Button variant="accent" size="lg" fullWidth onClick={goNext}>{c.next}</Button>

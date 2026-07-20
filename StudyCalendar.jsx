@@ -17,16 +17,20 @@ const CAL_HOUR_END = 23;    // 23:00
 const CAL_HOUR_PX = 56;
 const CAL_SNAP_MIN = 15;
 const CAL_WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// Localized weekday labels — falls back to English when t is absent.
+const calWeekdays = (t) => t ? [t.mon, t.tue, t.wed, t.thu, t.fri, t.sat, t.sun] : CAL_WEEKDAY_LABELS;
+// Personal-event category label in the interface language.
+const calCatLabel = (cat, t) => (cat && cat.label5 && cat.label5[t?.code]) || (cat && cat.label) || "";
 const CAL_WEEKDAY_IDS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 const PERSONAL_CATEGORIES = [
-  { id: "gym", label: "Gym", emoji: "🏋️", color: "#F97316" },
-  { id: "work", label: "Work", emoji: "💼", color: "#0EA5E9" },
-  { id: "birthday", label: "Birthday", emoji: "🎂", color: "#EC4899" },
-  { id: "flight", label: "Flight", emoji: "✈️", color: "#8B5CF6" },
-  { id: "meeting", label: "Meeting", emoji: "🤝", color: "#14B8A6" },
-  { id: "vacation", label: "Vacation", emoji: "🏖️", color: "#F59E0B" },
-  { id: "custom", label: "Custom", emoji: "📌", color: "#64748B" },
+  { id: "gym", label: "Gym", label5: { uk: "Спортзал", ru: "Спортзал", fr: "Sport", de: "Fitness" }, emoji: "🏋️", color: "var(--orange-500)" },
+  { id: "work", label: "Work", label5: { uk: "Робота", ru: "Работа", fr: "Travail", de: "Arbeit" }, emoji: "💼", color: "var(--sky-500)" },
+  { id: "birthday", label: "Birthday", label5: { uk: "День народження", ru: "День рождения", fr: "Anniversaire", de: "Geburtstag" }, emoji: "🎂", color: "var(--subject-pink)" },
+  { id: "flight", label: "Flight", label5: { uk: "Переліт", ru: "Перелёт", fr: "Vol", de: "Flug" }, emoji: "✈️", color: "var(--indigo-500)" },
+  { id: "meeting", label: "Meeting", label5: { uk: "Зустріч", ru: "Встреча", fr: "Réunion", de: "Termin" }, emoji: "🤝", color: "var(--subject-teal)" },
+  { id: "vacation", label: "Vacation", label5: { uk: "Відпустка", ru: "Отпуск", fr: "Vacances", de: "Urlaub" }, emoji: "🏖️", color: "var(--amber-500)" },
+  { id: "custom", label: "Custom", label5: { uk: "Інше", ru: "Другое", fr: "Autre", de: "Sonstiges" }, emoji: "📌", color: "var(--slate-500)" },
 ];
 
 function calFmtDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
@@ -48,7 +52,7 @@ function calNextQuarterHour() {
   return calHHMM(mins);
 }
 
-function StudyCalendar({ t, onGoToExams }) {
+function StudyCalendar({ t, onGoToExams, embedded }) {
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [weekStart, setWeekStart] = React.useState(() => calMondayOf(new Date()));
   const exams = React.useMemo(() => window.getExams(), [refreshKey]);
@@ -198,11 +202,11 @@ function StudyCalendar({ t, onGoToExams }) {
   // Every action computes a diff for the CURRENTLY VIEWED week without
   // touching storage, then shows it in AiProposalModal for Accept/Reject.
   const AI_ACTIONS = [
-    { id: "optimize-week", label: "Optimize Week", emoji: "✨", fn: "proposeOptimizeWeek" },
-    { id: "resolve-conflicts", label: "Resolve Conflicts", emoji: "⚡", fn: "proposeResolveConflicts" },
-    { id: "fill-empty", label: "Fill Empty Slots", emoji: "🧩", fn: "proposeFillEmptySlots" },
-    { id: "reschedule-missed", label: "Reschedule Missed", emoji: "↻", fn: "proposeRescheduleMissed" },
-    { id: "suggest-best-time", label: "Suggest Best Time", emoji: "🎯", fn: "proposeSuggestBestTime" },
+    { id: "optimize-week", label: "Optimize Week", label5: { uk: "Оптимізувати тиждень", ru: "Оптимизировать неделю", fr: "Optimiser la semaine", de: "Woche optimieren" }, emoji: "✨", fn: "proposeOptimizeWeek" },
+    { id: "resolve-conflicts", label: "Resolve Conflicts", label5: { uk: "Усунути конфлікти", ru: "Устранить конфликты", fr: "Résoudre les conflits", de: "Konflikte lösen" }, emoji: "⚡", fn: "proposeResolveConflicts" },
+    { id: "fill-empty", label: "Fill Empty Slots", label5: { uk: "Заповнити вільні слоти", ru: "Заполнить свободные слоты", fr: "Remplir les créneaux vides", de: "Freie Slots füllen" }, emoji: "🧩", fn: "proposeFillEmptySlots" },
+    { id: "reschedule-missed", label: "Reschedule Missed", label5: { uk: "Перенести пропущені", ru: "Перенести пропущенные", fr: "Replanifier les manquées", de: "Verpasste neu planen" }, emoji: "↻", fn: "proposeRescheduleMissed" },
+    { id: "suggest-best-time", label: "Suggest Best Time", label5: { uk: "Найкращий час", ru: "Лучшее время", fr: "Meilleur moment", de: "Beste Zeit" }, emoji: "🎯", fn: "proposeSuggestBestTime" },
   ];
   function runAiAction(fnName) {
     if (!window[fnName]) return;
@@ -219,19 +223,22 @@ function StudyCalendar({ t, onGoToExams }) {
   function rejectProposal() { setAiProposal(null); }
 
   const activeExams = exams.filter((e) => new Date(e.examDate) > new Date());
-  const weekLabel = `${weekDays[0].toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${weekDays[6].toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+  const calLocale = t?.code === "uk" ? "uk-UA" : t?.code === "ru" ? "ru-RU" : t?.code === "fr" ? "fr-FR" : t?.code === "de" ? "de-DE" : "en-GB";
+  const weekLabel = `${weekDays[0].toLocaleDateString(calLocale, { day: "numeric", month: "short" })} – ${weekDays[6].toLocaleDateString(calLocale, { day: "numeric", month: "short" })}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
-          {t?.calendar_title || "Study Calendar"}
-        </h1>
+        {!embedded && (
+          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+            {t?.nav_calendar || "Calendar"}
+          </h1>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <button onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() - 7); return d; })}
             style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 10px", cursor: "pointer", color: "var(--text-muted)" }}>←</button>
           <button onClick={() => setWeekStart(calMondayOf(new Date()))}
-            style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 14px", cursor: "pointer", color: "var(--text-body)", fontSize: "var(--text-sm)", fontWeight: 600 }}>Today</button>
+            style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 14px", cursor: "pointer", color: "var(--text-body)", fontSize: "var(--text-sm)", fontWeight: 600 }}>{({ uk: "Сьогодні", ru: "Сегодня", fr: "Aujourd'hui", de: "Heute" }[t?.code]) || "Today"}</button>
           <button onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() + 7); return d; })}
             style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 10px", cursor: "pointer", color: "var(--text-muted)" }}>→</button>
           <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginLeft: 6, fontWeight: 600 }}>{weekLabel}</span>
@@ -239,7 +246,7 @@ function StudyCalendar({ t, onGoToExams }) {
       </div>
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-        <CalSidebar
+        <CalSidebar t={t}
           activeExams={activeExams} courseById={courseById} allSessions={relevantSessions}
           profile={profile} todayKey={todayKey}
           hiddenExamIds={hiddenExamIds} toggleExamFilter={toggleExamFilter}
@@ -250,7 +257,7 @@ function StudyCalendar({ t, onGoToExams }) {
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-            Drag a session to move it · drag its bottom edge to resize · click an empty slot to add one · click a session's × to remove it. Anything you edit here stays put — the AI planner won't overwrite it.
+            {((c) => ({ en: "Drag a session to move it · drag its bottom edge to resize · click an empty slot to add one · click a session's × to remove it. Anything you edit here stays put — the AI planner won't overwrite it.", uk: "Перетягніть сесію, щоб перемістити · тягніть нижній край, щоб змінити тривалість · клацніть порожній слот, щоб додати · натисніть × щоб видалити. Ваші правки залишаються — AI-планувальник їх не перезапише.", ru: "Перетащите сессию, чтобы переместить · тяните нижний край, чтобы изменить длительность · кликните пустой слот, чтобы добавить · нажмите × чтобы удалить. Ваши правки сохраняются — AI-планировщик их не перезапишет.", fr: "Glissez une séance pour la déplacer · tirez le bord inférieur pour redimensionner · cliquez sur un créneau vide pour ajouter · cliquez sur × pour supprimer.", de: "Ziehe eine Einheit zum Verschieben · unteren Rand ziehen zum Anpassen · leeren Slot anklicken zum Hinzufügen · × zum Entfernen." }[c] || ""))(t?.code || "en")}
           </p>
 
           <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" }}>
@@ -263,7 +270,7 @@ function StudyCalendar({ t, onGoToExams }) {
                 const exam = (examDates[key] || [])[0];
                 return (
                   <div key={key} style={{ padding: "10px 6px", textAlign: "center", borderLeft: "1px solid var(--border-subtle)", background: isToday ? "var(--indigo-50)" : "transparent" }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? "var(--indigo-600)" : "var(--text-faint)", textTransform: "uppercase" }}>{CAL_WEEKDAY_LABELS[i]}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: isToday ? "var(--indigo-600)" : "var(--text-faint)", textTransform: "uppercase" }}>{calWeekdays(t)[i]}</div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: isToday ? "var(--indigo-600)" : "var(--text-strong)" }}>{d.getDate()}</div>
                     {exam && <div style={{ fontSize: 9, color: exam.color, fontWeight: 700, marginTop: 2 }}>★ {exam.subject}</div>}
                   </div>
@@ -293,7 +300,7 @@ function StudyCalendar({ t, onGoToExams }) {
                       const isPersonal = s.type === "personal";
                       const cat = isPersonal ? PERSONAL_CATEGORIES.find((c) => c.id === s.category) : null;
                       const course = isPersonal ? null : courseById.get(s.examId);
-                      const blockColor = isPersonal ? (s.personalColor || cat?.color || "#64748B") : (course?.color || "#6366F1");
+                      const blockColor = isPersonal ? (s.personalColor || cat?.color || "var(--slate-500)") : (course?.color || "var(--indigo-500)");
                       const startMin = calMinutesOf(s.startTime || "17:00");
                       const dur = s.durationMin || defaultDurationMin;
                       const top = ((startMin - CAL_HOUR_START * 60) / 60) * CAL_HOUR_PX;
@@ -316,7 +323,7 @@ function StudyCalendar({ t, onGoToExams }) {
                           <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {completed && "✓ "}{isPersonal && (cat?.emoji || "📌") + " "}{s.seriesId && "🔁 "}{s.topic}
                           </div>
-                          <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{s.startTime || "17:00"} · {isPersonal ? (cat?.label || "Event") : (course?.name || "")}</div>
+                          <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{s.startTime || "17:00"} · {isPersonal ? (calCatLabel(cat, t) || t?.calendar_event || "Event") : (course?.name || "")}</div>
                           {!completed && (
                             <>
                               <button onClick={(e) => { e.stopPropagation(); confirmDelete(s.id); }} style={{
@@ -339,16 +346,16 @@ function StudyCalendar({ t, onGoToExams }) {
         </div>
       </div>
 
-      <CalFab open={fabOpen} setOpen={setFabOpen} onGoToExams={onGoToExams} onCreate={openFabCreate} />
+      <CalFab t={t} open={fabOpen} setOpen={setFabOpen} onGoToExams={onGoToExams} onCreate={openFabCreate} />
 
       {createSpec && (
-        <QuickCreateModal spec={createSpec} exams={activeExams} defaultDurationMin={defaultDurationMin}
+        <QuickCreateModal t={t} spec={createSpec} exams={activeExams} defaultDurationMin={defaultDurationMin}
           onClose={() => setCreateSpec(null)}
           onCreate={() => { setCreateSpec(null); setRefreshKey((k) => k + 1); }} />
       )}
 
       {aiProposal && (
-        <AiProposalModal proposal={aiProposal} courseById={courseById} onAccept={acceptProposal} onReject={rejectProposal} />
+        <AiProposalModal t={t} proposal={aiProposal} courseById={courseById} onAccept={acceptProposal} onReject={rejectProposal} />
       )}
     </div>
   );
@@ -356,7 +363,8 @@ function StudyCalendar({ t, onGoToExams }) {
 
 // ─── AI proposal preview (Accept/Reject) ────────────────────────────────────
 
-function AiProposalModal({ proposal, courseById, onAccept, onReject }) {
+function AiProposalModal({ proposal, courseById, onAccept, onReject, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const { title, summary, moves = [], adds = [], removes = [] } = proposal;
   const totalChanges = moves.length + adds.length + removes.length;
 
@@ -375,7 +383,7 @@ function AiProposalModal({ proposal, courseById, onAccept, onReject }) {
         {totalChanges > 0 ? (
           <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16, paddingRight: 4 }}>
             {removes.map((r, i) => (
-              <div key={"r" + i} style={{ fontSize: 12, color: "var(--red-600)", background: "var(--red-50, #FEF2F2)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
+              <div key={"r" + i} style={{ fontSize: 12, color: "var(--red-600)", background: "var(--red-50, var(--red-50))", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
                 🗑 {r.label}
               </div>
             ))}
@@ -386,22 +394,22 @@ function AiProposalModal({ proposal, courseById, onAccept, onReject }) {
               </div>
             ))}
             {adds.map((a, i) => (
-              <div key={"a" + i} style={{ fontSize: 12, color: "var(--emerald-700)", background: "var(--emerald-50, #ECFDF5)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
+              <div key={"a" + i} style={{ fontSize: 12, color: "var(--emerald-700)", background: "var(--emerald-50, var(--emerald-50))", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
                 ＋ {a.label}
               </div>
             ))}
           </div>
         ) : (
-          <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16 }}>Nothing to change — you're already in good shape here.</p>
+          <p style={{ fontSize: 13, color: "var(--text-faint)", marginBottom: 16 }}>{L("Nothing to change — you're already in good shape here.", "Нічого міняти — тут і так усе добре.", "Нечего менять — здесь и так всё хорошо.", "Rien à changer — tout est déjà en ordre.", "Nichts zu ändern — alles ist bereits in Ordnung.")}</p>
         )}
 
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onReject} style={{ flex: 1, border: "1px solid var(--border-default)", background: "var(--surface-page)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 600 }}>
-            Reject
+            {L("Reject","Відхилити","Отклонить","Refuser","Ablehnen")}
           </button>
           <button onClick={onAccept} disabled={totalChanges === 0}
             style={{ flex: 1, border: "none", background: totalChanges ? "var(--indigo-600)" : "var(--slate-200)", color: totalChanges ? "#fff" : "var(--text-faint)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: totalChanges ? "pointer" : "default", fontWeight: 700, fontFamily: "var(--font-sans)" }}>
-            Accept {totalChanges > 0 ? `(${totalChanges})` : ""}
+            {L("Accept","Прийняти","Принять","Accepter","Übernehmen")} {totalChanges > 0 ? `(${totalChanges})` : ""}
           </button>
         </div>
       </div>
@@ -411,7 +419,8 @@ function AiProposalModal({ proposal, courseById, onAccept, onReject }) {
 
 // ─── left sidebar ───────────────────────────────────────────────────────────
 
-function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, hiddenExamIds, toggleExamFilter, showPersonal, setShowPersonal, onGoToExams, aiActions, onRunAiAction }) {
+function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, hiddenExamIds, toggleExamFilter, showPersonal, setShowPersonal, onGoToExams, aiActions, onRunAiAction, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const weekMonday = calMondayOf(new Date());
   const weekSunday = new Date(weekMonday); weekSunday.setDate(weekSunday.getDate() + 6);
   const weekMondayKey = calFmtDate(weekMonday);
@@ -444,7 +453,7 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
       {/* AI Actions */}
       {aiActions && (
         <div style={card}>
-          <p style={sectionTitle}>✨ AI Actions</p>
+          <p style={sectionTitle}>✨ {L("AI Actions","AI-дії","AI-действия","Actions IA","KI-Aktionen")}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {aiActions.map((a) => (
               <button key={a.id} onClick={() => onRunAiAction(a.fn)} style={{
@@ -453,19 +462,19 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
                 borderRadius: "var(--radius-lg)", padding: "8px 10px", cursor: "pointer",
                 fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: "var(--text-body)",
               }}>
-                <span>{a.emoji}</span>{a.label}
+                <span>{a.emoji}</span>{(a.label5 && a.label5[t?.code]) || a.label}
               </button>
             ))}
           </div>
-          <p style={{ margin: "8px 0 0", fontSize: 10, color: "var(--text-faint)", lineHeight: 1.4 }}>Every action previews its changes — nothing applies until you Accept.</p>
+          <p style={{ margin: "8px 0 0", fontSize: 10, color: "var(--text-faint)", lineHeight: 1.4 }}>{L("Every action previews its changes — nothing applies until you Accept.","Кожна дія показує зміни заздалегідь — нічого не застосовується без підтвердження.","Каждое действие показывает изменения заранее — ничего не применяется без подтверждения.","Chaque action prévisualise ses changements — rien ne s'applique sans validation.","Jede Aktion zeigt eine Vorschau — nichts wird ohne Bestätigung übernommen.")}</p>
         </div>
       )}
 
       {/* Upcoming Exams */}
       <div style={card}>
-        <p style={sectionTitle}>Upcoming Exams</p>
+        <p style={sectionTitle}>{L("Upcoming Exams","Найближчі іспити","Ближайшие экзамены","Examens à venir","Anstehende Prüfungen")}</p>
         {upcomingExamsSorted.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>No exams yet.</p>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>{L("No exams yet.","Іспитів поки немає.","Экзаменов пока нет.","Pas encore d'examens.","Noch keine Prüfungen.")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {upcomingExamsSorted.map((e) => {
@@ -484,14 +493,14 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
         )}
         {onGoToExams && (
           <button onClick={onGoToExams} style={{ marginTop: 10, border: "none", background: "transparent", color: "var(--indigo-600)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
-            Manage exams →
+            {L("Manage exams →","Керувати іспитами →","Управлять экзаменами →","Gérer les examens →","Prüfungen verwalten →")}
           </button>
         )}
       </div>
 
       {/* Weekly Goal */}
       <div style={card}>
-        <p style={sectionTitle}>Weekly Goal</p>
+        <p style={sectionTitle}>{L("Weekly Goal","Тижнева ціль","Недельная цель","Objectif hebdo","Wochenziel")}</p>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 6 }}>
           <span style={{ fontSize: 20, fontWeight: 800, color: "var(--indigo-600)", fontFamily: "var(--font-mono)" }}>{Math.round(completedHoursThisWeek * 10) / 10}h</span>
           <span style={{ fontSize: 12, color: "var(--text-faint)" }}>/ {goalHours}h</span>
@@ -499,12 +508,12 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
         <div style={{ height: 6, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
           <div style={{ height: "100%", width: "100%", transform: `scaleX(${goalPct / 100})`, transformOrigin: "left", background: goalPct >= 100 ? "var(--emerald-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
         </div>
-        <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-faint)" }}>{Math.round(plannedHoursThisWeek * 10) / 10}h planned this week</p>
+        <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-faint)" }}>{L(`${Math.round(plannedHoursThisWeek * 10) / 10}h planned this week`,`${Math.round(plannedHoursThisWeek * 10) / 10} год заплановано цього тижня`,`${Math.round(plannedHoursThisWeek * 10) / 10} ч запланировано на этой неделе`,`${Math.round(plannedHoursThisWeek * 10) / 10} h prévues cette semaine`,`${Math.round(plannedHoursThisWeek * 10) / 10} Std. diese Woche geplant`)}</p>
       </div>
 
       {/* Filters */}
       <div style={card}>
-        <p style={sectionTitle}>Filters</p>
+        <p style={sectionTitle}>{L("Filters","Фільтри","Фильтры","Filtres","Filter")}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {activeExams.map((e) => (
             <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-body)", cursor: "pointer" }}>
@@ -514,25 +523,25 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
             </label>
           ))}
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-body)", cursor: "pointer" }}>
-            <input type="checkbox" checked={showPersonal} onChange={() => setShowPersonal((v) => !v)} style={{ accentColor: "#64748B", width: 13, height: 13, cursor: "pointer" }} />
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#64748B", flexShrink: 0 }} />
-            <span>Personal events</span>
+            <input type="checkbox" checked={showPersonal} onChange={() => setShowPersonal((v) => !v)} style={{ accentColor: "var(--slate-500)", width: 13, height: 13, cursor: "pointer" }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--slate-500)", flexShrink: 0 }} />
+            <span>{L("Personal events","Особисті події","Личные события","Événements perso","Private Termine")}</span>
           </label>
         </div>
       </div>
 
       {/* Upcoming Events */}
       <div style={card}>
-        <p style={sectionTitle}>Upcoming Events</p>
+        <p style={sectionTitle}>{L("Upcoming Events","Найближчі події","Ближайшие события","Événements à venir","Anstehende Termine")}</p>
         {upcoming.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>Nothing scheduled — you're all caught up.</p>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>{L("Nothing scheduled — you're all caught up.","Нічого не заплановано — усе виконано.","Ничего не запланировано — всё выполнено.","Rien de prévu — vous êtes à jour.","Nichts geplant — alles erledigt.")}</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {upcoming.map((s) => {
               const isPersonal = s.type === "personal";
               const cat = isPersonal ? PERSONAL_CATEGORIES.find((c) => c.id === s.category) : null;
               const course = isPersonal ? null : courseById.get(s.examId);
-              const color = isPersonal ? (s.personalColor || cat?.color || "#64748B") : (course?.color || "#6366F1");
+              const color = isPersonal ? (s.personalColor || cat?.color || "var(--slate-500)") : (course?.color || "var(--indigo-500)");
               return (
                 <div key={s.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                   <span style={{ width: 3, alignSelf: "stretch", borderRadius: 2, background: color, flexShrink: 0 }} />
@@ -551,15 +560,15 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
 
       {/* Study Statistics */}
       <div style={card}>
-        <p style={sectionTitle}>Study Statistics</p>
+        <p style={sectionTitle}>{L("Study Statistics","Статистика навчання","Статистика учёбы","Statistiques d'étude","Lernstatistik")}</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-strong)" }}>{completedThisWeek}/{thisWeekStudy.length}</div>
-            <div style={{ fontSize: 9, color: "var(--text-muted)" }}>sessions done</div>
+            <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{L("sessions done","сесій виконано","сессий выполнено","séances faites","Einheiten erledigt")}</div>
           </div>
           <div style={{ textAlign: "center", padding: "8px 4px", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-strong)" }}>{streak}🔥</div>
-            <div style={{ fontSize: 9, color: "var(--text-muted)" }}>day streak</div>
+            <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{L("day streak","днів поспіль","дней подряд","jours d'affilée","Tage in Folge")}</div>
           </div>
         </div>
       </div>
@@ -569,12 +578,13 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
 
 // ─── floating "+" action button ─────────────────────────────────────────────
 
-function CalFab({ open, setOpen, onCreate, onGoToExams }) {
+function CalFab({ open, setOpen, onCreate, onGoToExams, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const items = [
-    { id: "study", label: "Study Session", emoji: "📚", action: () => onCreate("study", false) },
+    { id: "study", label: "Study Session", label5: { uk: "Навчальна сесія", ru: "Учебная сессия", fr: "Séance d'étude", de: "Lerneinheit" }, emoji: "📚", action: () => onCreate("study", false) },
     { id: "exam", label: "Exam", emoji: "🎓", action: () => { setOpen(false); if (onGoToExams) onGoToExams(); } },
-    { id: "personal", label: "Personal Event", emoji: "📌", action: () => onCreate("personal", false) },
-    { id: "recurring", label: "Recurring Study Session", emoji: "🔁", action: () => onCreate("study", true) },
+    { id: "personal", label: "Personal Event", label5: { uk: "Особиста подія", ru: "Личное событие", fr: "Événement perso", de: "Privater Termin" }, emoji: "📌", action: () => onCreate("personal", false) },
+    { id: "recurring", label: "Recurring Study Session", label5: { uk: "Регулярна сесія", ru: "Регулярная сессия", fr: "Séance récurrente", de: "Wiederkehrende Einheit" }, emoji: "🔁", action: () => onCreate("study", true) },
   ];
   return (
     <div style={{ position: "fixed", right: 28, bottom: 28, zIndex: 200, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
@@ -587,15 +597,15 @@ function CalFab({ open, setOpen, onCreate, onGoToExams }) {
               padding: "8px 16px 8px 8px", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 600, color: "var(--text-strong)",
             }}>
               <span style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--indigo-50)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>{it.emoji}</span>
-              {it.label}
+              {(it.label5 && it.label5[t?.code]) || it.label}
             </button>
           ))}
         </div>
       )}
-      <button onClick={() => setOpen((v) => !v)} aria-label="Create" style={{
+      <button onClick={() => setOpen((v) => !v)} aria-label={L("Create","Створити","Создать","Créer","Erstellen")} style={{
         width: 56, height: 56, borderRadius: "50%", border: "none", cursor: "pointer",
-        background: "linear-gradient(135deg, var(--indigo-600), #7c3aed)", color: "#fff",
-        fontSize: 26, boxShadow: "0 8px 24px rgba(99,102,241,0.4)", display: "flex", alignItems: "center", justifyContent: "center",
+        background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))", color: "#fff",
+        fontSize: 26, boxShadow: "0 8px 24px rgba(34,124,99,0.4)", display: "flex", alignItems: "center", justifyContent: "center",
         transform: open ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s ease",
       }}>+</button>
     </div>
@@ -604,7 +614,8 @@ function CalFab({ open, setOpen, onCreate, onGoToExams }) {
 
 // ─── quick-create modal (study session / personal event / recurring) ──────
 
-function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }) {
+function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [type, setType] = React.useState(spec.type);
   const [recurring, setRecurring] = React.useState(spec.recurring);
   const [examId, setExamId] = React.useState(exams[0]?.id || "");
@@ -657,12 +668,12 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "var(--shadow-lg)" }}>
         <h3 style={{ margin: "0 0 12px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>
-          {recurring ? "Add recurring session" : type === "personal" ? "Add personal event" : "Add study session"}
+          {recurring ? L("Add recurring session","Додати регулярну сесію","Добавить регулярную сессию","Ajouter une séance récurrente","Wiederkehrende Einheit hinzufügen") : type === "personal" ? L("Add personal event","Додати особисту подію","Добавить личное событие","Ajouter un événement perso","Privaten Termin hinzufügen") : L("Add study session","Додати навчальну сесію","Добавить учебную сессию","Ajouter une séance d'étude","Lerneinheit hinzufügen")}
         </h3>
 
         {/* type toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          {[{ id: "study", label: "📚 Study" }, { id: "personal", label: "📌 Personal" }].map((opt) => (
+          {[{ id: "study", label: "📚 " + L("Study","Навчання","Учёба","Étude","Lernen") }, { id: "personal", label: "📌 " + L("Personal","Особисте","Личное","Perso","Privat") }].map((opt) => (
             <button key={opt.id} type="button" onClick={() => setType(opt.id)} style={{
               flex: 1, padding: "8px", borderRadius: "var(--radius-lg)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 700,
               border: type === opt.id ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
@@ -675,24 +686,24 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {type === "study" ? (
             exams.length === 0 ? (
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: 0 }}>Add an exam first — there's nothing to attach a session to yet.</p>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", margin: 0 }}>{L("Add an exam first — there's nothing to attach a session to yet.","Спершу додайте іспит — сесію поки нема до чого прив'язати.","Сначала добавьте экзамен — сессию пока не к чему привязать.","Ajoutez d'abord un examen — rien à quoi rattacher une séance.","Füge zuerst eine Prüfung hinzu — es gibt noch nichts zum Verknüpfen.")}</p>
             ) : (
               <>
                 <div>
-                  <label style={label}>Exam</label>
+                  <label style={label}>{L("Exam","Іспит","Экзамен","Examen","Prüfung")}</label>
                   <select value={examId} onChange={(e) => { setExamId(e.target.value); setTopic(""); }} style={inputStyle}>
                     {exams.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={label}>Topic</label>
+                  <label style={label}>{L("Topic","Тема","Тема","Sujet","Thema")}</label>
                   {topics.length > 0 ? (
                     <select value={topic} onChange={(e) => setTopic(e.target.value)} style={inputStyle}>
-                      <option value="">Pick a topic…</option>
+                      <option value="">{L("Pick a topic…","Оберіть тему…","Выберите тему…","Choisir un sujet…","Thema wählen…")}</option>
                       {topics.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                     </select>
                   ) : (
-                    <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Revision" style={inputStyle} />
+                    <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={L("e.g. Revision","напр. Повторення","напр. Повторение","ex. Révision","z. B. Wiederholung")} style={inputStyle} />
                   )}
                 </div>
               </>
@@ -700,10 +711,10 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }
           ) : (
             <>
               <div>
-                <label style={label}>Category</label>
+                <label style={label}>{L("Category","Категорія","Категория","Catégorie","Kategorie")}</label>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
                   {PERSONAL_CATEGORIES.map((c) => (
-                    <button key={c.id} type="button" onClick={() => setCategory(c.id)} title={c.label} style={{
+                    <button key={c.id} type="button" onClick={() => setCategory(c.id)} title={calCatLabel(c, t)} style={{
                       padding: "8px 4px", borderRadius: "var(--radius-lg)", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 16,
                       border: category === c.id ? `2px solid ${c.color}` : "1.5px solid var(--border-default)",
                       background: category === c.id ? c.color + "18" : "var(--surface-page)",
@@ -712,11 +723,11 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }
                 </div>
               </div>
               <div>
-                <label style={label}>Title</label>
+                <label style={label}>{L("Title","Назва","Название","Titre","Titel")}</label>
                 <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={cat.label} style={inputStyle} />
               </div>
               <div>
-                <label style={label}>Notes</label>
+                <label style={label}>{L("Notes","Нотатки","Заметки","Notes","Notizen")}</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...inputStyle, resize: "vertical" }} />
               </div>
             </>
@@ -724,29 +735,29 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <div>
-              <label style={label}>{recurring ? "Start date" : "Date"}</label>
+              <label style={label}>{recurring ? L("Start date","Дата початку","Дата начала","Date de début","Startdatum") : L("Date","Дата","Дата","Date","Datum")}</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label style={label}>Time</label>
+              <label style={label}>{L("Time","Час","Время","Heure","Uhrzeit")}</label>
               <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={inputStyle} />
             </div>
           </div>
 
           <div>
-            <label style={label}>Duration — {durationMin} min</label>
+            <label style={label}>{L(`Duration — ${durationMin} min`,`Тривалість — ${durationMin} хв`,`Длительность — ${durationMin} мин`,`Durée — ${durationMin} min`,`Dauer — ${durationMin} Min.`)}</label>
             <input type="range" min={15} max={180} step={15} value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
           </div>
 
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-body)", cursor: "pointer" }}>
             <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} style={{ accentColor: "var(--indigo-600)", width: 14, height: 14 }} />
-            Repeat weekly
+            {L("Repeat weekly","Повторювати щотижня","Повторять еженедельно","Répéter chaque semaine","Wöchentlich wiederholen")}
           </label>
 
           {recurring && (
             <>
               <div>
-                <label style={label}>Repeat on</label>
+                <label style={label}>{L("Repeat on","Повторювати у","Повторять по","Répéter le","Wiederholen am")}</label>
                 <div style={{ display: "flex", gap: 4 }}>
                   {CAL_WEEKDAY_IDS.map((wd, i) => (
                     <button key={wd} type="button" onClick={() => toggleWeekday(wd)} style={{
@@ -754,12 +765,12 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate }
                       border: weekdays.has(wd) ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
                       background: weekdays.has(wd) ? "var(--indigo-50)" : "var(--surface-page)",
                       color: weekdays.has(wd) ? "var(--indigo-700)" : "var(--text-muted)",
-                    }}>{CAL_WEEKDAY_LABELS[i][0]}</button>
+                    }}>{calWeekdays(t)[i][0]}</button>
                   ))}
                 </div>
               </div>
               <div>
-                <label style={label}>Until</label>
+                <label style={label}>{L("Until","До","До","Jusqu'au","Bis")}</label>
                 <input type="date" value={endDate} min={date} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
               </div>
             </>
@@ -786,3 +797,45 @@ Object.assign(window, {
   // catches regressions like the Wednesday→Saturday day-index bug.
   calFmtDate, calMondayOf, calMinutesOf, calHHMM, calSnap, calDayIndexFromOffset,
 });
+
+// ─── CalendarHub — the ONE schedule section ─────────────────────────────────
+// Month overview (was the separate "Overview" tab) and the week time-grid
+// (was "Calendar") are two views of the same data; splitting them across two
+// nav items made users hunt. One tab, one segmented control.
+function CalendarHub({ t, onGoToExams }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [view, setView] = React.useState(() => {
+    try { return localStorage.getItem("calendar_view_v1") || "month"; } catch { return "month"; }
+  });
+  const pickView = (v) => { setView(v); try { localStorage.setItem("calendar_view_v1", v); } catch {} };
+  const seg = (id, label) => {
+    const active = view === id;
+    return (
+      <button key={id} onClick={() => pickView(id)} style={{
+        border: "none", cursor: "pointer", borderRadius: "var(--radius-full)",
+        padding: "8px 18px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
+        fontWeight: "var(--weight-semibold)",
+        background: active ? "var(--ink-900)" : "transparent",
+        color: active ? "var(--text-invert)" : "var(--text-muted)",
+        transition: "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)",
+      }}>{label}</button>
+    );
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", fontFamily: "var(--font-sans)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>
+          {t.nav_calendar || "Calendar"}
+        </h1>
+        <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)" }}>
+          {seg("month", L("Month", "Місяць", "Месяц", "Mois", "Monat"))}
+          {seg("week", L("Week", "Тиждень", "Неделя", "Semaine", "Woche"))}
+        </div>
+      </div>
+      {view === "month"
+        ? <window.Schedule t={t} embedded />
+        : <StudyCalendar t={t} onGoToExams={onGoToExams} embedded />}
+    </div>
+  );
+}
+window.CalendarHub = CalendarHub;

@@ -39,7 +39,7 @@
 //                        onChange={(v) => setTweak('primaryColor', v)} />
 //           <TweakColor  label="Palette" value={t.palette}
 //                        options={[['#D97757', '#29261b', '#f6f4ef'],
-//                                  ['#475569', '#0f172a', '#f1f5f9']]}
+//                                  ['#475569', 'var(--slate-900)', '#f1f5f9']]}
 //                        onChange={(v) => setTweak('palette', v)} />
 //           <TweakToggle label="Dark mode" value={t.dark}
 //                        onChange={(v) => setTweak('dark', v)} />
@@ -459,7 +459,7 @@ function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) 
 }
 
 // Relative-luminance contrast pick — checkmarks drawn over a swatch need to
-// read on both #111 and #fafafa without per-option configuration. Hex input
+// read on both #111 and var(--slate-50) without per-option configuration. Hex input
 // only (#rgb / #rrggbb); named or rgb()/hsl() colors fall through to "light".
 function __twkIsLight(hex) {
   const h = String(hex).replace('#', '');

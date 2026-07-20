@@ -37,7 +37,7 @@ function mjNextQuarterHour() {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 const MJ_PRIORITY_COLOR = { high: "var(--red-600)", medium: "var(--amber-600)", low: "var(--emerald-600)" };
-const MJ_PRIORITY_BG = { high: "#FEF2F2", medium: "#FFFBEB", low: "#ECFDF5" };
+const MJ_PRIORITY_BG = { high: "var(--red-50)", medium: "var(--amber-50)", low: "var(--emerald-50)" };
 function mjPriorityLabel(t, tone) {
   return {
     high: mjL(t, "High Priority", "Високий пріоритет", "Высокий приоритет", "Priorité élevée", "Hohe Priorität"),
@@ -118,7 +118,7 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
       examId: tp.examId || null,
       type: tp.examId ? "study" : "personal",
       category: tp.examId ? null : "custom",
-      personalColor: tp.examId ? null : "#6366F1",
+      personalColor: tp.examId ? null : "var(--indigo-500)",
       topic: `${L("Review", "Повторення", "Повторение", "Révision", "Wiederholung")}: ${tp.topic}`,
       date: window.fmtDateKey(new Date()),
       startTime: mjNextQuarterHour(),
@@ -260,7 +260,7 @@ function MJAiInsight({ t, topic, onGoToChat, onStartReview }) {
   const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const gain = Math.min(15, Math.max(2, Math.round((100 - topic.masteryPct) * 0.15)));
   return (
-    <div style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), #F5F3FF)", border: "1px solid var(--indigo-100)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(135deg, var(--indigo-50), var(--indigo-50))", border: "1px solid var(--indigo-100)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 18 }}>✨</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--indigo-700)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{L("AI Insight", "AI-інсайт", "AI-инсайт", "Analyse IA", "KI-Einblick")}</span>
@@ -430,16 +430,16 @@ function MJTrends({ t, trends }) {
         {trends.map((w) => (
           <div key={w.weekStart} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, height: "100%", justifyContent: "flex-end" }}>
             <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: "100%" }}>
-              <div title={L(`${w.made} made`, `${w.made} зроблено`, `${w.made} сделано`, `${w.made} commises`, `${w.made} gemacht`)} style={{ width: 10, height: `${Math.max(3, (w.made / maxVal) * 70)}px`, background: "var(--red-300, #FCA5A5)", borderRadius: 3 }} />
-              <div title={L(`${w.fixed} fixed`, `${w.fixed} виправлено`, `${w.fixed} исправлено`, `${w.fixed} corrigées`, `${w.fixed} behoben`)} style={{ width: 10, height: `${Math.max(3, (w.fixed / maxVal) * 70)}px`, background: "var(--emerald-400, #34D399)", borderRadius: 3 }} />
+              <div title={L(`${w.made} made`, `${w.made} зроблено`, `${w.made} сделано`, `${w.made} commises`, `${w.made} gemacht`)} style={{ width: 10, height: `${Math.max(3, (w.made / maxVal) * 70)}px`, background: "var(--red-300, var(--red-400))", borderRadius: 3 }} />
+              <div title={L(`${w.fixed} fixed`, `${w.fixed} виправлено`, `${w.fixed} исправлено`, `${w.fixed} corrigées`, `${w.fixed} behoben`)} style={{ width: 10, height: `${Math.max(3, (w.fixed / maxVal) * 70)}px`, background: "var(--emerald-400, var(--emerald-300))", borderRadius: 3 }} />
             </div>
             <span style={{ fontSize: 9, color: "var(--text-faint)" }}>{w.weekStart.slice(5)}</span>
           </div>
         ))}
       </div>
       <div style={{ display: "flex", gap: 14, marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red-300, #FCA5A5)", marginRight: 4 }} />{L("Mistakes made", "Зроблено помилок", "Сделано ошибок", "Erreurs commises", "Fehler gemacht")}</span>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--emerald-400, #34D399)", marginRight: 4 }} />{L("Recovered", "Виправлено", "Исправлено", "Récupérées", "Behoben")}</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--red-300, var(--red-400))", marginRight: 4 }} />{L("Mistakes made", "Зроблено помилок", "Сделано ошибок", "Erreurs commises", "Fehler gemacht")}</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: "var(--emerald-400, var(--emerald-300))", marginRight: 4 }} />{L("Recovered", "Виправлено", "Исправлено", "Récupérées", "Behoben")}</span>
       </div>
     </div>
   );
@@ -532,7 +532,7 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
         </div>
 
         {m.wrongCount >= 3 && !recovered && (
-          <div style={{ fontSize: 12, color: "var(--red-700)", background: "#FEF2F2", borderRadius: "var(--radius-lg)", padding: "8px 10px", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--red-700)", background: "var(--red-50)", borderRadius: "var(--radius-lg)", padding: "8px 10px", lineHeight: 1.5 }}>
             ⚠ {L(`You've answered this incorrectly ${m.wrongCount} times.`, `Ви відповіли неправильно ${m.wrongCount} разів.`, `Вы ответили неправильно ${m.wrongCount} раз.`, `Vous avez répondu incorrectement ${m.wrongCount} fois.`, `Du hast dies ${m.wrongCount} Mal falsch beantwortet.`)}<br />
             <strong>{L("AI Recommendation:", "Рекомендація AI:", "Рекомендация AI:", "Recommandation IA :", "KI-Empfehlung:")}</strong> {L("review the prerequisite topic before attempting again.", "повторіть попередню тему, перш ніж спробувати знову.", "повторите предыдущую тему, прежде чем пробовать снова.", "révisez le sujet préalable avant de réessayer.", "wiederhole das Grundlagenthema, bevor du es erneut versuchst.")}
           </div>
@@ -551,7 +551,7 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
                   const isCorrect = i === m.correctIndex;
                   const wasPicked = i === m.selectedIndex;
                   return (
-                    <div key={i} style={{ fontSize: "var(--text-sm)", padding: "8px 12px", borderRadius: "var(--radius-lg)", background: isCorrect ? "var(--emerald-50)" : wasPicked ? "#FFF1F2" : "var(--surface-muted)", color: isCorrect ? "var(--emerald-700)" : wasPicked ? "var(--red-600)" : "var(--text-muted)" }}>
+                    <div key={i} style={{ fontSize: "var(--text-sm)", padding: "8px 12px", borderRadius: "var(--radius-lg)", background: isCorrect ? "var(--emerald-50)" : wasPicked ? "var(--rose-50)" : "var(--surface-muted)", color: isCorrect ? "var(--emerald-700)" : wasPicked ? "var(--red-600)" : "var(--text-muted)" }}>
                       {isCorrect ? "✓ " : wasPicked ? "✕ " : ""}{opt}
                     </div>
                   );
@@ -576,7 +576,7 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
             )}
 
             {retryMode === "wrongFeedback" && (
-              <div style={{ fontSize: 12, color: "var(--red-700)", background: "#FEF2F2", borderRadius: "var(--radius-lg)", padding: "10px 12px" }}>
+              <div style={{ fontSize: 12, color: "var(--red-700)", background: "var(--red-50)", borderRadius: "var(--radius-lg)", padding: "10px 12px" }}>
                 {L("Still tricky — this'll resurface for review tomorrow.", "Все ще складно — це знову з'явиться для повторення завтра.", "Всё ещё сложно — это снова появится для повторения завтра.", "Toujours difficile — cela réapparaîtra pour révision demain.", "Immer noch knifflig — das taucht morgen wieder zur Wiederholung auf.")} {m.explanation && <span>{m.explanation}</span>}
                 <button onClick={() => setRetryMode("idle")} style={{ display: "block", marginTop: 6, border: "none", background: "transparent", color: "var(--red-600)", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)" }}>{L("Close", "Закрити", "Закрыть", "Fermer", "Schließen")}</button>
               </div>

@@ -96,7 +96,7 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
       </div>
 
       {/* Why today */}
-      <div style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg, var(--indigo-50), #FAF5FF)", border: "1px solid var(--border-subtle)", padding: 16, marginBottom: 28 }}>
+      <div style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg, var(--indigo-50), var(--indigo-50))", border: "1px solid var(--border-subtle)", padding: 16, marginBottom: 28 }}>
         <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--indigo-600)" }}>
           💡 {L("Why today?","Чому сьогодні?","Почему сегодня?","Pourquoi aujourd'hui ?","Warum heute?")}
         </p>
@@ -114,9 +114,9 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
         </button>
         <button onClick={onBegin} style={{
           flex: 1, padding: "14px 24px", borderRadius: "var(--radius-xl)",
-          border: "none", background: "linear-gradient(135deg, var(--indigo-600), #7c3aed)",
+          border: "none", background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))",
           color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
-          boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
+          boxShadow: "0 4px 20px rgba(34,124,99,0.3)",
         }}>
           {L("Begin Session","Розпочати сесію","Начать сессию","Commencer la séance","Sitzung beginnen")} →
         </button>
