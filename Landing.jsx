@@ -224,8 +224,8 @@ function Landing({ onContinue, t, lang, onLangChange }) {
   const langPicker = onLangChange && (
     <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: "var(--space-6)" }}>
       {langs.map((l) => (
-        <button key={l.code} onClick={() => onLangChange(l.code)} title={l.label}
-          style={{ border: lang === l.code ? "2px solid var(--indigo-500)" : "2px solid transparent", borderRadius: "var(--radius-full)", background: "transparent", cursor: "pointer", fontSize: "var(--text-lg)", padding: "2px", lineHeight: 1 }}>
+        <button key={l.code} onClick={() => onLangChange(l.code)} title={l.label} aria-label={l.label}
+          style={{ border: lang === l.code ? "2px solid var(--indigo-500)" : "2px solid transparent", borderRadius: "var(--radius-full)", background: "transparent", cursor: "pointer", fontSize: "var(--text-lg)", minWidth: 40, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, lineHeight: 1 }}>
           {l.flag}
         </button>
       ))}
