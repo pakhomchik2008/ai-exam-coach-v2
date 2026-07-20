@@ -5,31 +5,43 @@
 // Brain write-back happens after every quiz interaction. Celebration at the end.
 
 const COACH_MODES = [
-  { id: "learn", emoji: "🧠", label: "Learn", desc: "Structured lesson" },
-  { id: "review", emoji: "⚡", label: "Quick Check", desc: "5 questions · 2 min" },
-  { id: "practice", emoji: "🎯", label: "Practice", desc: "Exam questions" },
-  { id: "speed", emoji: "🏎️", label: "Speed Round", desc: "20 Qs × 30 sec" },
-  { id: "exam_sim", emoji: "📝", label: "Exam Simulation", desc: "Full mock exam · timed" },
-  { id: "chat", emoji: "💬", label: "Chat", desc: "Ask anything" },
+  { id: "learn", emoji: "🧠",
+    label: { en: "Learn", uk: "Навчання", ru: "Обучение", fr: "Apprendre", de: "Lernen" },
+    desc: { en: "Structured lesson", uk: "Структурований урок", ru: "Структурированный урок", fr: "Leçon structurée", de: "Strukturierte Lektion" } },
+  { id: "review", emoji: "⚡",
+    label: { en: "Quick Check", uk: "Швидка перевірка", ru: "Быстрая проверка", fr: "Vérification rapide", de: "Schnellcheck" },
+    desc: { en: "5 questions · 2 min", uk: "5 питань · 2 хв", ru: "5 вопросов · 2 мин", fr: "5 questions · 2 min", de: "5 Fragen · 2 Min" } },
+  { id: "practice", emoji: "🎯",
+    label: { en: "Practice", uk: "Практика", ru: "Практика", fr: "Pratique", de: "Übung" },
+    desc: { en: "Exam questions", uk: "Екзаменаційні питання", ru: "Экзаменационные вопросы", fr: "Questions d'examen", de: "Prüfungsfragen" } },
+  { id: "speed", emoji: "🏎️",
+    label: { en: "Speed Round", uk: "Швидкий раунд", ru: "Быстрый раунд", fr: "Manche rapide", de: "Speed-Runde" },
+    desc: { en: "20 Qs × 30 sec", uk: "20 питань × 30 сек", ru: "20 вопросов × 30 сек", fr: "20 questions × 30 s", de: "20 Fragen × 30 Sek" } },
+  { id: "exam_sim", emoji: "📝",
+    label: { en: "Exam Simulation", uk: "Симуляція іспиту", ru: "Симуляция экзамена", fr: "Simulation d'examen", de: "Prüfungssimulation" },
+    desc: { en: "Full mock exam · timed", uk: "Повний пробний іспит · на час", ru: "Полный пробный экзамен · на время", fr: "Examen blanc complet · chronométré", de: "Komplette Probeprüfung · zeitlich begrenzt" } },
+  { id: "chat", emoji: "💬",
+    label: { en: "Chat", uk: "Чат", ru: "Чат", fr: "Chat", de: "Chat" },
+    desc: { en: "Ask anything", uk: "Запитайте що завгодно", ru: "Спросите что угодно", fr: "Posez toutes vos questions", de: "Frag alles" } },
 ];
 
 // ChatMode's Quick Actions — query(topicName) is filled in only after the
 // student has actually picked an exam+topic via the picker flow (see
 // startPicker in ChatMode), never guessed.
 const QUICK_ACTIONS = [
-  { id: "explain", text: "Explain a topic", icon: "📖", query: (topicName) => `Explain ${topicName}` },
-  { id: "quiz", text: "Generate quiz", icon: "📝", query: (topicName) => `Quiz me on ${topicName}` },
-  { id: "notes", text: "Summarize notes", icon: "📄", query: (topicName) => `Summarize my notes on ${topicName}` },
-  { id: "solve", text: "Solve a problem", icon: "🧮", query: (topicName) => `Give me a problem to solve in ${topicName} and walk me through it` },
-  { id: "test", text: "Test my knowledge", icon: "🎯", query: (topicName) => `Test my knowledge on ${topicName}` },
-  { id: "flashcards", text: "Make flashcards", icon: "🗂", query: (topicName) => `Create flashcards for ${topicName}` },
+  { id: "explain", text: { en: "Explain a topic", uk: "Пояснити тему", ru: "Объяснить тему", fr: "Expliquer un sujet", de: "Thema erklären" }, icon: "📖", query: (topicName) => `Explain ${topicName}` },
+  { id: "quiz", text: { en: "Generate quiz", uk: "Створити квіз", ru: "Создать квиз", fr: "Générer un quiz", de: "Quiz erstellen" }, icon: "📝", query: (topicName) => `Quiz me on ${topicName}` },
+  { id: "notes", text: { en: "Summarize notes", uk: "Підсумувати конспект", ru: "Резюмировать конспект", fr: "Résumer les notes", de: "Notizen zusammenfassen" }, icon: "📄", query: (topicName) => `Summarize my notes on ${topicName}` },
+  { id: "solve", text: { en: "Solve a problem", uk: "Розв'язати задачу", ru: "Решить задачу", fr: "Résoudre un problème", de: "Aufgabe lösen" }, icon: "🧮", query: (topicName) => `Give me a problem to solve in ${topicName} and walk me through it` },
+  { id: "test", text: { en: "Test my knowledge", uk: "Перевірити знання", ru: "Проверить знания", fr: "Tester mes connaissances", de: "Wissen testen" }, icon: "🎯", query: (topicName) => `Test my knowledge on ${topicName}` },
+  { id: "flashcards", text: { en: "Make flashcards", uk: "Створити картки", ru: "Создать карточки", fr: "Créer des cartes", de: "Karteikarten erstellen" }, icon: "🗂", query: (topicName) => `Create flashcards for ${topicName}` },
 ];
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
 function CoachIcon({ size = 32 }) {
   return React.createElement("div", {
-    style: { width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
+    style: { width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
   }, React.createElement("svg", { width: size * 0.54, height: size * 0.54, viewBox: "0 0 20 20", fill: "none" },
     React.createElement("path", { d: "M10 2C7.24 2 5 4.24 5 7c0 1.9 1.05 3.55 2.6 4.4L7.3 12h5.4l-.3-.6C14.05 10.55 15 8.9 15 7c0-2.76-2.24-5-5-5z", fill: "white", opacity: "0.95" }),
     React.createElement("rect", { x: "7.5", y: "13", width: "5", height: "1.5", rx: "0.75", fill: "white", opacity: "0.75" }),
@@ -44,7 +56,7 @@ const _md = (text) => {
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
-    .replace(/`([^`\n]+?)`/g, "<code style='background:#f1f5f9;padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
+    .replace(/`([^`\n]+?)`/g, "<code style='background:var(--slate-100);padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
     .replace(/\n/g, "<br/>");
   return t;
 };
@@ -98,7 +110,7 @@ const _badge = (bg, fg, text) => React.createElement("span", {
 const _btn = (label, onClick, primary, disabled) => React.createElement("button", {
   onClick: disabled ? undefined : onClick, disabled,
   style: {
-    padding: "12px 20px", background: primary ? (disabled ? "#c7d2fe" : "#4f46e5") : "var(--surface-card)",
+    padding: "12px 20px", background: primary ? (disabled ? "var(--indigo-200)" : "var(--indigo-600)") : "var(--surface-card)",
     color: primary ? "white" : "var(--text-strong)", border: primary ? "none" : "1.5px solid var(--border-default)",
     borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: disabled ? "default" : "pointer",
     fontFamily: "var(--font-sans)", width: "100%", transition: "all 0.15s", opacity: disabled ? 0.6 : 1,
@@ -111,7 +123,8 @@ const _btn = (label, onClick, primary, disabled) => React.createElement("button"
 // that ordering was a Rules-of-Hooks violation that crashed the engine the
 // instant a lesson finished loading. Mounting fresh per checkpoint step also
 // gives the per-step state reset for free (no effect needed).
-function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
+function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [cpIdx, setCpIdx] = React.useState(0);
   const [cpSelected, setCpSelected] = React.useState(null);
   const [cpRevealed, setCpRevealed] = React.useState(false);
@@ -122,27 +135,27 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
     // Checkpoint complete — show mini summary
     const cpCorrect = cpResults.filter(Boolean).length;
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "linear-gradient(135deg, #f0fdf4 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid #22c55e", textAlign: "center" } },
-        React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f0fdf4", "#15803d", "📊 CHECKPOINT RESULTS")),
-        React.createElement("p", { style: { fontSize: 36, fontWeight: 700, color: cpCorrect === questions.length ? "#15803d" : "#b45309", margin: "8px 0" } }, `${cpCorrect}/${questions.length}`),
+      React.createElement("div", { style: { background: "linear-gradient(135deg, var(--emerald-50) 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--emerald-500)", textAlign: "center" } },
+        React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--emerald-50)", "var(--emerald-700)", L("📊 CHECKPOINT RESULTS", "📊 РЕЗУЛЬТАТИ КОНТРОЛЬНОЇ", "📊 РЕЗУЛЬТАТЫ КОНТРОЛЬНОЙ", "📊 RÉSULTATS DU CONTRÔLE", "📊 KONTROLLERGEBNISSE"))),
+        React.createElement("p", { style: { fontSize: 36, fontWeight: 700, color: cpCorrect === questions.length ? "var(--emerald-700)" : "var(--amber-700)", margin: "8px 0" } }, `${cpCorrect}/${questions.length}`),
         React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 16px" } },
-          cpCorrect === questions.length ? "Perfect score! 🌟" : cpCorrect >= questions.length * 0.6 ? "Good work! Keep going." : "Let's review — you'll get there.")),
-      React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", () => { onXp(cpCorrect === questions.length ? 50 : 20); onAdvance(); }, true, false)));
+          cpCorrect === questions.length ? L("Perfect score! 🌟", "Ідеальний результат! 🌟", "Идеальный результат! 🌟", "Score parfait ! 🌟", "Perfekte Punktzahl! 🌟") : cpCorrect >= questions.length * 0.6 ? L("Good work! Keep going.", "Гарна робота! Продовжуйте.", "Хорошая работа! Продолжайте.", "Bon travail ! Continuez.", "Gute Arbeit! Weiter so.") : L("Let's review — you'll get there.", "Давайте повторимо — у вас все вийде.", "Давайте повторим — у вас всё получится.", "Révisons — vous y arriverez.", "Lass uns wiederholen — du schaffst das."))),
+      React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), () => { onXp(cpCorrect === questions.length ? 50 : 20); onAdvance(); }, true, false)));
   }
   const q = questions[cpIdx];
   return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
     React.createElement("div", { style: { marginBottom: 12, display: "flex", alignItems: "center", gap: 8 } },
-      _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", `CHECKPOINT ${cpIdx + 1}/${questions.length}`)),
+      _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "white", L(`CHECKPOINT ${cpIdx + 1}/${questions.length}`, `КОНТРОЛЬНА ${cpIdx + 1}/${questions.length}`, `КОНТРОЛЬНАЯ ${cpIdx + 1}/${questions.length}`, `CONTRÔLE ${cpIdx + 1}/${questions.length}`, `KONTROLLE ${cpIdx + 1}/${questions.length}`))),
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
       React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...(q.options || []).map((opt, i) => {
           const isCor = i === q.correct, isSel = i === cpSelected;
-          let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+          let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
           if (cpRevealed) {
-            if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-            else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-            else { col = "#d1d5db"; bc = "#f3f4f6"; }
+            if (isCor) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
+            else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+            else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
           }
           return React.createElement("button", {
             key: i, disabled: cpRevealed,
@@ -160,10 +173,10 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
         })),
       cpRevealed && q.explanation && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${cpSelected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${cpSelected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
       }, cpSelected === q.correct ? "✅ " : "💡 ", q.explanation)),
     cpRevealed && React.createElement("div", { style: { marginTop: 16 } },
-      _btn(cpIdx + 1 < questions.length ? "Next question →" : "See results →", () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
+      _btn(cpIdx + 1 < questions.length ? L("Next question →", "Наступне питання →", "Следующий вопрос →", "Question suivante →", "Nächste Frage →") : L("See results →", "Переглянути результати →", "Посмотреть результаты →", "Voir les résultats →", "Ergebnisse ansehen →"), () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
 }
 
 // ─── LEARN ENGINE ────────────────────────────────────────────────────────────
@@ -171,7 +184,8 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance }) {
 // callouts. AI decides how many sections the topic needs. Each section:
 // full explanation → quick quiz. Ends with summary + checkpoint.
 
-function LearnEngine({ topic, onExit }) {
+function LearnEngine({ topic, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -256,17 +270,17 @@ RULES:
 - Every field that says "null if not applicable" MUST be null (not omitted) when not relevant.
 - Adapt to subject: math → formulas + worked numbers; history → key dates + causation; programming → code; science → mechanisms.`;
 
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Taking too long — try again.")), 55000));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Taking too long — try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 55000));
         const raw = await Promise.race([
           complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.sections) || parsed.sections.length === 0) throw new Error("Invalid study guide");
+        if (!parsed || !Array.isArray(parsed.sections) || parsed.sections.length === 0) throw new Error(L("Invalid study guide", "Недійсний навчальний посібник", "Недействительное учебное пособие", "Guide d'étude invalide", "Ungültiger Lernleitfaden"));
         setPlan(parsed); setLoading(false);
       } catch (e) {
         console.error("Learn generation failed:", e);
-        setError(e.message || "Failed to generate"); setLoading(false);
+        setError(e.message || L("Failed to generate", "Не вдалося згенерувати", "Не удалось сгенерировать", "Échec de la génération", "Generierung fehlgeschlagen")); setLoading(false);
       }
     })();
   }, [topic, retryCount]);
@@ -343,33 +357,33 @@ RULES:
   if (loading) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Building your study guide..."),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
-      React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)" } }, "This takes a moment — lots of material to prepare"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Building your study guide...", "Створюємо ваш навчальний посібник...", "Создаём ваше учебное пособие...", "Création de votre guide d'étude...", "Dein Lernleitfaden wird erstellt...")),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
+      React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)" } }, L("This takes a moment — lots of material to prepare", "Це займе трохи часу — потрібно підготувати багато матеріалу", "Это займёт немного времени — нужно подготовить много материала", "Cela prend un moment — beaucoup de matériel à préparer", "Das dauert einen Moment — viel Material wird vorbereitet")),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
       React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate study guide"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, L("Couldn't generate study guide", "Не вдалося створити навчальний посібник", "Не удалось создать учебное пособие", "Impossible de générer le guide d'étude", "Lernleitfaden konnte nicht erstellt werden")),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn("↺ Try again", () => setRetryCount((n) => n + 1), true, false),
-        _btn("← Back", onExit, false, false)));
+        _btn(L("↺ Try again", "↺ Спробувати ще раз", "↺ Попробовать ещё раз", "↺ Réessayer", "↺ Erneut versuchen"), () => setRetryCount((n) => n + 1), true, false),
+        _btn(L("← Back", "← Назад", "← Назад", "← Retour", "← Zurück"), onExit, false, false)));
   }
 
   // ─── Progress header ──────────────────────────────────────────────────────
   const header = React.createElement("div", { style: { padding: "12px 20px 0", flexShrink: 0 } },
     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
       React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } },
-        phase === "roadmap" ? "Overview" : phase === "summary" ? "Summary" : phase === "checkpoint" ? "Final Check" : phase === "done" ? "Complete!" : `Section ${secIdx + 1} of ${totalSections}`),
+        phase === "roadmap" ? L("Overview", "Огляд", "Обзор", "Aperçu", "Übersicht") : phase === "summary" ? L("Summary", "Підсумок", "Итог", "Résumé", "Zusammenfassung") : phase === "checkpoint" ? L("Final Check", "Фінальна перевірка", "Финальная проверка", "Contrôle final", "Abschlusskontrolle") : phase === "done" ? L("Complete!", "Готово!", "Готово!", "Terminé !", "Fertig!") : L(`Section ${secIdx + 1} of ${totalSections}`, `Розділ ${secIdx + 1} з ${totalSections}`, `Раздел ${secIdx + 1} из ${totalSections}`, `Section ${secIdx + 1} sur ${totalSections}`, `Abschnitt ${secIdx + 1} von ${totalSections}`)),
       React.createElement("div", { style: { display: "flex", gap: 12, fontSize: 12, color: "var(--text-muted)" } },
         totalAnswered > 0 && React.createElement("span", null, `${correctCount}/${totalAnswered} ✓`),
-        React.createElement("button", { onClick: () => { if (phase !== "roadmap") commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit"))),
+        React.createElement("button", { onClick: () => { if (phase !== "roadmap") commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen")))),
     React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-      React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${progressPct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "transform 0.4s ease" } })),
+      React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${progressPct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform 0.4s ease" } })),
     React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 4, display: "block" } }, plan.title));
 
   // ─── ROADMAP ──────────────────────────────────────────────────────────────
@@ -380,17 +394,17 @@ RULES:
         React.createElement("div", { style: { textAlign: "center", marginBottom: 28 } },
           React.createElement("span", { style: { fontSize: 48 } }, "📘"),
           React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 6px" } }, plan.title),
-          React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, `${totalSections} sections · ~${plan.estimatedMinutes || 15} min`)),
+          React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, L(`${totalSections} sections · ~${plan.estimatedMinutes || 15} min`, `${totalSections} розділів · ~${plan.estimatedMinutes || 15} хв`, `${totalSections} разделов · ~${plan.estimatedMinutes || 15} мин`, `${totalSections} sections · ~${plan.estimatedMinutes || 15} min`, `${totalSections} Abschnitte · ~${plan.estimatedMinutes || 15} Min.`))),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 } },
           ...sections.map((s, i) => React.createElement("div", {
             key: i,
             style: { display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14 }
           },
-            React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#7c3aed)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 } }, i + 1),
+            React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 } }, i + 1),
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("span", { style: { fontSize: 15, fontWeight: 600, color: "var(--text-strong)" } }, s.title),
-              s.quiz && s.quiz.length > 0 && React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)", marginLeft: 8 } }, `+ ${s.quiz.length} quiz`))))),
-        _btn("Let's start →", () => { setPhase("section"); scrollTop(); }, true, false)));
+              s.quiz && s.quiz.length > 0 && React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)", marginLeft: 8 } }, L(`+ ${s.quiz.length} quiz`, `+ ${s.quiz.length} тест`, `+ ${s.quiz.length} тест`, `+ ${s.quiz.length} quiz`, `+ ${s.quiz.length} Quiz`)))))),
+        _btn(L("Let's start →", "Почнімо →", "Начнём →", "Commençons →", "Los geht's →"), () => { setPhase("section"); scrollTop(); }, true, false)));
   }
 
   // ─── SECTION (rich theory) ────────────────────────────────────────────────
@@ -400,7 +414,7 @@ RULES:
       React.createElement("div", { ref: scrollRef, style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
         React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
           React.createElement("div", { style: { marginBottom: 12 } },
-            _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", `📖 SECTION ${secIdx + 1} of ${totalSections}`)),
+            _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "white", L(`📖 SECTION ${secIdx + 1} of ${totalSections}`, `📖 РОЗДІЛ ${secIdx + 1} з ${totalSections}`, `📖 РАЗДЕЛ ${secIdx + 1} из ${totalSections}`, `📖 SECTION ${secIdx + 1} SUR ${totalSections}`, `📖 ABSCHNITT ${secIdx + 1} VON ${totalSections}`))),
           React.createElement("h2", { style: { fontSize: 20, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 20px" } }, sec.title),
 
           // Main content
@@ -408,58 +422,58 @@ RULES:
             ...renderContent(sec.content)),
 
           // Formula
-          sec.formula && React.createElement("div", { style: { background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 12, padding: "16px 20px", marginBottom: 16, textAlign: "center" } },
-            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 } }, "📐 KEY FORMULA / RULE"),
-            React.createElement("div", { style: { fontFamily: "var(--font-mono)", fontSize: 16, color: "#0f172a", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, sec.formula)),
+          sec.formula && React.createElement("div", { style: { background: "var(--slate-100)", border: "1px solid var(--slate-300)", borderRadius: 12, padding: "16px 20px", marginBottom: 16, textAlign: "center" } },
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--slate-500)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 } }, L("📐 KEY FORMULA / RULE", "📐 КЛЮЧОВА ФОРМУЛА / ПРАВИЛО", "📐 КЛЮЧЕВАЯ ФОРМУЛА / ПРАВИЛО", "📐 FORMULE / RÈGLE CLÉ", "📐 SCHLÜSSELFORMEL / -REGEL")),
+            React.createElement("div", { style: { fontFamily: "var(--font-mono)", fontSize: 16, color: "var(--slate-900)", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, sec.formula)),
 
           // Example
-          sec.example && React.createElement("div", { style: { background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 14, padding: 20, marginBottom: 16 } },
-            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 } }, "📝 WORKED EXAMPLE"),
-            sec.example.problem && React.createElement("p", { style: { fontWeight: 600, fontSize: 14, color: "#581c87", margin: "0 0 12px", lineHeight: 1.5 } }, sec.example.problem),
-            sec.example.solution && React.createElement("div", { style: { fontSize: 14, color: "#6b21a8", lineHeight: 1.75, marginBottom: 10 }, dangerouslySetInnerHTML: { __html: _md(String(sec.example.solution).replace(/\n/g, "<br/>")) } }),
-            sec.example.answer && React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#581c87", borderTop: "1px solid #e9d5ff", paddingTop: 10, marginTop: 4 } }, "→ Answer: ", sec.example.answer)),
+          sec.example && React.createElement("div", { style: { background: "var(--indigo-50)", border: "1px solid var(--indigo-100)", borderRadius: 14, padding: 20, marginBottom: 16 } },
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 } }, L("📝 WORKED EXAMPLE", "📝 РОЗВ'ЯЗАНИЙ ПРИКЛАД", "📝 РЕШЁННЫЙ ПРИМЕР", "📝 EXEMPLE RÉSOLU", "📝 GELÖSTES BEISPIEL")),
+            sec.example.problem && React.createElement("p", { style: { fontWeight: 600, fontSize: 14, color: "var(--indigo-800)", margin: "0 0 12px", lineHeight: 1.5 } }, sec.example.problem),
+            sec.example.solution && React.createElement("div", { style: { fontSize: 14, color: "var(--indigo-700)", lineHeight: 1.75, marginBottom: 10 }, dangerouslySetInnerHTML: { __html: _md(String(sec.example.solution).replace(/\n/g, "<br/>")) } }),
+            sec.example.answer && React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "var(--indigo-800)", borderTop: "1px solid var(--indigo-100)", paddingTop: 10, marginTop: 4 } }, L("→ Answer: ", "→ Відповідь: ", "→ Ответ: ", "→ Réponse : ", "→ Antwort: "), sec.example.answer)),
 
           // Pro tip
-          sec.proTip && React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#15803d", lineHeight: 1.6 } },
-            "💡 ", React.createElement("strong", null, "Pro tip: "), sec.proTip),
+          sec.proTip && React.createElement("div", { style: { background: "var(--emerald-50)", border: "1px solid var(--emerald-100)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "var(--emerald-700)", lineHeight: 1.6 } },
+            "💡 ", React.createElement("strong", null, L("Pro tip: ", "Порада: ", "Совет: ", "Astuce : ", "Profi-Tipp: ")), sec.proTip),
 
           // Common mistake
-          sec.commonMistake && React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "#b91c1c", lineHeight: 1.6 } },
-            "⚠️ ", React.createElement("strong", null, "Common mistake: "), sec.commonMistake),
+          sec.commonMistake && React.createElement("div", { style: { background: "var(--red-50)", border: "1px solid var(--red-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontSize: 14, color: "var(--red-700)", lineHeight: 1.6 } },
+            "⚠️ ", React.createElement("strong", null, L("Common mistake: ", "Типова помилка: ", "Типичная ошибка: ", "Erreur fréquente : ", "Häufiger Fehler: ")), sec.commonMistake),
 
           // Key points
-          sec.keyPoints && sec.keyPoints.length > 0 && React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "14px 18px", marginBottom: 20 } },
-            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 } }, "🔑 KEY POINTS"),
-            ...sec.keyPoints.map((kp, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, fontSize: 14, color: "#78350f", lineHeight: 1.5, marginBottom: 4 } },
+          sec.keyPoints && sec.keyPoints.length > 0 && React.createElement("div", { style: { background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "14px 18px", marginBottom: 20 } },
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 } }, L("🔑 KEY POINTS", "🔑 КЛЮЧОВІ МОМЕНТИ", "🔑 КЛЮЧЕВЫЕ МОМЕНТЫ", "🔑 POINTS CLÉS", "🔑 KERNPUNKTE")),
+            ...sec.keyPoints.map((kp, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, fontSize: 14, color: "var(--amber-700)", lineHeight: 1.5, marginBottom: 4 } },
               React.createElement("span", null, "•"), React.createElement("span", { dangerouslySetInnerHTML: { __html: _md(kp) } })))),
 
           // Continue button
-          _btn(sec.quiz && sec.quiz.length > 0 ? "Got it — quiz me →" : (secIdx + 1 < totalSections ? "Got it, next section →" : "See summary →"), goFromSection, true, false))));
+          _btn(sec.quiz && sec.quiz.length > 0 ? L("Got it — quiz me →", "Зрозуміло — перевірте мене →", "Понятно — проверьте меня →", "Compris — testez-moi →", "Verstanden — frag mich ab →") : (secIdx + 1 < totalSections ? L("Got it, next section →", "Зрозуміло, наступний розділ →", "Понятно, следующий раздел →", "Compris, section suivante →", "Verstanden, nächster Abschnitt →") : L("See summary →", "Переглянути підсумок →", "Посмотреть итог →", "Voir le résumé →", "Zusammenfassung ansehen →")), goFromSection, true, false))));
   }
 
   // ─── QUIZ (after each section) ────────────────────────────────────────────
   if (phase === "quiz") {
     const quizzes = sec.quiz || [];
     const q = quizzes[quizIdx];
-    if (!q) return React.createElement("div", { style: { padding: 40, textAlign: "center" } }, _btn("Continue →", nextAfterQuiz, true, false));
+    if (!q) return React.createElement("div", { style: { padding: 40, textAlign: "center" } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), nextAfterQuiz, true, false));
 
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)" } },
       header,
       React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
         React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
           React.createElement("div", { style: { marginBottom: 12, display: "flex", gap: 8 } },
-            _badge("#eef2ff", "#4f46e5", `📝 QUICK CHECK ${quizIdx + 1}/${quizzes.length}`),
-            _badge("#f0fdf4", "#15803d", sec.title)),
+            _badge("var(--indigo-50)", "var(--indigo-600)", L(`📝 QUICK CHECK ${quizIdx + 1}/${quizzes.length}`, `📝 ШВИДКА ПЕРЕВІРКА ${quizIdx + 1}/${quizzes.length}`, `📝 БЫСТРАЯ ПРОВЕРКА ${quizIdx + 1}/${quizzes.length}`, `📝 VÉRIFICATION RAPIDE ${quizIdx + 1}/${quizzes.length}`, `📝 SCHNELLTEST ${quizIdx + 1}/${quizzes.length}`)),
+            _badge("var(--emerald-50)", "var(--emerald-700)", sec.title)),
           React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
             React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
               ...(q.options || []).map((opt, i) => {
                 const isCor = i === q.correct, isSel = i === selected;
-                let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+                let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
                 if (revealed) {
-                  if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-                  else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-                  else { col = "#d1d5db"; bc = "#f3f4f6"; }
+                  if (isCor) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
+                  else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+                  else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
                 }
                 return React.createElement("button", {
                   key: i, disabled: revealed, onClick: () => answerQuiz(i, q.correct),
@@ -469,10 +483,10 @@ RULES:
                   React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
               })),
             revealed && q.explanation && React.createElement("div", {
-              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${selected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
             }, selected === q.correct ? "✅ " : "💡 ", q.explanation)),
           revealed && React.createElement("div", { style: { marginTop: 16 } },
-            _btn(quizIdx + 1 < quizzes.length ? "Next question →" : secIdx + 1 < totalSections ? "Next section →" : "See summary →", nextAfterQuiz, true, false)))));
+            _btn(quizIdx + 1 < quizzes.length ? L("Next question →", "Наступне питання →", "Следующий вопрос →", "Question suivante →", "Nächste Frage →") : secIdx + 1 < totalSections ? L("Next section →", "Наступний розділ →", "Следующий раздел →", "Section suivante →", "Nächster Abschnitt →") : L("See summary →", "Переглянути підсумок →", "Посмотреть итог →", "Voir le résumé →", "Zusammenfassung ansehen →"), nextAfterQuiz, true, false)))));
   }
 
   // ─── SUMMARY (cheat sheet) ────────────────────────────────────────────────
@@ -483,16 +497,16 @@ RULES:
       React.createElement("div", { ref: scrollRef, style: { flex: 1, overflowY: "auto", padding: "20px 20px 24px" } },
         React.createElement("div", { style: { textAlign: "center", marginBottom: 20 } },
           React.createElement("span", { style: { fontSize: 40 } }, "📋"),
-          React.createElement("h2", { style: { fontSize: 20, fontWeight: 700, color: "var(--text-strong)", margin: "8px 0 4px" } }, "Key Takeaways"),
-          React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0 } }, "Copy these into your notes!")),
+          React.createElement("h2", { style: { fontSize: 20, fontWeight: 700, color: "var(--text-strong)", margin: "8px 0 4px" } }, L("Key Takeaways", "Ключові висновки", "Ключевые выводы", "Points clés à retenir", "Wichtige Erkenntnisse")),
+          React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0 } }, L("Copy these into your notes!", "Занотуйте це собі!", "Запишите это себе!", "Copiez ceci dans vos notes !", "Notiere dir das!"))),
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, marginBottom: 20 } },
           ...summaryPoints.map((point, i) => React.createElement("div", {
             key: i,
             style: { display: "flex", gap: 10, padding: "10px 0", borderBottom: i < summaryPoints.length - 1 ? "1px solid var(--border-subtle)" : "none" }
           },
-            React.createElement("span", { style: { fontSize: 16, flexShrink: 0, color: "#6366f1" } }, "✦"),
+            React.createElement("span", { style: { fontSize: 16, flexShrink: 0, color: "var(--indigo-500)" } }, "✦"),
             React.createElement("span", { style: { fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: _md(point) } })))),
-        _btn("Ready — test me! →", () => { setPhase("checkpoint"); scrollTop(); }, true, false)));
+        _btn(L("Ready — test me! →", "Готовий — перевір мене! →", "Готов — проверь меня! →", "Prêt — testez-moi ! →", "Bereit — teste mich! →"), () => { setPhase("checkpoint"); scrollTop(); }, true, false)));
   }
 
   // ─── CHECKPOINT ───────────────────────────────────────────────────────────
@@ -506,6 +520,7 @@ RULES:
           onResult: (correct) => setResults((r) => [...r, { correct }]),
           onXp: (amount) => setXp((x) => x + amount),
           onAdvance: () => { commitResults(); setPhase("done"); },
+          t,
         })));
   }
 
@@ -524,30 +539,30 @@ RULES:
       style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 0, padding: "0 20px", animation: "fadeUp 0.5s ease-out" }
     },
       React.createElement("div", { style: { fontSize: 56, marginBottom: 8, animation: "pulse 0.6s ease-in-out" } }, gradeEmoji[grade]),
-      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, "Study Guide Complete!"),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, L("Study Guide Complete!", "Навчальний посібник завершено!", "Учебное пособие завершено!", "Guide d'étude terminé !", "Lernleitfaden abgeschlossen!")),
       React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, plan.title),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 360, marginBottom: 24 } },
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
-          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "#15803d" : "#b45309", margin: 0 } }, `${accuracy}%`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Accuracy")),
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "var(--emerald-700)" : "var(--amber-700)", margin: 0 } }, `${accuracy}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Accuracy", "Точність", "Точность", "Précision", "Genauigkeit"))),
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${finalXp}`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP Earned")),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("XP Earned", "Отримано XP", "Получено XP", "XP gagnés", "XP verdient"))),
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-muted)", margin: 0 } }, `${masteryBefore || 0}%`),
-          React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: masteryDelta > 0 ? "#15803d" : "var(--text-strong)", margin: "2px 0 0" } }, `→ ${masteryNow || 0}%`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Mastery")),
+          React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: masteryDelta > 0 ? "var(--emerald-700)" : "var(--text-strong)", margin: "2px 0 0" } }, `→ ${masteryNow || 0}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Mastery", "Освоєння", "Освоение", "Maîtrise", "Beherrschung"))),
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${totalSections}📖`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Sections"))),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" } }, `${correctCount} of ${totalAnswered} questions correct`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Sections", "Розділи", "Разделы", "Sections", "Abschnitte")))),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" } }, L(`${correctCount} of ${totalAnswered} questions correct`, `${correctCount} з ${totalAnswered} правильних відповідей`, `${correctCount} из ${totalAnswered} правильных ответов`, `${correctCount} sur ${totalAnswered} réponses correctes`, `${correctCount} von ${totalAnswered} richtigen Antworten`)),
       xpLevelAfter && React.createElement("div", { style: { width: "100%", maxWidth: 360, marginBottom: 16, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 16px" } },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
-          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, `⭐ Level ${xpLevelAfter.level}`),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, L(`⭐ Level ${xpLevelAfter.level}`, `⭐ Рівень ${xpLevelAfter.level}`, `⭐ Уровень ${xpLevelAfter.level}`, `⭐ Niveau ${xpLevelAfter.level}`, `⭐ Level ${xpLevelAfter.level}`)),
           React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, `${xpLevelAfter.into} / ${xpLevelAfter.need} XP`)),
         React.createElement("div", { style: { height: 8, background: "var(--border-subtle)", borderRadius: 4, overflow: "hidden" } },
-          React.createElement("div", { style: { height: "100%", width: `${xpPctAfter}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 4 } }))),
-      _btn("Done →", onExit, true, false));
+          React.createElement("div", { style: { height: "100%", width: `${xpPctAfter}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 4 } }))),
+      _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
   }
 
   return null;
@@ -555,7 +570,8 @@ RULES:
 
 // ─── FLASHCARD ENGINE (Review mode) ──────────────────────────────────────────
 
-function QuickCheckEngine({ topic, onExit }) {
+function QuickCheckEngine({ topic, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [questions, setQuestions] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -574,7 +590,13 @@ function QuickCheckEngine({ topic, onExit }) {
   // (see recordQuickCheckResult in brain-store.jsx) — read once per topic so
   // it stays stable for the duration of this session.
   const difficulty = React.useMemo(() => (resolved && window.getQuickCheckDifficulty) ? window.getQuickCheckDifficulty(resolved.examId, resolved.topicIdx) : 1, [resolved]);
-  const DIFFICULTY_LABELS = ["Beginner", "Standard", "Challenging", "Advanced", "Expert"];
+  const DIFFICULTY_LABELS = [
+    L("Beginner", "Початківець", "Начинающий", "Débutant", "Anfänger"),
+    L("Standard", "Стандарт", "Стандарт", "Standard", "Standard"),
+    L("Challenging", "Складний", "Сложный", "Difficile", "Anspruchsvoll"),
+    L("Advanced", "Просунутий", "Продвинутый", "Avancé", "Fortgeschritten"),
+    L("Expert", "Експерт", "Эксперт", "Expert", "Experte"),
+  ];
   const DIFFICULTY_MIXES = [
     "3 easy, 2 medium — keep it approachable.",
     "1 easy, 3 medium, 1 hard. Order easy→hard.",
@@ -609,18 +631,18 @@ RULES:
 - Each question covers a DIFFERENT subtopic/concept.
 - "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").`;
 
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long — try again.")), 40000));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 40000));
         const raw = await Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
         setQuestions(parsed);
         setLoading(false);
       } catch (e) {
         console.error("Quick Check generation failed:", e);
-        setError(e.message || "Failed to generate questions");
+        setError(e.message || L("Failed to generate questions", "Не вдалося згенерувати питання", "Не удалось сгенерировать вопросы", "Échec de la génération des questions", "Fragen konnten nicht generiert werden"));
         setLoading(false);
       }
     })();
@@ -662,18 +684,18 @@ RULES:
   if (loading) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Preparing Quick Check..."),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Preparing Quick Check...", "Готуємо швидку перевірку...", "Готовим быструю проверку...", "Préparation de la vérification rapide...", "Schnelltest wird vorbereitet...")),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
       React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate questions"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, L("Couldn't generate questions", "Не вдалося згенерувати питання", "Не удалось сгенерировать вопросы", "Impossible de générer les questions", "Fragen konnten nicht generiert werden")),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
-      _btn("← Back", onExit, false, false));
+      _btn(L("← Back", "← Назад", "← Назад", "← Retour", "← Zurück"), onExit, false, false));
   }
 
   if (done) {
@@ -693,7 +715,7 @@ RULES:
     }
 
     const emoji = pct === 100 ? "🔥" : pct >= 80 ? "🧠" : pct >= 60 ? "💪" : "📖";
-    const message = pct === 100 ? `${topic} locked in!` : pct >= 80 ? "Almost perfect!" : pct >= 60 ? "Good, but room to grow" : "Let's review this topic";
+    const message = pct === 100 ? L(`${topic} locked in!`, `${topic} закріплено!`, `${topic} закреплено!`, `${topic} maîtrisé !`, `${topic} verinnerlicht!`) : pct >= 80 ? L("Almost perfect!", "Майже ідеально!", "Почти идеально!", "Presque parfait !", "Fast perfekt!") : pct >= 60 ? L("Good, but room to grow", "Непогано, є куди рости", "Неплохо, есть куда расти", "Bien, mais il y a de la marge", "Gut, aber noch Luft nach oben") : L("Let's review this topic", "Повторімо цю тему", "Повторим эту тему", "Révisons ce sujet", "Wiederholen wir dieses Thema");
 
     return React.createElement("div", {
       style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out" }
@@ -704,26 +726,26 @@ RULES:
       React.createElement("p", { style: { fontSize: 15, color: "var(--text-muted)", margin: "0 0 24px", textAlign: "center" } }, message),
 
       levelUp && React.createElement("div", {
-        style: { width: "100%", maxWidth: 340, background: "linear-gradient(135deg,#4f46e5,#7c3aed)", borderRadius: 14, padding: "14px 18px", marginBottom: 20, textAlign: "center", animation: "fadeUp 0.4s ease-out" }
+        style: { width: "100%", maxWidth: 340, background: "linear-gradient(135deg,var(--indigo-600),var(--indigo-600))", borderRadius: 14, padding: "14px 18px", marginBottom: 20, textAlign: "center", animation: "fadeUp 0.4s ease-out" }
       },
-        React.createElement("p", { style: { margin: 0, fontSize: 15, fontWeight: 700, color: "white" } }, `🎉 Difficulty up — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]}!`),
-        React.createElement("p", { style: { margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.85)" } }, `5 perfect Quick Checks in a row on ${topic}`)),
+        React.createElement("p", { style: { margin: 0, fontSize: 15, fontWeight: 700, color: "white" } }, L(`🎉 Difficulty up — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]}!`, `🎉 Складність підвищено — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]}!`, `🎉 Сложность повышена — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]}!`, `🎉 Difficulté augmentée — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]} !`, `🎉 Schwierigkeit erhöht — ${DIFFICULTY_LABELS[Math.min(4, difficulty)]}!`)),
+        React.createElement("p", { style: { margin: "3px 0 0", fontSize: 12, color: "rgba(255,255,255,0.85)" } }, L(`5 perfect Quick Checks in a row on ${topic}`, `5 ідеальних швидких перевірок поспіль з теми ${topic}`, `5 идеальных быстрых проверок подряд по теме ${topic}`, `5 vérifications rapides parfaites d'affilée sur ${topic}`, `5 perfekte Schnelltests in Folge zu ${topic}`))),
 
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 24 } },
         ...[
-          { val: `${pct}%`, label: "Score", color: pct >= 80 ? "#15803d" : pct >= 60 ? "#b45309" : "#b91c1c" },
-          { val: `${elapsed}s`, label: "Time", color: "var(--indigo-600)" },
-          { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
+          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 80 ? "var(--emerald-700)" : pct >= 60 ? "var(--amber-700)" : "var(--red-700)" },
+          { val: `${elapsed}s`, label: L("Time", "Час", "Время", "Temps", "Zeit"), color: "var(--indigo-600)" },
+          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
           React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, s.label)))),
 
-      wrongTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "linear-gradient(135deg, #fffbeb, #fef3c7)", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Review these:"),
-        ...wrongTopics.map((t, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "#b45309" } }, `→ ${t}`))),
+      wrongTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase", letterSpacing: "0.05em" } }, L("Review these:", "Повторіть це:", "Повторите это:", "À revoir :", "Das solltest du wiederholen:")),
+        ...wrongTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `→ ${tp}`))),
 
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn("Done →", onExit, true, false)));
+        _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false)));
   }
 
   // ── Question view ──
@@ -735,39 +757,39 @@ RULES:
     if (q.type === "fill") {
       return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-          React.createElement("div", { style: { marginBottom: 14 } }, _badge("#fefce8", "#92400e", "✍️ FILL IN")),
-          React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question).replace("___", "<u style='border-bottom:2px dashed #6366f1;padding:0 8px;color:#6366f1'>___</u>") } }),
+          React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--amber-50)", "var(--amber-700)", L("✍️ FILL IN", "✍️ ЗАПОВНІТЬ", "✍️ ЗАПОЛНИТЕ", "✍️ COMPLÉTEZ", "✍️ AUSFÜLLEN"))),
+          React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question).replace("___", "<u style='border-bottom:2px dashed var(--indigo-500);padding:0 8px;color:var(--indigo-500)'>___</u>") } }),
           !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
             React.createElement("input", {
               value: fillInput, onChange: (e) => setFillInput(e.target.value),
               onKeyDown: (e) => { if (e.key === "Enter" && fillInput.trim()) answerFill(); },
-              placeholder: "Type your answer…", autoFocus: true,
+              placeholder: L("Type your answer…", "Введіть відповідь…", "Введите ответ…", "Tapez votre réponse…", "Gib deine Antwort ein…"), autoFocus: true,
               style: { flex: 1, border: "1.5px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", fontSize: 15, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", outline: "none" }
             }),
             React.createElement("button", {
               onClick: fillInput.trim() ? answerFill : undefined, disabled: !fillInput.trim(),
-              style: { padding: "12px 20px", background: fillInput.trim() ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
-            }, "Check")),
+              style: { padding: "12px 20px", background: fillInput.trim() ? "var(--indigo-600)" : "var(--indigo-200)", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
+            }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen"))),
           revealed && React.createElement("div", {
-            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, #f0fdf4, #ecfdf5)" : "linear-gradient(135deg, #fffbeb, #fef3c7)", border: `1px solid ${selected === "correct" ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "#15803d" : "#92400e", lineHeight: 1.6 }
-          }, selected === "correct" ? `✅ Correct! "${q.answer}"` : `💡 The answer is "${q.answer}". ${q.explanation || ""}`)));
+            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
+          }, selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`))));
     }
 
     // MCQ
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
         React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-          _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", "⚡ QUESTION"),
+          _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "white", L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
           q.topic && _badge("var(--surface-muted)", "var(--text-muted)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           ...(q.options || []).map((opt, i) => {
             const isCor = i === q.correct, isSel = i === selected;
-            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
             if (revealed) {
-              if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-              else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-              else { col = "#d1d5db"; bc = "#f3f4f6"; }
+              if (isCor) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
+              else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+              else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
             }
             return React.createElement("button", {
               key: i, disabled: revealed, onClick: () => answerMcq(i),
@@ -777,7 +799,7 @@ RULES:
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
           })),
         revealed && React.createElement("div", {
-          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, #f0fdf4, #ecfdf5)" : "linear-gradient(135deg, #fffbeb, #fef3c7)", border: `1px solid ${selected === q.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
         }, selected === q.correct ? "✅ " : "💡 ", q.explanation)));
   };
 
@@ -787,34 +809,35 @@ RULES:
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
           React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `${idx + 1} of ${total}`),
-          difficulty > 1 && React.createElement("span", { style: { background: "#ede9fe", color: "#6d28d9", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, DIFFICULTY_LABELS[difficulty - 1])),
+          difficulty > 1 && React.createElement("span", { style: { background: "var(--indigo-100)", color: "var(--indigo-700)", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, DIFFICULTY_LABELS[difficulty - 1])),
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
-          results.length > 0 && React.createElement("span", { style: { background: "#f0fdf4", color: "#15803d", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${results.filter((r) => r.correct).length}/${results.length} ✓`),
+          results.length > 0 && React.createElement("span", { style: { background: "var(--emerald-50)", color: "var(--emerald-700)", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${results.filter((r) => r.correct).length}/${results.length} ✓`),
           React.createElement("button", { onClick: () => { setDone(true); _sfx.complete(); },
-            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End"))),
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("End", "Завершити", "Завершить", "Terminer", "Beenden")))),
       // Step dots
       React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 4 } },
         ...questions.questions.map((_, i) => {
           const r = results[i];
-          const bg = i === idx ? "#6366f1" : r ? (r.correct ? "#22c55e" : "#ef4444") : "var(--border-subtle)";
+          const bg = i === idx ? "var(--indigo-500)" : r ? (r.correct ? "var(--emerald-500)" : "var(--red-500)") : "var(--border-subtle)";
           return React.createElement("div", { key: i, style: { flex: 1, height: 5, borderRadius: 3, background: bg, transition: "background 0.3s" } });
         })),
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
-        React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, questions.sessionTitle || `Quick Check: ${topic}`),
-        React.createElement("button", { onClick: onExit, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit"))),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, questions.sessionTitle || L(`Quick Check: ${topic}`, `Швидка перевірка: ${topic}`, `Быстрая проверка: ${topic}`, `Vérification rapide : ${topic}`, `Schnelltest: ${topic}`)),
+        React.createElement("button", { onClick: onExit, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen")))),
 
     // Question content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px 20px 80px" } }, renderQuestion()),
 
     // Continue button at bottom
     revealed && React.createElement("div", { style: { padding: "12px 20px 20px" } },
-      _btn(idx + 1 >= total ? "See results →" : "Next →", advance, true, false)));
+      _btn(idx + 1 >= total ? L("See results →", "Переглянути результати →", "Посмотреть результаты →", "Voir les résultats →", "Ergebnisse ansehen →") : L("Next →", "Далі →", "Далее →", "Suivant →", "Weiter →"), advance, true, false)));
 }
 
 // ─── SPEED ROUND ENGINE ─────────────────────────────────────────────────────
 // Pre-session setup → 20 rapid-fire questions, 30 sec each, summary at end.
 
-function SpeedRoundEngine({ examViews, onExit }) {
+function SpeedRoundEngine({ examViews, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
   const [questions, setQuestions] = React.useState([]);
   const [idx, setIdx] = React.useState(0);
@@ -883,17 +906,17 @@ RULES:
 - Mix easy (40%), medium (40%), hard (20%)
 - Spread questions across the given topics evenly`;
 
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long.")), 50000));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
         const raw = await Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }] }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
         setQuestions(parsed.questions.slice(0, totalQ));
         setPhase("session");
       } catch (e) {
-        setError(e.message || "Failed to generate questions");
+        setError(e.message || L("Failed to generate questions", "Не вдалося згенерувати питання", "Не удалось сгенерировать вопросы", "Échec de la génération des questions", "Fragen konnten nicht generiert werden"));
       }
     })();
   }, [phase]);
@@ -956,12 +979,12 @@ RULES:
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
         React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "🏎️ Speed Round")),
-      React.createElement("p", { style: { margin: "0 0 20px 28px", fontSize: 13, color: "var(--text-muted)" } }, `${totalQ} questions · ${perQ}s each · exam warmup`),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("🏎️ Speed Round", "🏎️ Швидкий раунд", "🏎️ Быстрый раунд", "🏎️ Tour rapide", "🏎️ Speed-Runde"))),
+      React.createElement("p", { style: { margin: "0 0 20px 28px", fontSize: 13, color: "var(--text-muted)" } }, L(`${totalQ} questions · ${perQ}s each · exam warmup`, `${totalQ} питань · по ${perQ}с · розминка перед іспитом`, `${totalQ} вопросов · по ${perQ}с · разминка перед экзаменом`, `${totalQ} questions · ${perQ}s chacune · échauffement examen`, `${totalQ} Fragen · je ${perQ}s · Prüfungs-Aufwärmen`)),
 
       // Mode toggle
       React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } },
-        ...[["ai", "🤖 AI picks"], ["manual", "✋ I'll choose"]].map(([key, label]) =>
+        ...[["ai", L("🤖 AI picks", "🤖 AI обирає", "🤖 AI выбирает", "🤖 L'IA choisit", "🤖 KI wählt")], ["manual", L("✋ I'll choose", "✋ Оберу сам", "✋ Выберу сам", "✋ Je choisis", "✋ Ich wähle")]].map(([key, label]) =>
           React.createElement("button", {
             key, onClick: () => setPickMode(key),
             style: { flex: 1, padding: "12px", borderRadius: 12, border: `1.5px solid ${pickMode === key ? "var(--indigo-500)" : "var(--border-default)"}`, background: pickMode === key ? "var(--indigo-50)" : "var(--surface-card)", fontSize: 14, fontWeight: 600, color: pickMode === key ? "var(--indigo-700)" : "var(--text-body)", cursor: "pointer", fontFamily: "var(--font-sans)" }
@@ -971,23 +994,23 @@ RULES:
       pickMode === "ai" && React.createElement("div", { style: { marginBottom: 20 } },
         aiLoading && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "16px", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14 } },
           React.createElement("div", { style: { display: "flex", gap: 4 } },
-            ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.15 + "s" } }))),
-          React.createElement("span", { style: { fontSize: 13, color: "var(--text-muted)" } }, "AI is picking your weakest topics...")),
+            ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 6, height: 6, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.15 + "s" } }))),
+          React.createElement("span", { style: { fontSize: 13, color: "var(--text-muted)" } }, L("AI is picking your weakest topics...", "AI обирає ваші найслабші теми...", "AI выбирает ваши самые слабые темы...", "L'IA choisit vos sujets les plus faibles...", "KI wählt deine schwächsten Themen..."))),
         !aiLoading && aiTopics && React.createElement("div", null,
-          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, "AI selected these topics for you"),
+          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L("AI selected these topics for you", "AI обрав ці теми для вас", "AI выбрал эти темы для вас", "L'IA a sélectionné ces sujets pour vous", "Die KI hat diese Themen für dich ausgewählt")),
           React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
             ...aiTopics.map((name, i) => React.createElement("span", {
               key: i,
-              style: { padding: "8px 14px", background: "linear-gradient(135deg,#eef2ff,#e0e7ff)", border: "1.5px solid var(--indigo-500)", borderRadius: 20, fontSize: 13, fontWeight: 600, color: "var(--indigo-700)" }
+              style: { padding: "8px 14px", background: "linear-gradient(135deg,var(--indigo-50),var(--indigo-100))", border: "1.5px solid var(--indigo-500)", borderRadius: 20, fontSize: 13, fontWeight: 600, color: "var(--indigo-700)" }
             }, name))),
           React.createElement("button", {
             onClick: () => { setAiTopics(null); pickAiTopics(); },
             style: { marginTop: 12, background: "none", border: "none", fontSize: 12, color: "var(--indigo-600)", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 600, padding: 0 }
-          }, "🔄 Reshuffle"))),
+          }, L("🔄 Reshuffle", "🔄 Перемішати", "🔄 Перемешать", "🔄 Mélanger", "🔄 Neu mischen")))),
 
       // Manual picks view
       pickMode === "manual" && React.createElement("div", { style: { marginBottom: 20 } },
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, `Pick 2-8 topics (${chosenTopics.length} selected)`),
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L(`Pick 2-8 topics (${chosenTopics.length} selected)`, `Оберіть 2-8 тем (обрано: ${chosenTopics.length})`, `Выберите 2-8 тем (выбрано: ${chosenTopics.length})`, `Choisissez 2 à 8 sujets (${chosenTopics.length} sélectionné(s))`, `Wähle 2-8 Themen (${chosenTopics.length} ausgewählt)`)),
         ...Object.entries(groupedByExam).map(([examName, topics]) =>
           React.createElement("div", { key: examName, style: { marginBottom: 12 } },
             React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 6px" } }, examName),
@@ -1003,44 +1026,44 @@ RULES:
       // Selected topics preview
       activeTopics.length > 0 && React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", marginBottom: 20 } },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
-          React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Your drill"),
-          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, `~${Math.ceil(totalQ * perQ / 60)} min`)),
+          React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Your drill", "Ваше тренування", "Ваша тренировка", "Votre exercice", "Deine Übung")),
+          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, `~${Math.ceil(totalQ * perQ / 60)} ${L("min", "хв", "мин", "min", "Min.")}`)),
         React.createElement("div", { style: { display: "flex", gap: 20 } },
           React.createElement("div", null,
             React.createElement("p", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, totalQ),
-            React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "questions")),
+            React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, L("questions", "питань", "вопросов", "questions", "Fragen"))),
           React.createElement("div", null,
             React.createElement("p", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${perQ}s`),
-            React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "per question")),
+            React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, L("per question", "на питання", "на вопрос", "par question", "pro Frage"))),
           React.createElement("div", null,
             React.createElement("p", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, activeTopics.length),
-            React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, "topics")))),
+            React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: 0 } }, L("topics", "тем", "тем", "sujets", "Themen"))))),
 
       // Start button
       React.createElement("button", {
         onClick: startRound, disabled: !canStart,
-        style: { width: "100%", padding: "16px", borderRadius: 14, border: "none", background: canStart ? "linear-gradient(135deg,#6366f1,#7c3aed)" : "#c7d2fe", color: "white", fontSize: 16, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "var(--font-sans)", marginTop: "auto" }
-      }, "Start Speed Round →"));
+        style: { width: "100%", padding: "16px", borderRadius: 14, border: "none", background: canStart ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--indigo-200)", color: "white", fontSize: 16, fontWeight: 700, cursor: canStart ? "pointer" : "default", fontFamily: "var(--font-sans)", marginTop: "auto" }
+      }, L("Start Speed Round →", "Почати швидкий раунд →", "Начать быстрый раунд →", "Démarrer le tour rapide →", "Speed-Runde starten →")));
   }
 
   // ── Loading ──
   if (phase === "loading" && !error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Preparing Speed Round..."),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${totalQ} questions × ${perQ} seconds each`),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Preparing Speed Round...", "Готуємо швидкий раунд...", "Готовим быстрый раунд...", "Préparation du tour rapide...", "Speed-Runde wird vorbereitet...")),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, L(`${totalQ} questions × ${perQ} seconds each`, `${totalQ} питань × по ${perQ} секунд`, `${totalQ} вопросов × по ${perQ} секунд`, `${totalQ} questions × ${perQ} secondes chacune`, `${totalQ} Fragen × je ${perQ} Sekunden`)),
       chosenTopics.length > 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", maxWidth: 340 } },
         ...chosenTopics.map((n, i) => React.createElement("span", { key: i, style: { padding: "4px 10px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 11, color: "var(--indigo-700)", fontWeight: 600 } }, n))),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
       React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Couldn't generate questions"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Couldn't generate questions", "Не вдалося згенерувати питання", "Не удалось сгенерировать вопросы", "Impossible de générer les questions", "Fragen konnten nicht generiert werden")),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", textAlign: "center" } }, error),
-      _btn("← Back", onExit, false, false));
+      _btn(L("← Back", "← Назад", "← Назад", "← Retour", "← Zurück"), onExit, false, false));
   }
 
   // ── Summary ──
@@ -1061,56 +1084,56 @@ RULES:
 
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 0, padding: "0 20px", animation: "fadeUp 0.5s ease-out" } },
       React.createElement("div", { style: { fontSize: 56, marginBottom: 8 } }, accuracy >= 80 ? "🏆" : accuracy >= 60 ? "⚡" : "💪"),
-      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, "Speed Round Complete!"),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, `${results.length} questions in ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}s`),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, L("Speed Round Complete!", "Швидкий раунд завершено!", "Быстрый раунд завершён!", "Tour rapide terminé !", "Speed-Runde abgeschlossen!")),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, L(`${results.length} questions in ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}s`, `${results.length} питань за ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}с`, `${results.length} вопросов за ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}с`, `${results.length} questions en ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}s`, `${results.length} Fragen in ${Math.round(results.reduce((a, r) => a + (r.time || perQ), 0))}s`)),
 
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 380, marginBottom: 24 } },
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
-          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "#15803d" : "#b45309", margin: 0 } }, `${accuracy}%`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Accuracy")),
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "var(--emerald-700)" : "var(--amber-700)", margin: 0 } }, `${accuracy}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Accuracy", "Точність", "Точность", "Précision", "Genauigkeit"))),
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${avgTime}s`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Avg time")),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Avg time", "Сер. час", "Ср. время", "Temps moyen", "Ø Zeit"))),
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${earnedXp}`),
           React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP"))),
 
-      timedOut > 0 && React.createElement("p", { style: { fontSize: 13, color: "#b45309", margin: "0 0 12px" } }, `⏰ ${timedOut} ${timedOut === 1 ? "question" : "questions"} timed out`),
+      timedOut > 0 && React.createElement("p", { style: { fontSize: 13, color: "var(--amber-700)", margin: "0 0 12px" } }, L(`⏰ ${timedOut} ${timedOut === 1 ? "question" : "questions"} timed out`, `⏰ Час вичерпано на ${timedOut} ${timedOut === 1 ? "питанні" : "питаннях"}`, `⏰ Время истекло на ${timedOut} ${timedOut === 1 ? "вопросе" : "вопросах"}`, `⏰ ${timedOut} question(s) — temps écoulé`, `⏰ Bei ${timedOut} Frage(n) die Zeit abgelaufen`)),
 
       // Post-session insight — repeated misses
-      repeatedMiss.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 380, marginBottom: 16, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 14, padding: "14px 16px" } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#92400e" } }, "💡 Insight"),
+      repeatedMiss.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 380, marginBottom: 16, background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 14, padding: "14px 16px" } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "var(--amber-700)" } }, L("💡 Insight", "💡 Спостереження", "💡 Наблюдение", "💡 Analyse", "💡 Erkenntnis")),
         ...repeatedMiss.map(([topic, count], i) =>
-          React.createElement("p", { key: i, style: { margin: "0 0 2px", fontSize: 13, color: "#b45309" } }, `You missed "${topic}" ${count}x — consider a Learn session on it.`))),
+          React.createElement("p", { key: i, style: { margin: "0 0 2px", fontSize: 13, color: "var(--amber-700)" } }, L(`You missed "${topic}" ${count}x — consider a Learn session on it.`, `Ви помилилися в темі «${topic}» ${count} рази — варто пройти сесію Навчання з неї.`, `Вы ошиблись в теме «${topic}» ${count} раза — стоит пройти сессию Обучения по ней.`, `Vous avez raté « ${topic} » ${count}x — envisagez une session d'apprentissage.`, `Du hast „${topic}" ${count}x verpasst — erwäge eine Lernsitzung dazu.`)))),
 
       // Wrong answers review
       results.filter((r) => !r.correct).length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 380, marginBottom: 16 } },
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, "Review mistakes"),
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, L("Review mistakes", "Перегляньте помилки", "Просмотрите ошибки", "Revoir les erreurs", "Fehler ansehen")),
         React.createElement("div", { style: { maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 } },
           ...results.filter((r) => !r.correct).map((r, i) => {
             const q = questions[r.qIdx];
-            return q && React.createElement("div", { key: i, style: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", fontSize: 13 } },
-              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "#991b1b" } }, q.q),
-              React.createElement("p", { style: { margin: 0, color: "#b91c1c", fontSize: 12 } }, `✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`));
+            return q && React.createElement("div", { key: i, style: { background: "var(--red-50)", border: "1px solid var(--red-200)", borderRadius: 10, padding: "10px 14px", fontSize: 13 } },
+              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "var(--red-700)" } }, q.q),
+              React.createElement("p", { style: { margin: 0, color: "var(--red-700)", fontSize: 12 } }, `✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`));
           }))),
 
-      _btn("Done →", onExit, true, false));
+      _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
   }
 
   // ── Session ──
   const q = questions[idx];
   if (!q) return null;
   const timerPct = (timer / perQ) * 100;
-  const timerColor = timer <= 5 ? "#ef4444" : timer <= 10 ? "#f59e0b" : "#6366f1";
+  const timerColor = timer <= 5 ? "var(--red-500)" : timer <= 10 ? "var(--amber-500)" : "var(--indigo-500)";
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Top bar: timer + progress
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
-        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Question ${idx + 1}/${questions.length}`),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, L(`Question ${idx + 1}/${questions.length}`, `Питання ${idx + 1}/${questions.length}`, `Вопрос ${idx + 1}/${questions.length}`, `Question ${idx + 1}/${questions.length}`, `Frage ${idx + 1}/${questions.length}`)),
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } },
           React.createElement("span", { style: { fontSize: 24, fontWeight: 700, color: timerColor, fontFamily: "var(--font-mono)", minWidth: 36, textAlign: "right" } }, timer),
-          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, "sec")),
+          React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, L("sec", "с", "с", "s", "Sek."))),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, `${results.filter((r) => r.correct).length}✓ ${results.filter((r) => !r.correct).length}✗`)),
       // Timer bar
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
@@ -1119,7 +1142,7 @@ RULES:
       React.createElement("div", { style: { display: "flex", gap: 3, marginTop: 6, justifyContent: "center" } },
         ...questions.map((_, i) => {
           const r = results[i];
-          const bg = i === idx ? timerColor : r ? (r.correct ? "#22c55e" : "#ef4444") : "var(--border-subtle)";
+          const bg = i === idx ? timerColor : r ? (r.correct ? "var(--emerald-500)" : "var(--red-500)") : "var(--border-subtle)";
           return React.createElement("div", { key: i, style: { width: i === idx ? 18 : 8, height: 6, borderRadius: 3, background: bg, transition: "all 0.2s" } });
         }))),
     // Question card
@@ -1130,23 +1153,24 @@ RULES:
         ...(q.options || []).map((opt, i) => {
           let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)";
           if (selected !== null) {
-            if (i === q.correct) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; }
-            else if (i === selected) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; }
-            else { col = "#d1d5db"; bc = "#f3f4f6"; }
+            if (i === q.correct) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; }
+            else if (i === selected) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; }
+            else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
           }
           return React.createElement("button", {
             key: i, disabled: selected !== null,
             onClick: () => answer(i),
             style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all 0.15s" }
           },
-            React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "#22c55e" : selected === i ? "#ef4444" : "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "white" : "#9ca3af", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+            React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "var(--emerald-500)" : selected === i ? "var(--red-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "white" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             opt);
         }))));
 }
 
 // ─── PRACTICE ENGINE (Exam simulation) ───────────────────────────────────────
 
-function PracticeEngine({ examViews, onExit }) {
+function PracticeEngine({ examViews, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | session | summary
   const [config, setConfig] = React.useState({ difficulty: "adaptive", topics: [], estMinutes: 20 });
   const [questions, setQuestions] = React.useState(null);
@@ -1177,10 +1201,10 @@ function PracticeEngine({ examViews, onExit }) {
   // ── Setup screen ──
   if (phase === "setup") {
     const DIFFS = [
-      { key: "easy", label: "Easy", emoji: "😊", desc: "Basics & definitions" },
-      { key: "medium", label: "Medium", emoji: "🎯", desc: "Standard exam level" },
-      { key: "hard", label: "Hard", emoji: "🔥", desc: "Tricky edge cases" },
-      { key: "adaptive", label: "Adaptive", emoji: "🤖", desc: "AI adjusts in real-time" },
+      { key: "easy", label: L("Easy", "Легкий", "Лёгкий", "Facile", "Leicht"), emoji: "😊", desc: L("Basics & definitions", "Основи та визначення", "Основы и определения", "Bases et définitions", "Grundlagen & Definitionen") },
+      { key: "medium", label: L("Medium", "Середній", "Средний", "Moyen", "Mittel"), emoji: "🎯", desc: L("Standard exam level", "Стандартний рівень іспиту", "Стандартный уровень экзамена", "Niveau d'examen standard", "Standard-Prüfungsniveau") },
+      { key: "hard", label: L("Hard", "Складний", "Сложный", "Difficile", "Schwer"), emoji: "🔥", desc: L("Tricky edge cases", "Складні граничні випадки", "Сложные граничные случаи", "Cas limites délicats", "Knifflige Grenzfälle") },
+      { key: "adaptive", label: L("Adaptive", "Адаптивний", "Адаптивный", "Adaptatif", "Adaptiv"), emoji: "🤖", desc: L("AI adjusts in real-time", "AI підлаштовується в реальному часі", "AI подстраивается в реальном времени", "L'IA s'ajuste en temps réel", "KI passt sich in Echtzeit an") },
     ];
     const selectedTopics = config.topics.length > 0 ? config.topics : allTopics.slice(0, 3).map((t) => t.name);
 
@@ -1208,13 +1232,13 @@ RULES:
 - Spread questions evenly across the listed topics
 - No duplicate concepts`;
 
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long.")), 45000));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
         const raw = await Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }] }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
         setQuestions(parsed.questions);
         setLoading(false);
       } catch (e) {
@@ -1226,14 +1250,14 @@ RULES:
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
         React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "🎯 Practice Exam")),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("🎯 Practice Exam", "🎯 Тренувальний іспит", "🎯 Тренировочный экзамен", "🎯 Examen d'entraînement", "🎯 Übungsprüfung"))),
 
       // Difficulty
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, "Difficulty"),
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Difficulty", "Складність", "Сложность", "Difficulté", "Schwierigkeit")),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 } },
         ...DIFFS.map((d) => React.createElement("button", {
           key: d.key, onClick: () => setConfig((c) => ({ ...c, difficulty: d.key })),
-          style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: config.difficulty === d.key ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${config.difficulty === d.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+          style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: config.difficulty === d.key ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${config.difficulty === d.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
         },
           React.createElement("span", { style: { fontSize: 20 } }, d.emoji),
           React.createElement("div", null,
@@ -1241,7 +1265,7 @@ RULES:
             React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)" } }, d.desc))))),
 
       // Topics
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, "Topics"),
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Topics", "Теми", "Темы", "Sujets", "Themen")),
       React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24 } },
         ...allTopics.slice(0, 12).map((tp) => {
           const on = selectedTopics.includes(tp.name);
@@ -1250,29 +1274,29 @@ RULES:
               const cur = c.topics.length > 0 ? c.topics : allTopics.slice(0, 3).map((t) => t.name);
               return { ...c, topics: on ? cur.filter((n) => n !== tp.name) : [...cur, tp.name] };
             }),
-            style: { padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 20, border: `1px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "#eef2ff" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" }
+            style: { padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 20, border: `1px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "var(--indigo-50)" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" }
           }, tp.name);
         })),
 
       // Start button
-      _btn("Start Practice →", startPractice, true, false));
+      _btn(L("Start Practice →", "Почати тренування →", "Начать тренировку →", "Démarrer l'entraînement →", "Übung starten →"), startPractice, true, false));
   }
 
   // ── Loading ──
   if (loading) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Generating your exam..."),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Generating your exam...", "Створюємо ваш іспит...", "Создаём ваш экзамен...", "Génération de votre examen...", "Deine Prüfung wird erstellt...")),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
       React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate exam"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, L("Couldn't generate exam", "Не вдалося створити іспит", "Не удалось создать экзамен", "Impossible de générer l'examen", "Prüfung konnte nicht erstellt werden")),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0 } }, error),
-      _btn("← Back", () => { setPhase("setup"); setError(null); }, false, false));
+      _btn(L("← Back", "← Назад", "← Назад", "← Retour", "← Zurück"), () => { setPhase("setup"); setError(null); }, false, false));
   }
 
   // ── Summary ──
@@ -1284,33 +1308,33 @@ RULES:
     if (window.addXp && total > 0) window.addXp(xpEarned);
     const byTopic = {};
     results.forEach((r) => {
-      const t = r.topic || "Unknown";
-      if (!byTopic[t]) byTopic[t] = { correct: 0, total: 0 };
-      byTopic[t].total++;
-      if (r.correct) byTopic[t].correct++;
+      const tp = r.topic || L("Unknown", "Невідомо", "Неизвестно", "Inconnu", "Unbekannt");
+      if (!byTopic[tp]) byTopic[tp] = { correct: 0, total: 0 };
+      byTopic[tp].total++;
+      if (r.correct) byTopic[tp].correct++;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
 
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out", gap: 4 } },
       React.createElement("span", { style: { fontSize: 56, marginBottom: 8 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : "💪"),
-      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, "Practice Complete!"),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, `${correct}/${total} correct · ${pct}%`),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, L("Practice Complete!", "Тренування завершено!", "Тренировка завершена!", "Entraînement terminé !", "Übung abgeschlossen!")),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, L(`${correct}/${total} correct · ${pct}%`, `${correct}/${total} правильно · ${pct}%`, `${correct}/${total} правильно · ${pct}%`, `${correct}/${total} correct · ${pct}%`, `${correct}/${total} richtig · ${pct}%`)),
 
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 20 } },
         ...[
-          { val: `${pct}%`, label: "Score", color: pct >= 70 ? "#15803d" : "#b91c1c" },
-          { val: `${total}`, label: "Questions", color: "var(--indigo-600)" },
-          { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
+          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 70 ? "var(--emerald-700)" : "var(--red-700)" },
+          { val: `${total}`, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen"), color: "var(--indigo-600)" },
+          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
           React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
 
-      weakTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase" } }, "🎯 Pattern detected — focus on:"),
-        ...weakTopics.map((t, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "#b45309" } }, `• ${t}`))),
+      weakTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase" } }, L("🎯 Pattern detected — focus on:", "🎯 Виявлено закономірність — зверніть увагу на:", "🎯 Обнаружена закономерность — обратите внимание на:", "🎯 Schéma détecté — concentrez-vous sur :", "🎯 Muster erkannt — konzentriere dich auf:")),
+        ...weakTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `• ${tp}`))),
 
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn("Done →", onExit, true, false)));
+        _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false)));
   }
 
   // ── Question view ──
@@ -1339,36 +1363,36 @@ RULES:
   };
 
   const CONF_OPTS = [
-    { key: "guessing", emoji: "🤔", label: "Guessing" },
-    { key: "okay", emoji: "🤨", label: "Okay" },
-    { key: "easy", emoji: "😎", label: "Easy" },
+    { key: "guessing", emoji: "🤔", label: L("Guessing", "Здогадка", "Догадка", "Je devine", "Rate mal") },
+    { key: "okay", emoji: "🤨", label: L("Okay", "Нормально", "Нормально", "Correct", "Okay") },
+    { key: "easy", emoji: "😎", label: L("Easy", "Легко", "Легко", "Facile", "Einfach") },
   ];
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Progress header
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, `Question ${qIdx + 1} / ${totalQ}`),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, L(`Question ${qIdx + 1} / ${totalQ}`, `Питання ${qIdx + 1} / ${totalQ}`, `Вопрос ${qIdx + 1} / ${totalQ}`, `Question ${qIdx + 1} / ${totalQ}`, `Frage ${qIdx + 1} / ${totalQ}`)),
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", fontSize: 12 } },
-          q.difficulty && _badge(q.difficulty === "hard" ? "#fef2f2" : q.difficulty === "easy" ? "#f0fdf4" : "#fefce8",
-            q.difficulty === "hard" ? "#b91c1c" : q.difficulty === "easy" ? "#15803d" : "#92400e", q.difficulty),
+          q.difficulty && _badge(q.difficulty === "hard" ? "var(--red-50)" : q.difficulty === "easy" ? "var(--emerald-50)" : "var(--amber-50)",
+            q.difficulty === "hard" ? "var(--red-700)" : q.difficulty === "easy" ? "var(--emerald-700)" : "var(--amber-700)", q.difficulty),
           React.createElement("button", { onClick: () => setPhase("summary"),
-            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "End exam"))),
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("End exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 2, transition: "transform 0.4s" } }))),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform 0.4s" } }))),
 
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
       // Pattern alert
       patternAlert && !revealed && !showWhy && React.createElement("div", {
-        style: { marginBottom: 16, padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, animation: "fadeUp 0.3s" }
+        style: { marginBottom: 16, padding: "12px 16px", background: "var(--red-50)", border: "1px solid var(--red-400)", borderRadius: 12, animation: "fadeUp 0.3s" }
       },
-        React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 700, color: "#b91c1c" } }, "🎯 Pattern detected"),
-        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "#dc2626" } }, `You've struggled with ${patternAlert.topic} ${patternAlert.count} times. Consider a refresher after this exam.`)),
+        React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 700, color: "var(--red-700)" } }, L("🎯 Pattern detected", "🎯 Виявлено закономірність", "🎯 Обнаружена закономерность", "🎯 Schéma détecté", "🎯 Muster erkannt")),
+        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "var(--red-600)" } }, L(`You've struggled with ${patternAlert.topic} ${patternAlert.count} times. Consider a refresher after this exam.`, `Ви ${patternAlert.count} разів мали труднощі з темою ${patternAlert.topic}. Варто повторити її після цього іспиту.`, `У вас ${patternAlert.count} раз(а) были трудности с темой ${patternAlert.topic}. Стоит повторить её после этого экзамена.`, `Vous avez eu du mal avec ${patternAlert.topic} ${patternAlert.count} fois. Envisagez une révision après cet examen.`, `Du hattest ${patternAlert.count}x Schwierigkeiten mit ${patternAlert.topic}. Erwäge eine Auffrischung nach dieser Prüfung.`))),
 
       // Question card
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
-        q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("#f5f3ff", "#7c3aed", q.topic)),
+        q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
 
         // Options
@@ -1376,12 +1400,12 @@ RULES:
           ...(q.options || []).map((opt, i) => {
             const isCorrect = i === q.correct;
             const isSel = i === selected;
-            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+            let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
             if (revealed || showWhy) {
-              if (isCorrect) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-              else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-              else { col = "#d1d5db"; bc = "#f3f4f6"; }
-            } else if (isSel) { bg = "#eef2ff"; bc = "var(--indigo-500)"; col = "var(--indigo-700)"; lbg = "var(--indigo-500)"; lcol = "white"; }
+              if (isCorrect) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
+              else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+              else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
+            } else if (isSel) { bg = "var(--indigo-50)"; bc = "var(--indigo-500)"; col = "var(--indigo-700)"; lbg = "var(--indigo-500)"; lcol = "white"; }
             return React.createElement("button", {
               key: i, disabled: revealed || showWhy,
               onClick: () => setSelected(i),
@@ -1393,36 +1417,36 @@ RULES:
 
         // Confidence selector (before submitting)
         selected !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 16 } },
-          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", margin: "0 0 8px" } }, "How confident are you?"),
+          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", margin: "0 0 8px" } }, L("How confident are you?", "Наскільки ви впевнені?", "Насколько вы уверены?", "Quel est votre degré de confiance ?", "Wie sicher bist du dir?")),
           React.createElement("div", { style: { display: "flex", gap: 8 } },
             ...CONF_OPTS.map((c) => React.createElement("button", {
               key: c.key, onClick: () => setConfidence(c.key),
-              style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 8px", background: confidence === c.key ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${confidence === c.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: confidence === c.key ? "var(--indigo-700)" : "var(--text-muted)" }
+              style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 8px", background: confidence === c.key ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${confidence === c.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: confidence === c.key ? "var(--indigo-700)" : "var(--text-muted)" }
             }, React.createElement("span", null, c.emoji), c.label)))),
 
         // Submit button
         selected !== null && confidence !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 12 } },
-          _btn("Submit →", submitAnswer, true, false)),
+          _btn(L("Submit →", "Надіслати →", "Отправить →", "Envoyer →", "Absenden →"), submitAnswer, true, false)),
 
         // "Why did you choose?" (wrong answer)
         showWhy && React.createElement("div", { style: { marginTop: 16, animation: "fadeUp 0.3s" } },
-          React.createElement("div", { style: { padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, marginBottom: 12 } },
-            React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "#92400e" } }, `Why did you choose ${["A", "B", "C", "D"][selected]}?`),
-            React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "#b45309" } }, "Explain your reasoning — this helps you learn from mistakes.")),
+          React.createElement("div", { style: { padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, marginBottom: 12 } },
+            React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--amber-700)" } }, L(`Why did you choose ${["A", "B", "C", "D"][selected]}?`, `Чому ви обрали ${["A", "B", "C", "D"][selected]}?`, `Почему вы выбрали ${["A", "B", "C", "D"][selected]}?`, `Pourquoi avez-vous choisi ${["A", "B", "C", "D"][selected]} ?`, `Warum hast du ${["A", "B", "C", "D"][selected]} gewählt?`)),
+            React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "var(--amber-700)" } }, L("Explain your reasoning — this helps you learn from mistakes.", "Поясніть свою логіку — це допоможе вчитися на помилках.", "Объясните свою логику — это поможет учиться на ошибках.", "Expliquez votre raisonnement — cela vous aide à apprendre de vos erreurs.", "Erkläre deine Überlegung — das hilft dir, aus Fehlern zu lernen."))),
           React.createElement("textarea", {
             value: whyInput, onChange: (e) => setWhyInput(e.target.value), autoFocus: true,
-            placeholder: "I thought this because...", rows: 2,
+            placeholder: L("I thought this because...", "Я так вважав, тому що...", "Я так думал, потому что...", "J'ai pensé cela parce que...", "Ich dachte das, weil..."), rows: 2,
             style: { width: "100%", border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", boxSizing: "border-box" }
           }),
           React.createElement("div", { style: { marginTop: 8 } },
-            _btn(whyInput.trim() ? "See explanation →" : "Skip →", () => { setShowWhy(false); setRevealed(true); }, true, false))),
+            _btn(whyInput.trim() ? L("See explanation →", "Переглянути пояснення →", "Посмотреть объяснение →", "Voir l'explication →", "Erklärung ansehen →") : L("Skip →", "Пропустити →", "Пропустить →", "Passer →", "Überspringen →"), () => { setShowWhy(false); setRevealed(true); }, true, false))),
 
         // Explanation (after reveal)
-        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${results[results.length - 1]?.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "#15803d" : "#92400e", lineHeight: 1.6 } },
+        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
           results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation)),
 
       // Continue button
-      revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false))));
+      revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
 }
 
 // ─── EXAM SIMULATION ─────────────────────────────────────────────────────────
@@ -1431,7 +1455,8 @@ RULES:
 // question) and Speed Round (per-question 30s clock, weak-topics only). Here
 // the clock is a single exam-wide countdown and nothing is revealed until the
 // whole paper is submitted, matching how a real exam actually works.
-function ExamSimEngine({ examViews, onExit }) {
+function ExamSimEngine({ examViews, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
   const [examId, setExamId] = React.useState(examViews[0]?.id || null);
   const [questions, setQuestions] = React.useState(null);
@@ -1510,13 +1535,13 @@ RULES:
 - explanation teaches WHY the right answer is right.
 - No duplicate concepts.`;
 
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long — try again.")), 60000));
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 60000));
         const raw = await Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a full mock exam on: ${topicList}` }] }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error("Invalid questions");
+        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
         const secs = Math.round(parsed.questions.length * 1.5) * 60;
         setQuestions(parsed.questions);
         setAnswers(new Array(parsed.questions.length).fill(null));
@@ -1526,7 +1551,7 @@ RULES:
         setPhase("session");
       } catch (e) {
         console.error("Exam simulation generation failed:", e);
-        setError(e.message || "Failed to generate exam");
+        setError(e.message || L("Failed to generate exam", "Не вдалося створити іспит", "Не удалось создать экзамен", "Échec de la génération de l'examen", "Prüfung konnte nicht erstellt werden"));
         setPhase("setup");
       }
     };
@@ -1534,41 +1559,41 @@ RULES:
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
         React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "📝 Exam Simulation")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, "A full timed mock exam covering every topic in one subject — no answers revealed until you submit, just like the real thing."),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("📝 Exam Simulation", "📝 Симуляція іспиту", "📝 Симуляция экзамена", "📝 Simulation d'examen", "📝 Prüfungssimulation"))),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, L("A full timed mock exam covering every topic in one subject — no answers revealed until you submit, just like the real thing.", "Повноцінний пробний іспит з таймером, що охоплює всі теми одного предмета — відповіді не показуються, доки ви не здасте, як на справжньому іспиті.", "Полноценный пробный экзамен с таймером, охватывающий все темы одного предмета — ответы не показываются, пока вы не сдадите, как на настоящем экзамене.", "Un examen blanc chronométré complet couvrant tous les sujets d'une matière — aucune réponse révélée avant la soumission, comme un vrai examen.", "Eine vollständige zeitlich begrenzte Testprüfung, die alle Themen eines Fachs abdeckt — keine Antworten werden angezeigt, bis du abgibst, genau wie in echt.")),
 
-      error && React.createElement("div", { style: { padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 12, marginBottom: 16 } },
-        React.createElement("p", { style: { margin: 0, fontSize: 13, color: "#b91c1c" } }, error)),
+      error && React.createElement("div", { style: { padding: "12px 16px", background: "var(--red-50)", border: "1px solid var(--red-400)", borderRadius: 12, marginBottom: 16 } },
+        React.createElement("p", { style: { margin: 0, fontSize: 13, color: "var(--red-700)" } }, error)),
 
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, "Subject"),
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Subject", "Предмет", "Предмет", "Matière", "Fach")),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 } },
         ...examViews.map((e) => React.createElement("button", {
           key: e.id, onClick: () => setExamId(e.id),
-          style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", background: examId === e.id ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${examId === e.id ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+          style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", background: examId === e.id ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${examId === e.id ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
         },
           React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: examId === e.id ? "var(--indigo-700)" : "var(--text-strong)" } }, e.name),
-          React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, `${(e.topics || []).length || "?"} topics`)))),
+          React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, L(`${(e.topics || []).length || "?"} topics`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} sujets`, `${(e.topics || []).length || "?"} Themen`))))),
 
       selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
         ...[
-          { val: questionCount, label: "Questions" },
-          { val: `~${estMinutes}m`, label: "Time limit" },
-          { val: examTopics.length || "All", label: "Topics" },
+          { val: questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
+          { val: `~${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
+          { val: examTopics.length || L("All", "Усі", "Все", "Tous", "Alle"), label: L("Topics", "Теми", "Темы", "Sujets", "Themen") },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center" } },
           React.createElement("p", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
 
-      _btn(selectedExam ? "Start exam →" : "Add a subject first", startExam, true, !selectedExam));
+      _btn(selectedExam ? L("Start exam →", "Почати іспит →", "Начать экзамен →", "Démarrer l'examen →", "Prüfung starten →") : L("Add a subject first", "Спочатку додайте предмет", "Сначала добавьте предмет", "Ajoutez d'abord une matière", "Füge zuerst ein Fach hinzu"), startExam, true, !selectedExam));
   }
 
   // ── Loading ──
   if (phase === "loading") {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Assembling your mock exam..."),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Assembling your mock exam...", "Складаємо ваш пробний іспит...", "Составляем ваш пробный экзамен...", "Préparation de votre examen blanc...", "Deine Testprüfung wird zusammengestellt...")),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, selectedExam?.name),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   // ── Summary ──
@@ -1583,51 +1608,51 @@ RULES:
 
     const byTopic = {};
     questions.forEach((q, i) => {
-      const t = q.topic || "Unknown";
-      if (!byTopic[t]) byTopic[t] = { correct: 0, total: 0 };
-      byTopic[t].total++;
-      if (answers[i] === q.correct) byTopic[t].correct++;
+      const tp = q.topic || L("Unknown", "Невідомо", "Неизвестно", "Inconnu", "Unbekannt");
+      if (!byTopic[tp]) byTopic[tp] = { correct: 0, total: 0 };
+      byTopic[tp].total++;
+      if (answers[i] === q.correct) byTopic[tp].correct++;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
 
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 20px 24px", overflowY: "auto" } },
       React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 4px 20px", animation: "fadeUp 0.5s ease-out" } },
         React.createElement("span", { style: { fontSize: 52, marginBottom: 6 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : pct >= 40 ? "💪" : "📖"),
-        React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, autoSubmitted ? "Time's up!" : "Exam Submitted"),
-        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, `${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`),
-        predictedGrade && React.createElement("div", { style: { marginTop: 10 } }, _badge("#ede9fe", "#6d28d9", `Predicted grade: ${predictedGrade}`))),
+        React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, autoSubmitted ? L("Time's up!", "Час вийшов!", "Время вышло!", "Temps écoulé !", "Zeit ist um!") : L("Exam Submitted", "Іспит здано", "Экзамен сдан", "Examen soumis", "Prüfung eingereicht")),
+        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, L(`${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} правильно · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} правильно · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} richtig · ${pct}% · ${selectedExam?.name}`)),
+        predictedGrade && React.createElement("div", { style: { marginTop: 10 } }, _badge("var(--indigo-100)", "var(--indigo-700)", L(`Predicted grade: ${predictedGrade}`, `Прогнозована оцінка: ${predictedGrade}`, `Прогнозируемая оценка: ${predictedGrade}`, `Note prévue : ${predictedGrade}`, `Voraussichtliche Note: ${predictedGrade}`)))),
 
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 20 } },
         ...[
-          { val: `${pct}%`, label: "Score", color: pct >= 70 ? "#15803d" : "#b91c1c" },
-          { val: `${answeredCount}/${total}`, label: "Answered", color: "var(--indigo-600)" },
-          { val: mmss(timeUsed), label: "Time used", color: "var(--text-strong)" },
-          { val: `+${xpEarned}`, label: "XP", color: "#7c3aed" },
+          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 70 ? "var(--emerald-700)" : "var(--red-700)" },
+          { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
+          { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
+          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 4px" } },
           React.createElement("p", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: s.color } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
 
-      weakTopics.length > 0 && React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", marginBottom: 20 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "#92400e", textTransform: "uppercase" } }, "Focus on:"),
-        ...weakTopics.map((t, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "#b45309" } }, `• ${t}`))),
+      weakTopics.length > 0 && React.createElement("div", { style: { background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 20 } },
+        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase" } }, L("Focus on:", "Зверніть увагу на:", "Обратите внимание на:", "Concentrez-vous sur :", "Konzentriere dich auf:")),
+        ...weakTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `• ${tp}`))),
 
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" } }, "Full review"),
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" } }, L("Full review", "Повний огляд", "Полный обзор", "Revue complète", "Vollständige Übersicht")),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 } },
         ...questions.map((q, i) => {
           const sel = answers[i];
           const answered = sel !== null && sel !== undefined;
           const isCorrect = answered && sel === q.correct;
-          return React.createElement("div", { key: i, style: { background: "var(--surface-card)", border: `1px solid ${answered ? (isCorrect ? "#bbf7d0" : "#fecaca") : "var(--border-subtle)"}`, borderRadius: 12, padding: "12px 14px" } },
+          return React.createElement("div", { key: i, style: { background: "var(--surface-card)", border: `1px solid ${answered ? (isCorrect ? "var(--emerald-100)" : "var(--red-200)") : "var(--border-subtle)"}`, borderRadius: 12, padding: "12px 14px" } },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 } },
               React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.5 } }, `${i + 1}. ${q.question}`),
               React.createElement("span", { style: { fontSize: 15, flexShrink: 0 } }, !answered ? "⬜" : isCorrect ? "✅" : "❌")),
             React.createElement("p", { style: { margin: "0 0 2px", fontSize: 12, color: "var(--text-muted)" } },
-              answered ? `Your answer: ${(q.options || [])[sel]}` : "Not answered"),
-            !isCorrect && React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, color: "#15803d", fontWeight: 600 } }, `Correct: ${(q.options || [])[q.correct]}`),
+              answered ? L(`Your answer: ${(q.options || [])[sel]}`, `Ваша відповідь: ${(q.options || [])[sel]}`, `Ваш ответ: ${(q.options || [])[sel]}`, `Votre réponse : ${(q.options || [])[sel]}`, `Deine Antwort: ${(q.options || [])[sel]}`) : L("Not answered", "Немає відповіді", "Нет ответа", "Sans réponse", "Nicht beantwortet")),
+            !isCorrect && React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, color: "var(--emerald-700)", fontWeight: 600 } }, L(`Correct: ${(q.options || [])[q.correct]}`, `Правильно: ${(q.options || [])[q.correct]}`, `Правильно: ${(q.options || [])[q.correct]}`, `Correct : ${(q.options || [])[q.correct]}`, `Richtig: ${(q.options || [])[q.correct]}`)),
             React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 } }, q.explanation));
         })),
 
-      _btn("Done →", onExit, true, false));
+      _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
   }
 
   // ── Session (question) view ──
@@ -1641,51 +1666,51 @@ RULES:
     // Header — exam-wide timer, not per-question
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `Question ${idx + 1} of ${total}`),
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, L(`Question ${idx + 1} of ${total}`, `Питання ${idx + 1} з ${total}`, `Вопрос ${idx + 1} из ${total}`, `Question ${idx + 1} sur ${total}`, `Frage ${idx + 1} von ${total}`)),
         React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } },
-          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: timeLeft <= 120 ? "#b91c1c" : "var(--text-strong)" } }, `⏱ ${mmss(timeLeft)}`),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: timeLeft <= 120 ? "var(--red-700)" : "var(--text-strong)" } }, `⏱ ${mmss(timeLeft)}`),
           React.createElement("button", { onClick: () => setShowFinishConfirm(true),
-            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Finish exam"))),
+            style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Finish exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
       // Progress dots — filled once answered, outlined if not, current is wider
       React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 8 } },
         ...questions.map((_, i) => {
           const answered = answers[i] !== null && answers[i] !== undefined;
           return React.createElement("div", {
             key: i, onClick: () => setIdx(i),
-            style: { flex: i === idx ? 2 : 1, height: 5, borderRadius: 3, cursor: "pointer", background: i === idx ? "#6366f1" : answered ? "#c7d2fe" : "var(--border-subtle)", transition: "background 0.3s" }
+            style: { flex: i === idx ? 2 : 1, height: 5, borderRadius: 3, cursor: "pointer", background: i === idx ? "var(--indigo-500)" : answered ? "var(--indigo-200)" : "var(--border-subtle)", transition: "background 0.3s" }
           });
         }))),
 
     // Finish confirmation banner
-    showFinishConfirm && React.createElement("div", { style: { margin: "0 20px 12px", padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12 } },
-      React.createElement("p", { style: { margin: "0 0 8px", fontSize: 13, color: "#92400e" } },
-        unansweredCount > 0 ? `${unansweredCount} question${unansweredCount > 1 ? "s" : ""} left unanswered — submit anyway?` : "Submit your exam now?"),
+    showFinishConfirm && React.createElement("div", { style: { margin: "0 20px 12px", padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12 } },
+      React.createElement("p", { style: { margin: "0 0 8px", fontSize: 13, color: "var(--amber-700)" } },
+        unansweredCount > 0 ? L(`${unansweredCount} question${unansweredCount > 1 ? "s" : ""} left unanswered — submit anyway?`, `${unansweredCount} питань без відповіді — все одно надіслати?`, `${unansweredCount} вопросов без ответа — всё равно отправить?`, `${unansweredCount} question(s) sans réponse — soumettre quand même ?`, `${unansweredCount} Frage(n) unbeantwortet — trotzdem abgeben?`) : L("Submit your exam now?", "Надіслати іспит зараз?", "Отправить экзамен сейчас?", "Soumettre votre examen maintenant ?", "Prüfung jetzt abgeben?")),
       React.createElement("div", { style: { display: "flex", gap: 8 } },
-        _btn("Cancel", () => setShowFinishConfirm(false), false, false),
-        _btn("Submit →", () => finishExam(false), true, false))),
+        _btn(L("Cancel", "Скасувати", "Отмена", "Annuler", "Abbrechen"), () => setShowFinishConfirm(false), false, false),
+        _btn(L("Submit →", "Надіслати →", "Отправить →", "Envoyer →", "Absenden →"), () => finishExam(false), true, false))),
 
     // Question content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 20px 80px" } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
-        q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("#f5f3ff", "#7c3aed", q.topic)),
+        q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           ...(q.options || []).map((opt, i) => {
             const isSel = answers[idx] === i;
             return React.createElement("button", {
               key: i, onClick: () => setAnswers((a) => { const next = [...a]; next[idx] = i; return next; }),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: isSel ? "#eef2ff" : "var(--surface-card)", border: `1.5px solid ${isSel ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: isSel ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: isSel ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${isSel ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: isSel ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
-              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: isSel ? "var(--indigo-500)" : "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: isSel ? "white" : "#9ca3af", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
+              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: isSel ? "var(--indigo-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: isSel ? "white" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
           })))),
 
     // Prev / Next navigation
     React.createElement("div", { style: { padding: "12px 20px 20px", display: "flex", gap: 10 } },
-      idx > 0 && _btn("← Prev", () => setIdx(idx - 1), false, false),
+      idx > 0 && _btn(L("← Prev", "← Назад", "← Назад", "← Précédent", "← Zurück"), () => setIdx(idx - 1), false, false),
       idx + 1 < total
-        ? _btn("Next →", () => setIdx(idx + 1), true, false)
-        : _btn("Review & submit →", () => setShowFinishConfirm(true), true, false)));
+        ? _btn(L("Next →", "Далі →", "Далее →", "Suivant →", "Weiter →"), () => setIdx(idx + 1), true, false)
+        : _btn(L("Review & submit →", "Перевірити й надіслати →", "Проверить и отправить →", "Réviser et soumettre →", "Überprüfen & abgeben →"), () => setShowFinishConfirm(true), true, false)));
 }
 
 // ─── LESSON ENGINE ───────────────────────────────────────────────────────────
@@ -1699,7 +1724,8 @@ function saveDiffVote(topicKey, vote) {
   try { const d = JSON.parse(localStorage.getItem(DIFF_KEY) || "{}"); d[topicKey] = vote; localStorage.setItem(DIFF_KEY, JSON.stringify(d)); } catch {}
 }
 
-function LessonEngine({ topic, mode, onExit }) {
+function LessonEngine({ topic, mode, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -1879,19 +1905,19 @@ RULES:
 ${STEP_TYPES}`;
 
         const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Taking too long — please try again.")), 45000));
+          setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
         const raw = await Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext }),
           timeout,
         ]);
 
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error("Invalid lesson plan");
+        if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error(L("Invalid lesson plan", "Недійсний план уроку", "Недействительный план урока", "Plan de leçon invalide", "Ungültiger Lektionsplan"));
         setPlan(parsed);
         setLoading(false);
       } catch (e) {
         console.error("Lesson generation failed:", e);
-        setError(e.message || "Failed to generate lesson");
+        setError(e.message || L("Failed to generate lesson", "Не вдалося створити урок", "Не удалось создать урок", "Échec de la génération de la leçon", "Lektion konnte nicht erstellt werden"));
         setLoading(false);
       }
     })();
@@ -1993,20 +2019,20 @@ ${STEP_TYPES}`;
   if (loading) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, "Building your lesson..."),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `Topic: ${topic}`),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Building your lesson...", "Створюємо ваш урок...", "Создаём ваш урок...", "Création de votre leçon...", "Deine Lektion wird erstellt...")),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
       React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
   }
 
   if (error) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16, padding: "0 24px" } },
       React.createElement("span", { style: { fontSize: 40 } }, "⚠️"),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, "Couldn't generate lesson"),
+      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", margin: 0 } }, L("Couldn't generate lesson", "Не вдалося створити урок", "Не удалось создать урок", "Impossible de générer la leçon", "Lektion konnte nicht erstellt werden")),
       React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: 0, textAlign: "center" } }, error),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn("↺ Try again", () => setRetryCount((n) => n + 1), true, false),
-        _btn("← Back", onExit, false, false)));
+        _btn(L("↺ Try again", "↺ Спробувати ще раз", "↺ Попробовать ещё раз", "↺ Réessayer", "↺ Erneut versuchen"), () => setRetryCount((n) => n + 1), true, false),
+        _btn(L("← Back", "← Назад", "← Назад", "← Retour", "← Zurück"), onExit, false, false)));
   }
 
   // ─── Celebration Screen ────────────────────────────────────────────────────
@@ -2025,72 +2051,72 @@ ${STEP_TYPES}`;
       style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 0, padding: "0 20px", animation: "fadeUp 0.5s ease-out" }
     },
       React.createElement("div", { style: { fontSize: 56, marginBottom: 8, animation: "pulse 0.6s ease-in-out" } }, gradeEmoji[grade]),
-      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, "Lesson Complete!"),
+      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, L("Lesson Complete!", "Урок завершено!", "Урок завершён!", "Leçon terminée !", "Lektion abgeschlossen!")),
       React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, plan.title),
 
       // Stats grid
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 360, marginBottom: 24 } },
         // Accuracy
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
-          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "#15803d" : "#b45309", margin: 0 } }, `${accuracy}%`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Accuracy")),
+          React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "var(--emerald-700)" : "var(--amber-700)", margin: 0 } }, `${accuracy}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Accuracy", "Точність", "Точность", "Précision", "Genauigkeit"))),
         // XP
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${finalXp}`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP Earned")),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("XP Earned", "Отримано XP", "Получено XP", "XP gagnés", "XP verdient"))),
         // Mastery
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-muted)", margin: 0 } }, `${masteryBefore || 0}%`),
-          React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: masteryDelta > 0 ? "#15803d" : "var(--text-strong)", margin: "2px 0 0" } }, `→ ${masteryNow || 0}%`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Mastery")),
+          React.createElement("p", { style: { fontSize: 20, fontWeight: 700, color: masteryDelta > 0 ? "var(--emerald-700)" : "var(--text-strong)", margin: "2px 0 0" } }, `→ ${masteryNow || 0}%`),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Mastery", "Освоєння", "Освоение", "Maîtrise", "Beherrschung"))),
         // Streak
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--text-strong)", margin: 0 } }, `${streak}🔥`),
-          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Streak")),
+          React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Streak", "Серія", "Серия", "Série", "Serie"))),
       ),
 
       // Score detail
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" } }, `${correctCount} of ${totalAnswered} questions correct`),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 16px" } }, L(`${correctCount} of ${totalAnswered} questions correct`, `${correctCount} з ${totalAnswered} правильних відповідей`, `${correctCount} из ${totalAnswered} правильных ответов`, `${correctCount} sur ${totalAnswered} réponses correctes`, `${correctCount} von ${totalAnswered} richtigen Antworten`)),
       xpLevelAfter && React.createElement("div", { style: { width: "100%", maxWidth: 360, marginBottom: 16, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 16px" } },
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 } },
-          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, `⭐ Level ${xpLevelAfter.level}`),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, L(`⭐ Level ${xpLevelAfter.level}`, `⭐ Рівень ${xpLevelAfter.level}`, `⭐ Уровень ${xpLevelAfter.level}`, `⭐ Niveau ${xpLevelAfter.level}`, `⭐ Level ${xpLevelAfter.level}`)),
           React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)" } }, `${xpLevelAfter.into} / ${xpLevelAfter.need} XP`)),
         React.createElement("div", { style: { height: 8, background: "var(--border-subtle)", borderRadius: 4, overflow: "hidden" } },
-          React.createElement("div", { style: { height: "100%", width: `${xpPctAfter}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 4 } }))),
-      _btn("Done →", onExit, true, false));
+          React.createElement("div", { style: { height: "100%", width: `${xpPctAfter}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 4 } }))),
+      _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
   }
 
   // ─── Step renderers ────────────────────────────────────────────────────────
   const renderTeach = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--indigo-500)" } },
-      React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", "📖 CONCEPT")),
+      React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", L("📖 CONCEPT", "📖 КОНЦЕПЦІЯ", "📖 КОНЦЕПЦИЯ", "📖 CONCEPT", "📖 KONZEPT"))),
       s.title && React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
       React.createElement("div", { style: { fontSize: 15, lineHeight: 1.75, color: "var(--text-body)", marginBottom: 16 }, dangerouslySetInnerHTML: { __html: _md(s.body) } }),
-      s.keyTakeaway && React.createElement("div", { style: { background: "linear-gradient(135deg, #fefce8, #fef9c3)", border: "1px solid #fde68a", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "#92400e", marginBottom: s.example ? 14 : 0 } },
+      s.keyTakeaway && React.createElement("div", { style: { background: "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "var(--amber-700)", marginBottom: s.example ? 14 : 0 } },
         "💡 ", React.createElement("strong", null, s.keyTakeaway)),
       s.example && (_isMath(s.example)
-        ? React.createElement("div", { style: { background: "linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)", borderRadius: 12, padding: "14px 20px", textAlign: "center", fontSize: 18, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "#4338ca", letterSpacing: "0.02em" } }, s.example)
+        ? React.createElement("div", { style: { background: "linear-gradient(135deg, var(--indigo-100) 0%, var(--indigo-100) 100%)", borderRadius: 12, padding: "14px 20px", textAlign: "center", fontSize: 18, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "var(--indigo-700)", letterSpacing: "0.02em" } }, s.example)
         : React.createElement("div", { style: { background: "var(--surface-muted)", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "var(--text-body)", fontFamily: "var(--font-mono)", lineHeight: 1.7 }, dangerouslySetInnerHTML: { __html: _md(s.example) } }))),
-    React.createElement("div", { style: { marginTop: 16 } }, _btn("Got it, continue →", advance, true, false)));
+    React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Got it, continue →", "Зрозуміло, продовжити →", "Понятно, продолжить →", "Compris, continuer →", "Verstanden, weiter →"), advance, true, false)));
 
   const renderMcq = (question, options, correct, explanation, diff, isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-    isHook && React.createElement("div", { style: { marginBottom: 12, padding: "10px 16px", background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "1px solid #f59e0b", borderRadius: 12, fontSize: 13, color: "#92400e", fontWeight: 600 } },
-      "🔥 Before we explain anything — take a guess:"),
-    React.createElement("div", { style: { background: "var(--surface-card)", border: isHook ? "2px solid #f59e0b" : "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+    isHook && React.createElement("div", { style: { marginBottom: 12, padding: "10px 16px", background: "linear-gradient(135deg,var(--amber-100),var(--amber-200))", border: "1px solid var(--amber-500)", borderRadius: 12, fontSize: 13, color: "var(--amber-700)", fontWeight: 600 } },
+      L("🔥 Before we explain anything — take a guess:", "🔥 Перш ніж ми все пояснимо — спробуйте вгадати:", "🔥 Прежде чем мы всё объясним — попробуйте угадать:", "🔥 Avant toute explication — devinez :", "🔥 Bevor wir etwas erklären — rate mal:")),
+    React.createElement("div", { style: { background: "var(--surface-card)", border: isHook ? "2px solid var(--amber-500)" : "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
       React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
         isHook
-          ? _badge("linear-gradient(135deg,#f59e0b,#d97706)", "white", "🔥 HOOK QUESTION")
-          : _badge("linear-gradient(135deg,#6366f1,#4f46e5)", "white", "⚡ QUESTION"),
-        diff && _badge(diff === "hard" ? "#fef2f2" : diff === "easy" ? "#f0fdf4" : "#fefce8", diff === "hard" ? "#b91c1c" : diff === "easy" ? "#15803d" : "#92400e", diff)),
+          ? _badge("linear-gradient(135deg,var(--amber-500),var(--amber-600))", "white", L("🔥 HOOK QUESTION", "🔥 ВСТУПНЕ ПИТАННЯ", "🔥 ВВОДНЫЙ ВОПРОС", "🔥 QUESTION D'ACCROCHE", "🔥 EINSTIEGSFRAGE"))
+          : _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "white", L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
+        diff && _badge(diff === "hard" ? "var(--red-50)" : diff === "easy" ? "var(--emerald-50)" : "var(--amber-50)", diff === "hard" ? "var(--red-700)" : diff === "easy" ? "var(--emerald-700)" : "var(--amber-700)", diff)),
       React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, question),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...options.map((opt, i) => {
           const isCor = i === correct, isSel = i === selected;
-          let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+          let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
           if (revealed) {
-            if (isCor) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-            else if (isSel) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-            else { col = "#d1d5db"; bc = "#f3f4f6"; }
+            if (isCor) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
+            else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+            else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
           }
           return React.createElement("button", {
             key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation),
@@ -2100,53 +2126,53 @@ ${STEP_TYPES}`;
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
         })),
       revealed && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, #f0fdf4, #ecfdf5)" : "linear-gradient(135deg, #fffbeb, #fef3c7)", border: `1px solid ${selected === correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
       }, selected === correct ? "✅ " : "💡 ", explanation)),
-    revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
+    revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false)));
 
   const renderTf = (isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-    isHook && React.createElement("div", { style: { marginBottom: 12, padding: "10px 16px", background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "1px solid #f59e0b", borderRadius: 12, fontSize: 13, color: "#92400e", fontWeight: 600 } },
-      "🔥 Before we explain anything — take a guess:"),
-    React.createElement("div", { style: { background: "var(--surface-card)", border: isHook ? "2px solid #f59e0b" : "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-      React.createElement("div", { style: { marginBottom: 14 } }, isHook ? _badge("linear-gradient(135deg,#f59e0b,#d97706)", "white", "🔥 HOOK QUESTION") : _badge("#f5f3ff", "#7c3aed", "✋ TRUE OR FALSE")),
+    isHook && React.createElement("div", { style: { marginBottom: 12, padding: "10px 16px", background: "linear-gradient(135deg,var(--amber-100),var(--amber-200))", border: "1px solid var(--amber-500)", borderRadius: 12, fontSize: 13, color: "var(--amber-700)", fontWeight: 600 } },
+      L("🔥 Before we explain anything — take a guess:", "🔥 Перш ніж ми все пояснимо — спробуйте вгадати:", "🔥 Прежде чем мы всё объясним — попробуйте угадать:", "🔥 Avant toute explication — devinez :", "🔥 Bevor wir etwas erklären — rate mal:")),
+    React.createElement("div", { style: { background: "var(--surface-card)", border: isHook ? "2px solid var(--amber-500)" : "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+      React.createElement("div", { style: { marginBottom: 14 } }, isHook ? _badge("linear-gradient(135deg,var(--amber-500),var(--amber-600))", "white", L("🔥 HOOK QUESTION", "🔥 ВСТУПНЕ ПИТАННЯ", "🔥 ВВОДНЫЙ ВОПРОС", "🔥 QUESTION D'ACCROCHE", "🔥 EINSTIEGSFRAGE")) : _badge("var(--indigo-50)", "var(--indigo-600)", L("✋ TRUE OR FALSE", "✋ ПРАВДА ЧИ НЕПРАВДА", "✋ ПРАВДА ИЛИ ЛОЖЬ", "✋ VRAI OU FAUX", "✋ WAHR ODER FALSCH"))),
       React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 } }, s.statement),
       React.createElement("div", { style: { display: "flex", gap: 12 } },
         ...[true, false].map((val) => {
           let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)";
           if (revealed) {
-            if (val === s.correct) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; }
-            else if (val === selected) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; }
-            else { col = "#d1d5db"; }
+            if (val === s.correct) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; }
+            else if (val === selected) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; }
+            else { col = "var(--slate-300)"; }
           }
           return React.createElement("button", {
             key: String(val), disabled: revealed, onClick: () => answerTf(val, s.correct),
             style: { flex: 1, padding: "16px", background: bg, border: `2px solid ${bc}`, borderRadius: 14, fontSize: 16, fontWeight: 700, color: col, cursor: revealed ? "default" : "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
-          }, val ? "✅ True" : "❌ False");
+          }, val ? L("✅ True", "✅ Правда", "✅ Правда", "✅ Vrai", "✅ Wahr") : L("❌ False", "❌ Неправда", "❌ Ложь", "❌ Faux", "❌ Falsch"));
         })),
       revealed && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: selected === s.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${selected === s.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === s.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }
+        style: { marginTop: 14, padding: "12px 16px", background: selected === s.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === s.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === s.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
       }, selected === s.correct ? "✅ " : "💡 ", s.explanation)),
-    revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
+    revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false)));
 
   const renderFill = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-      React.createElement("div", { style: { marginBottom: 14 } }, _badge("#fefce8", "#92400e", "✍️ FILL IN THE BLANK")),
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(s.sentence).replace("___", "<u style='border-bottom:2px dashed #6366f1;padding:0 8px;color:#6366f1'>___</u>") } }),
+      React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--amber-50)", "var(--amber-700)", L("✍️ FILL IN THE BLANK", "✍️ ЗАПОВНІТЬ ПРОПУСК", "✍️ ЗАПОЛНИТЕ ПРОПУСК", "✍️ COMPLÉTEZ LE BLANC", "✍️ LÜCKE AUSFÜLLEN"))),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(s.sentence).replace("___", "<u style='border-bottom:2px dashed var(--indigo-500);padding:0 8px;color:var(--indigo-500)'>___</u>") } }),
       !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
         React.createElement("input", {
           value: fillInput, onChange: (e) => setFillInput(e.target.value),
           onKeyDown: (e) => { if (e.key === "Enter" && fillInput.trim()) answerFill(); },
-          placeholder: "Type your answer…", autoFocus: true,
+          placeholder: L("Type your answer…", "Введіть відповідь…", "Введите ответ…", "Tapez votre réponse…", "Gib deine Antwort ein…"), autoFocus: true,
           style: { flex: 1, border: "1.5px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", fontSize: 15, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", outline: "none" }
         }),
         React.createElement("button", {
           onClick: fillInput.trim() ? answerFill : undefined, disabled: !fillInput.trim(),
-          style: { padding: "12px 20px", background: fillInput.trim() ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
-        }, "Check")),
+          style: { padding: "12px 20px", background: fillInput.trim() ? "var(--indigo-600)" : "var(--indigo-200)", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
+        }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen"))),
       revealed && React.createElement("div", {
-        style: { marginTop: 0, padding: "12px 16px", background: selected === "correct" ? "#f0fdf4" : "#fffbeb", border: `1px solid ${selected === "correct" ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "#15803d" : "#92400e", lineHeight: 1.6 }
-      }, selected === "correct" ? `✅ Correct! "${s.answer}"` : `💡 The answer is "${s.answer}". ${s.explanation || ""}`)),
-    revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
+        style: { marginTop: 0, padding: "12px 16px", background: selected === "correct" ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
+      }, selected === "correct" ? L(`✅ Correct! "${s.answer}"`, `✅ Правильно! «${s.answer}»`, `✅ Правильно! «${s.answer}»`, `✅ Correct ! « ${s.answer} »`, `✅ Richtig! „${s.answer}"`) : L(`💡 The answer is "${s.answer}". ${s.explanation || ""}`, `💡 Правильна відповідь: «${s.answer}». ${s.explanation || ""}`, `💡 Правильный ответ: «${s.answer}». ${s.explanation || ""}`, `💡 La réponse est « ${s.answer} ». ${s.explanation || ""}`, `💡 Die Antwort ist „${s.answer}". ${s.explanation || ""}`))),
+    revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false)));
 
   const renderExplainBack = () => {
     const submitExplanation = async () => {
@@ -2162,37 +2188,37 @@ ${STEP_TYPES}`;
         const stars = (reply.match(/⭐/g) || []).length;
         setXp((x) => x + (stars >= 3 ? 30 : stars >= 2 ? 20 : 10));
       } catch {
-        setExplainFeedback("Couldn't check your answer right now — but writing it out is the learning! Keep going.");
+        setExplainFeedback(L("Couldn't check your answer right now — but writing it out is the learning! Keep going.", "Не вдалося перевірити вашу відповідь зараз — але сам процес написання вже є навчанням! Продовжуйте.", "Не удалось проверить ваш ответ сейчас — но сам процесс написания уже является обучением! Продолжайте.", "Impossible de vérifier votre réponse pour le moment — mais l'écrire est déjà un apprentissage ! Continuez.", "Deine Antwort konnte gerade nicht geprüft werden — aber das Aufschreiben ist schon das Lernen! Mach weiter."));
       }
       setExplainLoading(false);
     };
 
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "2px solid #7c3aed", borderRadius: 16, padding: 24 } },
-        React.createElement("div", { style: { marginBottom: 14 } }, _badge("linear-gradient(135deg,#7c3aed,#6366f1)", "white", "🧠 EXPLAIN IT BACK")),
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "2px solid var(--indigo-600)", borderRadius: 16, padding: 24 } },
+        React.createElement("div", { style: { marginBottom: 14 } }, _badge("linear-gradient(135deg,var(--indigo-600),var(--indigo-500))", "white", L("🧠 EXPLAIN IT BACK", "🧠 ПОЯСНІТЬ СВОЇМИ СЛОВАМИ", "🧠 ОБЪЯСНИТЕ СВОИМИ СЛОВАМИ", "🧠 EXPLIQUEZ-LE", "🧠 ERKLÄR ES ZURÜCK"))),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 6px", color: "var(--text-strong)", lineHeight: 1.5 } }, s.prompt),
-        React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" } }, "Explain in your own words — as if teaching a friend."),
+        React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 16px" } }, L("Explain in your own words — as if teaching a friend.", "Поясніть своїми словами — так, ніби навчаєте друга.", "Объясните своими словами — как будто учите друга.", "Expliquez avec vos propres mots — comme si vous enseigniez à un ami.", "Erkläre es mit deinen eigenen Worten — als würdest du es einem Freund beibringen.")),
 
         !explainFeedback && React.createElement("div", null,
           React.createElement("textarea", {
             value: explainInput, onChange: (e) => setExplainInput(e.target.value), autoFocus: true,
-            placeholder: "In my own words...", rows: 4,
+            placeholder: L("In my own words...", "Своїми словами...", "Своими словами...", "Avec mes propres mots...", "In meinen eigenen Worten..."), rows: 4,
             style: { width: "100%", border: "1.5px solid var(--border-default)", borderRadius: 12, padding: "12px 16px", fontSize: 14, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.5 }
           }),
           React.createElement("div", { style: { marginTop: 10 } },
-            _btn(explainLoading ? "Checking..." : "Check my explanation →", submitExplanation, true, !explainInput.trim() || explainLoading))),
+            _btn(explainLoading ? L("Checking...", "Перевіряємо...", "Проверяем...", "Vérification...", "Wird geprüft...") : L("Check my explanation →", "Перевірити моє пояснення →", "Проверить моё объяснение →", "Vérifier mon explication →", "Meine Erklärung prüfen →"), submitExplanation, true, !explainInput.trim() || explainLoading))),
 
         explainFeedback && React.createElement("div", {
-          style: { padding: "14px 16px", background: "#f5f3ff", border: "1px solid #c4b5fd", borderRadius: 12, fontSize: 14, color: "#5b21b6", lineHeight: 1.6 },
+          style: { padding: "14px 16px", background: "var(--indigo-50)", border: "1px solid var(--indigo-200)", borderRadius: 12, fontSize: 14, color: "var(--indigo-700)", lineHeight: 1.6 },
           dangerouslySetInnerHTML: { __html: _md(explainFeedback) }
         })),
-      explainFeedback && React.createElement("div", { style: { marginTop: 16 } }, _btn("Continue →", advance, true, false)));
+      explainFeedback && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false)));
   };
 
   const renderMathLine = (text) => {
     if (_isMath(text)) {
       return React.createElement("div", {
-        style: { background: "linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%)", borderRadius: 10, padding: "10px 16px", margin: "6px 0", textAlign: "center", fontSize: 17, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "#4338ca", letterSpacing: "0.02em" }
+        style: { background: "linear-gradient(135deg, var(--indigo-100) 0%, var(--indigo-100) 100%)", borderRadius: 10, padding: "10px 16px", margin: "6px 0", textAlign: "center", fontSize: 17, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "var(--indigo-700)", letterSpacing: "0.02em" }
       }, text);
     }
     return React.createElement("div", { style: { fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: _md(text) } });
@@ -2202,8 +2228,8 @@ ${STEP_TYPES}`;
     const steps = s.steps || [];
     const allVisible = stepsRevealed >= steps.length;
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid #8b5cf6" } },
-        React.createElement("div", { style: { marginBottom: 14 } }, _badge("#f5f3ff", "#7c3aed", "📝 WORKED EXAMPLE")),
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--indigo-500)" } },
+        React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", L("📝 WORKED EXAMPLE", "📝 РОЗВ'ЯЗАНИЙ ПРИКЛАД", "📝 РЕШЁННЫЙ ПРИМЕР", "📝 EXEMPLE RÉSOLU", "📝 GELÖSTES BEISPIEL"))),
         s.title && React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 0 } },
           ...steps.map((st, i) => {
@@ -2212,19 +2238,19 @@ ${STEP_TYPES}`;
               key: i,
               style: { display: "flex", gap: 12, padding: "14px 0", borderTop: i > 0 ? "1px solid var(--border-subtle)" : "none", opacity: vis ? 1 : 0.25, transform: vis ? "translateY(0)" : "translateY(4px)", transition: "opacity 0.4s, transform 0.4s" }
             },
-              React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: vis ? "linear-gradient(135deg,#7c3aed,#6366f1)" : "var(--surface-muted)", color: vis ? "white" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.3s" } }, i + 1),
+              React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: vis ? "linear-gradient(135deg,var(--indigo-600),var(--indigo-500))" : "var(--surface-muted)", color: vis ? "white" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.3s" } }, i + 1),
               React.createElement("div", { style: { flex: 1 } },
-                React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: vis ? "#7c3aed" : "var(--text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" } }, st.label),
+                React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: vis ? "var(--indigo-600)" : "var(--text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" } }, st.label),
                 vis && renderMathLine(st.content)));
           })),
         !allVisible && React.createElement("div", { style: { marginTop: 14 } },
           React.createElement("button", {
             onClick: () => setStepsRevealed((n) => n + 1),
-            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed #c4b5fd", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "#7c3aed", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
-          }, stepsRevealed === 0 ? "Reveal first step →" : `Reveal step ${stepsRevealed + 1} →`)),
-        allVisible && s.challenge && React.createElement("div", { style: { marginTop: 14, background: "linear-gradient(135deg, #fefce8, #fef9c3)", border: "1px solid #fde68a", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#92400e" } }, "🎯 Now you try: ", React.createElement("strong", null, s.challenge))),
+            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed var(--indigo-200)", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "var(--indigo-600)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+          }, stepsRevealed === 0 ? L("Reveal first step →", "Показати перший крок →", "Показать первый шаг →", "Révéler la première étape →", "Ersten Schritt zeigen →") : L(`Reveal step ${stepsRevealed + 1} →`, `Показати крок ${stepsRevealed + 1} →`, `Показать шаг ${stepsRevealed + 1} →`, `Révéler l'étape ${stepsRevealed + 1} →`, `Schritt ${stepsRevealed + 1} zeigen →`))),
+        allVisible && s.challenge && React.createElement("div", { style: { marginTop: 14, background: "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "var(--amber-700)" } }, L("🎯 Now you try: ", "🎯 Тепер ваша черга: ", "🎯 Теперь ваша очередь: ", "🎯 À votre tour : ", "🎯 Jetzt bist du dran: "), React.createElement("strong", null, s.challenge))),
       allVisible && React.createElement("div", { style: { marginTop: 16 } },
-        _btn("Continue →", () => { setXp((x) => x + 15); advance(); }, true, false)));
+        _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), () => { setXp((x) => x + 15); advance(); }, true, false)));
   };
 
   // ─── Render current step ───────────────────────────────────────────────────
@@ -2243,8 +2269,9 @@ ${STEP_TYPES}`;
         onResult: (correct) => setResults((r) => [...r, { type: "checkpoint", correct }]),
         onXp: (amount) => setXp((x) => x + amount),
         onAdvance: advance,
+        t,
       });
-      default: return React.createElement("p", null, `Unknown step: ${s.type}`);
+      default: return React.createElement("p", null, L(`Unknown step: ${s.type}`, `Невідомий крок: ${s.type}`, `Неизвестный шаг: ${s.type}`, `Étape inconnue : ${s.type}`, `Unbekannter Schritt: ${s.type}`));
     }
   };
 
@@ -2256,25 +2283,25 @@ ${STEP_TYPES}`;
   const topicKey = `${topic}::${resolved?.examId || "any"}`;
   const currentVote = getDiffVote(topicKey);
   const DIFF_OPTIONS = [
-    { v: -2, emoji: "😵", label: "Hard" },
-    { v:  0, emoji: "👍", label: "OK" },
-    { v:  2, emoji: "🥱", label: "Easy" },
+    { v: -2, emoji: "😵", label: L("Hard", "Складно", "Сложно", "Difficile", "Schwer") },
+    { v:  0, emoji: "👍", label: L("OK", "Нормально", "Нормально", "Correct", "Okay") },
+    { v:  2, emoji: "🥱", label: L("Easy", "Легко", "Легко", "Facile", "Einfach") },
   ];
 
   const renderDiffPills = () => React.createElement("div", {
     style: { display: "flex", gap: 6, alignItems: "center" }
   },
-    React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", fontWeight: 600 } }, "Difficulty:"),
+    React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", fontWeight: 600 } }, L("Difficulty:", "Складність:", "Сложность:", "Difficulté :", "Schwierigkeit:")),
     ...DIFF_OPTIONS.map(({ v, emoji, label }) =>
       React.createElement("button", {
         key: v,
         onClick: () => { saveDiffVote(topicKey, v); setDiffVoted(true); },
         style: {
           display: "flex", alignItems: "center", gap: 3, padding: "3px 8px",
-          background: currentVote === v ? "#eef2ff" : "transparent",
-          border: currentVote === v ? "1px solid #c7d2fe" : "1px solid var(--border-subtle)",
+          background: currentVote === v ? "var(--indigo-50)" : "transparent",
+          border: currentVote === v ? "1px solid var(--indigo-200)" : "1px solid var(--border-subtle)",
           borderRadius: 12, fontSize: 11, cursor: "pointer",
-          color: currentVote === v ? "#4f46e5" : "var(--text-muted)",
+          color: currentVote === v ? "var(--indigo-600)" : "var(--text-muted)",
           fontFamily: "var(--font-sans)", fontWeight: currentVote === v ? 600 : 400,
         }
       }, emoji, " ", label)));
@@ -2294,38 +2321,38 @@ ${STEP_TYPES}`;
         onClick: (e) => e.stopPropagation(),
       },
         React.createElement("span", { style: { fontSize: 36 } }, "🧠"),
-        React.createElement("h2", { style: { fontSize: 18, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 8px" } }, "Welcome to Learn"),
+        React.createElement("h2", { style: { fontSize: 18, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 8px" } }, L("Welcome to Learn", "Ласкаво просимо до Навчання", "Добро пожаловать в Обучение", "Bienvenue dans Apprendre", "Willkommen bei Lernen")),
         React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 10px" } },
-          "This is a structured lesson — a few short steps that teach a concept, then check you understood it right away."),
+          L("This is a structured lesson — a few short steps that teach a concept, then check you understood it right away.", "Це структурований урок — кілька коротких кроків, які навчають концепції, а потім одразу перевіряють розуміння.", "Это структурированный урок — несколько коротких шагов, которые обучают концепции, а затем сразу проверяют понимание.", "Ceci est une leçon structurée — quelques étapes courtes qui enseignent un concept, puis vérifient immédiatement votre compréhension.", "Dies ist eine strukturierte Lektion — ein paar kurze Schritte, die ein Konzept vermitteln und dann sofort dein Verständnis prüfen.")),
         React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, margin: "0 0 20px" } },
-          "Rate each step's difficulty as you go, or tap ", React.createElement("strong", null, "Ask AI"), " (bottom-right) any time you want something explained differently."),
+          L("Rate each step's difficulty as you go, or tap ", "Оцінюйте складність кожного кроку, або натисніть ", "Оценивайте сложность каждого шага, или нажмите ", "Évaluez la difficulté de chaque étape, ou appuyez sur ", "Bewerte die Schwierigkeit jedes Schritts, oder tippe auf "), React.createElement("strong", null, L("Ask AI", "Запитати AI", "Спросить AI", "Demander à l'IA", "KI fragen")), L(" (bottom-right) any time you want something explained differently.", " (внизу праворуч), коли захочете, щоб щось пояснили інакше.", " (внизу справа), когда захотите, чтобы что-то объяснили иначе.", " (en bas à droite) à tout moment pour une explication différente.", " (unten rechts), wenn du etwas anders erklärt haben möchtest.")),
         React.createElement("button", {
           onClick: dismissLearnTooltip,
-          style: { width: "100%", padding: "12px 0", background: "#4f46e5", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }
-        }, "Got it →"))),
+          style: { width: "100%", padding: "12px 0", background: "var(--indigo-600)", color: "white", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }
+        }, L("Got it →", "Зрозуміло →", "Понятно →", "Compris →", "Verstanden →")))),
     // Progress header
     React.createElement("div", { style: { padding: "12px 20px 0" } },
       // Meta-strip
       step === 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, alignItems: "center" } },
-        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 } }, "⏱ ~", estTotalMin, " min"),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 } }, "⏱ ~", estTotalMin, ` ${L("min", "хв", "мин", "min", "Min.")}`),
         examName && React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, "·"),
         examName && React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 } }, "📚 ", examName),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, "·"),
-        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, totalSteps, " steps")),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, totalSteps, ` ${L("steps", "кроків", "шагов", "étapes", "Schritte")}`)),
       // Step counter + stats row
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
-        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, `Step ${step + 1} of ${totalSteps}`),
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, L(`Step ${step + 1} of ${totalSteps}`, `Крок ${step + 1} з ${totalSteps}`, `Шаг ${step + 1} из ${totalSteps}`, `Étape ${step + 1} sur ${totalSteps}`, `Schritt ${step + 1} von ${totalSteps}`)),
         React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", fontSize: 12, color: "var(--text-muted)" } },
-          totalAnswered > 0 && React.createElement("span", { style: { background: "#f0fdf4", color: "#15803d", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${correctCount}/${totalAnswered} ✓`),
-          estMinsLeft && React.createElement("span", null, `~${estMinsLeft}m left`)),
+          totalAnswered > 0 && React.createElement("span", { style: { background: "var(--emerald-50)", color: "var(--emerald-700)", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${correctCount}/${totalAnswered} ✓`),
+          estMinsLeft && React.createElement("span", null, L(`~${estMinsLeft}m left`, `~${estMinsLeft}хв залишилось`, `~${estMinsLeft}мин осталось`, `~${estMinsLeft}min restantes`, `~${estMinsLeft}Min. übrig`))),
       ),
       // Progress bar
       React.createElement("div", { style: { height: 5, background: "var(--surface-muted)", borderRadius: 3, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 3, transition: "transform 0.4s ease" } })),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3, transition: "transform 0.4s ease" } })),
       // Bottom row: title + exit
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 } },
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, plan.title),
-        React.createElement("button", { onClick: () => { commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, "Exit")),
+        React.createElement("button", { onClick: () => { commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen"))),
       // Difficulty pills (shown after first answer)
       totalAnswered > 0 && !diffVoted && React.createElement("div", { style: { marginTop: 8, animation: "fadeUp 0.3s ease-out" } }, renderDiffPills())),
 
@@ -2344,7 +2371,7 @@ ${STEP_TYPES}`;
         // Header
         React.createElement("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", gap: 8 } },
           React.createElement(CoachIcon, { size: 24 }),
-          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)", flex: 1 } }, "Ask about this step"),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)", flex: 1 } }, L("Ask about this step", "Запитати про цей крок", "Спросить об этом шаге", "Poser une question sur cette étape", "Frage zu diesem Schritt")),
           React.createElement("button", { onClick: () => setAskOpen(false), style: { background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "✕")),
         // Reply area
         React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px", minHeight: 80 } },
@@ -2352,13 +2379,13 @@ ${STEP_TYPES}`;
             ? React.createElement("div", { style: { fontSize: 13, color: "var(--text-body)", lineHeight: 1.65 }, dangerouslySetInnerHTML: { __html: _md(askReply) } })
             : askLoading
               ? React.createElement("div", { style: { display: "flex", gap: 5, padding: "20px 0", justifyContent: "center" } },
-                  ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))
-              : React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: 0 } }, "Ask anything about this step — I'll explain it differently, give a hint, or go deeper.")),
+                  ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))
+              : React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: 0 } }, L("Ask anything about this step — I'll explain it differently, give a hint, or go deeper.", "Запитайте що завгодно про цей крок — я поясню інакше, дам підказку або заглиблюся детальніше.", "Спросите что угодно об этом шаге — я объясню иначе, дам подсказку или углублюсь детальнее.", "Posez toutes vos questions sur cette étape — je l'expliquerai différemment, donnerai un indice, ou irai plus loin.", "Frag alles zu diesem Schritt — ich erkläre es anders, gebe einen Hinweis oder gehe tiefer."))),
         // Input
         React.createElement("div", { style: { padding: "10px 12px", borderTop: "1px solid var(--border-subtle)", display: "flex", gap: 8 } },
           React.createElement("input", {
             value: askInput, onChange: (e) => setAskInput(e.target.value), autoFocus: true,
-            placeholder: "e.g. Why is this the answer?",
+            placeholder: L("e.g. Why is this the answer?", "напр. Чому це правильна відповідь?", "напр. Почему это правильный ответ?", "ex. Pourquoi est-ce la bonne réponse ?", "z. B. Warum ist das die Antwort?"),
             onKeyDown: (e) => {
               if (e.key === "Enter" && askInput.trim() && !askLoading) {
                 const q = askInput.trim();
@@ -2368,7 +2395,7 @@ ${STEP_TYPES}`;
                   system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                   messages: [{ role: "user", content: q }],
                 }).then((r) => { setAskReply(r); setAskLoading(false); })
-                  .catch(() => { setAskReply("Couldn't get an answer right now — try again."); setAskLoading(false); });
+                  .catch(() => { setAskReply(L("Couldn't get an answer right now — try again.", "Не вдалося отримати відповідь зараз — спробуйте ще раз.", "Не удалось получить ответ сейчас — попробуйте ещё раз.", "Impossible d'obtenir une réponse pour le moment — réessayez.", "Antwort konnte gerade nicht abgerufen werden — versuche es erneut.")); setAskLoading(false); });
               }
             },
             style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", outline: "none" }
@@ -2384,20 +2411,21 @@ ${STEP_TYPES}`;
                 system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                 messages: [{ role: "user", content: q }],
               }).then((r) => { setAskReply(r); setAskLoading(false); })
-                .catch(() => { setAskReply("Couldn't get an answer right now — try again."); setAskLoading(false); });
+                .catch(() => { setAskReply(L("Couldn't get an answer right now — try again.", "Не вдалося отримати відповідь зараз — спробуйте ще раз.", "Не удалось получить ответ сейчас — попробуйте ещё раз.", "Impossible d'obtenir une réponse pour le moment — réessayez.", "Antwort konnte gerade nicht abgerufen werden — versuche es erneut.")); setAskLoading(false); });
             },
-            style: { background: askInput.trim() && !askLoading ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: askInput.trim() && !askLoading ? "pointer" : "default", fontFamily: "var(--font-sans)" }
-          }, "Ask"))),
+            style: { background: askInput.trim() && !askLoading ? "var(--indigo-600)" : "var(--indigo-200)", color: "white", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: askInput.trim() && !askLoading ? "pointer" : "default", fontFamily: "var(--font-sans)" }
+          }, L("Ask", "Запитати", "Спросить", "Demander", "Fragen")))),
       // Floating button
       React.createElement("button", {
         onClick: () => { setAskOpen((v) => !v); if (!askOpen) { setAskReply(null); setAskInput(""); } },
-        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "#4338ca" : "linear-gradient(135deg,#6366f1,#7c3aed)", border: "none", color: "white", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(99,102,241,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
+        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "white", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(34,124,99,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
       }, askOpen ? "✕" : "💬")));
 }
 
 // ─── CHAT MODE (freeform) ────────────────────────────────────────────────────
 
-function ChatMode({ onExit, initialQuery }) {
+function ChatMode({ onExit, initialQuery, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   // v2 keys — old chat sessions cached a generic greeting bubble that has
   // no place in the dashboard-first layout, so this intentionally starts fresh
   // instead of resurrecting stale messages from the pre-dashboard chat.
@@ -2449,12 +2477,12 @@ function ChatMode({ onExit, initialQuery }) {
   // Suggestion chips — context-aware
   const suggestions = React.useMemo(() => {
     const chips = [];
-    if (weakest.length > 0) chips.push({ text: `Explain ${weakest[0].topicName}`, icon: "📖" });
-    if (dueReviews.length > 0) chips.push({ text: `Quiz me on ${dueReviews[0].topicName}`, icon: "📝" });
-    chips.push({ text: "Summarize my notes", icon: "📄" });
-    chips.push({ text: "Make harder questions", icon: "🔥" });
-    if (examViews.length > 0) chips.push({ text: `Test my ${examViews[0].name} knowledge`, icon: "🎯" });
-    chips.push({ text: "Create flashcards", icon: "🗂" });
+    if (weakest.length > 0) chips.push({ text: L(`Explain ${weakest[0].topicName}`, `Поясни ${weakest[0].topicName}`, `Объясни ${weakest[0].topicName}`, `Explique ${weakest[0].topicName}`, `Erkläre ${weakest[0].topicName}`), icon: "📖" });
+    if (dueReviews.length > 0) chips.push({ text: L(`Quiz me on ${dueReviews[0].topicName}`, `Заквізуй мене з ${dueReviews[0].topicName}`, `Проверь меня по ${dueReviews[0].topicName}`, `Interroge-moi sur ${dueReviews[0].topicName}`, `Frag mich zu ${dueReviews[0].topicName}`), icon: "📝" });
+    chips.push({ text: L("Summarize my notes", "Підсумуй мої конспекти", "Резюмируй мои конспекты", "Résume mes notes", "Fasse meine Notizen zusammen"), icon: "📄" });
+    chips.push({ text: L("Make harder questions", "Зроби складніші питання", "Сделай вопросы посложнее", "Fais des questions plus difficiles", "Mach die Fragen schwerer"), icon: "🔥" });
+    if (examViews.length > 0) chips.push({ text: L(`Test my ${examViews[0].name} knowledge`, `Перевір мої знання з ${examViews[0].name}`, `Проверь мои знания по ${examViews[0].name}`, `Teste mes connaissances en ${examViews[0].name}`, `Teste mein Wissen in ${examViews[0].name}`), icon: "🎯" });
+    chips.push({ text: L("Create flashcards", "Створи картки", "Создай карточки", "Crée des cartes", "Erstelle Karteikarten"), icon: "🗂" });
     return chips.slice(0, 5);
   }, []);
 
@@ -2473,15 +2501,23 @@ function ChatMode({ onExit, initialQuery }) {
       proactiveRef.current = true;
       if (dueReviews.length) {
         const w = dueReviews[0];
-        pushAI(`I noticed your **${w.topicName}** retention is at ${Math.round(w.retention * 100)}%. Want me to explain it or run 5 quick questions?`, [
-          { text: "Explain it", icon: "📖" },
-          { text: "5 quick questions", icon: "⚡" },
+        pushAI(L(`I noticed your **${w.topicName}** retention is at ${Math.round(w.retention * 100)}%. Want me to explain it or run 5 quick questions?`,
+          `Я помітив, що ваша впевненість у **${w.topicName}** становить ${Math.round(w.retention * 100)}%. Пояснити тему чи запустити 5 швидких питань?`,
+          `Я заметил, что ваша уверенность в **${w.topicName}** составляет ${Math.round(w.retention * 100)}%. Объяснить тему или запустить 5 быстрых вопросов?`,
+          `J'ai remarqué que votre rétention de **${w.topicName}** est de ${Math.round(w.retention * 100)}%. Je l'explique ou on fait 5 questions rapides ?`,
+          `Mir ist aufgefallen, dass deine Merkfähigkeit bei **${w.topicName}** bei ${Math.round(w.retention * 100)}% liegt. Soll ich es erklären oder 5 schnelle Fragen stellen?`), [
+          { text: L("Explain it", "Поясни це", "Объясни это", "Explique-le", "Erkläre es"), icon: "📖" },
+          { text: L("5 quick questions", "5 швидких питань", "5 быстрых вопросов", "5 questions rapides", "5 schnelle Fragen"), icon: "⚡" },
         ]);
       } else {
         const w = weakest[0];
-        pushAI(`You haven't started **${w.topicName}** yet. Want a quick intro or 5 practice questions to dive in?`, [
-          { text: "Give me an intro", icon: "📖" },
-          { text: "5 quick questions", icon: "⚡" },
+        pushAI(L(`You haven't started **${w.topicName}** yet. Want a quick intro or 5 practice questions to dive in?`,
+          `Ви ще не починали **${w.topicName}**. Хочете короткий вступ чи 5 практичних питань?`,
+          `Вы ещё не начинали **${w.topicName}**. Хотите короткое введение или 5 практических вопросов?`,
+          `Vous n'avez pas encore commencé **${w.topicName}**. Une intro rapide ou 5 questions pour vous lancer ?`,
+          `Du hast **${w.topicName}** noch nicht begonnen. Möchtest du eine kurze Einführung oder 5 Übungsfragen?`), [
+          { text: L("Give me an intro", "Дай короткий вступ", "Дай короткое введение", "Donne-moi une intro", "Gib mir eine Einführung"), icon: "📖" },
+          { text: L("5 quick questions", "5 швидких питань", "5 быстрых вопросов", "5 questions rapides", "5 schnelle Fragen"), icon: "⚡" },
         ]);
       }
     }, 3000);
@@ -2530,7 +2566,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
       pushAI(mainText, actions);
     } catch (e) {
       setTyping(false);
-      pushAI("Connection hiccup — try again in a moment.");
+      pushAI(L("Connection hiccup — try again in a moment.", "Тимчасовий збій зв'язку — спробуйте за хвилину.", "Временный сбой связи — попробуйте через минуту.", "Petit souci de connexion — réessayez dans un instant.", "Kurzer Verbindungsaussetzer — versuch es gleich noch einmal."));
     }
   };
 
@@ -2552,43 +2588,43 @@ If no actions fit, omit the ACTIONS line entirely.`,
 
   // Time-of-day greeting
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = hour < 12 ? L("Good morning", "Доброго ранку", "Доброе утро", "Bonjour", "Guten Morgen") : hour < 18 ? L("Good afternoon", "Доброго дня", "Добрый день", "Bon après-midi", "Guten Tag") : L("Good evening", "Доброго вечора", "Добрый вечер", "Bonsoir", "Guten Abend");
 
   // ── AI Dashboard — always shown at top ──
   const renderDashboard = () => React.createElement("div", { style: { padding: "20px", display: "flex", flexDirection: "column", gap: 16 } },
     // Hero greeting
-    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, padding: "20px", background: "linear-gradient(135deg,#eef2ff,#e0e7ff)", borderRadius: 18 } },
+    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, padding: "20px", background: "linear-gradient(135deg,var(--indigo-50),var(--indigo-100))", borderRadius: 18 } },
       React.createElement("div", { style: { position: "relative" } },
         React.createElement(CoachIcon, { size: 48 }),
-        React.createElement("div", { style: { position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: "50%", background: "#22c55e", border: "2px solid white" } })),
+        React.createElement("div", { style: { position: "absolute", bottom: 0, right: 0, width: 12, height: 12, borderRadius: "50%", background: "var(--emerald-500)", border: "2px solid white" } })),
       React.createElement("div", { style: { flex: 1 } },
         React.createElement("p", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, `${greeting}${name ? `, ${name}` : ""} 👋`),
-        React.createElement("p", { style: { margin: "2px 0 0", fontSize: 13, color: "var(--text-muted)" } }, "Ready to study"))),
+        React.createElement("p", { style: { margin: "2px 0 0", fontSize: 13, color: "var(--text-muted)" } }, L("Ready to study", "Готові вчитися", "Готовы учиться", "Prêt à étudier", "Bereit zu lernen")))),
 
     // Context cards row
     React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 12px", textAlign: "center" } },
-        React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Readiness"),
-        React.createElement("p", { style: { margin: "4px 0 0", fontSize: avgReadiness != null ? 22 : 14, fontWeight: 700, color: avgReadiness == null ? "var(--text-faint)" : avgReadiness >= 70 ? "#15803d" : avgReadiness >= 40 ? "#b45309" : "#b91c1c" } }, avgReadiness != null ? `${avgReadiness}%` : "New")),
+        React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, L("Readiness", "Готовність", "Готовность", "Préparation", "Bereitschaft")),
+        React.createElement("p", { style: { margin: "4px 0 0", fontSize: avgReadiness != null ? 22 : 14, fontWeight: 700, color: avgReadiness == null ? "var(--text-faint)" : avgReadiness >= 70 ? "var(--emerald-700)" : avgReadiness >= 40 ? "var(--amber-700)" : "var(--red-700)" } }, avgReadiness != null ? `${avgReadiness}%` : L("New", "Нове", "Новое", "Nouveau", "Neu"))),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 12px", textAlign: "center" } },
-        React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Next Exam"),
-        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: daysToExam != null && daysToExam <= 7 ? "#b91c1c" : "var(--text-strong)" } }, daysToExam != null ? `${daysToExam}d` : "—")),
+        React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, L("Next Exam", "Наступний іспит", "Следующий экзамен", "Prochain examen", "Nächste Prüfung")),
+        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: daysToExam != null && daysToExam <= 7 ? "var(--red-700)" : "var(--text-strong)" } }, daysToExam != null ? `${daysToExam}d` : "—")),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "14px 12px", textAlign: "center" } },
-        React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, "Reviews Due"),
-        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: dueReviews.length > 0 ? "#b45309" : "#15803d" } }, dueReviews.length))),
+        React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" } }, L("Reviews Due", "Повторень потрібно", "Повторений нужно", "Révisions dues", "Fällige Wiederholungen")),
+        React.createElement("p", { style: { margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: dueReviews.length > 0 ? "var(--amber-700)" : "var(--emerald-700)" } }, dueReviews.length))),
 
     // Today's recommendation
     recTopic && React.createElement("div", {
-      onClick: () => send(`Explain ${recTopic.topicName}`),
+      onClick: () => send(L(`Explain ${recTopic.topicName}`, `Поясни ${recTopic.topicName}`, `Объясни ${recTopic.topicName}`, `Explique ${recTopic.topicName}`, `Erkläre ${recTopic.topicName}`)),
       style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: "16px 18px", cursor: "pointer" }
     },
-      React.createElement("p", { style: { margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Today's Recommendation"),
+      React.createElement("p", { style: { margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Today's Recommendation", "Рекомендація на сьогодні", "Рекомендация на сегодня", "Recommandation du jour", "Heutige Empfehlung")),
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
         React.createElement("span", { style: { fontSize: 24 } }, recIsReview ? "📖" : "🌱"),
         React.createElement("div", { style: { flex: 1 } },
-          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, recIsReview ? `Review ${recTopic.topicName}` : `Get started with ${recTopic.topicName}`),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } }, recIsReview ? `${Math.round(recTopic.retention * 100)}% retention · ~5 min` : "New topic · ~5 min")),
-        React.createElement("span", { style: { fontSize: 13, color: "var(--indigo-600)", fontWeight: 600 } }, "Continue →"))),
+          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, recIsReview ? L(`Review ${recTopic.topicName}`, `Повтори ${recTopic.topicName}`, `Повтори ${recTopic.topicName}`, `Révise ${recTopic.topicName}`, `Wiederhole ${recTopic.topicName}`) : L(`Get started with ${recTopic.topicName}`, `Почни з ${recTopic.topicName}`, `Начни с ${recTopic.topicName}`, `Commence par ${recTopic.topicName}`, `Beginne mit ${recTopic.topicName}`)),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } }, recIsReview ? L(`${Math.round(recTopic.retention * 100)}% retention · ~5 min`, `${Math.round(recTopic.retention * 100)}% пам'яті · ~5 хв`, `${Math.round(recTopic.retention * 100)}% памяти · ~5 мин`, `${Math.round(recTopic.retention * 100)}% de rétention · ~5 min`, `${Math.round(recTopic.retention * 100)}% Merkfähigkeit · ~5 Min`) : L("New topic · ~5 min", "Нова тема · ~5 хв", "Новая тема · ~5 мин", "Nouveau sujet · ~5 min", "Neues Thema · ~5 Min"))),
+        React.createElement("span", { style: { fontSize: 13, color: "var(--indigo-600)", fontWeight: 600 } }, L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →")))),
 
     // Quick actions grid — asks which exam/topic first (via pickerFlow, see
     // startPicker below) instead of guessing weakest[0]/examViews[0] and
@@ -2596,14 +2632,14 @@ If no actions fit, omit the ACTIONS line entirely.`,
     // student had more than one exam, or any stale/mistyped exam in their
     // list — "Explain a topic" could fire off explaining a random exam.
     React.createElement("div", null,
-      React.createElement("p", { style: { margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, "Quick Actions"),
+      React.createElement("p", { style: { margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" } }, L("Quick Actions", "Швидкі дії", "Быстрые действия", "Actions rapides", "Schnellaktionen")),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } },
         ...QUICK_ACTIONS.map((a, i) => React.createElement("button", {
           key: i, onClick: () => startPicker(a.id),
           style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
         },
           React.createElement("span", { style: { fontSize: 18 } }, a.icon),
-          React.createElement("span", { style: { fontSize: 13, fontWeight: 500, color: "var(--text-body)" } }, a.text))))));
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 500, color: "var(--text-body)" } }, a.text[t?.code] || a.text.en))))));
 
   // ── Chat messages — rendered below dashboard ──
   const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 12 } },
@@ -2612,7 +2648,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
           m.role === "ai" && React.createElement(CoachIcon, { size: 28 }),
           React.createElement("div", {
-            style: { maxWidth: "80%", background: m.role === "user" ? "#4f46e5" : "var(--surface-card)", color: m.role === "user" ? "white" : "var(--text-body)", border: m.role === "user" ? "none" : "1px solid var(--border-subtle)", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: m.role === "user" ? 4 : 16, borderTopLeftRadius: m.role === "ai" ? 4 : 16, fontSize: 13, lineHeight: 1.65 },
+            style: { maxWidth: "80%", background: m.role === "user" ? "var(--indigo-600)" : "var(--surface-card)", color: m.role === "user" ? "white" : "var(--text-body)", border: m.role === "user" ? "none" : "1px solid var(--border-subtle)", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: m.role === "user" ? 4 : 16, borderTopLeftRadius: m.role === "ai" ? 4 : 16, fontSize: 13, lineHeight: 1.65 },
             dangerouslySetInnerHTML: { __html: _md(m.text) }
           })),
         // Action buttons after AI message
@@ -2626,7 +2662,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
     typing && React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
       React.createElement(CoachIcon, { size: 28 }),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "#6366f1", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
 
   // Renders the "which exam / which topic" step as an AI-styled chat bubble
   // + selectable pills, appended right below the messages — a natural part
@@ -2642,15 +2678,15 @@ If no actions fit, omit the ACTIONS line entirely.`,
 
     if (pickerFlow.step === "exam") {
       return React.createElement("div", { style: { padding: "0 20px 16px" } },
-        bubble("Which exam would you like to study?"),
+        bubble(L("Which exam would you like to study?", "Який іспит хочете вивчати?", "Какой экзамен хотите изучать?", "Quel examen voulez-vous étudier ?", "Welche Prüfung möchtest du lernen?")),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginLeft: 38 } },
           ...examViews.map((e) => React.createElement("button", {
             key: e.id, onClick: () => setPickerFlow({ ...pickerFlow, step: "topic", examId: e.id }),
             style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
           },
             React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: "var(--text-strong)" } }, e.name),
-            React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)" } }, e.daysAway != null ? `Exam in ${e.daysAway}d` : ""))),
-          cancelBtn(() => setPickerFlow(null), "Cancel")));
+            React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)" } }, e.daysAway != null ? L(`Exam in ${e.daysAway}d`, `Іспит через ${e.daysAway}д`, `Экзамен через ${e.daysAway}д`, `Examen dans ${e.daysAway}j`, `Prüfung in ${e.daysAway}T`) : ""))),
+          cancelBtn(() => setPickerFlow(null), L("Cancel", "Скасувати", "Отмена", "Annuler", "Abbrechen"))));
     }
 
     // step === "topic"
@@ -2668,22 +2704,22 @@ If no actions fit, omit the ACTIONS line entirely.`,
       style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
     },
       React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: "var(--text-strong)" } }, tp.name),
-      React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: tp.unseen ? "var(--indigo-600)" : tp.retention < 30 ? "#b91c1c" : "#b45309" } }, tp.unseen ? "New" : `${tp.retention}%`));
+      React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: tp.unseen ? "var(--indigo-600)" : tp.retention < 30 ? "var(--red-700)" : "var(--amber-700)" } }, tp.unseen ? L("New", "Нове", "Новое", "Nouveau", "Neu") : `${tp.retention}%`));
 
     return React.createElement("div", { style: { padding: "0 20px 16px" } },
-      bubble(exam ? `Great! Which topic in ${exam.name} should we focus on?` : "Which topic should we focus on?"),
+      bubble(exam ? L(`Great! Which topic in ${exam.name} should we focus on?`, `Чудово! На якій темі з ${exam.name} зосередимось?`, `Отлично! На какой теме из ${exam.name} сосредоточимся?`, `Parfait ! Sur quel sujet de ${exam.name} devrions-nous nous concentrer ?`, `Super! Auf welches Thema in ${exam.name} sollten wir uns konzentrieren?`) : L("Which topic should we focus on?", "На якій темі зосередимось?", "На какой теме сосредоточимся?", "Sur quel sujet devrions-nous nous concentrer ?", "Auf welches Thema sollten wir uns konzentrieren?")),
       React.createElement("div", { style: { marginLeft: 38, display: "flex", flexDirection: "column", gap: 10 } },
-        topics.length === 0 && React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: 0 } }, "No topics yet for this exam — try asking in your own words below."),
+        topics.length === 0 && React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: 0 } }, L("No topics yet for this exam — try asking in your own words below.", "Поки немає тем для цього іспиту — спробуйте написати своїми словами нижче.", "Пока нет тем для этого экзамена — попробуйте написать своими словами ниже.", "Pas encore de sujets pour cet examen — essayez de poser votre question ci-dessous.", "Noch keine Themen für diese Prüfung — versuche es unten mit deinen eigenen Worten.")),
         recommended.length > 0 && !q && React.createElement("div", null,
-          React.createElement("p", { style: { fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" } }, "AI Recommended"),
+          React.createElement("p", { style: { fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" } }, L("AI Recommended", "Рекомендовано AI", "Рекомендовано AI", "Recommandé par l'IA", "KI-Empfehlung")),
           React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, ...recommended.map(topicRow))),
         q && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } },
-          searched.length > 0 ? searched.map(topicRow) : React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: 0 } }, "No matching topics.")),
+          searched.length > 0 ? searched.map(topicRow) : React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: 0 } }, L("No matching topics.", "Немає відповідних тем.", "Нет подходящих тем.", "Aucun sujet correspondant.", "Keine passenden Themen."))),
         topics.length > 0 && React.createElement("input", {
-          value: pickerSearch, onChange: (e) => setPickerSearch(e.target.value), placeholder: "Search topic…",
+          value: pickerSearch, onChange: (e) => setPickerSearch(e.target.value), placeholder: L("Search topic…", "Пошук теми…", "Поиск темы…", "Rechercher un sujet…", "Thema suchen…"),
           style: { padding: "9px 12px", fontSize: 12, fontFamily: "var(--font-sans)", border: "1px solid var(--border-default)", borderRadius: 10, outline: "none", background: "var(--surface-page)" }
         }),
-        cancelBtn(() => cameFromExamStep ? setPickerFlow({ action: pickerFlow.action, step: "exam" }) : setPickerFlow(null), cameFromExamStep ? "← Back" : "Cancel")));
+        cancelBtn(() => cameFromExamStep ? setPickerFlow({ action: pickerFlow.action, step: "exam" }) : setPickerFlow(null), cameFromExamStep ? L("← Back", "← Назад", "← Назад", "← Retour", "← Zurück") : L("Cancel", "Скасувати", "Отмена", "Annuler", "Abbrechen"))));
   };
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
@@ -2692,11 +2728,11 @@ If no actions fit, omit the ACTIONS line entirely.`,
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
         React.createElement("div", { style: { position: "relative" } },
           React.createElement(CoachIcon, { size: 28 }),
-          React.createElement("div", { style: { position: "absolute", bottom: -1, right: -1, width: 10, height: 10, borderRadius: "50%", background: "#22c55e", border: "2px solid var(--surface-card)" } })),
+          React.createElement("div", { style: { position: "absolute", bottom: -1, right: -1, width: 10, height: 10, borderRadius: "50%", background: "var(--emerald-500)", border: "2px solid var(--surface-card)" } })),
         React.createElement("div", null,
-          React.createElement("span", { style: { fontSize: 14, fontWeight: 700, color: "var(--text-strong)" } }, "AI Coach"),
-          React.createElement("span", { style: { fontSize: 11, color: "#059669", marginLeft: 8 } }, "Ready to help"))),
-      React.createElement("button", { onClick: () => { try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(HISTORY_KEY); } catch {} onExit(); }, style: { background: "transparent", border: "1px solid var(--border-default)", color: "var(--text-muted)", borderRadius: 8, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)" } }, "Exit")),
+          React.createElement("span", { style: { fontSize: 14, fontWeight: 700, color: "var(--text-strong)" } }, L("AI Coach", "AI-коуч", "AI-коуч", "Coach IA", "KI-Coach")),
+          React.createElement("span", { style: { fontSize: 11, color: "var(--emerald-600)", marginLeft: 8 } }, L("Ready to help", "Готовий допомогти", "Готов помочь", "Prêt à aider", "Bereit zu helfen")))),
+      React.createElement("button", { onClick: () => { try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(HISTORY_KEY); } catch {} onExit(); }, style: { background: "transparent", border: "1px solid var(--border-default)", color: "var(--text-muted)", borderRadius: 8, padding: "3px 10px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font-sans)" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen"))),
 
     // Single scrollable area: dashboard always on top, chat messages below
     React.createElement("div", { ref: bodyRef, style: { flex: 1, overflowY: "auto", background: "var(--surface-page)" } },
@@ -2714,13 +2750,14 @@ If no actions fit, omit the ACTIONS line entirely.`,
 
     // Input area
     React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--surface-card)", display: "flex", gap: 8, alignItems: "flex-end" } },
-      React.createElement("textarea", { ref: inputRef, value: input, onChange: (e) => setInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }, placeholder: "Ask anything…", rows: 1, style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: 100, overflowY: "auto" } }),
-      React.createElement("button", { onClick: () => send(input), disabled: !input.trim() || typing, style: { background: input.trim() && !typing ? "#4f46e5" : "#c7d2fe", color: "white", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: input.trim() && !typing ? "pointer" : "default", fontFamily: "var(--font-sans)" } }, "Send")));
+      React.createElement("textarea", { ref: inputRef, value: input, onChange: (e) => setInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }, placeholder: L("Ask anything…", "Запитайте що завгодно…", "Спросите что угодно…", "Posez toutes vos questions…", "Frag alles…"), rows: 1, style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: 100, overflowY: "auto" } }),
+      React.createElement("button", { onClick: () => send(input), disabled: !input.trim() || typing, style: { background: input.trim() && !typing ? "var(--indigo-600)" : "var(--indigo-200)", color: "white", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: input.trim() && !typing ? "pointer" : "default", fontFamily: "var(--font-sans)" } }, L("Send", "Надіслати", "Отправить", "Envoyer", "Senden"))));
 }
 
 // ─── MAIN ROUTER ─────────────────────────────────────────────────────────────
 
 function AIChat({ t, initialQuery, onConsumeQuery }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [mode, setMode] = React.useState(null);
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
@@ -2761,16 +2798,17 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const exitToQueue = () => setReviewTopic(null);
 
   // Active mode screens
-  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby });
-  if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery: pendingChatQuery });
+  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby, t });
+  if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery: pendingChatQuery, t });
 
   // Review mode — Quick Check session from the queue
   if (mode === "review" && reviewTopic) {
     const isQuick = reviewTopic === "__quick__";
-    const quickTopic = isQuick ? ((brain.dueReviews || [])[0]?.topicName || (brain.weakestTopics || [])[0]?.topicName || "General review") : null;
+    const quickTopic = isQuick ? ((brain.dueReviews || [])[0]?.topicName || (brain.weakestTopics || [])[0]?.topicName || L("General review", "Загальний огляд", "Общий обзор", "Révision générale", "Allgemeine Wiederholung")) : null;
     return React.createElement(QuickCheckEngine, {
       topic: isQuick ? quickTopic : reviewTopic,
       onExit: exitToQueue,
+      t,
     });
   }
 
@@ -2785,9 +2823,9 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     const daysAgo = (iso) => {
       if (!iso) return null;
       const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-      return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
+      return d <= 0 ? L("today", "сьогодні", "сегодня", "aujourd'hui", "heute") : d === 1 ? L("yesterday", "вчора", "вчера", "hier", "gestern") : L(`${d} days ago`, `${d} дн. тому`, `${d} дн. назад`, `il y a ${d} jours`, `vor ${d} Tagen`);
     };
-    const retColor = (r) => r < 0.3 ? { fg: "#b91c1c", bg: "#fef2f2", bar: "#ef4444" } : r < 0.5 ? { fg: "#b45309", bg: "#fffbeb", bar: "#f59e0b" } : { fg: "#a16207", bg: "#fefce8", bar: "#eab308" };
+    const retColor = (r) => r < 0.3 ? { fg: "var(--red-700)", bg: "var(--red-50)", bar: "var(--red-500)" } : r < 0.5 ? { fg: "var(--amber-700)", bg: "var(--amber-50)", bar: "var(--amber-500)" } : { fg: "var(--amber-700)", bg: "var(--amber-50)", bar: "var(--subject-yellow)" };
     const rowFor = (tp, i) => {
       const c = retColor(tp.retention);
       const pct = Math.round(tp.retention * 100);
@@ -2802,56 +2840,56 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
           React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, tp.topicName),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--text-muted)" } },
-            `${tp.examName}${tp.lastSeen ? ` · last seen ${daysAgo(tp.lastSeen)}` : ""}`)),
-        React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--indigo-600)", flexShrink: 0 } }, "Check →"));
+            `${tp.examName}${tp.lastSeen ? ` · ${L(`last seen ${daysAgo(tp.lastSeen)}`, `востаннє ${daysAgo(tp.lastSeen)}`, `последний раз ${daysAgo(tp.lastSeen)}`, `vu ${daysAgo(tp.lastSeen)}`, `zuletzt ${daysAgo(tp.lastSeen)}`)}` : ""}`)),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--indigo-600)", flexShrink: 0 } }, L("Check →", "Перевірити →", "Проверить →", "Vérifier →", "Prüfen →")));
     };
 
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
         React.createElement("button", { onClick: exitToLobby, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "⚡ Quick Check")),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("⚡ Quick Check", "⚡ Швидка перевірка", "⚡ Быстрая проверка", "⚡ Vérification rapide", "⚡ Schnelltest"))),
       React.createElement("p", { style: { margin: "0 0 14px 28px", fontSize: 13, color: "var(--text-muted)" } },
         queue.length > 0
-          ? `${queue.length} ${queue.length === 1 ? "topic is" : "topics are"} fading — weakest first.`
-          : "Nothing is due right now."),
+          ? L(`${queue.length} ${queue.length === 1 ? "topic is" : "topics are"} fading — weakest first.`, `${queue.length} ${queue.length === 1 ? "тема забувається" : "тем забуваються"} — спочатку найслабші.`, `${queue.length} ${queue.length === 1 ? "тема забывается" : "тем забываются"} — сначала самые слабые.`, `${queue.length} sujet(s) s'estompe(nt) — les plus faibles en premier.`, `${queue.length} Thema(en) verblasst/verblassen — schwächste zuerst.`)
+          : L("Nothing is due right now.", "Наразі нічого не потребує повторення.", "Сейчас ничего не требует повторения.", "Rien à réviser pour le moment.", "Momentan nichts fällig.")),
 
       // Quick Check all button
       (queue.length > 0 || weakFallback.length > 0) && React.createElement("button", {
         onClick: () => setReviewTopic("__quick__"),
-        style: { display: "flex", alignItems: "center", gap: 12, margin: "0 0 16px", padding: "14px 18px", background: "linear-gradient(135deg,#eef2ff,#e0e7ff)", border: "1.5px solid var(--indigo-500)", borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%" }
+        style: { display: "flex", alignItems: "center", gap: 12, margin: "0 0 16px", padding: "14px 18px", background: "linear-gradient(135deg,var(--indigo-50),var(--indigo-100))", border: "1.5px solid var(--indigo-500)", borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%" }
       },
         React.createElement("span", { style: { fontSize: 24 } }, "⚡"),
         React.createElement("div", { style: { flex: 1, textAlign: "left" } },
-          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 700, color: "var(--indigo-700)" } }, "Quick Check — All Topics"),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--indigo-600)" } }, "5 questions · ~2 min · see your score")),
-        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, "Go →")),
+          React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 700, color: "var(--indigo-700)" } }, L("Quick Check — All Topics", "Швидка перевірка — усі теми", "Быстрая проверка — все темы", "Vérification rapide — tous les sujets", "Schnelltest — alle Themen")),
+          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 12, color: "var(--indigo-600)" } }, L("5 questions · ~2 min · see your score", "5 питань · ~2 хв · дізнайтесь свій результат", "5 вопросов · ~2 мин · узнайте свой результат", "5 questions · ~2 min · voyez votre score", "5 Fragen · ~2 Min. · sieh dein Ergebnis"))),
+        React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" } }, L("Go →", "Почати →", "Начать →", "Aller →", "Los →"))),
 
       queue.length > 0 && React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...queue.map(rowFor)),
 
       queue.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "32px 0" } },
         React.createElement("span", { style: { fontSize: 44 } }, "🌱"),
-        React.createElement("p", { style: { margin: "12px 0 4px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, "All memories fresh!"),
-        React.createElement("p", { style: { margin: "0 0 20px", fontSize: 13, color: "var(--text-muted)" } }, "Come back later — or sharpen your weakest topics now.")),
+        React.createElement("p", { style: { margin: "12px 0 4px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, L("All memories fresh!", "Усі знання свіжі!", "Все знания свежие!", "Toutes les connaissances sont fraîches !", "Alles frisch im Gedächtnis!")),
+        React.createElement("p", { style: { margin: "0 0 20px", fontSize: 13, color: "var(--text-muted)" } }, L("Come back later — or sharpen your weakest topics now.", "Поверніться пізніше — або підтягніть свої слабкі теми зараз.", "Вернитесь позже — или подтяните свои слабые темы сейчас.", "Revenez plus tard — ou améliorez vos sujets les plus faibles maintenant.", "Komm später wieder — oder verbessere jetzt deine schwächsten Themen."))),
       queue.length === 0 && weakFallback.length > 0 && React.createElement("div", null,
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, "Weakest topics"),
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L("Weakest topics", "Найслабші теми", "Самые слабые темы", "Sujets les plus faibles", "Schwächste Themen")),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
           ...weakFallback.map(rowFor))));
   }
 
   // Practice mode — full exam simulator with confidence + why
   if (mode === "practice") {
-    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby });
+    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby, t });
   }
 
   // Speed Round mode
   if (mode === "speed") {
-    return React.createElement(SpeedRoundEngine, { examViews, onExit: exitToLobby });
+    return React.createElement(SpeedRoundEngine, { examViews, onExit: exitToLobby, t });
   }
 
   // Exam Simulation — full timed mock exam covering ALL topics of one subject
   if (mode === "exam_sim") {
-    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby });
+    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby, t });
   }
 
   // Topic picker for Learn mode
@@ -2865,10 +2903,10 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px" } },
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
         React.createElement("button", { onClick: () => setTopicPicker(false), style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, "What do you want to learn?")),
+        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("What do you want to learn?", "Що хочете вивчити?", "Что хотите изучить?", "Que voulez-vous apprendre ?", "Was möchtest du lernen?"))),
 
       suggested.length > 0 && React.createElement("div", { style: { marginBottom: 20 } },
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, "Recommended for you"),
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L("Recommended for you", "Рекомендовано для вас", "Рекомендовано для вас", "Recommandé pour vous", "Für dich empfohlen")),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
           ...suggested.map((tp, i) => React.createElement("button", {
             key: i, onClick: () => { setTopic(tp.name); setTopicPicker(false); setMode("learn"); },
@@ -2877,22 +2915,24 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
             React.createElement("div", null,
               React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, tp.name),
               React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", marginLeft: 8 } }, tp.exam)),
-            React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: tp.unseen ? "var(--indigo-600)" : tp.retention < 30 ? "#b91c1c" : "#b45309" } },
-              tp.unseen ? "New" : `${tp.retention}%`))))),
+            React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: tp.unseen ? "var(--indigo-600)" : tp.retention < 30 ? "var(--red-700)" : "var(--amber-700)" } },
+              tp.unseen ? L("New", "Нове", "Новое", "Nouveau", "Neu") : `${tp.retention}%`))))),
 
       allTopics.length > 0 && React.createElement("div", null,
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, "All topics"),
+        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L("All topics", "Усі теми", "Все темы", "Tous les sujets", "Alle Themen")),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" } },
           ...allTopics.map((tp, i) => React.createElement("button", {
             key: i, onClick: () => { setTopic(tp.name); setTopicPicker(false); setMode("learn"); },
             style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "transparent", border: "none", borderBottom: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
           },
             React.createElement("span", { style: { fontSize: 13, color: "var(--text-body)" } }, `${tp.name} · ${tp.exam}`),
-            React.createElement("span", { style: { fontSize: 11, color: tp.unseen ? "var(--indigo-600)" : "var(--text-muted)" } }, tp.unseen ? "New" : `${tp.retention}%`))))));
+            React.createElement("span", { style: { fontSize: 11, color: tp.unseen ? "var(--indigo-600)" : "var(--text-muted)" } }, tp.unseen ? L("New", "Нове", "Новое", "Nouveau", "Neu") : `${tp.retention}%`))))));
   }
 
   // ─── LOBBY ─────────────────────────────────────────────────────────────────
-  const greeting = name ? `Hey ${name}!` : "Hey!";
+  const greeting = name
+    ? L(`Hey ${name}! What do you want to do?`, `Привіт, ${name}! Що будемо робити?`, `Привет, ${name}! Что будем делать?`, `Salut ${name} ! Que veux-tu faire ?`, `Hallo ${name}! Was möchtest du tun?`)
+    : L("Hey! What do you want to do?", "Привіт! Що будемо робити?", "Привет! Что будем делать?", "Salut ! Que veux-tu faire ?", "Hallo! Was möchtest du tun?");
   const urgentReview = dueReviews.length > 0 ? dueReviews[0] : null;
   const xpData = window.xpLevel ? window.xpLevel() : null;
   const xpPct = xpData ? Math.round((xpData.into / xpData.need) * 100) : 0;
@@ -2901,25 +2941,25 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     // Hero
     React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
       React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("h1", { style: { margin: "16px 0 4px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, `${greeting} What do you want to do?`),
-      React.createElement("p", { style: { margin: 0, fontSize: 14, color: "var(--text-muted)" } }, "Your AI Coach is ready."),
+      React.createElement("h1", { style: { margin: "16px 0 4px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, greeting),
+      React.createElement("p", { style: { margin: 0, fontSize: 14, color: "var(--text-muted)" } }, L("Your AI Coach is ready.", "Ваш AI-коуч готовий.", "Ваш AI-коуч готов.", "Votre coach IA est prêt.", "Dein KI-Coach ist bereit.")),
       xpData && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, margin: "14px auto 0", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 16px", maxWidth: 240 } },
         React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "4px 8px", borderRadius: 8, letterSpacing: "0.04em", whiteSpace: "nowrap" } }, `LV ${xpData.level}`),
         React.createElement("div", { style: { flex: 1 } },
           React.createElement("div", { style: { height: 6, background: "var(--border-subtle)", borderRadius: 3, overflow: "hidden" } },
-            React.createElement("div", { style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,#6366f1,#7c3aed)", borderRadius: 3 } })),
+            React.createElement("div", { style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3 } })),
           React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0", textAlign: "right" } }, `${xpData.into}/${xpData.need} XP`)))),
 
     // Urgent review nudge
     urgentReview && React.createElement("div", {
       onClick: () => { setReviewTopic(urgentReview.topicName); setMode("review"); },
-      style: { margin: "0 20px 16px", padding: "12px 16px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }
+      style: { margin: "0 20px 16px", padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }
     },
       React.createElement("span", { style: { fontSize: 20 } }, "⚡"),
       React.createElement("div", { style: { flex: 1 } },
-        React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "#92400e" } }, `${urgentReview.topicName} is fading`),
-        React.createElement("p", { style: { margin: 0, fontSize: 12, color: "#b45309" } }, `${Math.round(urgentReview.retention * 100)}% retention — review now`)),
-      React.createElement("span", { style: { fontSize: 12, color: "#92400e", fontWeight: 600 } }, "→")),
+        React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "var(--amber-700)" } }, L(`${urgentReview.topicName} is fading`, `${urgentReview.topicName} забувається`, `${urgentReview.topicName} забывается`, `${urgentReview.topicName} s'estompe`, `${urgentReview.topicName} verblasst`)),
+        React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--amber-700)" } }, L(`${Math.round(urgentReview.retention * 100)}% retention — review now`, `${Math.round(urgentReview.retention * 100)}% утримання — повторіть зараз`, `${Math.round(urgentReview.retention * 100)}% удержания — повторите сейчас`, `${Math.round(urgentReview.retention * 100)}% de rétention — révisez maintenant`, `${Math.round(urgentReview.retention * 100)}% Behalten — jetzt wiederholen`))),
+      React.createElement("span", { style: { fontSize: 12, color: "var(--amber-700)", fontWeight: 600 } }, "→")),
 
     // Mode cards
     React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
@@ -2932,8 +2972,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "border-color 0.15s" }
       },
         React.createElement("span", { style: { fontSize: 32 } }, m.emoji),
-        React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--text-strong)" } }, m.label),
-        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc)))));
+        React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--text-strong)" } }, m.label[t?.code] || m.label.en),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc[t?.code] || m.desc.en)))));
 }
 
 Object.assign(window, { AIChat, CoachIcon, LearnEngine });

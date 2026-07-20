@@ -1,6 +1,8 @@
 /* ============================================================
-   AI Exam Coach — Spacing, radii, shadows
-   Tailwind-derived 4px scale; rounded-xl/2xl cards; soft shadows.
+   AI Exam Coach — Spacing, radii, shadows · "FintechX" redesign
+   4px scale kept; radii bumped one visual step (cards read as
+   soft 16–24px slabs); shadows became large, diffuse and barely
+   tinted — depth by blur, not by darkness.
    ============================================================ */
 :root {
   /* ---- Spacing (4px base) ---- */
@@ -17,17 +19,17 @@
   --space-16: 4rem;     /* 64 */
 
   /* ---- Radii ---- */
-  --radius-sm:   4px;    /* focus ring / tiny chips */
-  --radius-md:   6px;    /* nav items, small buttons */
-  --radius-lg:   8px;    /* buttons, inputs */
-  --radius-xl:   12px;   /* cards, badges */
-  --radius-2xl:  16px;   /* feature cards, modals, onboarding */
+  --radius-sm:   6px;    /* focus ring / tiny chips */
+  --radius-md:   10px;   /* nav items, small buttons */
+  --radius-lg:   12px;   /* buttons, inputs */
+  --radius-xl:   16px;   /* cards, badges */
+  --radius-2xl:  24px;   /* feature cards, modals, onboarding */
   --radius-full: 9999px; /* pills, dots, avatars */
 
-  /* ---- Shadows (soft, low-contrast) ---- */
-  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.10), 0 4px 6px -4px rgba(15, 23, 42, 0.06);
+  /* ---- Shadows (large, diffuse, ink-tinted) ---- */
+  --shadow-sm: 0 1px 2px rgba(14, 21, 18, 0.04), 0 8px 24px -12px rgba(14, 21, 18, 0.10);
+  --shadow-md: 0 2px 4px rgba(14, 21, 18, 0.04), 0 16px 40px -16px rgba(14, 21, 18, 0.14);
+  --shadow-lg: 0 4px 8px rgba(14, 21, 18, 0.05), 0 32px 64px -24px rgba(14, 21, 18, 0.18);
 
   /* ---- Layout ---- */
   --container-app:  64rem;   /* 1024 — app content max width (max-w-5xl) */

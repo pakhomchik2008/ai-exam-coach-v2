@@ -87,13 +87,13 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
   const fieldErr = { margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)" };
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(to bottom, var(--indigo-50), #FAF5FF)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-5)" }}>
+    <div style={{ minHeight: "100vh", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-5)" }}>
       <style>{`@keyframes authShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}@keyframes authRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes authSpin{to{transform:rotate(360deg)}}`}</style>
-      <form onSubmit={submit} style={{ width: "100%", maxWidth: 420, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)", animation: "authRise var(--dur-normal) var(--ease-out)" }}>
+      <form onSubmit={submit} style={{ width: "100%", maxWidth: 420, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)", animation: "authRise var(--dur-normal) var(--ease-out)" }}>
 
         <div>
           <button type="button" onClick={onBack} style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0, marginBottom: "var(--space-3)" }}>← {L("Back", "Назад", "Назад", "Retour", "Zurück")}</button>
-          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{isSignUp ? L("Create your account", "Створіть акаунт", "Создайте аккаунт", "Créez votre compte", "Erstelle dein Konto") : L("Welcome back", "З поверненням", "С возвращением", "Content de vous revoir", "Willkommen zurück")}</h1>
+          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{isSignUp ? L("Create your account", "Створіть акаунт", "Создайте аккаунт", "Créez votre compte", "Erstelle dein Konto") : L("Welcome back", "З поверненням", "С возвращением", "Content de vous revoir", "Willkommen zurück")}</h1>
           <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{isSignUp ? L("A few details and your study plan is ready.", "Кілька деталей — і ваш план готовий.", "Пара деталей — и ваш план готов.", "Quelques détails et votre plan est prêt.", "Ein paar Angaben und dein Plan ist fertig.") : L("Log in to pick up where you left off.", "Увійдіть, щоб продовжити з того місця.", "Войдите, чтобы продолжить с того места.", "Connectez-vous pour reprendre où vous en étiez.", "Melde dich an, um dort weiterzumachen, wo du aufgehört hast.")}</p>
         </div>
 
@@ -102,14 +102,14 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
           {["signup", "login"].map((m) => (
             <button key={m} type="button" onClick={() => onSwitchMode(m)}
               style={{ flex: 1, padding: "8px 0", borderRadius: "var(--radius-lg)", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", transition: "background var(--dur-fast) ease, color var(--dur-fast) ease",
-                background: mode === m ? "var(--surface-card)" : "transparent", color: mode === m ? "var(--indigo-700)" : "var(--text-muted)", boxShadow: mode === m ? "var(--shadow-sm)" : "none" }}>
+                background: mode === m ? "var(--surface-card)" : "transparent", color: mode === m ? "var(--text-strong)" : "var(--text-muted)", boxShadow: mode === m ? "var(--shadow-sm)" : "none" }}>
               {m === "signup" ? L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren") : L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}
             </button>
           ))}
         </div>
 
         {formError && (
-          <div style={{ borderRadius: "var(--radius-lg)", background: "#FFF1F2", border: "1px solid var(--red-200)", padding: "10px 14px", fontSize: "var(--text-sm)", color: "var(--red-700)", animation: shake ? "authShake 0.4s ease" : "none" }}>
+          <div style={{ borderRadius: "var(--radius-lg)", background: "var(--rose-50)", border: "1px solid var(--red-200)", padding: "10px 14px", fontSize: "var(--text-sm)", color: "var(--red-700)", animation: shake ? "authShake 0.4s ease" : "none" }}>
             ⚠️ {formError}
           </div>
         )}
@@ -169,7 +169,7 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
         </div>
 
         <button type="submit" disabled={submitting}
-          style={{ width: "100%", padding: "14px", borderRadius: "var(--radius-xl)", border: "none", background: submitting ? "var(--slate-300)" : "var(--indigo-600)", color: "#fff", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-base)", cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          style={{ width: "100%", padding: "14px", borderRadius: "var(--radius-full)", border: "none", background: submitting ? "var(--slate-300)" : "var(--ink-900)", color: "#fff", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-base)", cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "var(--shadow-md)" }}>
           {submitting && <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.5)", borderTopColor: "#fff", animation: "authSpin 0.7s linear infinite" }} />}
           {submitting
             ? (isSignUp ? L("Creating account…", "Створення акаунту…", "Создание аккаунта…", "Création du compte…", "Konto wird erstellt…") : L("Signing in…", "Вхід…", "Вход…", "Connexion…", "Anmeldung…"))
@@ -192,7 +192,6 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
 }
 
 function Landing({ onContinue, t, lang, onLangChange }) {
-  const { Button } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [view, setView] = React.useState("marketing"); // "marketing" | "signup" | "login"
   const langs = Object.values(window.LANGS || {});
@@ -248,13 +247,36 @@ function Landing({ onContinue, t, lang, onLangChange }) {
     );
   }
 
+  const pillBtn = (filled) => ({
+    border: filled ? "none" : "1px solid var(--border-strong)",
+    background: filled ? "var(--ink-900)" : "var(--surface-card)",
+    color: filled ? "var(--text-invert)" : "var(--text-strong)",
+    borderRadius: "var(--radius-full)", cursor: "pointer",
+    padding: "14px 30px", fontSize: "var(--text-base)",
+    fontWeight: "var(--weight-semibold)", fontFamily: "var(--font-sans)",
+    boxShadow: filled ? "var(--shadow-md)" : "var(--shadow-sm)",
+    transition: "transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)",
+  });
+
   return (
-    <div style={{ maxWidth: "42rem", margin: "0 auto", padding: "var(--space-12) var(--space-6)" }}>
-      {langPicker}
+    <div style={{ maxWidth: "58rem", margin: "0 auto", padding: "var(--space-10) var(--space-6) var(--space-12)" }}>
+      {/* Mini-nav: brand mark left, language picker right */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-16)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: "var(--font-display)", fontWeight: "var(--weight-bold)", fontSize: "var(--text-lg)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>
+          {window.NavLogoMark ? <window.NavLogoMark /> : null}
+          <span>AI Exam Coach</span>
+        </div>
+        {langPicker}
+      </div>
+
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: "var(--text-5xl)", marginBottom: "var(--space-4)" }} aria-hidden="true">📚</div>
-        <h1 style={{ margin: 0, fontSize: "var(--text-4xl)", fontWeight: "var(--weight-bold)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{L("Study smarter, not longer", "Навчайтесь розумніше, а не довше", "Учитесь умнее, а не дольше", "Étudiez plus intelligemment, pas plus longtemps", "Klüger lernen, nicht länger")}</h1>
-        <p style={{ margin: "var(--space-3) auto 0", maxWidth: "32rem", fontSize: "var(--text-lg)", color: "var(--text-muted)" }}>
+        {/* Eyebrow chip — FintechX "Core features" style */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-sm)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", letterSpacing: "var(--tracking-wide)", textTransform: "uppercase", color: "var(--indigo-600)", marginBottom: "var(--space-5)" }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--emerald-500)" }} />
+          AI Exam Coach
+        </div>
+        <h1 style={{ margin: 0, fontSize: "clamp(2.4rem, 5.5vw, 3.6rem)", fontWeight: "var(--weight-bold)", letterSpacing: "var(--tracking-tight)", lineHeight: "var(--leading-tight)", color: "var(--text-strong)", fontFamily: "var(--font-display)" }}>{L("Study smarter, not longer", "Навчайтесь розумніше, а не довше", "Учитесь умнее, а не дольше", "Étudiez plus intelligemment, pas plus longtemps", "Klüger lernen, nicht länger")}</h1>
+        <p style={{ margin: "var(--space-4) auto 0", maxWidth: "34rem", fontSize: "var(--text-lg)", lineHeight: "var(--leading-normal)", color: "var(--text-muted)" }}>
           {L("Your AI coach builds a day-by-day study plan that adapts as you go. Add a course, set your exam date, and start revising.",
             "Ваш AI-коуч створює щоденний план навчання, який підлаштовується на ходу. Додайте курс, встановіть дату іспиту й починайте повторення.",
             "Ваш AI-коуч создаёт ежедневный план обучения, который подстраивается на ходу. Добавьте курс, установите дату экзамена и начните повторение.",
@@ -262,22 +284,36 @@ function Landing({ onContinue, t, lang, onLangChange }) {
             "Dein KI-Coach erstellt einen Tag-für-Tag-Lernplan, der sich unterwegs anpasst. Füge einen Kurs hinzu, lege dein Prüfungsdatum fest und beginne mit dem Lernen.")}
         </p>
         <div style={{ marginTop: "var(--space-8)", display: "flex", justifyContent: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
-          <Button variant="primary" size="lg" onClick={() => setView("signup")}>{L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren")}</Button>
-          <Button variant="secondary" size="lg" onClick={() => setView("login")}>{L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}</Button>
+          <button style={pillBtn(true)} onClick={() => setView("signup")}>{L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren")} →</button>
+          <button style={pillBtn(false)} onClick={() => setView("login")}>{L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}</button>
         </div>
-        <button onClick={startDemo} style={{ marginTop: "var(--space-4)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
+        <button onClick={startDemo} style={{ marginTop: "var(--space-5)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
           {L("Try demo — no account needed →", "Спробувати демо — без акаунту →", "Попробовать демо — без аккаунта →", "Essayer la démo — sans compte →", "Demo ausprobieren — kein Konto nötig →")}
         </button>
       </div>
 
-      <div style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-6)", gridTemplateColumns: "repeat(3, 1fr)" }}>
-        {features.map((f) => (
-          <div key={f.title} style={{ borderRadius: "var(--radius-2xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-5)", textAlign: "center" }}>
-            <div style={{ fontSize: "var(--text-3xl)", marginBottom: "var(--space-2)" }} aria-hidden="true">{f.icon}</div>
-            <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{f.title}</h3>
-            <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{f.body}</p>
-          </div>
-        ))}
+      <div style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-5)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        {features.map((f, i) => {
+          // Middle card gets the FintechX "dark insight card" treatment.
+          const dark = i === 1;
+          return (
+            <div key={f.title} style={{
+              borderRadius: "var(--radius-2xl)",
+              border: dark ? "1px solid var(--ink-700)" : "1px solid var(--border-default)",
+              background: dark ? "var(--surface-ink)" : "var(--surface-card)",
+              boxShadow: dark ? "var(--shadow-lg)" : "var(--shadow-sm)",
+              padding: "var(--space-6)", textAlign: "left",
+            }}>
+              <div aria-hidden="true" style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 44, height: 44, borderRadius: 14, fontSize: "var(--text-xl)",
+                background: dark ? "var(--ink-700)" : "var(--indigo-50)", marginBottom: "var(--space-4)",
+              }}>{f.icon}</div>
+              <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", fontSize: "var(--text-lg)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: dark ? "var(--text-invert)" : "var(--text-strong)" }}>{f.title}</h3>
+              <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-sm)", lineHeight: "var(--leading-normal)", color: dark ? "var(--text-on-ink-muted)" : "var(--text-muted)" }}>{f.body}</p>
+            </div>
+          );
+        })}
       </div>
       <p style={{ marginTop: "var(--space-12)", textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L("Free · Open Source · No ads", "Безкоштовно · Відкритий код · Без реклами", "Бесплатно · Открытый код · Без рекламы", "Gratuit · Open Source · Sans publicité", "Kostenlos · Open Source · Keine Werbung")}</p>
     </div>

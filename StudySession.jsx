@@ -2,11 +2,54 @@
 // AI chat tutor. The chat makes the student THINK during the session (not just
 // passively read), and passes the conversation to the recap so every session
 // leaves a real record of what was discussed.
-function StudySession({ session, onDone, onCancel, t }) {
-  const { RatingButtons, Button } = window.AIExamCoachDesignSystem_99e467;
-  const [seconds, setSeconds] = React.useState(0);
+function StudySession({ session, startedAt, onDone, onCancel, t }) {
+  // Timer is anchored to startedAt (from session-store) — surviving remounts,
+  // tab switches and full page reloads. Falls back to "now" for direct use.
+  const anchorRef = React.useRef(startedAt || Date.now());
+  const [seconds, setSeconds] = React.useState(() => Math.max(0, Math.floor((Date.now() - anchorRef.current) / 1000)));
   const [showRating, setShowRating] = React.useState(false);
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+
+  // Own buttons — no dependency on the legacy _ds_bundle design system.
+  const Button = ({ variant = "primary", size, fullWidth, onClick, children, style }) => (
+    <button type="button" onClick={onClick} style={{
+      flex: fullWidth ? 1 : "none", minHeight: size === "lg" ? 52 : 44,
+      padding: size === "lg" ? "14px 24px" : "10px 18px",
+      borderRadius: "var(--radius-full)", fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)",
+      cursor: "pointer", fontFamily: "var(--font-sans)",
+      border: variant === "secondary" ? "1px solid var(--border-strong)" : "none",
+      background: variant === "secondary" ? "var(--surface-card)" : "var(--ink-900)",
+      color: variant === "secondary" ? "var(--text-strong)" : "#fff",
+      boxShadow: variant === "secondary" ? "var(--shadow-sm)" : "var(--shadow-md)",
+      ...style,
+    }}>{children}</button>
+  );
+
+  // SM-2 self-grade cards, fully localized (the old bundle version was
+  // English-only).
+  const RatingButtons = ({ onRate }) => {
+    const ratings = [
+      { v: 1, key: "blackout", color: "var(--rate-blackout)", label: L("Blackout", "Провал", "Провал", "Trou noir", "Blackout"), sub: L("Had no idea", "Зовсім не пам'ятав", "Совсем не помнил", "Aucune idée", "Keine Ahnung") },
+      { v: 2, key: "hard", color: "var(--rate-hard)", label: L("Hard", "Важко", "Сложно", "Difficile", "Schwer"), sub: L("Remembered with difficulty", "Згадав із зусиллям", "Вспомнил с трудом", "Retenu avec difficulté", "Mühsam erinnert") },
+      { v: 3, key: "good", color: "var(--rate-good)", label: L("Good", "Добре", "Хорошо", "Bien", "Gut"), sub: L("Remembered with some effort", "Згадав із невеликим зусиллям", "Вспомнил с небольшим усилием", "Retenu avec un peu d'effort", "Mit etwas Mühe erinnert") },
+      { v: 4, key: "easy", color: "var(--rate-easy)", label: L("Easy", "Легко", "Легко", "Facile", "Leicht"), sub: L("Knew it perfectly", "Знав ідеально", "Знал идеально", "Su parfaitement", "Perfekt gewusst") },
+    ];
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "var(--space-3)" }}>
+        {ratings.map((r) => (
+          <button key={r.v} type="button" onClick={() => onRate(r.v)} style={{
+            textAlign: "left", padding: "var(--space-4)", border: "none", cursor: "pointer",
+            borderRadius: "var(--radius-xl)", background: r.color, color: "#fff",
+            fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
+            transition: "transform var(--dur-fast) var(--ease-out)",
+          }}>
+            <span style={{ display: "block", fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)" }}>{r.label}</span>
+            <span style={{ display: "block", fontSize: "var(--text-xs)", opacity: 0.85, marginTop: 2 }}>{r.sub}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   const s = session;
 
@@ -92,10 +135,10 @@ ${examBoard ? `Exam board: ${examBoard}\n` : ""}Difficulty (1=easy,3=hard): ${s.
   const chatInputRef = React.useRef(null);
 
   const QUICK_PROMPTS = [
-    `What are the key ideas in ${s.topic}?`,
-    "Quiz me on this",
-    "I'm stuck — give me a hint",
-    "Why does this come up in exams?",
+    L(`What are the key ideas in ${s.topic}?`,`Які ключові ідеї в темі ${s.topic}?`,`Какие ключевые идеи в теме ${s.topic}?`,`Quelles sont les idées clés de ${s.topic} ?`,`Was sind die Kernideen von ${s.topic}?`),
+    L("Quiz me on this","Перевір мене з цього","Проверь меня по этому","Interroge-moi là-dessus","Frag mich dazu ab"),
+    L("I'm stuck — give me a hint","Я застряг — дай підказку","Я застрял — дай подсказку","Je bloque — un indice","Ich hänge fest — gib mir einen Hinweis"),
+    L("Why does this come up in exams?","Чому це буває на іспитах?","Почему это бывает на экзаменах?","Pourquoi ça tombe aux examens ?","Warum kommt das in Prüfungen vor?"),
   ];
 
   React.useEffect(() => {
@@ -139,7 +182,10 @@ Rules:
     return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
   };
 
-  // ── Timer — pauses during rating + active quiz, NOT during chat ───────────
+  // ── Timer — visually pauses during rating + active quiz, NOT during chat.
+  // On resume it re-syncs to the startedAt anchor so a minimize/restore or
+  // reload never loses elapsed time (the quiz-pause is a display nicety; the
+  // wall-clock anchor is the source of truth across remounts).
   React.useEffect(() => {
     if (showRating || activeQuizIdx !== null) return;
     const i = setInterval(() => setSeconds((sec) => sec + 1), 1000);
@@ -207,8 +253,8 @@ Rules:
               width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "13px 16px",
               borderRadius: chatOpen ? "var(--radius-xl) var(--radius-xl) 0 0" : "var(--radius-xl)",
-              border: "1.5px solid #c7d2fe",
-              background: chatOpen ? "linear-gradient(135deg,#6366f1,#4f46e5)" : "var(--indigo-50)",
+              border: "1.5px solid var(--indigo-200)",
+              background: chatOpen ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--indigo-50)",
               color: chatOpen ? "#fff" : "var(--indigo-700)",
               fontFamily: "var(--font-sans)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)",
               cursor: "pointer", transition: "all 0.2s ease",
@@ -230,14 +276,14 @@ Rules:
 
           {/* Chat panel */}
           {chatOpen && (
-            <div style={{ border: "1.5px solid #c7d2fe", borderTop: "none", borderRadius: "0 0 var(--radius-xl) var(--radius-xl)", background: "var(--surface-card)", animation: "revealUp 0.2s ease-out" }}>
+            <div style={{ border: "1.5px solid var(--indigo-200)", borderTop: "none", borderRadius: "0 0 var(--radius-xl) var(--radius-xl)", background: "var(--surface-card)", animation: "revealUp 0.2s ease-out" }}>
 
               {/* Message list */}
               <div style={{ maxHeight: 320, overflowY: "auto", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 10 }}>
                 {chatMessages.map((msg, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-end" }}>
                     {msg.role === "assistant" && (
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(99,102,241,0.3)" }}>🤖</div>
+                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(34,124,99,0.3)" }}>🤖</div>
                     )}
                     <div style={{
                       maxWidth: "80%", padding: "10px 14px", lineHeight: 1.55, fontSize: "var(--text-sm)",
@@ -245,7 +291,7 @@ Rules:
                       background: msg.role === "user" ? "var(--indigo-600)" : "var(--surface-page)",
                       color: msg.role === "user" ? "#fff" : "var(--text-body)",
                       border: msg.role === "user" ? "none" : "1px solid var(--border-subtle)",
-                      boxShadow: msg.role === "user" ? "0 2px 8px rgba(99,102,241,0.25)" : "none",
+                      boxShadow: msg.role === "user" ? "0 2px 8px rgba(34,124,99,0.25)" : "none",
                     }}>
                       {renderText(msg.content)}
                     </div>
@@ -255,10 +301,10 @@ Rules:
                 {/* Typing indicator */}
                 {chatLoading && (
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🤖</div>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🤖</div>
                     <div style={{ padding: "12px 16px", borderRadius: "18px 18px 18px 4px", background: "var(--surface-page)", border: "1px solid var(--border-subtle)", display: "flex", gap: 4, alignItems: "center" }}>
                       {[0, 1, 2].map((j) => (
-                        <span key={j} style={{ width: 7, height: 7, borderRadius: "50%", background: "#a5b4fc", display: "inline-block", animation: `loadDot 1.2s ${j * 0.2}s ease-in-out infinite` }} />
+                        <span key={j} style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-200)", display: "inline-block", animation: `loadDot 1.2s ${j * 0.2}s ease-in-out infinite` }} />
                       ))}
                     </div>
                   </div>
@@ -272,7 +318,7 @@ Rules:
                   <p style={{ width: "100%", margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "var(--weight-medium)" }}>{L("Quick start:","Швидкий старт:","Быстрый старт:","Démarrage rapide :","Schnellstart:")}</p>
                   {QUICK_PROMPTS.map((p, i) => (
                     <button key={i} onClick={() => sendChat(p)}
-                      style={{ padding: "6px 13px", borderRadius: "var(--radius-full)", border: "1.5px solid #a5b4fc", background: "transparent", color: "var(--indigo-600)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s ease" }}>
+                      style={{ padding: "6px 13px", borderRadius: "var(--radius-full)", border: "1.5px solid var(--indigo-200)", background: "transparent", color: "var(--indigo-600)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s ease" }}>
                       {p}
                     </button>
                   ))}
@@ -293,7 +339,7 @@ Rules:
                 <button
                   onClick={() => sendChat()}
                   disabled={!chatInput.trim() || chatLoading}
-                  style={{ width: 40, height: 40, borderRadius: "50%", border: "none", fontSize: 17, flexShrink: 0, cursor: chatInput.trim() && !chatLoading ? "pointer" : "default", background: chatInput.trim() && !chatLoading ? "linear-gradient(135deg,#6366f1,#4f46e5)" : "var(--slate-100)", color: chatInput.trim() && !chatLoading ? "#fff" : "var(--text-muted)", transition: "all 0.15s ease" }}>
+                  style={{ width: 40, height: 40, borderRadius: "50%", border: "none", fontSize: 17, flexShrink: 0, cursor: chatInput.trim() && !chatLoading ? "pointer" : "default", background: chatInput.trim() && !chatLoading ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--slate-100)", color: chatInput.trim() && !chatLoading ? "#fff" : "var(--text-muted)", transition: "all 0.15s ease" }}>
                   ↑
                 </button>
               </div>
@@ -305,17 +351,17 @@ Rules:
       {/* Mid-session quiz */}
       {activeQuiz && (
         <div style={{ marginTop: "var(--space-6)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", animation: "revealUp 0.4s ease-out" }}>
-          <span style={{ display: "inline-block", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "white", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ {L("QUICK CHECK","ШВИДКА ПЕРЕВІРКА","БЫСТРАЯ ПРОВЕРКА","VÉRIFICATION RAPIDE","SCHNELLCHECK")}</span>
+          <span style={{ display: "inline-block", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "white", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ {L("QUICK CHECK","ШВИДКА ПЕРЕВІРКА","БЫСТРАЯ ПРОВЕРКА","VÉRIFICATION RAPIDE","SCHNELLCHECK")}</span>
           <p style={{ fontWeight: 700, fontSize: 14, margin: "var(--space-3) 0 11px", color: "var(--text-strong)", lineHeight: 1.45 }}>{activeQuiz.question}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {activeQuiz.options.map((opt, oi) => {
               const isCorrect = oi === activeQuiz.correct;
               const isSelected = oi === quizSelected;
-              let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "#f3f4f6", lcol = "#9ca3af";
+              let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
               if (quizAnswered) {
-                if (isCorrect) { bg = "#f0fdf4"; bc = "#22c55e"; col = "#15803d"; lbg = "#22c55e"; lcol = "white"; }
-                else if (isSelected) { bg = "#fef2f2"; bc = "#ef4444"; col = "#b91c1c"; lbg = "#ef4444"; lcol = "white"; }
-                else { col = "#d1d5db"; bc = "#f3f4f6"; }
+                if (isCorrect) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
+                else if (isSelected) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+                else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
               }
               return (
                 <button key={oi} disabled={quizAnswered} onClick={quizAnswered ? undefined : () => answerQuiz(oi)}
@@ -327,7 +373,7 @@ Rules:
             })}
           </div>
           {quizAnswered && (
-            <div style={{ marginTop: 10, padding: "11px 14px", background: quizSelected === activeQuiz.correct ? "#f0fdf4" : "#fffbeb", border: `1px solid ${quizSelected === activeQuiz.correct ? "#bbf7d0" : "#fde68a"}`, borderRadius: 12, fontSize: 12, color: quizSelected === activeQuiz.correct ? "#15803d" : "#92400e", lineHeight: 1.6 }}>
+            <div style={{ marginTop: 10, padding: "11px 14px", background: quizSelected === activeQuiz.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${quizSelected === activeQuiz.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 12, color: quizSelected === activeQuiz.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }}>
               {(quizSelected === activeQuiz.correct ? "✅ " : "💡 ") + activeQuiz.explanation}
             </div>
           )}

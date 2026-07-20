@@ -1,5 +1,6 @@
 // AI Exam Coach — Exams screen: brain-driven, reactive via useBrain().
 function Exams({ t, onPlanReady }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const { Button } = window.AIExamCoachDesignSystem_99e467;
   const brain = window.useBrain();
   const [exams, setExams] = React.useState(() => window.getExams());
@@ -43,7 +44,7 @@ function Exams({ t, onPlanReady }) {
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)}</p>
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
               {exam.examBoard}
-              {!past && priority >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● High priority</span>}
+              {!past && priority >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● {L("High priority", "Високий пріоритет", "Высокий приоритет", "Priorité haute", "Hohe Priorität")}</span>}
             </p>
           </div>
           <span style={{ flexShrink: 0, borderRadius: "var(--radius-full)", padding: "2px 8px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", background: past ? "var(--slate-100)" : soon ? "var(--amber-100)" : "var(--emerald-100)", color: past ? "var(--slate-500)" : soon ? "var(--amber-700)" : "var(--emerald-700)" }}>
@@ -53,11 +54,14 @@ function Exams({ t, onPlanReady }) {
         {!past && (
           <div style={{ margin: "var(--space-2) 0", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: "var(--text-xs)", color: !started ? "var(--text-faint)" : (pace === "very_behind" || pace === "behind") ? "var(--red-500)" : "var(--emerald-600)", fontWeight: "var(--weight-medium)" }}>
-              {!started ? "Not started yet" : (pace === "very_behind" || pace === "behind") ? `⚠️ Behind — ${readiness}% readiness` : `✓ ${readiness}% readiness`}
+              {!started ? L("Not started yet", "Ще не почато", "Ещё не начато", "Pas encore commencé", "Noch nicht begonnen")
+                : (pace === "very_behind" || pace === "behind")
+                  ? "⚠️ " + L(`Behind — ${readiness}% readiness`, `Відставання — готовність ${readiness}%`, `Отставание — готовность ${readiness}%`, `En retard — ${readiness}% de préparation`, `Im Rückstand — ${readiness}% bereit`)
+                  : "✓ " + L(`${readiness}% readiness`, `готовність ${readiness}%`, `готовность ${readiness}%`, `${readiness}% de préparation`, `${readiness}% bereit`)}
             </span>
           </div>
         )}
-        <p style={{ margin: "var(--space-2) 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{exam.topicCount} {t.exams_topics} · {coverage}% covered</p>
+        <p style={{ margin: "var(--space-2) 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{exam.topicCount} {t.exams_topics} · {L(`${coverage}% covered`, `${coverage}% пройдено`, `${coverage}% пройдено`, `${coverage}% couvert`, `${coverage}% abgedeckt`)}</p>
         <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
           <div style={{ height: "100%", width: "100%", transform: `scaleX(${coverage / 100})`, transformOrigin: "left", background: "var(--action-primary)", borderRadius: "var(--radius-full)", transition: "transform var(--dur-slow) var(--ease-out)" }} />
         </div>
@@ -82,9 +86,11 @@ function Exams({ t, onPlanReady }) {
       {nearestExam && (
         <div style={{ borderRadius: "var(--radius-xl)", background: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-50)" : "var(--indigo-50)", border: `1px solid ${daysAway(nearestExam.examDate) <= 7 ? "var(--amber-100)" : "var(--indigo-100)"}`, padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
           <span style={{ color: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-700)" : "var(--indigo-600)", fontWeight: "var(--weight-semibold)" }}>
-            {daysAway(nearestExam.examDate) <= 7 ? "Coming up:" : "Next exam:"}
+            {daysAway(nearestExam.examDate) <= 7
+              ? L("Coming up:", "Незабаром:", "Скоро:", "Bientôt :", "Bald:")
+              : L("Next exam:", "Наступний іспит:", "Следующий экзамен:", "Prochain examen :", "Nächste Prüfung:")}
           </span>
-          <span style={{ color: "var(--text-body)" }}>{nearestExam.name} in {daysAway(nearestExam.examDate)} days</span>
+          <span style={{ color: "var(--text-body)" }}>{L(`${nearestExam.name} in ${daysAway(nearestExam.examDate)} days`, `${nearestExam.name} через ${daysAway(nearestExam.examDate)} дн.`, `${nearestExam.name} через ${daysAway(nearestExam.examDate)} дн.`, `${nearestExam.name} dans ${daysAway(nearestExam.examDate)} jours`, `${nearestExam.name} in ${daysAway(nearestExam.examDate)} Tagen`)}</span>
         </div>
       )}
       <section>
@@ -389,7 +395,7 @@ function Exams({ t, onPlanReady }) {
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: exam.color, flexShrink: 0 }} />
             <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", flex: 1 }}>{exam.name}</h2>
             {!editing && (
-              <button onClick={() => setEditingMode(true)} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Edit</button>
+              <button onClick={() => setEditingMode(true)} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-lg)", padding: "6px 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Edit","Редагувати","Редактировать","Modifier","Bearbeiten")}</button>
             )}
           </div>
 
@@ -397,35 +403,35 @@ function Exams({ t, onPlanReady }) {
             <>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Exam date</label>
+                  <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{L("Exam date","Дата іспиту","Дата экзамена","Date d'examen","Prüfungsdatum")}</label>
                   <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={editInputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Topics</label>
+                  <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{L("Topics","Теми","Темы","Sujets","Themen")}</label>
                   <input type="number" min={1} value={topicCount} onChange={(e) => setTopicCount(e.target.value)} style={editInputStyle} />
                 </div>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Target grade</label>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{L("Target grade","Цільова оцінка","Целевая оценка","Note cible","Zielnote")}</label>
                 <input value={targetGrade} onChange={(e) => setTargetGrade(e.target.value)} style={editInputStyle} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>Notes</label>
+                <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{L("Notes","Нотатки","Заметки","Notes","Notizen")}</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...editInputStyle, resize: "vertical", lineHeight: 1.6 }} />
               </div>
               <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-                <button onClick={() => setEditingMode(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
-                <button onClick={saveEdit} disabled={!canSaveEdit} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSaveEdit ? "var(--indigo-600)" : "var(--slate-200)", color: canSaveEdit ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSaveEdit ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>Save changes</button>
+                <button onClick={() => setEditingMode(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Cancel","Скасувати","Отмена","Annuler","Abbrechen")}</button>
+                <button onClick={saveEdit} disabled={!canSaveEdit} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSaveEdit ? "var(--indigo-600)" : "var(--slate-200)", color: canSaveEdit ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSaveEdit ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{L("Save changes","Зберегти зміни","Сохранить изменения","Enregistrer","Änderungen speichern")}</button>
               </div>
             </>
           ) : (
             <>
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} topics</p>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} {t.exams_topics}</p>
               {(() => {
                 const priority = window.computePriority ? window.computePriority(exam) : 5;
                 return (
                   <p style={{ margin: 0, fontSize: "var(--text-xs)", color: priority >= 8 ? "var(--red-600)" : "var(--text-faint)", fontWeight: priority >= 8 ? "var(--weight-semibold)" : "normal" }}>
-                    {"★".repeat(Math.ceil(priority / 2))}{"☆".repeat(5 - Math.ceil(priority / 2))} Priority {priority}/10
+                    {"★".repeat(Math.ceil(priority / 2))}{"☆".repeat(5 - Math.ceil(priority / 2))} {L(`Priority ${priority}/10`,`Пріоритет ${priority}/10`,`Приоритет ${priority}/10`,`Priorité ${priority}/10`,`Priorität ${priority}/10`)}
                   </p>
                 );
               })()}
@@ -436,38 +442,38 @@ function Exams({ t, onPlanReady }) {
               {/* Stats row */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)" }}>
                 <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
-                  <div style={{ fontSize: started ? "var(--text-lg)" : "var(--text-xs)", fontWeight: "var(--weight-bold)", color: started ? "var(--text-strong)" : "var(--text-faint)" }}>{started ? `${readiness}%` : "Not started"}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Readiness</div>
+                  <div style={{ fontSize: started ? "var(--text-lg)" : "var(--text-xs)", fontWeight: "var(--weight-bold)", color: started ? "var(--text-strong)" : "var(--text-faint)" }}>{started ? `${readiness}%` : L("Not started","Не почато","Не начато","Pas commencé","Nicht begonnen")}</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{L("Readiness","Готовність","Готовность","Préparation","Bereitschaft")}</div>
                 </div>
                 <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{started ? predictedGrade : "–"}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Predicted</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{L("Predicted","Прогноз","Прогноз","Prévu","Prognose")}</div>
                 </div>
                 <div style={{ textAlign: "center", padding: "var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
                   <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{started ? `${probability}%` : "–"}</div>
-                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>Target chance</div>
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{L("Target chance","Шанс цілі","Шанс цели","Chance objectif","Zielchance")}</div>
                 </div>
               </div>
 
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
-                  <span>Topics covered</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCountDisplay} · {coverage}%</strong>
+                  <span>{L("Topics covered","Пройдені теми","Пройденные темы","Sujets couverts","Abgedeckte Themen")}</span><strong style={{ color: "var(--text-strong)" }}>{coveredTopics}/{topicCountDisplay} · {coverage}%</strong>
                 </div>
                 <div style={{ height: 8, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
                   <div style={{ height: "100%", width: "100%", transform: `scaleX(${coverage / 100})`, transformOrigin: "left", background: exam.color, borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
                 </div>
                 <p style={{ margin: "8px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.5 }}>
-                  Updates automatically as you study — mark topics as covered on the session recap.
+                  {L("Updates automatically as you study — mark topics as covered on the session recap.","Оновлюється автоматично під час навчання — позначайте теми пройденими у підсумку сесії.","Обновляется автоматически во время учёбы — отмечайте темы пройденными в итогах сессии.","Se met à jour automatiquement — cochez les sujets couverts dans le récap de séance.","Aktualisiert sich automatisch — markiere Themen im Sitzungsrückblick als abgedeckt.")}
                 </p>
               </div>
               <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-                <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Close</button>
+                <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Close","Закрити","Закрыть","Fermer","Schließen")}</button>
               </div>
             </>
           )}
           <button onClick={() => confirmDelete ? onDelete() : setConfirmDelete(true)}
             style={{ border: "none", background: "transparent", color: confirmDelete ? "var(--red-600)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: "4px 0", textAlign: "center" }}>
-            {confirmDelete ? "Click again to confirm delete" : "Delete exam"}
+            {confirmDelete ? L("Click again to confirm delete","Натисніть ще раз для підтвердження","Нажмите ещё раз для подтверждения","Cliquez à nouveau pour confirmer","Zum Bestätigen erneut klicken") : L("Delete exam","Видалити іспит","Удалить экзамен","Supprimer l'examen","Prüfung löschen")}
           </button>
         </div>
       </div>

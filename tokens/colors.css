@@ -1,80 +1,100 @@
 /* ============================================================
-   AI Exam Coach — Color tokens
-   Emerald primary · Indigo accent · Slate neutrals
-   Lifted from the product's Tailwind palette (tailwind.config.ts,
-   globals.css, colors.ts, readiness.ts).
+   AI Exam Coach — Color tokens · "FintechX" redesign
+   Nature-inspired light UI: warm paper surfaces, deep evergreen
+   ink for primary actions, fresh emerald for progress/success,
+   soft mint tints where indigo washes used to be.
+   Variable NAMES are unchanged (components depend on them) —
+   only the values moved. --indigo-* now carries the deep-pine
+   accent family; the name is legacy.
    ============================================================ */
 :root {
   /* ---- Brand ---- */
-  --emerald-50:  #ECFDF5;
-  --emerald-100: #D1FAE5;
-  --emerald-500: #10B981;   /* primary action */
-  --emerald-600: #059669;   /* primary hover */
-  --emerald-700: #047857;
+  --emerald-50:  #EDF9F2;
+  --emerald-100: #D7F1E3;
+  --emerald-500: #16A06E;   /* fresh leaf — progress / success */
+  --emerald-600: #0F8259;   /* hover */
+  --emerald-700: #0B6848;
 
-  --indigo-50:  #EEF2FF;
-  --indigo-100: #E0E7FF;
-  --indigo-500: #6366F1;   /* brand mark + accent */
-  --indigo-600: #4F46E5;   /* accent hover */
-  --indigo-700: #4338CA;
+  --emerald-300: #9BDDC0;
 
-  /* ---- Neutrals (Slate) ---- */
-  --slate-50:  #F8FAFC;
-  --slate-100: #F1F5F9;
-  --slate-200: #E2E8F0;
-  --slate-300: #CBD5E1;
-  --slate-400: #94A3B8;
-  --slate-500: #64748B;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1E293B;
-  --slate-900: #0F172A;
+  /* Legacy name, new value: deep pine accent (was indigo) */
+  --indigo-50:  #EFF6F1;
+  --indigo-100: #DDEDE3;
+  --indigo-200: #C5E0D1;
+  --indigo-400: #4C9B82;
+  --indigo-500: #227C63;   /* brand mark + accent */
+  --indigo-600: #1A6650;   /* accent hover */
+  --indigo-700: #145240;
+  --indigo-800: #0E4234;
+
+  /* ---- Neutrals (warm stone-slate blend) ---- */
+  --slate-50:  #F6F7F5;
+  --slate-100: #EEF0EC;
+  --slate-200: #E1E5DF;
+  --slate-300: #C9CFC7;
+  --slate-400: #98A09A;
+  --slate-500: #6A736D;
+  --slate-600: #4C554F;
+  --slate-700: #37403A;
+  --slate-800: #222A25;
+  --slate-900: #121A16;    /* ink */
   --white: #FFFFFF;
-  --app-bg: #F9FAFB;   /* page background */
+  --app-bg: #F5F7F4;       /* warm paper page background */
+
+  /* Ink surfaces — dark "AI insight" cards à la FintechX */
+  --ink-900: #0E1512;
+  --ink-800: #16201B;
+  --ink-700: #22302A;
 
   /* ---- Semantic status ---- */
-  --green-50:  #ECFDF5;
-  --green-500: #10B981;
-  --green-700: #047857;
+  --green-50:  #EDF9F2;
+  --green-500: #16A06E;
+  --green-700: #0B6848;
 
-  --amber-50:  #FFFBEB;
-  --amber-100: #FEF3C7;
-  --amber-400: #FBBF24;
-  --amber-500: #F59E0B;   /* warn */
-  --amber-700: #B45309;
+  --amber-50:  #FDF8EC;
+  --amber-100: #FAEFD1;
+  --amber-200: #F5E4B0;
+  --amber-400: #E8B93B;
+  --amber-500: #D9A521;   /* warn */
+  --amber-600: #B8880F;
+  --amber-700: #96700F;
 
-  --red-50:  #FEF2F2;
-  --red-100: #FEE2E2;
-  --red-500: #EF4444;     /* danger */
-  --red-600: #DC2626;
-  --red-700: #B91C1C;
+  --red-50:  #FDF1EF;
+  --red-100: #FBE2DE;
+  --red-200: #F7CFC8;
+  --red-400: #EA7A64;
+  --red-500: #E2543F;     /* danger */
+  --red-600: #C7402C;
+  --red-700: #A33223;
 
-  --sky-50:  #F0F9FF;
-  --sky-100: #E0F2FE;
-  --sky-500: #0EA5E9;
-  --sky-700: #0369A1;
+  --sky-50:  #EFF6F9;
+  --sky-100: #DEEDF4;
+  --sky-500: #3193BC;
+  --sky-700: #1F6785;
 
-  --rose-50:  #FFF1F2;
-  --rose-100: #FFE4E6;
-  --rose-300: #FDA4AF;
-  --rose-500: #F43F5E;
-  --rose-700: #BE123C;
+  --rose-50:  #FDF0F2;
+  --rose-100: #FADFE4;
+  --rose-300: #F0A9B6;
+  --rose-500: #D9536E;
+  --rose-700: #A83450;
 
-  --orange-50:  #FFF7ED;
-  --orange-500: #F97316;
+  --orange-50:  #FDF4EB;
+  --orange-500: #E08234;
 
-  /* ---- Subject palette (course color dots & accents) ---- */
-  --subject-indigo: #6366F1;
-  --subject-violet: #8B5CF6;
-  --subject-pink:   #EC4899;
-  --subject-rose:   #F43F5E;
-  --subject-orange: #F97316;
-  --subject-yellow: #EAB308;
-  --subject-emerald:#10B981;
-  --subject-cyan:   #06B6D4;
-  --subject-blue:   #3B82F6;
-  --subject-teal:   #14B8A6;
-  --subject-sky:    #0EA5E9;
+  /* ---- Subject palette (course color dots & accents) ----
+     Slightly desaturated toward the "premium organic" range so
+     the color rails feel editorial, not neon. */
+  --subject-indigo: #5B6BD6;
+  --subject-violet: #8168C9;
+  --subject-pink:   #D2609F;
+  --subject-rose:   #D9536E;
+  --subject-orange: #E08234;
+  --subject-yellow: #CDA224;
+  --subject-emerald:#16A06E;
+  --subject-cyan:   #2C9FAF;
+  --subject-blue:   #3E7BC9;
+  --subject-teal:   #1F9C8C;
+  --subject-sky:    #3193BC;
 
   /* ============================================================
      Semantic aliases — prefer these in components
@@ -84,6 +104,7 @@
   --surface-card:   var(--white);
   --surface-muted:  var(--slate-50);
   --surface-sunken: var(--slate-100);
+  --surface-ink:    var(--ink-900);   /* dark feature/AI cards */
 
   /* Text */
   --text-strong:  var(--slate-900);
@@ -91,15 +112,16 @@
   --text-muted:   var(--slate-500);
   --text-faint:   var(--slate-400);
   --text-invert:  var(--white);
+  --text-on-ink-muted: #9DABA2;       /* secondary text on ink cards */
 
   /* Borders */
   --border-subtle: var(--slate-100);
   --border-default:var(--slate-200);
   --border-strong: var(--slate-300);
 
-  /* Actions */
-  --action-primary:        var(--emerald-500);
-  --action-primary-hover:  var(--emerald-600);
+  /* Actions — FintechX-style: primary CTAs are deep ink pills */
+  --action-primary:        var(--ink-900);
+  --action-primary-hover:  var(--ink-700);
   --action-accent:         var(--indigo-600);
   --action-accent-hover:   var(--indigo-700);
 

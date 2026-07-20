@@ -12,7 +12,9 @@
 
 const EXAMS_KEY = "exams_list_v2";
 const EXAM_SCHEMA_VERSION = 1;
-const FALLBACK_COLORS = ["#6366F1", "#F43F5E", "#14B8A6", "#8B5CF6", "#F97316", "#0EA5E9"];
+// Literal hexes required: VALID_COLOR_RE below rejects var() references.
+// Values follow the FintechX subject palette in tokens/colors.css.
+const FALLBACK_COLORS = ["#5B6BD6", "#D9536E", "#1F9C8C", "#8168C9", "#E08234", "#3193BC"];
 const VALID_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 // ─── validation helpers ─────────────────────────────────────────────────────

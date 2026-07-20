@@ -75,7 +75,7 @@ function Combobox({ value, onChange, onSelect, options, loading, placeholder, no
             <div style={{ padding: "10px 12px", fontSize: "var(--text-sm)", color: "var(--text-faint)", display: "flex", alignItems: "center", gap: 8 }}>
               <span aria-hidden="true" style={{ display: "inline-block", width: 12, height: 12, borderRadius: "50%",
                 border: "2px solid var(--border-default)", borderTopColor: "var(--indigo-500)", animation: "onb-spin 0.7s linear infinite" }} />
-              Still figuring it out…
+              …
             </div>
           )}
           {opts.length === 0 && !loading && noMatchSlot}
