@@ -37,20 +37,25 @@ function _allCurriculumRows() {
 }
 
 // ── Deterministic single-syllabus lookup — pure, synchronous, no AI call ───
-// Country is matched leniently: a falsy countryId argument means "caller
-// didn't pin a country", and qualificationId already discriminates strongly
-// (e.g. "nmt" only exists for Ukraine in the seed), so an exam picked without
-// an explicit country still resolves its official syllabus. This is what lets
-// the NMT add-exam flow find Хімія/Географія even when the profile has no
-// country set. Scales to any new single-country qualification for free.
+// qualificationId is the strong discriminator — it already pins the country
+// AND education system (nmt=UA, ib=international, alevel/gcse=GB, sat/act/ap=US,
+// matura=PL, abitur=DE). So country is intentionally NOT part of the match:
+// a lookup resolves the official syllabus no matter what (or nothing) the
+// profile has for country. Board is matched leniently too — a row with a null
+// board is a wildcard that fits any selected exam board (topic lists are
+// board-agnostic at this grain), while a board-specific row still matches its
+// own board exactly. This is what lets every seeded exam's subjects be found
+// regardless of onboarding state. Scales to any new exam for free.
+function _boardMatches(rowBoard, queryBoard) {
+  return !rowBoard || (rowBoard || null) === (queryBoard || null);
+}
 function getCurriculum(countryId, qualificationId, board, subject) {
   if (!subject) return null;
   const norm = (s) => String(s || "").toLowerCase().trim();
   const rows = _allCurriculumRows();
   return rows.find((r) =>
-    (!countryId || r.countryId === countryId) &&
     r.qualificationId === qualificationId &&
-    (r.board || null) === (board || null) &&
+    _boardMatches(r.board, board) &&
     (norm(r.subject) === norm(subject) || (r.aliases || []).some((a) => norm(a) === norm(subject)))
   ) || null;
 }
