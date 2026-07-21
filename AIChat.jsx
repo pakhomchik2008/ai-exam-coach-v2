@@ -1777,6 +1777,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
   const [masteryBefore, setMasteryBefore] = React.useState(null);
   const [consecutiveCorrect, setConsecutiveCorrect] = React.useState(0);
   const [xp, setXp] = React.useState(0);
+  const [xpPop, setXpPop] = React.useState(null); // {amount, correct, combo, id} — transient floating gain
   const [showDiffPanel, setShowDiffPanel] = React.useState(false);
   const [diffVoted, setDiffVoted] = React.useState(false);
   const [explainInput, setExplainInput] = React.useState("");
@@ -1801,6 +1802,13 @@ function LessonEngine({ topic, mode, onExit, t }) {
     setShowLearnTooltip(false);
     if (window.saveProfile) window.saveProfile({ hasSeenLearnTooltip: true });
   };
+
+  // Auto-clear the floating "+N XP" pop shortly after it fires.
+  React.useEffect(() => {
+    if (!xpPop) return;
+    const id = setTimeout(() => setXpPop(null), 1100);
+    return () => clearTimeout(id);
+  }, [xpPop]);
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
   const brain = window.getBrain ? window.getBrain() : {};
@@ -1977,15 +1985,29 @@ ${STEP_TYPES}`;
     }
   };
 
+  // One place awards XP + combo so all three question types stay in sync.
+  // A correct-answer streak (≥3 in a row) adds an escalating combo bonus — the
+  // little "one more" hook that makes a lesson worth finishing. Fires a
+  // floating "+N" pop the HUD renders.
+  const registerAnswer = (isCorrect, base) => {
+    setConsecutiveCorrect((prev) => {
+      const nc = isCorrect ? prev + 1 : 0;
+      const bonus = isCorrect && nc >= 3 ? Math.min(30, (nc - 2) * 5) : 0;
+      const gained = base + bonus;
+      setXp((x) => x + gained);
+      setXpPop({ amount: gained, correct: isCorrect, combo: nc, id: Date.now() });
+      return nc;
+    });
+    isCorrect ? _sfx.correct() : _sfx.wrong();
+  };
+
   const answerMcq = (idx, correct, explanation) => {
     if (selected !== null) return;
     const isCorrect = idx === correct;
     setSelected(idx);
     setRevealed(true);
     setResults((r) => [...r, { type: "mcq", correct: isCorrect }]);
-    setXp((x) => x + (isCorrect ? 20 : 5));
-    setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    registerAnswer(isCorrect, isCorrect ? 20 : 5);
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     if (!isCorrect && resolved && window.logMistake) {
       const s = plan.steps[step];
@@ -2000,9 +2022,7 @@ ${STEP_TYPES}`;
     setSelected(answer);
     setRevealed(true);
     setResults((r) => [...r, { type: "tf", correct: isCorrect }]);
-    setXp((x) => x + (isCorrect ? 20 : 5));
-    setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    registerAnswer(isCorrect, isCorrect ? 20 : 5);
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
@@ -2013,9 +2033,7 @@ ${STEP_TYPES}`;
     setRevealed(true);
     setSelected(isCorrect ? "correct" : "wrong");
     setResults((r) => [...r, { type: "fill", correct: isCorrect }]);
-    setXp((x) => x + (isCorrect ? 25 : 5));
-    setConsecutiveCorrect((c) => isCorrect ? c + 1 : 0);
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    registerAnswer(isCorrect, isCorrect ? 25 : 5);
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
@@ -2258,7 +2276,7 @@ ${STEP_TYPES}`;
         style: { background: "linear-gradient(135deg, var(--indigo-100) 0%, var(--indigo-100) 100%)", borderRadius: 10, padding: "10px 16px", margin: "6px 0", textAlign: "center", fontSize: 17, fontWeight: 600, fontFamily: "var(--font-mono, monospace)", color: "var(--indigo-700)", letterSpacing: "0.02em" }
       }, text);
     }
-    return React.createElement("div", { style: { fontSize: 14, color: "var(--text-body)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: _md(text) } });
+    return React.createElement("div", { style: { fontSize: 16, color: "var(--text-body)", lineHeight: 1.75, letterSpacing: "0.005em", maxWidth: "40rem" }, dangerouslySetInnerHTML: { __html: _md(text) } });
   };
 
   const renderWorkedExample = () => {
@@ -2315,6 +2333,13 @@ ${STEP_TYPES}`;
   // ─── Progress header ──────────────────────────────────────────────────────
   const pct = Math.round(((step + 1) / totalSteps) * 100);
   const estMinsLeft = plan.estimatedMinutes ? Math.max(1, Math.round(plan.estimatedMinutes * (1 - step / totalSteps))) : null;
+
+  // Live gamification HUD: lifetime level (with this lesson's in-progress XP
+  // folded in so the bar visibly climbs as you answer) + an active combo flame.
+  const _liveXp = (window.getXp ? window.getXp() : 0) + xp;
+  const _lvl = window.xpLevel ? window.xpLevel(_liveXp) : { level: 1, into: 0, need: 100 };
+  const _lvlPct = Math.max(0, Math.min(100, Math.round((_lvl.into / Math.max(1, _lvl.need)) * 100)));
+  const comboActive = consecutiveCorrect >= 2;
 
   // ─── Difficulty panel (compact pills) ───────────────────────────────────────
   const topicKey = `${topic}::${resolved?.examId || "any"}`;
@@ -2376,6 +2401,15 @@ ${STEP_TYPES}`;
         examName && React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 } }, "📚 ", examName),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, "·"),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, totalSteps, ` ${L("steps", "кроків", "шагов", "étapes", "Schritte")}`)),
+      // ── Game HUD: level badge + XP-to-next bar + combo flame ──
+      React.createElement("div", { style: { position: "relative", display: "flex", alignItems: "center", gap: 10, marginBottom: 8 } },
+        React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, background: "var(--ink-900)", color: "#fff", fontSize: 11, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "0.02em", flexShrink: 0 } },
+          L("LV", "РІВ", "УР", "NIV", "LV"), " ", _lvl.level),
+        React.createElement("div", { style: { flex: 1, height: 7, borderRadius: 4, background: "var(--surface-sunken)", overflow: "hidden" } },
+          React.createElement("div", { style: { height: "100%", width: _lvlPct + "%", background: "linear-gradient(90deg,var(--emerald-500),var(--emerald-600))", borderRadius: 4, transition: "width 0.5s var(--ease-out)" } })),
+        comboActive && React.createElement("span", { key: "combo-" + consecutiveCorrect, style: { display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 9px", borderRadius: 999, background: "var(--amber-50)", color: "var(--amber-700)", fontSize: 11, fontWeight: 800, flexShrink: 0, animation: "pulse 0.4s var(--ease-out)" } }, "🔥 x", consecutiveCorrect),
+        // Floating "+N XP" pop on each answer
+        xpPop && React.createElement("span", { key: xpPop.id, style: { position: "absolute", right: comboActive ? 74 : 8, top: -2, fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)", color: xpPop.correct ? "var(--emerald-600)" : "var(--text-faint)", animation: "xppop 1s var(--ease-out) forwards", pointerEvents: "none" } }, "+", xpPop.amount)),
       // Step counter + stats row
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, L(`Step ${step + 1} of ${totalSteps}`, `Крок ${step + 1} з ${totalSteps}`, `Шаг ${step + 1} из ${totalSteps}`, `Étape ${step + 1} sur ${totalSteps}`, `Schritt ${step + 1} von ${totalSteps}`)),

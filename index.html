@@ -40,6 +40,9 @@
   @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   @keyframes loadDot { 0%, 80%, 100% { opacity: .3; transform: scale(.7); } 40% { opacity: 1; transform: scale(1); } }
   @keyframes revealUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+  /* Floating "+N XP" gain in the Learn game HUD: rise and fade. */
+  @keyframes xppop { 0% { opacity: 0; transform: translateY(6px) scale(0.9); } 25% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 0; transform: translateY(-16px) scale(1); } }
+  @media (prefers-reduced-motion: reduce) { @keyframes xppop { 0% { opacity: 1; } 100% { opacity: 0; } } }
   html, body { margin: 0; min-height: 100%; background: var(--surface-page); }
   /* FintechX-style ambient wash: a faint sky+mint gradient breathing at the
      top of every page, fixed so scrolling content floats over it. */
@@ -105,7 +108,7 @@
 <script type="text/babel" src="Dashboard.jsx?v=fx3"></script>
 <script type="text/babel" src="CourseDetail.jsx?v=fx1"></script>
 <script type="text/babel" src="DayDetail.jsx?v=fx1"></script>
-<script type="text/babel" src="AIChat.jsx?v=fx4"></script>
+<script type="text/babel" src="AIChat.jsx?v=fx5"></script>
 <script type="text/babel" src="TodaysMission.jsx?v=fx1"></script>
 <script type="text/babel" src="StudySession.jsx?v=fx3"></script>
 <script type="text/babel" src="SessionRecap.jsx?v=fx2"></script>
