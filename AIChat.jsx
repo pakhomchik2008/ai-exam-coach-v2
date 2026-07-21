@@ -1455,6 +1455,22 @@ RULES:
 // question) and Speed Round (per-question 30s clock, weak-topics only). Here
 // the clock is a single exam-wide countdown and nothing is revealed until the
 // whole paper is submitted, matching how a real exam actually works.
+// Official-ish mock-exam shape per qualification: how many objective questions
+// a real paper runs, and a style/difficulty note that steers the generator
+// toward that exam's actual character. Falls back to a topic-count heuristic
+// for anything not listed. Extend by adding a key — no code change needed.
+const EXAM_MOCK_SPECS = {
+  nmt:    { count: 20, note: "НМТ style: single-best-answer and matching items, moderate-to-hard, curriculum-faithful to the Ukrainian program." },
+  sat:    { count: 22, note: "Digital SAT style: concise multiple-choice, evidence and reasoning focus, adaptive difficulty." },
+  act:    { count: 20, note: "ACT style: fast-paced four-option multiple-choice." },
+  ap:     { count: 16, note: "AP style: college-level multiple-choice, application-heavy." },
+  ib:     { count: 18, note: "IB style: multiple-choice using command terms, HL-level rigour." },
+  gcse:   { count: 18, note: "GCSE style: graduated difficulty from foundation to higher tier." },
+  alevel: { count: 18, note: "A-Level style: demanding multi-step multiple-choice." },
+  matura: { count: 18, note: "Matura style: exam-board multiple-choice." },
+  abitur: { count: 16, note: "Abitur style: analytical multiple-choice." },
+};
+
 function ExamSimEngine({ examViews, onExit, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
@@ -1471,7 +1487,16 @@ function ExamSimEngine({ examViews, onExit, t }) {
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
   const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
-  const questionCount = Math.max(12, Math.min(24, examTopics.length > 0 ? examTopics.length * 2 : 16));
+  // Resolve the exam's qualification (nmt/sat/...) via its Course's curriculumRef
+  // to pick the official mock spec; fall back to a topic-count heuristic.
+  const examQual = React.useMemo(() => {
+    const ex = window.getExams ? window.getExams().find((e) => e.id === examId) : null;
+    const course = ex && ex.courseId && window.getCourse ? window.getCourse(ex.courseId) : null;
+    return (course && course.curriculumRef && course.curriculumRef.qualificationId) || null;
+  }, [examId]);
+  const mockSpec = EXAM_MOCK_SPECS[examQual] || null;
+  const questionCount = mockSpec ? mockSpec.count : Math.max(12, Math.min(24, examTopics.length > 0 ? examTopics.length * 2 : 16));
+  const styleNote = mockSpec ? mockSpec.note : "at genuine exam difficulty for this subject";
   const estMinutes = Math.round(questionCount * 1.5);
 
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -1519,32 +1544,44 @@ function ExamSimEngine({ examViews, onExit, t }) {
     const startExam = async () => {
       if (!selectedExam) return;
       setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
+      // Generate in PARALLEL CHUNKS of ~6 questions each, not one giant call.
+      // A single 20-24 question request with explanations regularly blew past
+      // the 60s budget or returned truncated/invalid JSON on the fast model —
+      // that was the "Couldn't generate exam / Took too long" bug. Small chunks
+      // each finish quickly, run concurrently, and a chunk that fails just
+      // trims the paper instead of failing the whole exam.
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
-        const topicList = examTopics.length > 0 ? examTopics.join(", ") : selectedExam.name;
-        const system = `You are an exam board setting a real mock exam paper for "${selectedExam.name}". Create exactly ${questionCount} exam-style multiple-choice questions covering ALL of these topics, spread as evenly as possible: ${topicList}.
-
+        const topics = examTopics.length > 0 ? examTopics : [selectedExam.name];
+        const CHUNK = 6;
+        const numChunks = Math.max(1, Math.ceil(questionCount / CHUNK));
+        const perChunk = Math.ceil(questionCount / numChunks);
+        // Round-robin the topics across chunks so coverage is even.
+        const chunkTopics = Array.from({ length: numChunks }, (_, i) => {
+          const ts = topics.filter((_, j) => j % numChunks === i);
+          return ts.length ? ts : topics.slice(0, Math.min(3, topics.length));
+        });
+        const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
+        const makeChunk = (ts) => {
+          const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
-
-FORMAT: {"questions":[{"question":"...", "options":["A","B","C","D"], "correct":0, "explanation":"1-2 sentences", "topic":"which topic this tests"}]}
-
-RULES:
-- Exactly 4 options per question, "correct" is a 0-based index.
-- Cover every topic in the list at least once before repeating any.
-- Mix conceptual, calculation and applied questions at genuine exam difficulty — this is a real paper, not a warm-up.
-- explanation teaches WHY the right answer is right.
-- No duplicate concepts.`;
-
-        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 60000));
-        const raw = await Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a full mock exam on: ${topicList}` }] }),
-          timeout,
-        ]);
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-        const secs = Math.round(parsed.questions.length * 1.5) * 60;
-        setQuestions(parsed.questions);
-        setAnswers(new Array(parsed.questions.length).fill(null));
+FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
+RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.${langDir ? " " + langDir : ""}`;
+          const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
+          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }] }), to])
+            .then((raw) => {
+              const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+              return Array.isArray(p && p.questions) ? p.questions : [];
+            })
+            .catch(() => []);
+        };
+        const chunks = await Promise.all(chunkTopics.map(makeChunk));
+        // Merge, validate shape, cap at target count.
+        const all = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
+        if (all.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
+        const secs = Math.round(all.length * 1.5) * 60;
+        setQuestions(all);
+        setAnswers(new Array(all.length).fill(null));
         setIdx(0);
         setTimeLeft(secs);
         setTimeLimitSec(secs);
@@ -2892,41 +2929,58 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby, t });
   }
 
-  // Topic picker for Learn mode
+  // Topic picker for Learn mode — grouped into ONE FOLDER PER SUBJECT so a
+  // student with several exams sees each subject's full topic list under its
+  // own header, with studied topics marked (green ✓ / red = needs review) and
+  // sorted to the bottom, instead of one confusing flat list where one subject
+  // crowds out the others.
   if (topicPicker) {
-    const topics = examViews.flatMap((e) => (e.topics || []).map((tp) => ({
-      name: tp.topicName || tp.name, exam: e.name, retention: tp.lastSeen ? Math.round(tp.retention * 100) : null, unseen: !tp.lastSeen,
-    }))).sort((a, b) => (a.retention ?? -1) - (b.retention ?? -1));
-    const suggested = topics.filter((t) => t.unseen || (t.retention != null && t.retention < 60)).slice(0, 6);
-    const allTopics = topics.length > 6 ? topics : [];
+    const ce = React.createElement;
+    // Status pill for a topic: New (unseen), % with colour by retention.
+    const statusPill = (tp) => {
+      if (!tp.lastSeen) return ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--indigo-600)" } }, L("New", "Нове", "Новое", "Nouveau", "Neu"));
+      const r = Math.round(tp.retention * 100);
+      const done = r >= 70, weak = r < 40;
+      const col = done ? "var(--emerald-700)" : weak ? "var(--red-700)" : "var(--amber-700)";
+      return ce("span", { style: { fontSize: 12, fontWeight: 700, color: col, display: "inline-flex", alignItems: "center", gap: 4 } },
+        done ? "✓ " + r + "%" : (weak ? "⚠ " : "") + r + "%");
+    };
+    const folders = examViews.filter((e) => (e.topics || []).length > 0);
 
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px" } },
-      React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
-        React.createElement("button", { onClick: () => setTopicPicker(false), style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-        React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("What do you want to learn?", "Що хочете вивчити?", "Что хотите изучить?", "Que voulez-vous apprendre ?", "Was möchtest du lernen?"))),
+    return ce("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
+      ce("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
+        ce("button", { onClick: () => setTopicPicker(false), "aria-label": L("Back","Назад","Назад","Retour","Zurück"), style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+        ce("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", color: "var(--text-strong)" } }, L("What do you want to learn?", "Що хочете вивчити?", "Что хотите изучить?", "Que voulez-vous apprendre ?", "Was möchtest du lernen?"))),
+      ce("p", { style: { margin: "0 0 18px 28px", fontSize: 13, color: "var(--text-muted)" } },
+        L("Pick a topic — finished ones show a green check.", "Оберіть тему — пройдені позначені зеленою галочкою.", "Выберите тему — пройденные отмечены зелёной галочкой.", "Choisissez un sujet — les terminés ont une coche verte.", "Wähle ein Thema — erledigte haben ein grünes Häkchen.")),
 
-      suggested.length > 0 && React.createElement("div", { style: { marginBottom: 20 } },
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L("Recommended for you", "Рекомендовано для вас", "Рекомендовано для вас", "Recommandé pour vous", "Für dich empfohlen")),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
-          ...suggested.map((tp, i) => React.createElement("button", {
-            key: i, onClick: () => { setTopic(tp.name); setTopicPicker(false); setMode("learn"); },
-            style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 14, cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
-          },
-            React.createElement("div", null,
-              React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, tp.name),
-              React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)", marginLeft: 8 } }, tp.exam)),
-            React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: tp.unseen ? "var(--indigo-600)" : tp.retention < 30 ? "var(--red-700)" : "var(--amber-700)" } },
-              tp.unseen ? L("New", "Нове", "Новое", "Nouveau", "Neu") : `${tp.retention}%`))))),
+      folders.length === 0 && ce("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "20px 0" } },
+        L("Add an exam first to build your topic list.", "Спершу додайте іспит, щоб з'явилися теми.", "Сначала добавьте экзамен, чтобы появились темы.", "Ajoutez d'abord un examen pour créer votre liste de sujets.", "Füge zuerst eine Prüfung hinzu, um deine Themenliste zu erstellen.")),
 
-      allTopics.length > 0 && React.createElement("div", null,
-        React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" } }, L("All topics", "Усі теми", "Все темы", "Tous les sujets", "Alle Themen")),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" } },
-          ...allTopics.map((tp, i) => React.createElement("button", {
-            key: i, onClick: () => { setTopic(tp.name); setTopicPicker(false); setMode("learn"); },
-            style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "transparent", border: "none", borderBottom: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
-          },
-            React.createElement("span", { style: { fontSize: 13, color: "var(--text-body)" } }, `${tp.name} · ${tp.exam}`),
-            React.createElement("span", { style: { fontSize: 11, color: tp.unseen ? "var(--indigo-600)" : "var(--text-muted)" } }, tp.unseen ? L("New", "Нове", "Новое", "Nouveau", "Neu") : `${tp.retention}%`))))));
+      ...folders.map((e, fi) => {
+        const rows = (e.topics || []).map((tp) => ({ tp, name: tp.topicName || tp.name, studied: !!tp.lastSeen, ret: tp.lastSeen ? tp.retention : null }));
+        const doneCount = rows.filter((r) => r.studied).length;
+        // Unstudied first (what to do next), studied sink to the bottom.
+        const ordered = [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
+        const pct = Math.round((doneCount / Math.max(1, rows.length)) * 100);
+        return ce("section", { key: e.id || fi, style: { marginBottom: 18, borderRadius: 18, border: "1px solid var(--border-subtle)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" } },
+          // Folder header
+          ce("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)" } },
+            ce("span", { style: { width: 10, height: 10, borderRadius: 3, background: e.color || "var(--indigo-500)", flexShrink: 0 } }),
+            ce("div", { style: { flex: 1, minWidth: 0 } },
+              ce("div", { style: { fontSize: 15, fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.01em", color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, e.name),
+              ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
+                ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
+            ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
+          // Topic rows
+          ce("div", { style: { display: "flex", flexDirection: "column" } },
+            ...ordered.map((r, ri) => ce("button", {
+              key: ri, onClick: () => { setTopic(r.name); setTopicPicker(false); setMode("learn"); },
+              style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
+            },
+              ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
+              statusPill(r.tp)))));
+      }));
   }
 
   // ─── LOBBY ─────────────────────────────────────────────────────────────────
