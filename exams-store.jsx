@@ -325,6 +325,15 @@ function computePriority(exam) {
 // (which may collect more than one subject) commits in a single saveExams
 // call, and the schedule reconciles against the real "before" snapshot once.
 function commitExamWizard({ examDrafts, profilePatch }) {
+  // Apply the profile patch FIRST — saveExams() below triggers schedule
+  // generation, which reads weeklyHours/daysPerWeek/sessionLengthMin/
+  // blackoutSlots/planIntensity from the profile. Saving these after would
+  // build the very first schedule on the OLD budget (e.g. 45-min sessions
+  // even though the student just picked 90) and only fix it on the next
+  // profile edit. This ordering is why "I chose 90 min but the calendar
+  // shows 45" happened.
+  if (profilePatch && window.saveProfile) window.saveProfile(profilePatch);
+
   const exams = getExams();
   const newExams = (examDrafts || []).map((d, i) => migrateExam({
     id: "e" + Date.now() + "_" + i,
@@ -361,8 +370,6 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     });
     window.saveSchedule({ version: 1, sessions });
   }
-
-  if (profilePatch && window.saveProfile) window.saveProfile(profilePatch);
 
   return newExams;
 }
