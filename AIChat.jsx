@@ -1761,6 +1761,180 @@ function saveDiffVote(topicKey, vote) {
   try { const d = JSON.parse(localStorage.getItem(DIFF_KEY) || "{}"); d[topicKey] = vote; localStorage.setItem(DIFF_KEY, JSON.stringify(d)); } catch {}
 }
 
+// ─── Lesson plan cache ───────────────────────────────────────────────────────
+// A generated lesson is a pure function of (mode, topic, exam, difficulty vote,
+// explanation language, UI language). Generation is a 3-8s AI round-trip, so we
+// persist the parsed plan and serve repeat opens instantly — this is what makes
+// official-exam topics you've opened before load with zero wait. A bounded LRU
+// (most-recent 60) keeps localStorage from growing without limit. Bumping
+// LESSON_CACHE_VER invalidates every cached plan at once when the prompt changes.
+const LESSON_CACHE_KEY = "brain_lessoncache_v1";
+const LESSON_CACHE_VER = 1;
+const LESSON_CACHE_MAX = 60;
+function lessonCacheKey({ mode, topic, examId, vote, lang, ui }) {
+  return `${LESSON_CACHE_VER}::${mode}::${topic}::${examId || "any"}::v${vote ?? 0}::${lang || "ui"}::${ui || "en"}`;
+}
+function getCachedLesson(key) {
+  try { const c = JSON.parse(localStorage.getItem(LESSON_CACHE_KEY) || "{}"); return c[key]?.plan || null; } catch { return null; }
+}
+function saveCachedLesson(key, plan) {
+  try {
+    const c = JSON.parse(localStorage.getItem(LESSON_CACHE_KEY) || "{}");
+    c[key] = { plan, ts: Date.now() };
+    const keys = Object.keys(c);
+    if (keys.length > LESSON_CACHE_MAX) {
+      keys.sort((a, b) => (c[a].ts || 0) - (c[b].ts || 0)).slice(0, keys.length - LESSON_CACHE_MAX).forEach((k) => delete c[k]);
+    }
+    localStorage.setItem(LESSON_CACHE_KEY, JSON.stringify(c));
+  } catch {}
+}
+
+// De-dupes concurrent generations of the same lesson (e.g. a hover-prefetch
+// already in flight when the student clicks). Keyed by cacheKey → Promise.
+const _lessonInFlight = new Map();
+
+// Builds (or returns cached) a lesson plan for a topic. Pure of React so both
+// LessonEngine and the topic picker's hover-prefetch can call it. `force`
+// bypasses the cache to regenerate on an explicit retry.
+async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
+  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
+  const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
+  const topicKey = `${topic}::${resolved?.examId || "any"}`;
+  const priorVote = getDiffVote(topicKey);
+  const cacheKey = lessonCacheKey({ mode, topic, examId: resolved?.examId, vote: priorVote, lang: _lessonExam?.explainLang, ui: tcode });
+  if (!force) {
+    const cached = getCachedLesson(cacheKey);
+    if (cached) return cached;
+    if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
+  }
+  const run = (async () => {
+    const complete = window.brainComplete || ((a) => window.claude.complete(a));
+    const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+    const DIFF_NOTE = priorVote == null || priorVote === 0 ? "" :
+      priorVote >= 2  ? "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student said this topic was WAY too easy last time. Skip basics entirely. Use only hard questions, complex applications, tricky edge cases. Assume solid prior knowledge." :
+      priorVote === 1 ? "\n\n⚠️ DIFFICULTY FEEDBACK: The student found this slightly too easy. Use harder questions, less hand-holding, assume more background knowledge." :
+      priorVote === -1 ? "\n\n⚠️ DIFFICULTY FEEDBACK: The student found this slightly too hard. Use more scaffolding, clearer analogies, and start with easier questions." :
+      "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student found this topic WAY too hard last time. Simplify significantly: very concrete examples, no jargon without explanation, easy questions first, heavy scaffolding throughout.";
+
+    const VOICE = `VOICE — applies to every "body", "explanation" and "keyTakeaway":
+- Energetic, warm, a little cheeky. Talk TO the student, not AT them.
+- Praise is specific and earned — name the exact thing they did right. NEVER "Great job", "Correct!", "Well done", or praise that fits any answer.
+- 1-3 short sentences per text field. No walls of text.
+- Turn wrong answers into insight ("Ooh — that's the classic trap, here's the tell…"), never a flat "the answer is B".
+- When the student's history above is relevant, reference it naturally. NEVER invent history you weren't given.`;
+
+    const STEP_TYPES = `STEP TYPES AND THEIR EXACT JSON SHAPES:
+
+"teach" — explain ONE concept:
+{"type":"teach","title":"Short Title","body":"1-3 sentences. **Bold** key terms. Concrete analogy, not abstract.","keyTakeaway":"One punchy sentence","example":"A concrete example or formula"}
+
+"mcq" — multiple choice:
+{"type":"mcq","question":"Clear, specific question","options":["A","B","C","D"],"correct":1,"explanation":"Why the right answer is right; why others are traps. 1-2 sentences.","difficulty":"easy|medium|hard"}
+
+"tf" — true or false:
+{"type":"tf","statement":"A clear statement","correct":true,"explanation":"Why it's true/false. 1 sentence."}
+
+"fill" — fill in the blank (ONE word or short phrase):
+{"type":"fill","sentence":"The ___ is the powerhouse of the cell.","answer":"mitochondria","accept":["mitochondria","mitochondrion"],"explanation":"Brief explanation."}
+
+"worked_example" — step-by-step solution:
+{"type":"worked_example","title":"Example: ...","steps":[{"label":"Step 1","content":"What to do"}],"challenge":"A similar problem for the student to try"}
+
+"explain_back" — student explains the concept in their own words, AI checks:
+{"type":"explain_back","prompt":"Explain [concept] in your own words, as if teaching a friend.","ideal":"The key points a good explanation should cover.","concept":"The concept name"}
+
+"checkpoint" — 3 rapid-fire questions:
+{"type":"checkpoint","questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":2,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":1,"explanation":"..."}]}
+
+OUTPUT FORMAT: {"title":"Lesson title","estimatedMinutes":10,"steps":[...]}`;
+
+    const system = (mode === "learn") ? `You are an expert teacher building ONE clear first-lesson — the student is encountering this topic for the first time. Priority is understanding, not speed. Anything known about the student appears above; use it.${DIFF_NOTE}
+
+OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
+
+${VOICE}
+
+STRUCTURE — 9-14 steps, always concept-first:
+1. Step 1 is ALWAYS a "teach" step. Open with the clearest, most concrete explanation of the first concept — an analogy, a real-world anchor, not a definition dump.
+2. Every "teach" is immediately followed by ONE quiz (mcq, tf, or fill) that tests exactly what was just taught — nothing the student hasn't seen yet.
+3. After the SECOND concept's quiz, add ONE "explain_back" step where the student explains what they've learned so far in their own words. This is the most powerful learning moment.
+4. Pattern: teach → quiz → teach → quiz → explain_back → (worked_example →) teach → quiz → checkpoint.
+5. 2-3 core concepts total. Each gets its own teach + quiz pair.
+6. End with a "checkpoint" of exactly 3 questions covering all concepts taught.
+
+RULES:
+- Step 1 MUST be "teach" — NEVER mcq or tf as the first step.
+- Never two "teach" steps in a row. Every teach is followed by a quiz.
+- Quiz questions test ONLY what was explicitly taught earlier in this lesson.
+- Difficulty rises gradually — first quiz is easy, last quiz before checkpoint is hard.
+- Total steps: 8-12 (checkpoint counts as 1 step).
+
+${STEP_TYPES}` : (mode === "practice") ? `You are a tough exam examiner. Build a PRACTICE TEST — rapid-fire exam-style questions, no teaching. The student already knows this material; make them prove it. Anything known about the student appears above; target their weak spots.${DIFF_NOTE}
+
+OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
+
+${VOICE}
+
+STRUCTURE — 8-10 steps, all questions:
+1. Open with a medium-difficulty mcq or tf question. No warmup.
+2. Mix mcq, tf, AND fill throughout. Never the same type twice in a row.
+3. No "teach" steps — ONLY quiz questions and one final "checkpoint".
+4. Questions span the full topic: definitions, applications, tricky edge cases.
+5. End with a "checkpoint" of exactly 3 hard exam-style questions.
+
+RULES:
+- Step 1 MUST be mcq or tf — never a teach.
+- Zero "teach" steps allowed anywhere in the lesson.
+- Difficulty is medium-to-hard throughout. No softballs.
+- Total steps: 8-10.
+
+${STEP_TYPES}` : `You are an AI tutor running a SPACED REPETITION session — the student has seen this before, this is retrieval practice. Make them recall, not re-read. Anything known about the student appears above; reference their past mistakes naturally.${DIFF_NOTE}
+
+OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
+
+${VOICE}
+
+STRUCTURE — 8-10 steps, quiz-heavy:
+1. COLD OPEN FIRST. Step 1 is an "mcq" or "tf" that tests recall immediately — a surprising question, a trap, a "what's the rule here?". Its "explanation" should be the mini-reveal. Step 1 is NEVER a teach.
+2. After each question, if the answer exposed a gap, add ONE short "teach" to re-explain just that point (1-2 sentences, not a re-teach from scratch). Otherwise go straight to the next question.
+3. Mix mcq, tf, AND fill. Never the same type twice in a row.
+4. At least 5 quiz questions before the checkpoint.
+5. End with a "checkpoint" of exactly 3 questions.
+
+RULES:
+- Step 1 MUST be mcq or tf — NEVER a teach.
+- "teach" steps here are SHORT reminders (1-2 sentences) — not full explanations.
+- Difficulty starts medium and rises to hard.
+- Total steps: 8-10.
+
+${STEP_TYPES}`;
+
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
+    const raw = await Promise.race([
+      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride }),
+      timeout,
+    ]);
+    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error(L("Invalid lesson plan", "Недійсний план уроку", "Недействительный план урока", "Plan de leçon invalide", "Ungültiger Lektionsplan"));
+    saveCachedLesson(cacheKey, parsed);
+    return parsed;
+  })();
+  _lessonInFlight.set(cacheKey, run);
+  try { return await run; }
+  finally { _lessonInFlight.delete(cacheKey); }
+}
+
+// Fire-and-forget cache warmer for the topic picker (hover / focus). Silent on
+// failure — this is best-effort speculative work, never surfaced to the user.
+function prefetchLesson(topic, tcode) {
+  try {
+    const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null;
+    generateLessonPlan({ mode: "learn", topic, resolved, tcode, force: false }).catch(() => {});
+  } catch {}
+}
+
 function LessonEngine({ topic, mode, onExit, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [plan, setPlan] = React.useState(null);
@@ -1841,132 +2015,25 @@ function LessonEngine({ topic, mode, onExit, t }) {
     setStep(0);
     setResults([]);
     setDone(false);
+    let cancelled = false;
     (async () => {
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
-        const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-
-        const topicKey = `${topic}::${resolved?.examId || "any"}`;
-        const priorVote = getDiffVote(topicKey);
-        const DIFF_NOTE = priorVote == null || priorVote === 0 ? "" :
-          priorVote >= 2  ? "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student said this topic was WAY too easy last time. Skip basics entirely. Use only hard questions, complex applications, tricky edge cases. Assume solid prior knowledge." :
-          priorVote === 1 ? "\n\n⚠️ DIFFICULTY FEEDBACK: The student found this slightly too easy. Use harder questions, less hand-holding, assume more background knowledge." :
-          priorVote === -1 ? "\n\n⚠️ DIFFICULTY FEEDBACK: The student found this slightly too hard. Use more scaffolding, clearer analogies, and start with easier questions." :
-          "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student found this topic WAY too hard last time. Simplify significantly: very concrete examples, no jargon without explanation, easy questions first, heavy scaffolding throughout.";
-
-        const VOICE = `VOICE — applies to every "body", "explanation" and "keyTakeaway":
-- Energetic, warm, a little cheeky. Talk TO the student, not AT them.
-- Praise is specific and earned — name the exact thing they did right. NEVER "Great job", "Correct!", "Well done", or praise that fits any answer.
-- 1-3 short sentences per text field. No walls of text.
-- Turn wrong answers into insight ("Ooh — that's the classic trap, here's the tell…"), never a flat "the answer is B".
-- When the student's history above is relevant, reference it naturally. NEVER invent history you weren't given.`;
-
-        const STEP_TYPES = `STEP TYPES AND THEIR EXACT JSON SHAPES:
-
-"teach" — explain ONE concept:
-{"type":"teach","title":"Short Title","body":"1-3 sentences. **Bold** key terms. Concrete analogy, not abstract.","keyTakeaway":"One punchy sentence","example":"A concrete example or formula"}
-
-"mcq" — multiple choice:
-{"type":"mcq","question":"Clear, specific question","options":["A","B","C","D"],"correct":1,"explanation":"Why the right answer is right; why others are traps. 1-2 sentences.","difficulty":"easy|medium|hard"}
-
-"tf" — true or false:
-{"type":"tf","statement":"A clear statement","correct":true,"explanation":"Why it's true/false. 1 sentence."}
-
-"fill" — fill in the blank (ONE word or short phrase):
-{"type":"fill","sentence":"The ___ is the powerhouse of the cell.","answer":"mitochondria","accept":["mitochondria","mitochondrion"],"explanation":"Brief explanation."}
-
-"worked_example" — step-by-step solution:
-{"type":"worked_example","title":"Example: ...","steps":[{"label":"Step 1","content":"What to do"}],"challenge":"A similar problem for the student to try"}
-
-"explain_back" — student explains the concept in their own words, AI checks:
-{"type":"explain_back","prompt":"Explain [concept] in your own words, as if teaching a friend.","ideal":"The key points a good explanation should cover.","concept":"The concept name"}
-
-"checkpoint" — 3 rapid-fire questions:
-{"type":"checkpoint","questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":2,"explanation":"..."},{"question":"...","options":["A","B","C","D"],"correct":1,"explanation":"..."}]}
-
-OUTPUT FORMAT: {"title":"Lesson title","estimatedMinutes":10,"steps":[...]}`;
-
-        // Two completely different lesson shapes depending on whether the student
-        // is seeing this topic for the first time (learn) or revisiting it (review/practice).
-        const system = (mode === "learn") ? `You are an expert teacher building ONE clear first-lesson — the student is encountering this topic for the first time. Priority is understanding, not speed. Anything known about the student appears above; use it.${DIFF_NOTE}
-
-OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
-
-${VOICE}
-
-STRUCTURE — 9-14 steps, always concept-first:
-1. Step 1 is ALWAYS a "teach" step. Open with the clearest, most concrete explanation of the first concept — an analogy, a real-world anchor, not a definition dump.
-2. Every "teach" is immediately followed by ONE quiz (mcq, tf, or fill) that tests exactly what was just taught — nothing the student hasn't seen yet.
-3. After the SECOND concept's quiz, add ONE "explain_back" step where the student explains what they've learned so far in their own words. This is the most powerful learning moment.
-4. Pattern: teach → quiz → teach → quiz → explain_back → (worked_example →) teach → quiz → checkpoint.
-5. 2-3 core concepts total. Each gets its own teach + quiz pair.
-6. End with a "checkpoint" of exactly 3 questions covering all concepts taught.
-
-RULES:
-- Step 1 MUST be "teach" — NEVER mcq or tf as the first step.
-- Never two "teach" steps in a row. Every teach is followed by a quiz.
-- Quiz questions test ONLY what was explicitly taught earlier in this lesson.
-- Difficulty rises gradually — first quiz is easy, last quiz before checkpoint is hard.
-- Total steps: 8-12 (checkpoint counts as 1 step).
-
-${STEP_TYPES}` : (mode === "practice") ? `You are a tough exam examiner. Build a PRACTICE TEST — rapid-fire exam-style questions, no teaching. The student already knows this material; make them prove it. Anything known about the student appears above; target their weak spots.${DIFF_NOTE}
-
-OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
-
-${VOICE}
-
-STRUCTURE — 8-10 steps, all questions:
-1. Open with a medium-difficulty mcq or tf question. No warmup.
-2. Mix mcq, tf, AND fill throughout. Never the same type twice in a row.
-3. No "teach" steps — ONLY quiz questions and one final "checkpoint".
-4. Questions span the full topic: definitions, applications, tricky edge cases.
-5. End with a "checkpoint" of exactly 3 hard exam-style questions.
-
-RULES:
-- Step 1 MUST be mcq or tf — never a teach.
-- Zero "teach" steps allowed anywhere in the lesson.
-- Difficulty is medium-to-hard throughout. No softballs.
-- Total steps: 8-10.
-
-${STEP_TYPES}` : `You are an AI tutor running a SPACED REPETITION session — the student has seen this before, this is retrieval practice. Make them recall, not re-read. Anything known about the student appears above; reference their past mistakes naturally.${DIFF_NOTE}
-
-OUTPUT ONLY valid JSON — no markdown, no fences, no text before or after. Start with { end with }.
-
-${VOICE}
-
-STRUCTURE — 8-10 steps, quiz-heavy:
-1. COLD OPEN FIRST. Step 1 is an "mcq" or "tf" that tests recall immediately — a surprising question, a trap, a "what's the rule here?". Its "explanation" should be the mini-reveal. Step 1 is NEVER a teach.
-2. After each question, if the answer exposed a gap, add ONE short "teach" to re-explain just that point (1-2 sentences, not a re-teach from scratch). Otherwise go straight to the next question.
-3. Mix mcq, tf, AND fill. Never the same type twice in a row.
-4. At least 5 quiz questions before the checkpoint.
-5. End with a "checkpoint" of exactly 3 questions.
-
-RULES:
-- Step 1 MUST be mcq or tf — NEVER a teach.
-- "teach" steps here are SHORT reminders (1-2 sentences) — not full explanations.
-- Difficulty starts medium and rises to hard.
-- Total steps: 8-10.
-
-${STEP_TYPES}`;
-
-        const timeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
-        const raw = await Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext }),
-          timeout,
-        ]);
-
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error(L("Invalid lesson plan", "Недійсний план уроку", "Недействительный план урока", "Plan de leçon invalide", "Ungültiger Lektionsplan"));
+        // All prompt building + cache read/write lives in generateLessonPlan so
+        // the picker's hover-prefetch shares the exact same path. force on retry.
+        const parsed = await generateLessonPlan({ mode, topic, resolved, tcode: t?.code, force: retryCount > 0 });
+        if (cancelled) return;
         setPlan(parsed);
         setLoading(false);
       } catch (e) {
+        if (cancelled) return;
         console.error("Lesson generation failed:", e);
         setError(e.message || L("Failed to generate lesson", "Не вдалося створити урок", "Не удалось создать урок", "Échec de la génération de la leçon", "Lektion konnte nicht erstellt werden"));
         setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [topic, retryCount]);
+
 
   // ─── Step interaction handlers ─────────────────────────────────────────────
   const advance = () => {
@@ -2832,6 +2899,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const [mode, setMode] = React.useState(null);
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
+  const [expandedFolders, setExpandedFolders] = React.useState({}); // examId -> bool, "show all N" toggle in the topic picker
   const [reviewTopic, setReviewTopic] = React.useState(null);
   // Captured copy of a plain-string initialQuery, decoupled from the prop
   // itself. onConsumeQuery() nulls the PARENT's chatQuery in the same effect
@@ -3006,14 +3074,31 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
               ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
                 ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
-          // Topic rows
-          ce("div", { style: { display: "flex", flexDirection: "column" } },
-            ...ordered.map((r, ri) => ce("button", {
-              key: ri, onClick: () => { setTopic(r.name); setTopicPicker(false); setMode("learn"); },
-              style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
-            },
-              ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
-              statusPill(r.tp)))));
+          // Topic rows — collapsed to ~5 with a "show all N" toggle for long lists
+          (() => {
+            const COLLAPSE_N = 5;
+            const expanded = !!expandedFolders[e.id];
+            const visible = expanded || rows.length <= COLLAPSE_N ? ordered : ordered.slice(0, COLLAPSE_N);
+            const hidden = rows.length - visible.length;
+            return ce("div", { style: { display: "flex", flexDirection: "column" } },
+              ...visible.map((r, ri) => ce("button", {
+                key: ri, onClick: () => { setTopic(r.name); setTopicPicker(false); setMode("learn"); },
+                // Warm the lesson cache on intent (hover/focus) so the click that
+                // follows opens instantly instead of waiting on generation.
+                onMouseEnter: () => prefetchLesson(r.name, t?.code),
+                onFocus: () => prefetchLesson(r.name, t?.code),
+                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
+              },
+                ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
+                statusPill(r.tp))),
+              (rows.length > COLLAPSE_N) && ce("button", {
+                onClick: () => setExpandedFolders((m) => ({ ...m, [e.id]: !expanded })),
+                style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }
+              },
+                expanded
+                  ? L("Show less ↑", "Згорнути ↑", "Свернуть ↑", "Réduire ↑", "Weniger ↑")
+                  : L(`Show all ${rows.length} topics ↓`, `Показати всі ${rows.length} тем ↓`, `Показать все ${rows.length} тем ↓`, `Voir les ${rows.length} sujets ↓`, `Alle ${rows.length} Themen ↓`)));
+          })());
       }));
   }
 

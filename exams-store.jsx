@@ -86,6 +86,9 @@ function migrateExam(raw, index) {
     // writes the course — never edited directly for a course-backed exam,
     // so schedule-store.jsx/brain-store.jsx need zero changes to keep working.
     courseId: typeof e.courseId === "string" && e.courseId ? e.courseId : null,
+    // Lesson explanation language override ("en" or null=interface lang) — set
+    // for English-medium exams in the wizard; read by AIChat's LessonEngine.
+    explainLang: e.explainLang === "en" ? "en" : null,
     kind: ["exam", "midterm", "final", "resit", "mock", "certification"].includes(e.kind) ? e.kind : "exam",
     _v: EXAM_SCHEMA_VERSION,
   };
@@ -350,6 +353,7 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     importance: d.importance,
     notes: d.notes,
     courseId: d.courseId,
+    explainLang: d.explainLang,
     kind: d.kind,
   }, exams.length + i));
 

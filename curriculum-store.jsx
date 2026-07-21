@@ -22,6 +22,43 @@ function _writeCurriculumCache(list) {
 }
 function getCurriculumCache() { return _readCurriculumCache(); }
 
+// ─── Remote catalog (Supabase) ────────────────────────────────────────────────
+// The exam catalog can live in Supabase so new exams (IELTS, TOEFL, Duolingo…)
+// are added by inserting a row — no code change, no redeploy. The bundled
+// CURRICULUM_SEED stays as the synchronous baseline AND offline fallback: remote
+// rows override or extend it once fetched. A localStorage mirror makes the last
+// known remote catalog available instantly on the next boot (and fully offline).
+const CURRICULUM_REMOTE_KEY = "curriculum_remote_v1";
+let _remoteCurriculum = (() => {
+  try { const raw = JSON.parse(localStorage.getItem(CURRICULUM_REMOTE_KEY) || "[]"); return Array.isArray(raw) ? raw : []; }
+  catch { return []; }
+})();
+function getRemoteCurriculum() { return _remoteCurriculum; }
+// Supabase row (snake_case) → the exact shape every consumer already expects.
+function _remoteRowToSeed(row) {
+  return {
+    countryId: row.country_id, educationSystemId: row.education_system_id,
+    qualificationId: row.qualification_id, board: row.board, specVersion: row.spec_version,
+    subject: row.subject, aliases: row.aliases || [], topics: row.topics || [],
+    source: row.source || "official",
+  };
+}
+// Fetches the whole catalog once and merges it in. Best-effort: any failure
+// (offline, table missing, RLS) silently leaves the bundled seed in charge.
+async function refreshRemoteCurriculum() {
+  const sb = window._supabase;
+  if (!sb) return _remoteCurriculum;
+  try {
+    const { data, error } = await sb.from("curriculum").select("*");
+    if (error || !Array.isArray(data)) return _remoteCurriculum;
+    _remoteCurriculum = data.map(_remoteRowToSeed);
+    try { localStorage.setItem(CURRICULUM_REMOTE_KEY, JSON.stringify(_remoteCurriculum)); } catch {}
+    // Let any mounted picker/wizard re-read the now-richer catalog.
+    window.dispatchEvent(new CustomEvent("curriculum-updated"));
+  } catch {}
+  return _remoteCurriculum;
+}
+
 function _sameCombo(a, b) {
   return a.countryId === b.countryId
     && a.qualificationId === b.qualificationId
@@ -32,8 +69,14 @@ function _sameCombo(a, b) {
 
 function _allCurriculumRows() {
   const seed = (window.CURRICULUM_SEED || []);
+  const remote = _remoteCurriculum || [];
   const cache = _readCurriculumCache();
-  return seed.concat(cache);
+  // Remote wins over the bundled seed on the same combo (so a DB edit shows up),
+  // and remote-only rows (brand-new exams) are simply added.
+  const base = remote.length
+    ? seed.filter((s) => !remote.some((r) => _sameCombo(r, s))).concat(remote)
+    : seed;
+  return base.concat(cache);
 }
 
 // ── Deterministic single-syllabus lookup — pure, synchronous, no AI call ───
@@ -125,7 +168,11 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
     '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10,"subtopics":["...","..."]}]}. ' +
     "Base the list on the official programme for this learner's country, qualification and school year — NOT a generic global outline. " +
     "List the COMPLETE set of examinable syllabus topics, foundational topics first (this order IS the recommended study order). " +
-    "Do not truncate: if the official programme has 30+ topics, list them all. Each topic gets 2-6 short subtopics." +
+    // Keep the FULL topic list (that's the point) but cap subtopics at 3 — the
+    // topic names are what the picker and scheduler need; fewer subtopics per
+    // topic roughly halves the output tokens, so generation returns noticeably
+    // faster for subjects that aren't in the official seed.
+    "Do not truncate the TOPIC list: if the official programme has 30+ topics, list them all. Give each topic just 2-3 short subtopics (keep it terse for speed)." +
     (learnerFacts ? ` Learner: ${learnerFacts}.` : "") +
     (window.aiLangDirective ? ` ${window.aiLangDirective()}` : "");
   const isUni = qualificationId === "uni";
@@ -234,4 +281,9 @@ Object.assign(window, {
   CURRICULUM_CACHE_KEY,
   getCurriculumCache, getCurriculum, searchCurriculumSubjects, fetchAndCacheCurriculum, markCurriculumVerified,
   fetchUrlText, extractTopicsFromText,
+  getRemoteCurriculum, refreshRemoteCurriculum,
 });
+
+// Warm the remote catalog on boot (non-blocking). The bundled seed serves every
+// synchronous read immediately; this quietly upgrades it once the fetch lands.
+refreshRemoteCurriculum();
