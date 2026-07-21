@@ -190,15 +190,41 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
     topicsText: (initialExam.topics || []).join("\n"),
   }] : [blankSubject()]);
   const loadDemoData = () => setSubjects(window.DEFAULT_SUBJECTS.map((s) => ({ ...s, current: exam.grade.current, target: exam.grade.target, examDate: defaultExamDate, topicCount: 10, examBoard: exam.board })));
+  // Section-based exams (SAT, ACT) are ONE composite paper everyone sits in
+  // full — there is no subject to choose. We auto-build a single course whose
+  // topics are the union of every section's topics, and skip the subject step.
+  const SECTION_BASED = new Set(["sat", "act"]);
+  const isSectionBased = SECTION_BASED.has(examId);
+  // English-medium exams: the real paper is sat in English, so the student may
+  // want the AI to teach in English even if their app is in another language.
+  const EN_MEDIUM = new Set(["sat", "act", "ap", "alevel", "gcse", "ib"]);
+  const isEnMedium = EN_MEDIUM.has(examId);
+  const buildSectionCourse = (qualId) => {
+    const rows = (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId);
+    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] })));
+    const label = window.examType(qualId).label;
+    return { title: label, subject: label, curriculumRef: { qualificationId: qualId }, topics, knowledgeBase: { status: "empty", chapters: [], glossary: [], sourceFiles: [], extractedAt: null, updatedAt: null }, source: "official", verifiedByUser: true };
+  };
+  const sectionLabelsFor = (qualId) => (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId).map((r) => r.subject);
+
   const pickExam = (id) => {
     if (id === examId) return;
     const e = window.examType(id);
     setExamId(id);
+    // Section-based → auto-populate ONE subject covering all sections, no picker.
+    if (SECTION_BASED.has(id)) {
+      setSubjects((subs) => [{
+        ...blankSubject(),
+        id: (subs[0] && subs[0].id) || ("s" + Date.now()),
+        examDate: (subs[0] && subs[0].examDate) || defaultExamDate,
+        name: e.label, courseDraft: buildSectionCourse(id), curriculumValid: true,
+        current: e.grade.current, target: e.grade.target, examBoard: e.board,
+      }]);
+      return;
+    }
     // Switching qualification INVALIDATES everything derived from the old
     // one — syllabus draft, topic validation, uploaded specs, board, even the
-    // subject name (a "Mathematics" picked from the AQA list is not the same
-    // entity as НМТ математика). Only the exam date survives: it's the
-    // user's own deadline, not exam-type data.
+    // subject name. Only the exam date survives: it's the user's deadline.
     setSubjects((subs) => subs.map((s) => ({
       ...blankSubject(),
       id: s.id, examDate: s.examDate,
@@ -222,6 +248,9 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   // bug. Now the tier is just saved; hours stay whatever the user set.
   const [intensity, setIntensity] = React.useState(profile.planIntensity || "balanced");
   const applyIntensity = (id) => setIntensity(id);
+  // Lesson explanation language for English-medium exams: "en" = teach in
+  // English (the exam's language), null = follow the interface language.
+  const [explainLang, setExplainLang] = React.useState("en");
 
   // ── global settings (prefilled from profile; only persisted if touched) ──
   const [weeklyHours, setWeeklyHours] = React.useState(profile.weeklyHours);
@@ -242,7 +271,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
     !s.name.trim() || (s.name.trim() && s.examDate >= todayISO));
   const topicsProvided = subjects.every((s) => !s.name.trim() || s.curriculumValid);
   const canNext = step === "profile" ? (country && educationLevel)
-    : step === "subject" ? (subjects.some((s) => s.name.trim()) && subjectsValid && topicsProvided)
+    : step === "subject" ? (isSectionBased ? subjectsValid : (subjects.some((s) => s.name.trim()) && subjectsValid && topicsProvided))
     : true;
 
   function goNext() { setStepIdx((i) => Math.min(stepKeys.length - 1, i + 1)); }
@@ -265,10 +294,22 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
       }
     });
 
+    // Prefix the subject with the exam label so a student prepping for several
+    // exams in the same subject can tell them apart at a glance ("НМТ Математика"
+    // vs "A-Level Mathematics"). Custom/University stay freeform; anything whose
+    // canonical name already starts with the label (e.g. "AP Calculus AB") isn't
+    // double-prefixed.
+    const prefixName = (subjRaw) => {
+      const raw = (subjRaw || "").trim() || "My subject";
+      if (examId === "custom" || examId === "uni") return raw;
+      const label = exam.label;
+      if (!label || raw.toLowerCase().startsWith(label.toLowerCase())) return raw;
+      return `${label} ${raw}`;
+    };
     const examDrafts = rows.map((s) => {
       const course = createdCourses[s.id];
       return {
-        name: s.name.trim() || "My subject",
+        name: prefixName(s.name),
         color: null, // resolved by commitExamWizard's FALLBACK_COLORS rotation
         examDate: s.examDate,
         examBoard: s.examBoard,
@@ -278,6 +319,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
         gradingSystem: exam.grade,
         sessionsPerWeekHint: sessionsBySubject[s.id] ?? null,
         courseId: course ? course.id : null,
+        explainLang: isEnMedium ? explainLang : null, // "en" or null (interface lang)
         kind: "exam",
       };
     });
@@ -548,6 +590,30 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
               <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{c.s2_title}</h2>
               <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.s2_sub}</p>
             </div>
+            {isEnMedium && lang !== "en" && (
+              <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-subtle)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)" }}>
+                <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+                  {lang === "uk" ? "Якою мовою пояснювати уроки?" : lang === "ru" ? "На каком языке объяснять уроки?" : lang === "fr" ? "Dans quelle langue expliquer les leçons ?" : lang === "de" ? "In welcher Sprache sollen die Lektionen erklärt werden?" : "Which language should lessons be taught in?"}
+                </p>
+                <div style={{ display: "flex", gap: "var(--space-2)" }}>
+                  {[
+                    { v: "en", label: `🇬🇧 English`, sub: lang === "uk" ? "мова іспиту" : lang === "ru" ? "язык экзамена" : lang === "fr" ? "langue de l'examen" : lang === "de" ? "Prüfungssprache" : "exam language" },
+                    { v: null, label: `${c.flag || "🌐"} ${lang === "uk" ? "Моя мова" : lang === "ru" ? "Мой язык" : lang === "fr" ? "Ma langue" : lang === "de" ? "Meine Sprache" : "My language"}`, sub: lang === "uk" ? "інтерфейс" : lang === "ru" ? "интерфейс" : lang === "fr" ? "interface" : lang === "de" ? "Oberfläche" : "interface" },
+                  ].map((opt) => {
+                    const sel = explainLang === opt.v;
+                    return (
+                      <button key={String(opt.v)} type="button" onClick={() => setExplainLang(opt.v)}
+                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, padding: "10px 12px", borderRadius: "var(--radius-lg)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                          border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                          background: sel ? "var(--indigo-50)" : "var(--surface-page)" }}>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{opt.label}</span>
+                        <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{opt.sub}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               {subjects.map((s) => (
                 <div key={s.id} style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderLeft: `5px solid ${s.color}`, boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -574,6 +640,22 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     </select>
                   </div>
                   )}
+                  {isSectionBased ? (
+                    // Section-based exam: no subject to choose — show what's covered.
+                    <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-subtle)", background: "var(--surface-muted)", padding: "var(--space-4)" }}>
+                      <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+                        ✓ {lang === "uk" ? `${exam.label} охоплює всі секції` : lang === "ru" ? `${exam.label} охватывает все секции` : lang === "fr" ? `${exam.label} couvre toutes les sections` : lang === "de" ? `${exam.label} deckt alle Bereiche ab` : `${exam.label} covers every section`}
+                      </p>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {sectionLabelsFor(examId).map((sec) => (
+                          <span key={sec} style={{ fontSize: "var(--text-xs)", padding: "4px 10px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", color: "var(--text-body)" }}>{sec}</span>
+                        ))}
+                      </div>
+                      <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                        {(s.courseDraft && s.courseDraft.topics ? s.courseDraft.topics.length : 0)} {lang === "uk" ? "тем завантажено" : lang === "ru" ? "тем загружено" : lang === "fr" ? "sujets chargés" : lang === "de" ? "Themen geladen" : "topics loaded"}
+                      </p>
+                    </div>
+                  ) : (
                   <window.CurriculumStep
                     countryId={country || null}
                     qualificationId={examId}
@@ -591,6 +673,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     compact={false}
                     onValidationChange={(ok) => setSubject(s.id, { curriculumValid: ok })}
                   />
+                  )}
                   <div>
                     <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s2_current}</p>
                     <window.GradePicker grade={exam.grade} value={s.current} onChange={(v) => setSubject(s.id, { current: v })} accent="var(--text-muted)" />
@@ -601,10 +684,12 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                   </div>
                 </div>
               ))}
+              {!isSectionBased && (
               <button type="button" onClick={addSubject}
                 style={{ minHeight: 48, borderRadius: "var(--radius-xl)", border: "1.5px dashed var(--border-default)", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                 {c.s2_add}
               </button>
+              )}
               {cfg.showWelcome && (
                 <button type="button" onClick={loadDemoData}
                   style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "center" }}>

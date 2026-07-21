@@ -130,14 +130,18 @@ const AI_LANG_NAMES = { en: "English", uk: "Ukrainian", ru: "Russian", fr: "Fren
 // Shared by every AI call site in the app (not just brainComplete) so a
 // direct window.claude.complete() caller — StudyHub.jsx, BurnoutAlert.jsx —
 // can prepend the same directive without duplicating the language map.
-function aiLangDirective() {
-  const langCode = (window.getProfile ? window.getProfile().lang : null) || "en";
-  return langCode !== "en"
-    ? `Respond in ${AI_LANG_NAMES[langCode] || langCode}, not English — the student's app is set to that language.`
-    : "";
+// `override` forces a specific language regardless of the interface — used
+// for English-medium exams (SAT/AP/A-Level/…) where the student may want the
+// lesson in English even though their app is in another language. When an
+// override is given, "en" returns an explicit "Respond in English" so it wins
+// over any interface-language context; with no override, English stays silent.
+function aiLangDirective(override) {
+  const langCode = override || (window.getProfile ? window.getProfile().lang : null) || "en";
+  if (langCode === "en") return override ? "Respond in English." : "";
+  return `Respond in ${AI_LANG_NAMES[langCode] || langCode}, not English — the student's app is set to that language.`;
 }
 
-async function brainComplete({ system, messages, prompt, includeContext = true, topicContext } = {}) {
+async function brainComplete({ system, messages, prompt, includeContext = true, topicContext, langOverride } = {}) {
   if (!window.claude) throw new Error("AI is not available");
   const ctx = includeContext ? buildLearnerContext({ topicContext }) : "";
   // `system` (the caller's static task instructions) goes FIRST and carries
@@ -150,7 +154,7 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   // silently not cache (verify via response.usage.cache_read_input_tokens).
   // It engages more reliably for students with several active exams (larger
   // ctx) and once a Sonnet-based tier ships (lower minimum: 1024 tokens).
-  const dynamic = [aiLangDirective(), ctx].filter(Boolean).join("\n\n");
+  const dynamic = [aiLangDirective(langOverride), ctx].filter(Boolean).join("\n\n");
   const systemBlocks = [];
   if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });
   if (dynamic) systemBlocks.push({ type: "text", text: dynamic });
