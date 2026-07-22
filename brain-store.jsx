@@ -522,7 +522,7 @@ function getBrain() {
     const pace = paceFromReadiness(readiness, exam.targetGrade, daysAway);
 
     return {
-      id: exam.id, name: exam.name, color: exam.color, examBoard: exam.examBoard,
+      id: exam.id, name: window.examDisplayName ? window.examDisplayName(exam) : exam.name, color: exam.color, examBoard: exam.examBoard,
       targetGrade: exam.targetGrade, examDate: exam.examDate, daysAway,
       topics, readiness, projReadiness, confidence, coverage, predictedGrade, probability, risk, pace, started,
       weakestTopics: weakest, dueTopics: due,
