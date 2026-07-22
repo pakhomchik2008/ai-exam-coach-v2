@@ -2900,6 +2900,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
   const [expandedFolders, setExpandedFolders] = React.useState({}); // examId -> bool, "show all N" toggle in the topic picker
+  const [customTopicFor, setCustomTopicFor] = React.useState(null);  // examId whose "add your own topic" input is open
+  const [customTopicText, setCustomTopicText] = React.useState("");
   const [reviewTopic, setReviewTopic] = React.useState(null);
   // Captured copy of a plain-string initialQuery, decoupled from the prop
   // itself. onConsumeQuery() nulls the PARENT's chatQuery in the same effect
@@ -3047,6 +3049,24 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       return ce("span", { style: { fontSize: 12, fontWeight: 700, color: col, display: "inline-flex", alignItems: "center", gap: 4 } },
         done ? "✓ " + r + "%" : (weak ? "⚠ " : "") + r + "%");
     };
+    // Append a student-proposed topic to this exam's course so it becomes a real,
+    // progress-tracked topic (persisted), then open its AI-generated lesson.
+    const addCustomTopic = (examId, rawText) => {
+      const name = (rawText || "").trim();
+      if (!name) return;
+      const exam = (window.getExams ? window.getExams() : []).find((x) => x.id === examId);
+      const course = exam && exam.courseId && window.getCourse ? window.getCourse(exam.courseId) : null;
+      if (course && window.saveCourse) {
+        const exists = (course.topics || []).some((tp) => String(tp.name || "").toLowerCase() === name.toLowerCase());
+        if (!exists) {
+          // saveCourse(courseId, patch) — pass a topics patch, not the whole course.
+          window.saveCourse(course.id, { topics: [...(course.topics || []), { name, difficulty: 5, importance: 5, subtopics: [] }] });
+        }
+      }
+      setCustomTopicFor(null); setCustomTopicText("");
+      prefetchLesson(name, t?.code);
+      setTopic(name); setTopicPicker(false); setMode("learn");
+    };
     const folders = examViews.filter((e) => (e.topics || []).length > 0);
 
     return ce("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
@@ -3097,7 +3117,23 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
               },
                 expanded
                   ? L("Show less ↑", "Згорнути ↑", "Свернуть ↑", "Réduire ↑", "Weniger ↑")
-                  : L(`Show all ${rows.length} topics ↓`, `Показати всі ${rows.length} тем ↓`, `Показать все ${rows.length} тем ↓`, `Voir les ${rows.length} sujets ↓`, `Alle ${rows.length} Themen ↓`)));
+                  : L(`Show all ${rows.length} topics ↓`, `Показати всі ${rows.length} тем ↓`, `Показать все ${rows.length} тем ↓`, `Voir les ${rows.length} sujets ↓`, `Alle ${rows.length} Themen ↓`)),
+              // Student-proposed topic → added to the course and taught by AI.
+              customTopicFor === e.id
+                ? ce("div", { style: { display: "flex", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", alignItems: "center" } },
+                    ce("input", {
+                      autoFocus: true, value: customTopicText,
+                      onChange: (ev) => setCustomTopicText(ev.target.value),
+                      onKeyDown: (ev) => { if (ev.key === "Enter") addCustomTopic(e.id, customTopicText); if (ev.key === "Escape") { setCustomTopicFor(null); setCustomTopicText(""); } },
+                      placeholder: L("Type a topic…", "Введіть тему…", "Введите тему…", "Saisir un sujet…", "Thema eingeben…"),
+                      style: { flex: 1, minWidth: 0, padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-subtle)", fontSize: 14, fontFamily: "var(--font-sans)", outline: "none" }
+                    }),
+                    ce("button", { onClick: () => addCustomTopic(e.id, customTopicText), disabled: !customTopicText.trim(),
+                      style: { padding: "9px 14px", borderRadius: 10, border: "none", background: customTopicText.trim() ? "var(--indigo-600)" : "var(--surface-muted)", color: customTopicText.trim() ? "white" : "var(--text-muted)", fontWeight: 700, fontSize: 13, cursor: customTopicText.trim() ? "pointer" : "default", whiteSpace: "nowrap" } },
+                      L("Learn →", "Вчити →", "Учить →", "Apprendre →", "Lernen →")))
+                : ce("button", { onClick: () => { setCustomTopicFor(e.id); setCustomTopicText(""); },
+                    style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 600, color: "var(--text-muted)" } },
+                    L("+ Add your own topic", "+ Додати свою тему", "+ Добавить свою тему", "+ Ajouter votre sujet", "+ Eigenes Thema")));
           })());
       }));
   }

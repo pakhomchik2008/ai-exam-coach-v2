@@ -378,8 +378,40 @@ function commitExamWizard({ examDrafts, profilePatch }) {
   return newExams;
 }
 
+// ─── Display name with qualification prefix ───────────────────────────────────
+// A subject on its own ("Математика") is ambiguous when a student preps for the
+// same subject across exams. We show the qualification in front — "НМТ Математика",
+// "A-Level Mathematics" — at DISPLAY time (not just at creation) so exams made
+// before this rule ALSO get it, with no data migration. Idempotent: any existing
+// prefix (localized or Latin) is stripped first, then the current one re-applied.
+function _examQualId(exam) {
+  if (!exam) return null;
+  if (exam.qualificationId) return exam.qualificationId;
+  const c = exam.courseId && window.getCourse ? window.getCourse(exam.courseId) : null;
+  return (c && c.curriculumRef && c.curriculumRef.qualificationId) || null;
+}
+function examDisplayName(exam) {
+  const raw0 = ((exam && exam.name) || "").trim();
+  const qid = _examQualId(exam);
+  if (!qid || qid === "custom" || qid === "uni") return raw0;
+  const et = window.examType ? window.examType(qid) : null;
+  const label = et && et.label;
+  if (!label) return raw0;
+  const lang = (window.getProfile && window.getProfile().lang) || "en";
+  // Only NMT's shown prefix is language-dependent (Cyrillic for uk/ru).
+  const prefix = qid === "nmt" ? ((lang === "uk" || lang === "ru") ? "НМТ" : "NMT") : label;
+  // Strip whichever known prefix already leads the name, so we never double up.
+  let raw = raw0;
+  for (const s of [label, "НМТ", "NMT"]) {
+    if (s && raw.toLowerCase().startsWith((s + " ").toLowerCase())) { raw = raw.slice(s.length + 1).trim(); break; }
+  }
+  if (!raw) raw = raw0;
+  return `${prefix} ${raw}`;
+}
+
 Object.assign(window, {
   EXAMS_KEY, getExams, getExamsSnapshot, saveExams, subscribeExams,
   daysAway, fmtDateKey, sessionsNeeded, requiredPct, migrateExam,
   deriveCourse, deriveCourses, commitExamWizard, computePriority,
+  examDisplayName,
 });
