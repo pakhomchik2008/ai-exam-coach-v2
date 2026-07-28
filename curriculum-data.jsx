@@ -19,6 +19,38 @@
 
 const CURRICULUM_SEED = [
   {
+    countryId: "us", educationSystemId: "k12", qualificationId: "ap", board: null, specVersion: "2024-25",
+    subject: "AP Human Geography", aliases: ["Human Geography", "Human Geo", "HuG", "APHG", "AP Human Geo", "Geography", "География", "Географія"],
+    topics: [
+      { name: "Thinking Geographically", difficulty: 4, importance: 7, subtopics: ["Scales of Analysis", "Representation of Places", "Human-Environment Interaction"] },
+      { name: "Population and Migration Patterns and Processes", difficulty: 5, importance: 7, subtopics: ["Population Distribution and Density", "Population Change", "Migration"] },
+      { name: "Cultural Patterns and Processes", difficulty: 6, importance: 7, subtopics: ["Diffusion of Culture", "Aspects of Culture", "Cultural Landscapes and Identities"] },
+      { name: "Political Patterns and Processes", difficulty: 4, importance: 7, subtopics: ["Territoriality, Sovereignty, and Representation", "Political Boundaries and Divisions", "Geopolitics"] },
+      { name: "Agriculture and Rural Land-Use Patterns and Processes", difficulty: 5, importance: 7, subtopics: ["Agricultural Systems and Practices", "Subsistence and Commercial Agriculture", "Rural Settlements and Land Use"] },
+      { name: "Cities and Urban Land-Use Patterns and Processes", difficulty: 6, importance: 7, subtopics: ["Urbanization Patterns and Processes", "Urban Structure and Development", "Urban Challenges and Sustainability"] },
+      { name: "Industrialization and Economic Development Patterns and Processes", difficulty: 4, importance: 7, subtopics: ["Industrialization and Development", "Economic Sectors and Specialization", "Global Economic Patterns"] },
+      { name: "Resource Management and Environmental Change", difficulty: 5, importance: 7, subtopics: ["Resource Use and Depletion", "Environmental Challenges and Sustainability", "Climate Change Impacts"] },
+    ], source: "official",
+  },
+  {
+    countryId: "de", educationSystemId: "k12", qualificationId: "abitur", board: null, specVersion: "kmk",
+    subject: "Music (Musik)", aliases: ["Music", "Musik", "Музыка", "Музика", "муз"],
+    topics: [
+      { name: "Musiktheorie - Grundlagen", difficulty: 4, importance: 7, subtopics: ["Notenschrift und Rhythmik", "Tonleitern und Intervalle", "Akkordlehre"] },
+      { name: "Gehörbildung", difficulty: 5, importance: 7, subtopics: ["Melodisches Hören", "Harmonisches Hören", "Rhythmisches Hören"] },
+      { name: "Formenlehre", difficulty: 6, importance: 7, subtopics: ["Sonatenform", "Liedform und Rondoform", "Variationsformen"] },
+      { name: "Harmonielehre", difficulty: 4, importance: 7, subtopics: ["Dur- und Molltonalität", "Kadenzenlehre", "Funktionsharmonik"] },
+      { name: "Musikgeschichte - Antike bis Renaissance", difficulty: 5, importance: 7, subtopics: ["Antike Musiktheorie", "Mittelalter und Gregorianik", "Renaissance-Polyphonie"] },
+      { name: "Musikgeschichte - Barock", difficulty: 6, importance: 7, subtopics: ["Generalbasspraxis", "Kantate und Passion", "Oper und Oratorium"] },
+      { name: "Musikgeschichte - Klassik", difficulty: 4, importance: 7, subtopics: ["Sonate und Symphonie", "Klassische Kammermusik", "Haydn, Mozart, Beethoven"] },
+      { name: "Musikgeschichte - Romantik", difficulty: 5, importance: 7, subtopics: ["Kunstlied und Liederzyklus", "Sinfonische Dichtung", "Romantische Oper"] },
+      { name: "Musikgeschichte - Moderne und Gegenwart", difficulty: 6, importance: 7, subtopics: ["Atonalität und Zwölftontechnik", "Neue Musik des 20. Jahrhunderts", "Postmoderne und aktuelle Tendenzen"] },
+      { name: "Kompositionslehre", difficulty: 4, importance: 7, subtopics: ["Satzlehre und Orchestration", "Kontrapunkt", "Analyse von Kompositionstechniken"] },
+      { name: "Musikästhetik und Interpretation", difficulty: 5, importance: 7, subtopics: ["Werkbetrachtung und Analyse", "Interpretationsfragen", "Musik und außermusikalische Bezüge"] },
+      { name: "Musikalische Gattungen", difficulty: 6, importance: 7, subtopics: ["Vokalmusik und Chor", "Instrumentalmusik", "Populäre und Filmmusik"] },
+    ], source: "official",
+  },
+  {
     countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: "AQA", specVersion: "2024",
     subject: "Mathematics", aliases: ["GCSE Maths", "Maths", "Math", "GCSE Mathematics"],
     topics: [

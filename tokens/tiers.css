@@ -1,0 +1,128 @@
+/* ============================================================
+   AI Exam Coach — Level TIER themes
+   The XP level system unlocks interface "tiers". A tier is a
+   coherent re-theme applied by setting  data-tier  on <html>;
+   because the whole app reads semantic + ramp tokens, overriding
+   them here re-skins every screen at once — no per-component edits.
+   Tier 1 "Novice" is the default (no [data-tier] rules → base tokens).
+   This file ships the top tier "Legend" as the proof-of-concept:
+   a dark "night" theme with a luminous gold accent and glow.
+   ============================================================ */
+
+/* ─── Legend (top tier): night + gold ─────────────────────────── */
+:root[data-tier="legend"] {
+  /* Page + card surfaces (explicit — do NOT inherit --white) */
+  --app-bg:         #0C110E;
+  --surface-page:   #0C110E;
+  --surface-card:   #151C18;
+  --surface-muted:  #1B231E;
+  --surface-sunken: #101612;
+  --surface-ink:    #080C0A;   /* deep insight cards */
+  --surface-nav:    rgba(16, 22, 18, 0.86); /* dark translucent app-bar */
+
+  /* Neutral ramp — inverted lightness so inline var(--slate-*) uses
+     (borders, muted text, chip fills) flip correctly on the dark bg. */
+  --slate-50:  #1A211C;
+  --slate-100: #222A24;
+  --slate-200: #2D352F;
+  --slate-300: #3B443D;
+  --slate-400: #8C968E;   /* faint/icon text stays mid-tone */
+  --slate-500: #A6B0A8;   /* muted text */
+  --slate-600: #C2CAC3;
+  --slate-700: #DBE1DB;   /* body text */
+  --slate-800: #EAEFE9;
+  --slate-900: #F3F6F1;   /* strong text (was ink) */
+  --white:     #FFFFFF;   /* kept white so --text-invert stays legible */
+
+  /* Semantic surfaces/text/borders (explicit for safety) */
+  --text-strong:  #F3F6F1;
+  --text-body:    #DBE1DB;
+  --text-muted:   #9CA69E;
+  --text-faint:   #74807A;
+  --border-subtle: rgba(233, 240, 231, 0.09);
+  --border-default: rgba(233, 240, 231, 0.14);
+  --border-strong:  rgba(233, 240, 231, 0.22);
+
+  /* Accent family (legacy name --indigo-*) → luminous GOLD.
+     Used everywhere for accent text/icons/links/level chip.
+     !important is required to win over the accent-tweak system, which injects
+     `:root { --indigo-*: … !important }` (index.html applyTweaks). Equal
+     importance → the higher-specificity [data-tier] selector wins. */
+  --indigo-50:  #2A2413 !important;
+  --indigo-100: #342D16 !important;
+  --indigo-200: #41381C !important;
+  --indigo-400: #EBCB6E !important;
+  --indigo-500: #ECC44E !important;
+  --indigo-600: #F3D062 !important;   /* bright gold on dark — high contrast */
+  --indigo-700: #D3A932 !important;
+  --indigo-800: #B08A22 !important;
+
+  /* Success/progress green — brightened for the dark bg */
+  --emerald-50:  #10231A;
+  --emerald-100: #143026;
+  --emerald-300: #3FB588;
+  --emerald-500: #26BE84;
+  --emerald-600: #1FA671;
+  --emerald-700: #74E3B0;   /* success TEXT on dark cards */
+  --green-50:  #10231A;
+  --green-500: #26BE84;
+  --green-700: #74E3B0;
+
+  /* Status hues — flip: -100 tint fills darken, -700 text lightens */
+  --amber-50:  #2A2410;  --amber-100: #342C12;  --amber-200: #40371A;
+  --amber-400: #F0C64B;  --amber-500: #E7B733;  --amber-600: #F2CE5E;  --amber-700: #F1CB63;
+  --red-50:   #2C1512;  --red-100: #371B17;  --red-200: #43221C;
+  --red-400:  #EA7A64;  --red-500: #E2543F;  --red-600: #EE7357;  --red-700: #F09079;
+  --sky-50:   #10222A;  --sky-100: #142C36;  --sky-500: #38A6D0;  --sky-700: #74C6E8;
+  --rose-50:  #2C141A;  --rose-100: #371B22;  --rose-300: #E88AA0;  --rose-500: #E2637C;  --rose-700: #EE90A5;
+
+  /* Actions — primary pill becomes deep bronze-gold (white label stays
+     legible ≥4.5:1); accent is the bright gold. */
+  --action-primary:       #8C6C16;
+  --action-primary-hover: #765B12;
+  --action-accent:        #F3D062 !important;   /* beats tweak !important */
+  --action-accent-hover:  #D3A932 !important;
+  --focus-ring:           var(--indigo-500);
+
+  /* Difficulty + insight cards inherit the remapped ramps above. */
+
+  /* Elevated surfaces get a soft gold glow instead of a black drop. */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.5), 0 10px 30px -14px rgba(0,0,0,0.7);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.55), 0 24px 60px -24px rgba(0,0,0,0.75);
+  --border-accent: rgba(243, 208, 98, 0.45);
+}
+
+/* Night sky texture: a still, layered radial glow behind everything.
+   Attached to body so every screen sits on it. Kept subtle for text
+   legibility. */
+:root[data-tier="legend"] body {
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(1200px 600px at 78% -8%, rgba(243, 208, 98, 0.12), transparent 60%),
+    radial-gradient(900px 500px at 12% 108%, rgba(38, 190, 132, 0.09), transparent 62%),
+    radial-gradient(700px 700px at 50% 40%, rgba(255,255,255,0.015), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* Neutralize the base FintechX sky+mint ambient wash (defined inline in
+   index.html as body::before) — on the night theme it reads as muddy blue.
+   The legend glow above (on body) carries the ambiance instead. */
+:root[data-tier="legend"] body::before {
+  background:
+    radial-gradient(60rem 30rem at 82% -10%, rgba(243, 208, 98, 0.10), transparent 60%),
+    radial-gradient(70rem 34rem at 10% 110%, rgba(38, 190, 132, 0.07), transparent 62%);
+}
+
+/* Animation richness (top tier only): the accent glow breathes slowly.
+   Any element opting in with .tier-glow gets a living gold halo. */
+@keyframes tier-legend-breathe {
+  0%, 100% { box-shadow: 0 0 0 1px var(--border-accent), 0 0 18px -2px rgba(243, 208, 98, 0.25); }
+  50%      { box-shadow: 0 0 0 1px var(--border-accent), 0 0 30px 2px rgba(243, 208, 98, 0.45); }
+}
+:root[data-tier="legend"] .tier-glow {
+  animation: tier-legend-breathe 3.8s var(--ease-out, ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-tier="legend"] .tier-glow { animation: none; box-shadow: 0 0 0 1px var(--border-accent); }
+}

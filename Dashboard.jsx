@@ -202,7 +202,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       })()}
 
       {/* ── Today's AI Plan — hero section ────────────────── */}
-      <section style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(160deg, var(--indigo-50), #FFFFFF 70%)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", position: "relative", overflow: "hidden" }}>
+      <section style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(160deg, var(--indigo-50), var(--surface-card) 70%)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", position: "relative", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
           {window.CoachIcon ? <window.CoachIcon size={40} /> : null}
           <div style={{ flex: 1 }}>
@@ -215,7 +215,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
 
         {/* Recommendation card — the primary CTA, chosen by the brain */}
         {rec && (rec.kind === "review" || rec.kind === "learn") ? (
-          <div style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", boxShadow: "var(--shadow-sm)", marginBottom: "var(--space-4)" }}>
+          <div style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", boxShadow: "var(--shadow-sm)", marginBottom: "var(--space-4)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: rec.color, flexShrink: 0 }} />
               <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-bold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>
@@ -275,13 +275,13 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
             </button>
           </div>
         ) : rec && rec.kind === "rest" ? (
-          <div style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
+          <div style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
             <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {L("Everything's fresh — enjoy the rest day 🎉","Все свіже — відпочинь 🎉","Всё свежо — отдохни 🎉","Tout est frais — repos 🎉","Alles frisch — Ruhetag 🎉")}
             </p>
           </div>
         ) : (
-          <div style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
+          <div style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", marginBottom: "var(--space-4)" }}>
             <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {L("Add an exam to get your personalized AI study plan.","Додай іспит для AI плану.","Добавь экзамен для AI плана.","Ajoute un examen pour ton plan IA.","Füge eine Prüfung hinzu für deinen KI-Plan.")}
             </p>
@@ -299,7 +299,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
               {todaySessions.filter(s => s.id !== (focusSession && focusSession.id)).map(s => (
                 <div key={s.id} onClick={() => startMission(s)} style={{
                   display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "8px 12px",
-                  borderRadius: "var(--radius-lg)", background: "rgba(255,255,255,0.7)", border: "1px solid var(--border-subtle)",
+                  borderRadius: "var(--radius-lg)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)",
                   cursor: "pointer", transition: "background 0.15s ease",
                 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
