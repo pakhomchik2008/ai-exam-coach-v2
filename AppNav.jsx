@@ -58,7 +58,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
       borderBottom: "1px solid var(--border-subtle)",
-      background: "rgba(255, 255, 255, 0.82)",
+      background: "var(--surface-nav)",
       backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
     }}>
       <div style={{ maxWidth: "var(--container-app)", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
@@ -94,7 +94,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             {langOpen && (
               <div style={{
                 position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
-                background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
+                background: "var(--surface-nav)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
                 border: "1px solid var(--border-default)",
                 borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
                 overflow: "hidden", minWidth: "160px",

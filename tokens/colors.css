@@ -105,6 +105,7 @@
   --surface-muted:  var(--slate-50);
   --surface-sunken: var(--slate-100);
   --surface-ink:    var(--ink-900);   /* dark feature/AI cards */
+  --surface-nav:    rgba(255, 255, 255, 0.82); /* translucent app-bar / popovers */
 
   /* Text */
   --text-strong:  var(--slate-900);
