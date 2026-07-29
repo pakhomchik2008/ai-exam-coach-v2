@@ -28,7 +28,9 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const todaySessions = React.useMemo(() => {
     const { sessionsByDay } = window.buildScheduleData();
     const todays = sessionsByDay[window.fmtDateKey(new Date())] || [];
-    return todays.map((s) => ({ id: s.id, subject: s.subject, color: s.color, topic: s.topic, difficulty: 2, review: 1, est: 45 }));
+    // est carries THIS session's own planned length (the timer and the mission
+    // briefing both read it) — never a hardcoded default.
+    return todays.map((s) => ({ id: s.id, subject: s.subject, color: s.color, topic: s.topic, difficulty: 2, review: 1, est: s.durationMin }));
   }, [brain]);
 
   // Adaptive scheduling — check for overdue sessions on mount
@@ -84,7 +86,9 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       color: rec.color || "var(--indigo-600)",
       difficulty: 2,
       review: 1,
-      est: rec.estMinutes || 45,
+      // No scheduled slot behind this one, so the student's own default length
+      // is the honest estimate — not a hardcoded 45.
+      est: rec.estMinutes || (window.getProfile && window.getProfile().sessionLengthMin) || 45,
     });
   };
 

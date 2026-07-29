@@ -192,7 +192,9 @@ Rules:
     return () => clearInterval(i);
   }, [showRating, activeQuizIdx]);
 
-  const estSeconds = Math.max(1, s.est || 25) * 60;
+  // The timer runs for THIS session's planned length; only a session that
+  // somehow carries none falls back to the student's default.
+  const estSeconds = Math.max(1, s.est || (window.getProfile && window.getProfile().sessionLengthMin) || 45) * 60;
   const THRESH_1 = Math.max(75, Math.round(estSeconds / 3));
   const THRESH_2 = Math.max(THRESH_1 + 60, Math.round((estSeconds * 2) / 3));
 
