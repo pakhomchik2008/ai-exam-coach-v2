@@ -129,6 +129,7 @@ function Schedule({ t, embedded }) {
                     <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-strong)" }}>{s.topic}</p>
                     <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: s.status === "completed" ? "var(--emerald-600)" : "var(--text-faint)" }}>
                       {s.status === "completed" ? "✓ " + t.schedule_completed : t.schedule_pending}
+                      {s.durationMin ? ` · ${s.durationMin} ${t.code === "uk" ? "хв" : t.code === "ru" ? "мин" : t.code === "de" ? "Min" : "min"}` : ""}
                     </p>
                   </div>
                 ))}

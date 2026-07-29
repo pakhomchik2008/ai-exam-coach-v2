@@ -1,6 +1,12 @@
 // AI Exam Coach — CourseDetail: deep-dive modal for an exam coach card.
 // Investigate readiness/risk, and change target grade, confidence & study
 // intensity with the success probability recomputing live.
+
+// Length for sessions started ad-hoc from here (no scheduled slot behind them).
+function _defaultSessionLen() {
+  return (window.getProfile && window.getProfile().sessionLengthMin) || 45;
+}
+
 function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }) {
   const { Button, GaugeRing, Badge } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[(t && t.code) || "en"] || en);
@@ -88,8 +94,11 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
   const startSession = () => {
     const today = (window.buildScheduleData().sessionsByDay[window.fmtDateKey(new Date())] || []).find((x) => x.subject === course.name);
     const s = today
-      ? { id: today.id, examId: course.id, subject: today.subject, color: today.color, topic: today.topic, difficulty: 2, review: 1, est: 30 }
-      : { id: course.id + "-s", examId: course.id, subject: course.name, color: course.color, topic: course.weakTopics[0] || "General review", difficulty: 3, review: 1, est: 45 };
+      // A real scheduled session already knows how long it is — use its own
+      // length, not a hardcoded one. Only the synthesized fallback below has no
+      // session behind it, so it uses the student's default.
+      ? { id: today.id, examId: course.id, subject: today.subject, color: today.color, topic: today.topic, difficulty: 2, review: 1, est: today.durationMin }
+      : { id: course.id + "-s", examId: course.id, subject: course.name, color: course.color, topic: course.weakTopics[0] || "General review", difficulty: 3, review: 1, est: _defaultSessionLen() };
     onStart && onStart(s);
   };
 
@@ -207,7 +216,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
               {course.weakTopics.map((tp, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-2)", padding: "var(--space-2) var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--surface-muted)" }}>
                   <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)" }}>{tp}</span>
-                  <button onClick={() => onStart && onStart({ id: course.id + "-" + i, examId: course.id, subject: course.name, color: course.color, topic: tp, difficulty: 3, review: 1, est: 45 })}
+                  <button onClick={() => onStart && onStart({ id: course.id + "-" + i, examId: course.id, subject: course.name, color: course.color, topic: tp, difficulty: 3, review: 1, est: _defaultSessionLen() })}
                     style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", flexShrink: 0 }}>
                     {L("Study", "Вчити", "Учить", "Étudier", "Lernen")} →
                   </button>

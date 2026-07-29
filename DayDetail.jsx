@@ -20,8 +20,8 @@ function DayDetail({ day, dayIndex, onClose, onStart, t }) {
 
   const done = (day.sessions || []).filter((s) => s.done);
   const pending = (day.sessions || []).filter((s) => !s.done);
-  const totalMins = (day.sessions || []).reduce((a, s) => a + (s.duration || 0), 0);
-  const doneMins = done.reduce((a, s) => a + (s.duration || 0), 0);
+  const totalMins = (day.sessions || []).reduce((a, s) => a + (s.durationMin || 0), 0);
+  const doneMins = done.reduce((a, s) => a + (s.durationMin || 0), 0);
 
   const statusTone = isPast ? "easy" : isToday ? "medium" : "default";
   const statusLabel = isEmpty
@@ -104,7 +104,7 @@ function DayDetail({ day, dayIndex, onClose, onStart, t }) {
                         <div style={pill(s.color)}></div>
                         <div style={{ flex: 1 }}>
                           <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{s.topic}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.subject} · {s.duration} {L("min", "хв", "мин", "min", "Min")}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.subject} · {s.durationMin} {L("min", "хв", "мин", "min", "Min")}</p>
                         </div>
                         <span style={{ fontSize: "var(--text-base)", color: "var(--emerald-500)" }}>✓</span>
                       </div>
@@ -127,11 +127,11 @@ function DayDetail({ day, dayIndex, onClose, onStart, t }) {
                         <div style={pill(s.color)}></div>
                         <div style={{ flex: 1 }}>
                           <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{s.topic}</p>
-                          <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.subject} · {s.duration} {L("min", "хв", "мин", "min", "Min")}</p>
+                          <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.subject} · {s.durationMin} {L("min", "хв", "мин", "min", "Min")}</p>
                         </div>
                         {(isToday || isFuture) && onStart && (
                           <button
-                            onClick={() => { onClose(); onStart({ id: s.subject + i, subject: s.subject, color: s.color, topic: s.topic, difficulty: 3, review: 1, est: s.duration }); }}
+                            onClick={() => { onClose(); onStart({ id: s.subject + i, subject: s.subject, color: s.color, topic: s.topic, difficulty: 3, review: 1, est: s.durationMin }); }}
                             style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", flexShrink: 0, padding: "2px 0" }}
                           >{L("Study →", "Вчити →", "Учить →", "Étudier →", "Lernen →")}</button>
                         )}

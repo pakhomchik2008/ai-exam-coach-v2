@@ -9,7 +9,7 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
   const difficultyLabel = [null, L("Easy","Легко","Легко","Facile","Leicht"), L("Medium","Середньо","Средне","Moyen","Mittel"), L("Hard","Складно","Сложно","Difficile","Schwer")][session.difficulty || 2] || "Medium";
   const difficultyColor = session.difficulty <= 1 ? "var(--emerald-600)" : session.difficulty >= 3 ? "var(--red-500)" : "var(--amber-600)";
 
-  const estMinutes = session.est || 45;
+  const estMinutes = session.est || (window.getProfile && window.getProfile().sessionLengthMin) || 45;
   const started = course ? course.started : false;
   const mastery = course ? course.readinessPct : 50;
   const probability = course ? course.gradeProbability : 50;

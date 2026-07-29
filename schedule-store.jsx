@@ -493,6 +493,14 @@ function replanAllSchedules() {
 
 // ─── view (pure, cheap, derived — not persisted) ───────────────────────────
 
+// Fallback length for sessions persisted before durationMin existed. Changing
+// the profile default re-plans future sessions (saveProfile → replanAllSchedules),
+// which produces a new schedule object and busts _viewCache below.
+function _profileSessionLength() {
+  const p = (window.getProfile && window.getProfile()) || {};
+  return p.sessionLengthMin || 45;
+}
+
 let _viewArgs = null;
 let _viewCache = null;
 function buildScheduleView(schedule, courses) {
@@ -518,6 +526,10 @@ function buildScheduleView(schedule, courses) {
     if (!c) return; // exam fully deleted (incl. its completed history)
     (sessionsByDay[s.date] = sessionsByDay[s.date] || []).push({
       id: s.id, subject: c.name, color: c.color, topic: s.topic, status: s.status,
+      // Duration belongs to the SESSION, not to a global setting: a 60-min
+      // session stays 60 even if the profile default is 45. Legacy sessions
+      // saved before durationMin existed fall back to the profile default.
+      durationMin: s.durationMin || _profileSessionLength(),
     });
   });
 
