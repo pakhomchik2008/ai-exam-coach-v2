@@ -146,11 +146,15 @@ function AIPlan({ examIds, onStart, t }) {
   }, [pending, sessionMinDefault]);
 
   // ── Calendar data (2 weeks) ──────────────────────────────────────────────
+  // Only used to invent a start time for legacy/hint-seeded sessions that carry
+  // no real startTime — a scheduled session uses its OWN startTime (below).
   const WEEKDAY_SLOTS = ["17:00", "18:00", "19:00"];
   const WEEKEND_SLOTS = ["10:00", "11:15", "14:00", "15:15"];
-  function endTime(start) {
+  // End time is start + THIS session's own planned length — never a hardcoded
+  // 45, or a 60-min session would still render as X:00–X:45.
+  function endTime(start, durationMin) {
     const [h, m] = start.split(":").map(Number);
-    const total = h * 60 + m + 45;
+    const total = h * 60 + m + (durationMin || sessionMinDefault);
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
   }
 
@@ -172,7 +176,16 @@ function AIPlan({ examIds, onStart, t }) {
           key, dayName: [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat][dt.getDay()],
           dayNum: dt.getDate(), isToday: key === window.fmtDateKey(today),
           isSunday: dt.getDay() === 0,
-          sessions: raw.map((s, i) => ({ ...s, time: slots[i % slots.length], end: endTime(slots[i % slots.length]) })),
+          sessions: raw
+            .map((s, i) => {
+              // Use the session's OWN scheduled time/length; only fall back to a
+              // rotating slot for legacy/hint-seeded sessions that never got one.
+              const time = s.startTime || slots[i % slots.length];
+              return { ...s, time, end: endTime(time, s.durationMin) };
+            })
+            // Read top-to-bottom in real chronological order (real startTimes can
+            // arrive interleaved when two exams share a day).
+            .sort((a, b) => a.time.localeCompare(b.time)),
         });
       }
       weeks.push(days);

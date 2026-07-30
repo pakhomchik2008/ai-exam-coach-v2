@@ -16,6 +16,21 @@
 // user already verified once) skips the confirm step entirely; everything
 // else always show it.
 
+// Groups a flat topic list into ordered { module, topics } sections, preserving
+// array order (so the flat topicIdx every consumer uses is never reordered —
+// this is purely a presentational regrouping). Consecutive topics sharing a
+// module string fold into one section; ungrouped topics ("") form their own.
+function _groupTopicsByModule(topics) {
+  const groups = [];
+  (topics || []).forEach((t) => {
+    const m = (t && t.module) || "";
+    const last = groups[groups.length - 1];
+    if (last && last.module === m) last.topics.push(t);
+    else groups.push({ module: m, topics: [t] });
+  });
+  return groups;
+}
+
 function CurriculumStep({
   countryId, qualificationId, board, specVersion,
   subject, onSubjectChange,
@@ -288,12 +303,32 @@ function CurriculumStep({
             </button>
           </div>
           {!compact && (
+            course.topics.some((t) => t.module) ? (
+              // Grouped view: module → topics. Only kicks in when the syllabus
+              // actually has named sections (A-Level Maths: Pure/Statistics/
+              // Mechanics); otherwise the flat chip list below is used unchanged.
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                {_groupTopicsByModule(course.topics).map((g, gi) => (
+                  <div key={gi}>
+                    {g.module && (
+                      <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{g.module}</p>
+                    )}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {g.topics.map((t, i) => (
+                        <span key={i} style={{ fontSize: "var(--text-xs)", padding: "4px 10px", borderRadius: "var(--radius-full)", background: "var(--surface-muted)", color: "var(--text-body)" }}>{t.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {course.topics.slice(0, 12).map((t, i) => (
                 <span key={i} style={{ fontSize: "var(--text-xs)", padding: "4px 10px", borderRadius: "var(--radius-full)", background: "var(--surface-muted)", color: "var(--text-body)" }}>{t.name}</span>
               ))}
               {course.topics.length > 12 && <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", padding: "4px 2px" }}>{L(`+${course.topics.length - 12} more`, `+${course.topics.length - 12} ще`, `+${course.topics.length - 12} ещё`, `+${course.topics.length - 12} de plus`, `+${course.topics.length - 12} weitere`)}</span>}
             </div>
+            )
           )}
         </div>
       )}
@@ -310,7 +345,10 @@ function CurriculumStep({
           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 220, overflowY: "auto", marginBottom: "var(--space-3)" }}>
             {draftTopics.map((t, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: "var(--radius-md)", background: "var(--surface-card)" }}>
-                <span style={{ flex: 1, fontSize: "var(--text-sm)", color: "var(--text-body)" }}>{t.name}</span>
+                <span style={{ flex: 1, fontSize: "var(--text-sm)", color: "var(--text-body)" }}>
+                  {t.name}
+                  {t.module ? <span style={{ marginLeft: 8, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>· {t.module}</span> : null}
+                </span>
                 <button type="button" onClick={() => removeDraftTopic(i)} aria-label={L("Remove topic", "Видалити тему", "Удалить тему", "Supprimer le sujet", "Thema entfernen")}
                   style={{ border: "none", background: "transparent", color: "var(--text-faint)", cursor: "pointer", fontSize: 14, padding: 2 }}>✕</button>
               </div>

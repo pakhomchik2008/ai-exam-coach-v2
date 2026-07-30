@@ -158,7 +158,7 @@ function AnalysisAnimation({ copy, lines, onComplete }) {
 // ── Plan review card per subject — editable sessions/week ──────────────────────
 // BUG-27 fix: a brand-new account has no study history, so it gets an honest
 // placeholder instead of a fabricated confidence percentage.
-function PlanRow({ row, copy, onSessions, noHistory }) {
+function PlanRow({ row, copy, onSessions, noHistory, sessionLengthMin, minLabel, onDuration, durationLabel }) {
   const probColor = row.probability >= 60 ? "var(--emerald-600)" : row.probability >= 40 ? "var(--amber-600)" : "var(--red-500)";
   return (
     <div style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderTop: `4px solid ${row.color}`, boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
@@ -187,10 +187,30 @@ function PlanRow({ row, copy, onSessions, noHistory }) {
       </div>
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-muted)", marginBottom: 6 }}>
-          <span>{copy.sessions}</span><span style={{ fontFamily: "var(--font-mono)", color: "var(--text-strong)", fontWeight: "var(--weight-semibold)" }}>{row.sessions}×</span>
+          <span>{copy.sessions}</span>
+          <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-strong)", fontWeight: "var(--weight-semibold)" }}>
+            {row.sessions}×{sessionLengthMin ? ` · ${sessionLengthMin} ${minLabel || "min"}` : ""}
+          </span>
         </div>
         <input type="range" min={1} max={7} value={row.sessions} onChange={(e) => onSessions(Number(e.target.value))} style={{ width: "100%", accentColor: row.color, height: 24 }} />
       </div>
+      {onDuration && (
+        <div>
+          <p style={{ margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{durationLabel || "Minutes per lesson"}</p>
+          <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            {[30, 45, 60, 90].map((m) => {
+              const active = (sessionLengthMin || 45) === m;
+              return (
+                <button key={m} type="button" onClick={() => onDuration(m)}
+                  style={{ flex: 1, minHeight: 40, borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                    border: active ? `2px solid ${row.color}` : "1.5px solid var(--border-default)",
+                    background: active ? "var(--indigo-50)" : "var(--surface-card)",
+                    color: active ? "var(--indigo-700)" : "var(--text-muted)" }}>{m}m</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

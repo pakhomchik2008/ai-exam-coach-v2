@@ -90,6 +90,11 @@ function migrateExam(raw, index) {
     // for English-medium exams in the wizard; read by AIChat's LessonEngine.
     explainLang: e.explainLang === "en" ? "en" : null,
     kind: ["exam", "midterm", "final", "resit", "mock", "certification"].includes(e.kind) ? e.kind : "exam",
+    // Per-exam lesson length in minutes, chosen per subject in the wizard.
+    // null = "use the profile default" (legacy exams, and any created before
+    // this field existed). schedule-store.jsx's allocateBudget/seedSessionsForExam
+    // read this to size THIS exam's sessions independently of other subjects.
+    sessionLengthMin: isFiniteNumber(e.sessionLengthMin) && e.sessionLengthMin >= 15 && e.sessionLengthMin <= 180 ? Math.round(e.sessionLengthMin) : null,
     _v: EXAM_SCHEMA_VERSION,
   };
 }
@@ -355,6 +360,7 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     courseId: d.courseId,
     explainLang: d.explainLang,
     kind: d.kind,
+    sessionLengthMin: d.sessionLengthMin, // per-subject lesson length from the wizard
   }, exams.length + i));
 
   saveExams([...exams, ...newExams]); // triggers reconcileSchedule automatically
