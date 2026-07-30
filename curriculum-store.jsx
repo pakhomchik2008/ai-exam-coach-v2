@@ -43,6 +43,37 @@ function _remoteRowToSeed(row) {
     source: row.source || "official",
   };
 }
+// The inverse of _remoteRowToSeed: a locally-generated row → the Supabase
+// snake_case shape. country_id/education_system_id are NOT NULL in the schema,
+// so an AI row that never knew them is stored as '' (the unique de-dup key
+// intentionally excludes country anyway — see 03_curriculum_community_writes.sql).
+function _seedRowToRemote(row) {
+  return {
+    country_id: row.countryId || "",
+    education_system_id: row.educationSystemId || "",
+    qualification_id: row.qualificationId,
+    board: row.board || null,
+    spec_version: row.specVersion || null,
+    subject: row.subject,
+    aliases: row.aliases || [],
+    topics: row.topics || [],
+    source: "community", // user-generated, unverified — never 'official'
+  };
+}
+
+// Plan 2.2 auto-population: after a subject is AI-generated for the FIRST time,
+// push it to the shared Supabase catalog so every later student loads it
+// instantly instead of each paying the generation cost. Fully best-effort:
+//   * anonymous visitors are rejected by RLS (insert policy is authenticated-only)
+//   * a subject someone already contributed hits the unique index and is ignored
+//   * offline / table-missing / any error → we just keep the local cache
+// None of these are surfaced; the user's own flow already has the row cached.
+async function _pushCurriculumToRemote(row) {
+  const sb = window._supabase;
+  if (!sb || !row) return;
+  try { await sb.from("curriculum").insert(_seedRowToRemote(row)); } catch {}
+}
+
 // Fetches the whole catalog once and merges it in. Best-effort: any failure
 // (offline, table missing, RLS) silently leaves the bundled seed in charge.
 async function refreshRemoteCurriculum() {
@@ -95,19 +126,24 @@ function _boardMatches(rowBoard, queryBoard) {
 function getCurriculum(countryId, qualificationId, board, subject) {
   if (!subject) return null;
   const norm = (s) => String(s || "").toLowerCase().trim();
-  const rows = _allCurriculumRows();
-  return rows.find((r) =>
+  const matches = _allCurriculumRows().filter((r) =>
     r.qualificationId === qualificationId &&
     _boardMatches(r.board, board) &&
     (norm(r.subject) === norm(subject) || (r.aliases || []).some((a) => norm(a) === norm(subject)))
-  ) || null;
+  );
+  if (!matches.length) return null;
+  // A board-specific row OVERRIDES the shared wildcard one (plan 2.3): most
+  // subjects use one shared syllabus, but when a board-tuned row exists for the
+  // selected board it must win over the null-board general row, regardless of
+  // seed/remote/cache ordering.
+  return (board && matches.find((r) => (r.board || null) === (board || null))) || matches[0];
 }
 
 // ── Subject autocomplete surface — sync, fuzzy prefix/substring, no network ─
 function searchCurriculumSubjects(countryId, qualificationId, board, query) {
   const q = String(query || "").toLowerCase().trim();
   const rows = _allCurriculumRows().filter((r) =>
-    (!countryId || r.countryId === countryId) && r.qualificationId === qualificationId && (r.board || null) === (board || null)
+    (!countryId || r.countryId === countryId) && r.qualificationId === qualificationId && _boardMatches(r.board, board)
   );
   const matches = rows.filter((r) => {
     if (!q) return true;
@@ -165,9 +201,15 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
     profile.lang ? `interface language: ${profile.lang}` : null,
   ].filter(Boolean).join("; ");
   const system = "You are a curriculum expert with deep knowledge of OFFICIAL national education programmes (state curricula, exam-board specifications, ministry syllabi). Output ONLY valid JSON, no markdown, no commentary: " +
-    '{"topics":[{"name":"...","difficulty":1-10,"importance":1-10,"subtopics":["...","..."]}]}. ' +
+    '{"topics":[{"name":"...","module":"...","difficulty":1-10,"importance":1-10,"subtopics":["...","..."]}]}. ' +
     "Base the list on the official programme for this learner's country, qualification and school year — NOT a generic global outline. " +
     "List the COMPLETE set of examinable syllabus topics, foundational topics first (this order IS the recommended study order). " +
+    // "module" is the named branch/paper/strand the topic belongs to (e.g.
+    // A-Level Maths → \"Pure Mathematics\"/\"Statistics\"/\"Mechanics\"; a
+    // science → \"Biology\"/\"Chemistry\"/\"Physics\"). Set it only when the
+    // official spec really is divided into named sections; use \"\" when it
+    // isn't, and keep the SAME module string across all topics in one section.
+    'Give each topic a "module" — the official named section/paper/strand it sits under (repeat the same string for every topic in that section). If the syllabus has no such divisions, use "" for every topic. ' +
     // Keep the FULL topic list (that's the point) but cap subtopics at 3 — the
     // topic names are what the picker and scheduler need; fewer subtopics per
     // topic roughly halves the output tokens, so generation returns noticeably
@@ -194,6 +236,7 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
     .filter((t) => t && typeof t.name === "string" && t.name.trim())
     .map((t) => ({
       name: t.name.trim(),
+      module: typeof t.module === "string" ? t.module.trim() : "",
       difficulty: clampInt(t.difficulty, 1, 10, 5),
       importance: clampInt(t.importance, 1, 10, 5),
       subtopics: Array.isArray(t.subtopics) ? t.subtopics.filter((s) => typeof s === "string" && s.trim()).slice(0, 6) : [],
@@ -207,6 +250,9 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
   const cache = _readCurriculumCache().filter((r) => !_sameCombo(r, row));
   cache.push(row);
   _writeCurriculumCache(cache);
+  // Share it back to the catalog for everyone (fire-and-forget — the local
+  // cache above already serves THIS user regardless of whether the push lands).
+  _pushCurriculumToRemote(row);
   return row;
 }
 

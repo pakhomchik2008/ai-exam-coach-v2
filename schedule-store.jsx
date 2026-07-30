@@ -113,6 +113,17 @@ function seedSessionsForExam(exam, existingForExam, desiredCount) {
     return id;
   }
 
+  // Bake THIS session's planned length in at creation, exactly like
+  // allocateBudget does — otherwise a session from this path (first-run seed,
+  // or the wizard's per-subject sessions/week override) carries no durationMin
+  // and silently renders/times at whatever the profile default happens to be
+  // when it's viewed (45 for anyone who never touched session length). That's
+  // the "I picked 30 but the calendar shows 45" bug: the choice never gets
+  // stamped onto the session.
+  const sessionLengthMin = (typeof exam.sessionLengthMin === "number" && exam.sessionLengthMin > 0)
+    ? exam.sessionLengthMin
+    : ((window.getProfile && window.getProfile().sessionLengthMin) || 45);
+
   const out = [];
   for (let i = 0; i < count; i++) {
     // Start from tomorrow (day 1) and spread evenly to just before exam — the old
@@ -128,6 +139,7 @@ function seedSessionsForExam(exam, existingForExam, desiredCount) {
       topic: (exam.topics && exam.topics[topicIdx]) || `Topic review ${topicIdx + 1}`,
       status: "pending",
       completedAt: null,
+      durationMin: sessionLengthMin,
     });
   }
   return out;
@@ -257,8 +269,10 @@ function allocateBudget(exams, profile) {
   // on (§5 below), not how many sessions exist in total.
   const totalAvailDays = availableStudyDaysPerWeek(blackoutSlots);
   const effectiveDaysPerWeek = Math.max(1, Math.min(daysPerWeek, totalAvailDays));
-  const sessionLengthHours = sessionLengthMin / 60;
-  const sessionsPerWeek = Math.max(1, Math.round(effectiveWeeklyHours / sessionLengthHours));
+  // NOTE: sessions/week is now computed PER EXAM below, because each exam can
+  // carry its own lesson length (exam.sessionLengthMin) — a global sessions/week
+  // would be wrong the moment two subjects use different lengths. Each exam's
+  // slice of effectiveWeeklyHours is divided by ITS OWN length instead.
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
 
@@ -297,9 +311,17 @@ function allocateBudget(exams, profile) {
     const dl = daysLeftFor(exam);
     const weeksLeft = Math.max(1, dl / 7);
 
-    // Sessions/week for this exam, proportional to urgency
+    // Per-exam lesson length: each subject can set its own in the wizard, so a
+    // 90-min Physics session and a 30-min vocab drill coexist in one plan.
+    // Falls back to the profile default for legacy exams that never set one.
+    const examSessionLen = (typeof exam.sessionLengthMin === "number" && exam.sessionLengthMin > 0) ? exam.sessionLengthMin : sessionLengthMin;
+
+    // This exam's slice of the weekly HOUR budget (by urgency), converted to a
+    // session count using THIS exam's own length — not a global one, or a
+    // 30-min subject would be planned as if each lesson were 45.
     const urgencyFraction = urgency(exam) / totalUrgency;
-    const sessionsPerWeekForExam = Math.max(1, Math.round(sessionsPerWeek * urgencyFraction));
+    const examWeeklyHours = effectiveWeeklyHours * urgencyFraction;
+    const sessionsPerWeekForExam = Math.max(1, Math.round(examWeeklyHours / (examSessionLen / 60)));
 
     // Total sessions across the full remaining prep window
     const totalSessions = Math.max(1, Math.round(sessionsPerWeekForExam * weeksLeft));
@@ -386,7 +408,7 @@ function allocateBudget(exams, profile) {
       const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
       const slotIdx = globalDateSlotCount[date] || 0;
       globalDateSlotCount[date] = slotIdx + 1;
-      const startTime = _minutesToHHMM(_slotStartMinutes(intervalsForWeekday(weekday), slotIdx, sessionLengthMin));
+      const startTime = _minutesToHHMM(_slotStartMinutes(intervalsForWeekday(weekday), slotIdx, examSessionLen));
 
       sessions.push({
         id,
@@ -397,7 +419,7 @@ function allocateBudget(exams, profile) {
         status: "pending",
         completedAt: null,
         durationSec: 0,
-        durationMin: sessionLengthMin, // ← first time sessions carry a real planned duration
+        durationMin: examSessionLen, // this exam's own lesson length
       });
     });
 
@@ -413,7 +435,9 @@ function allocateBudget(exams, profile) {
 // targetGrade, color, examBoard, name are deliberately excluded so editing
 // them never touches a single persisted session.
 function fingerprintForScheduling(exam) {
-  return exam.examDate + "|" + exam.topicCount;
+  // sessionLengthMin is included so changing an exam's lesson length re-plans
+  // just that exam's pending sessions (same as changing its date/topic count).
+  return exam.examDate + "|" + exam.topicCount + "|" + (exam.sessionLengthMin || "");
 }
 
 function reconcileSchedule(oldExams, newExams, schedule) {
@@ -530,6 +554,10 @@ function buildScheduleView(schedule, courses) {
       // session stays 60 even if the profile default is 45. Legacy sessions
       // saved before durationMin existed fall back to the profile default.
       durationMin: s.durationMin || _profileSessionLength(),
+      // The session's real planned clock time — consumers that show start/end
+      // (AIPlan's week grid) must use THIS, not invent one, or the displayed
+      // length won't match durationMin. Null on legacy/hint-seeded sessions.
+      startTime: s.startTime || null,
     });
   });
 

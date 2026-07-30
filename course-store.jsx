@@ -39,6 +39,12 @@ function migrateTopic(raw, i) {
   return {
     id: typeof r.id === "string" && r.id ? r.id : _uid("t_"),
     name: typeof r.name === "string" && r.name.trim() ? r.name.trim() : `Topic ${i + 1}`,
+    // Optional grouping ABOVE the topic (module → topic → subtopic), e.g.
+    // A-Level Maths topics grouped under "Pure Mathematics" / "Statistics" /
+    // "Mechanics". "" = ungrouped, rendered as a flat list exactly as before.
+    // Purely presentational metadata — topicIdx stays the flat array index, so
+    // nothing in progress/scheduling (which keys off that index) shifts.
+    module: typeof r.module === "string" ? r.module.trim() : "",
     difficulty: _clampInt(r.difficulty, 1, 10, 5),
     importance: _clampInt(r.importance, 1, 10, 5),
     subtopics: Array.isArray(r.subtopics)

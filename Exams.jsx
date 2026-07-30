@@ -159,6 +159,12 @@ function Exams({ t, onPlanReady }) {
     const [examBoard, setExamBoard] = React.useState(qual.board || "");
     const [kind, setKind] = React.useState("exam");
     const [notes, setNotes] = React.useState("");
+    // Per-exam lesson length, asked here so each subject's sessions are sized to
+    // it (schedule-store.jsx reads exam.sessionLengthMin). Defaults to the
+    // student's global preference; a "Same course" resit inherits the original's.
+    const [sessionLengthMin, setSessionLengthMin] = React.useState(
+      () => (window.getProfile && window.getProfile().sessionLengthMin) || 45
+    );
     const [current, setCurrent] = React.useState(qual.grade.current);
     const [target, setTarget] = React.useState(qual.grade.target);
 
@@ -172,6 +178,7 @@ function Exams({ t, onPlanReady }) {
       if (sameCourse) {
         setName(lastExam.name);
         setKind("resit");
+        if (lastExam.sessionLengthMin) setSessionLengthMin(lastExam.sessionLengthMin);
         return;
       }
       setName("");
@@ -210,6 +217,7 @@ function Exams({ t, onPlanReady }) {
           notes: notes.trim(),
           courseId,
           kind,
+          sessionLengthMin,
         }],
         profilePatch: null,
       });
@@ -332,6 +340,25 @@ function Exams({ t, onPlanReady }) {
                       border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
                       background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
                     {k.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>
+              {{ en: "How long is each lesson?", uk: "Скільки триває один урок?", ru: "Сколько длится один урок?", fr: "Combien de temps dure chaque leçon ?", de: "Wie lang ist eine Einheit?" }[t.code] || "How long is each lesson?"}
+            </label>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[30, 45, 60, 90].map((m) => {
+                const sel = sessionLengthMin === m;
+                return (
+                  <button key={m} type="button" onClick={() => setSessionLengthMin(m)}
+                    style={{ flex: 1, padding: "10px 8px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                      border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                      background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
+                    {m} {{ en: "min", uk: "хв", ru: "мин", fr: "min", de: "Min" }[t.code] || "min"}
                   </button>
                 );
               })}

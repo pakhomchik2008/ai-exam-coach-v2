@@ -265,6 +265,10 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   const [files, setFiles] = React.useState([]);
   const [aiModalOpen, setAiModalOpen] = React.useState(false);
   const [sessionsBySubject, setSessionsBySubject] = React.useState({});
+  // Per-subject lesson length (minutes). Unset entries fall back to the global
+  // sessionLengthMin default — so every subject is pre-filled, but each can be
+  // changed independently on the review step.
+  const [durationBySubject, setDurationBySubject] = React.useState({});
 
   const accent = "var(--indigo-600)";
   const subjectsValid = subjects.length > 0 && subjects.every((s) =>
@@ -318,6 +322,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
         currentGrade: String(s.current),
         gradingSystem: exam.grade,
         sessionsPerWeekHint: sessionsBySubject[s.id] ?? null,
+        sessionLengthMin: durationBySubject[s.id] ?? sessionLengthMin,
         courseId: course ? course.id : null,
         explainLang: isEnMedium ? explainLang : null, // "en" or null (interface lang)
         kind: "exam",
@@ -756,6 +761,10 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                   const sessions = sessionsBySubject[s.id] ?? defaultSessions;
                   return (
                     <window.PlanRow key={s.id} noHistory copy={c}
+                      sessionLengthMin={durationBySubject[s.id] ?? sessionLengthMin}
+                      minLabel={{ en: "min", uk: "хв", ru: "мин", fr: "min", de: "Min" }[lang] || "min"}
+                      durationLabel={{ en: "Minutes per lesson", uk: "Хвилин на урок", ru: "Минут на урок", fr: "Minutes par leçon", de: "Minuten pro Einheit" }[lang] || "Minutes per lesson"}
+                      onDuration={(v) => setDurationBySubject((m) => ({ ...m, [s.id]: v }))}
                       row={{ id: s.id, name: s.name.trim() || "My subject", color: s.color, examDate: s.examDate, current: s.current, target: s.target, probability: 0, sessions }}
                       onSessions={(v) => setSessionsBySubject((m) => ({ ...m, [s.id]: v }))} />
                   );
