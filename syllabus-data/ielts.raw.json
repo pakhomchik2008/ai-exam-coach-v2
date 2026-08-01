@@ -1,0 +1,76 @@
+{
+  "exam": "ielts",
+  "sources": [
+    { "key": "ielts_org_format", "name": "IELTS.org — Test format & question types", "type": "official_org", "url": "https://www.ielts.org/for-test-takers/test-format", "retrieved_at": "2026-08-01", "notes": "Official IELTS (British Council / IDP / Cambridge) published test format and question types." }
+  ],
+  "skills": [
+    { "name": "Skimming", "description": "Reading quickly for gist and overall structure." },
+    { "name": "Scanning", "description": "Locating specific information quickly." },
+    { "name": "Inferencing", "description": "Deriving meaning not stated explicitly." },
+    { "name": "Paraphrasing", "description": "Recognising and producing restated meaning." },
+    { "name": "Note-taking", "description": "Capturing key points while listening." },
+    { "name": "Coherence and cohesion", "description": "Organising ideas with logical linking." },
+    { "name": "Fluency", "description": "Speaking at length without undue hesitation." },
+    { "name": "Pronunciation", "description": "Clear, intelligible sounds, stress and intonation." }
+  ],
+  "sections": [
+    {
+      "name": "Listening",
+      "description": "Four recorded sections, 40 questions. Same for Academic and General Training.",
+      "source": "ielts_org_format",
+      "tags": ["receptive"],
+      "topics": [
+        { "name": "Multiple choice", "difficulty": 5, "skills": ["Note-taking", "Inferencing"], "subtopics": [{ "name": "Single answer" }, { "name": "Multiple answers" }], "aliases": ["MCQ listening"] },
+        { "name": "Matching", "difficulty": 5, "skills": ["Note-taking"], "subtopics": [{ "name": "Matching items to a list" }] },
+        { "name": "Plan, map, diagram labelling", "difficulty": 6, "skills": ["Scanning", "Note-taking"], "subtopics": [{ "name": "Following directions" }, { "name": "Locating features" }] },
+        { "name": "Form, note, table, flow-chart, summary completion", "difficulty": 5, "skills": ["Note-taking", "Paraphrasing"], "subtopics": [{ "name": "Word limits" }, { "name": "Spelling accuracy" }] },
+        { "name": "Sentence completion", "difficulty": 5, "skills": ["Note-taking"], "subtopics": [{ "name": "Grammatical fit" }] },
+        { "name": "Short-answer questions", "difficulty": 5, "skills": ["Scanning"], "subtopics": [{ "name": "Word limit answers" }] }
+      ]
+    },
+    {
+      "name": "Reading",
+      "description": "Three long texts (Academic) / passages, 40 questions. Eleven official question types.",
+      "source": "ielts_org_format",
+      "tags": ["receptive", "academic"],
+      "topics": [
+        { "name": "Multiple choice", "difficulty": 5, "skills": ["Scanning", "Inferencing"], "subtopics": [{ "name": "Best title" }, { "name": "Detail questions" }] },
+        { "name": "Identifying information (True/False/Not Given)", "difficulty": 7, "skills": ["Scanning", "Inferencing"], "subtopics": [{ "name": "Fact vs claim" }, { "name": "Not Given distractors" }], "aliases": ["TFNG", "True False Not Given"] },
+        { "name": "Identifying writer's views/claims (Yes/No/Not Given)", "difficulty": 7, "skills": ["Inferencing"], "subtopics": [{ "name": "Opinion vs fact" }], "aliases": ["YNNG", "Yes No Not Given"] },
+        { "name": "Matching information", "difficulty": 6, "skills": ["Scanning"], "subtopics": [{ "name": "Locating information in paragraphs" }] },
+        { "name": "Matching headings", "difficulty": 6, "skills": ["Skimming", "Paraphrasing"], "subtopics": [{ "name": "Paragraph main idea" }, { "name": "Distractor headings" }], "aliases": ["Heading matching"] },
+        { "name": "Matching features", "difficulty": 6, "skills": ["Scanning"], "subtopics": [{ "name": "Matching to categories" }] },
+        { "name": "Matching sentence endings", "difficulty": 6, "skills": ["Paraphrasing"], "subtopics": [{ "name": "Grammatical and meaning fit" }] },
+        { "name": "Sentence completion", "difficulty": 5, "skills": ["Scanning", "Paraphrasing"], "subtopics": [{ "name": "Word limits" }] },
+        { "name": "Summary, note, table, flow-chart completion", "difficulty": 6, "skills": ["Paraphrasing"], "subtopics": [{ "name": "From a box of options" }, { "name": "From the text" }] },
+        { "name": "Diagram label completion", "difficulty": 6, "skills": ["Scanning"], "subtopics": [{ "name": "Labelling from description" }] },
+        { "name": "Short-answer questions", "difficulty": 5, "skills": ["Scanning"], "subtopics": [{ "name": "Word limit answers" }] }
+      ]
+    },
+    {
+      "name": "Writing",
+      "description": "Two tasks. Academic Task 1 describes visual data; Task 2 is an essay. Assessed on four criteria.",
+      "source": "ielts_org_format",
+      "tags": ["productive", "academic"],
+      "topics": [
+        { "name": "Task 1: Describe visual data", "difficulty": 7, "skills": ["Coherence and cohesion", "Paraphrasing"], "subtopics": [{ "name": "Overview / key trends" }, { "name": "Comparing data" }, { "name": "Describing a process or map" }], "aliases": ["Academic Task 1"] },
+        { "name": "Task 2: Essay", "difficulty": 8, "skills": ["Coherence and cohesion"], "prerequisites": ["Task 1: Describe visual data"], "subtopics": [{ "name": "Opinion essay" }, { "name": "Discussion essay" }, { "name": "Problem-solution essay" }, { "name": "Thesis and structure" }] },
+        { "name": "Coherence and cohesion", "difficulty": 6, "skills": ["Coherence and cohesion"], "subtopics": [{ "name": "Linking devices" }, { "name": "Paragraphing" }] },
+        { "name": "Lexical resource", "difficulty": 6, "subtopics": [{ "name": "Topic vocabulary" }, { "name": "Collocation" }] },
+        { "name": "Grammatical range and accuracy", "difficulty": 6, "subtopics": [{ "name": "Complex sentences" }, { "name": "Accuracy" }] }
+      ]
+    },
+    {
+      "name": "Speaking",
+      "description": "An 11–14 minute face-to-face interview in three parts. Four assessment criteria.",
+      "source": "ielts_org_format",
+      "tags": ["productive"],
+      "topics": [
+        { "name": "Part 1: Introduction and interview", "difficulty": 4, "skills": ["Fluency"], "subtopics": [{ "name": "Familiar topics" }, { "name": "Short extended answers" }] },
+        { "name": "Part 2: Long turn (cue card)", "difficulty": 7, "skills": ["Fluency", "Coherence and cohesion"], "prerequisites": ["Part 1: Introduction and interview"], "subtopics": [{ "name": "One-minute preparation" }, { "name": "Speaking for two minutes" }] },
+        { "name": "Part 3: Two-way discussion", "difficulty": 7, "skills": ["Fluency", "Inferencing"], "prerequisites": ["Part 2: Long turn (cue card)"], "subtopics": [{ "name": "Abstract ideas" }, { "name": "Justifying opinions" }] },
+        { "name": "Pronunciation", "difficulty": 6, "skills": ["Pronunciation"], "subtopics": [{ "name": "Stress and intonation" }, { "name": "Individual sounds" }] }
+      ]
+    }
+  ]
+}
