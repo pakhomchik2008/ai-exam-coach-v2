@@ -1,0 +1,720 @@
+{
+  "exam": "ielts",
+  "sources": [
+    {
+      "key": "ielts_org_format",
+      "name": "IELTS.org — Test format & question types",
+      "type": "official_org",
+      "url": "https://www.ielts.org/for-test-takers/test-format",
+      "retrieved_at": "2026-08-01",
+      "notes": "Official IELTS (British Council / IDP / Cambridge) published test format and question types."
+    }
+  ],
+  "skills": [
+    {
+      "slug": "skimming",
+      "name": "Skimming",
+      "description": "Reading quickly for gist and overall structure."
+    },
+    {
+      "slug": "scanning",
+      "name": "Scanning",
+      "description": "Locating specific information quickly."
+    },
+    {
+      "slug": "inferencing",
+      "name": "Inferencing",
+      "description": "Deriving meaning not stated explicitly."
+    },
+    {
+      "slug": "paraphrasing",
+      "name": "Paraphrasing",
+      "description": "Recognising and producing restated meaning."
+    },
+    {
+      "slug": "note-taking",
+      "name": "Note-taking",
+      "description": "Capturing key points while listening."
+    },
+    {
+      "slug": "coherence-and-cohesion",
+      "name": "Coherence and cohesion",
+      "description": "Organising ideas with logical linking."
+    },
+    {
+      "slug": "fluency",
+      "name": "Fluency",
+      "description": "Speaking at length without undue hesitation."
+    },
+    {
+      "slug": "pronunciation",
+      "name": "Pronunciation",
+      "description": "Clear, intelligible sounds, stress and intonation."
+    }
+  ],
+  "sections": [
+    {
+      "name": "Listening",
+      "description": "Four recorded sections, 40 questions. Same for Academic and General Training.",
+      "source": "ielts_org_format",
+      "tags": [
+        "receptive"
+      ],
+      "topics": [
+        {
+          "name": "Multiple choice",
+          "difficulty": 5,
+          "skills": [
+            "note-taking",
+            "inferencing"
+          ],
+          "subtopics": [
+            {
+              "name": "Single answer",
+              "slug": "single-answer",
+              "sort_order": 0
+            },
+            {
+              "name": "Multiple answers",
+              "slug": "multiple-answers",
+              "sort_order": 1
+            }
+          ],
+          "aliases": [
+            "MCQ listening"
+          ],
+          "slug": "multiple-choice",
+          "sort_order": 0,
+          "tags": [],
+          "prerequisites": []
+        },
+        {
+          "name": "Matching",
+          "difficulty": 5,
+          "skills": [
+            "note-taking"
+          ],
+          "subtopics": [
+            {
+              "name": "Matching items to a list",
+              "slug": "matching-items-to-a-list",
+              "sort_order": 0
+            }
+          ],
+          "slug": "matching",
+          "sort_order": 1,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Plan, map, diagram labelling",
+          "difficulty": 6,
+          "skills": [
+            "scanning",
+            "note-taking"
+          ],
+          "subtopics": [
+            {
+              "name": "Following directions",
+              "slug": "following-directions",
+              "sort_order": 0
+            },
+            {
+              "name": "Locating features",
+              "slug": "locating-features",
+              "sort_order": 1
+            }
+          ],
+          "slug": "plan-map-diagram-labelling",
+          "sort_order": 2,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Form, note, table, flow-chart, summary completion",
+          "difficulty": 5,
+          "skills": [
+            "note-taking",
+            "paraphrasing"
+          ],
+          "subtopics": [
+            {
+              "name": "Word limits",
+              "slug": "word-limits",
+              "sort_order": 0
+            },
+            {
+              "name": "Spelling accuracy",
+              "slug": "spelling-accuracy",
+              "sort_order": 1
+            }
+          ],
+          "slug": "form-note-table-flow-chart-summary-completion",
+          "sort_order": 3,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Sentence completion",
+          "difficulty": 5,
+          "skills": [
+            "note-taking"
+          ],
+          "subtopics": [
+            {
+              "name": "Grammatical fit",
+              "slug": "grammatical-fit",
+              "sort_order": 0
+            }
+          ],
+          "slug": "sentence-completion",
+          "sort_order": 4,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Short-answer questions",
+          "difficulty": 5,
+          "skills": [
+            "scanning"
+          ],
+          "subtopics": [
+            {
+              "name": "Word limit answers",
+              "slug": "word-limit-answers",
+              "sort_order": 0
+            }
+          ],
+          "slug": "short-answer-questions",
+          "sort_order": 5,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        }
+      ],
+      "slug": "listening",
+      "sort_order": 0
+    },
+    {
+      "name": "Reading",
+      "description": "Three long texts (Academic) / passages, 40 questions. Eleven official question types.",
+      "source": "ielts_org_format",
+      "tags": [
+        "receptive",
+        "academic"
+      ],
+      "topics": [
+        {
+          "name": "Multiple choice",
+          "difficulty": 5,
+          "skills": [
+            "scanning",
+            "inferencing"
+          ],
+          "subtopics": [
+            {
+              "name": "Best title",
+              "slug": "best-title",
+              "sort_order": 0
+            },
+            {
+              "name": "Detail questions",
+              "slug": "detail-questions",
+              "sort_order": 1
+            }
+          ],
+          "slug": "multiple-choice",
+          "sort_order": 0,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Identifying information (True/False/Not Given)",
+          "difficulty": 7,
+          "skills": [
+            "scanning",
+            "inferencing"
+          ],
+          "subtopics": [
+            {
+              "name": "Fact vs claim",
+              "slug": "fact-vs-claim",
+              "sort_order": 0
+            },
+            {
+              "name": "Not Given distractors",
+              "slug": "not-given-distractors",
+              "sort_order": 1
+            }
+          ],
+          "aliases": [
+            "TFNG",
+            "True False Not Given"
+          ],
+          "slug": "identifying-information-truefalsenot-given",
+          "sort_order": 1,
+          "tags": [],
+          "prerequisites": []
+        },
+        {
+          "name": "Identifying writer's views/claims (Yes/No/Not Given)",
+          "difficulty": 7,
+          "skills": [
+            "inferencing"
+          ],
+          "subtopics": [
+            {
+              "name": "Opinion vs fact",
+              "slug": "opinion-vs-fact",
+              "sort_order": 0
+            }
+          ],
+          "aliases": [
+            "YNNG",
+            "Yes No Not Given"
+          ],
+          "slug": "identifying-writers-viewsclaims-yesnonot-given",
+          "sort_order": 2,
+          "tags": [],
+          "prerequisites": []
+        },
+        {
+          "name": "Matching information",
+          "difficulty": 6,
+          "skills": [
+            "scanning"
+          ],
+          "subtopics": [
+            {
+              "name": "Locating information in paragraphs",
+              "slug": "locating-information-in-paragraphs",
+              "sort_order": 0
+            }
+          ],
+          "slug": "matching-information",
+          "sort_order": 3,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Matching headings",
+          "difficulty": 6,
+          "skills": [
+            "skimming",
+            "paraphrasing"
+          ],
+          "subtopics": [
+            {
+              "name": "Paragraph main idea",
+              "slug": "paragraph-main-idea",
+              "sort_order": 0
+            },
+            {
+              "name": "Distractor headings",
+              "slug": "distractor-headings",
+              "sort_order": 1
+            }
+          ],
+          "aliases": [
+            "Heading matching"
+          ],
+          "slug": "matching-headings",
+          "sort_order": 4,
+          "tags": [],
+          "prerequisites": []
+        },
+        {
+          "name": "Matching features",
+          "difficulty": 6,
+          "skills": [
+            "scanning"
+          ],
+          "subtopics": [
+            {
+              "name": "Matching to categories",
+              "slug": "matching-to-categories",
+              "sort_order": 0
+            }
+          ],
+          "slug": "matching-features",
+          "sort_order": 5,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Matching sentence endings",
+          "difficulty": 6,
+          "skills": [
+            "paraphrasing"
+          ],
+          "subtopics": [
+            {
+              "name": "Grammatical and meaning fit",
+              "slug": "grammatical-and-meaning-fit",
+              "sort_order": 0
+            }
+          ],
+          "slug": "matching-sentence-endings",
+          "sort_order": 6,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Sentence completion",
+          "difficulty": 5,
+          "skills": [
+            "scanning",
+            "paraphrasing"
+          ],
+          "subtopics": [
+            {
+              "name": "Word limits",
+              "slug": "word-limits",
+              "sort_order": 0
+            }
+          ],
+          "slug": "sentence-completion",
+          "sort_order": 7,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Summary, note, table, flow-chart completion",
+          "difficulty": 6,
+          "skills": [
+            "paraphrasing"
+          ],
+          "subtopics": [
+            {
+              "name": "From a box of options",
+              "slug": "from-a-box-of-options",
+              "sort_order": 0
+            },
+            {
+              "name": "From the text",
+              "slug": "from-the-text",
+              "sort_order": 1
+            }
+          ],
+          "slug": "summary-note-table-flow-chart-completion",
+          "sort_order": 8,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Diagram label completion",
+          "difficulty": 6,
+          "skills": [
+            "scanning"
+          ],
+          "subtopics": [
+            {
+              "name": "Labelling from description",
+              "slug": "labelling-from-description",
+              "sort_order": 0
+            }
+          ],
+          "slug": "diagram-label-completion",
+          "sort_order": 9,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Short-answer questions",
+          "difficulty": 5,
+          "skills": [
+            "scanning"
+          ],
+          "subtopics": [
+            {
+              "name": "Word limit answers",
+              "slug": "word-limit-answers",
+              "sort_order": 0
+            }
+          ],
+          "slug": "short-answer-questions",
+          "sort_order": 10,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        }
+      ],
+      "slug": "reading",
+      "sort_order": 1
+    },
+    {
+      "name": "Writing",
+      "description": "Two tasks. Academic Task 1 describes visual data; Task 2 is an essay. Assessed on four criteria.",
+      "source": "ielts_org_format",
+      "tags": [
+        "productive",
+        "academic"
+      ],
+      "topics": [
+        {
+          "name": "Task 1: Describe visual data",
+          "difficulty": 7,
+          "skills": [
+            "coherence-and-cohesion",
+            "paraphrasing"
+          ],
+          "subtopics": [
+            {
+              "name": "Overview / key trends",
+              "slug": "overview-key-trends",
+              "sort_order": 0
+            },
+            {
+              "name": "Comparing data",
+              "slug": "comparing-data",
+              "sort_order": 1
+            },
+            {
+              "name": "Describing a process or map",
+              "slug": "describing-a-process-or-map",
+              "sort_order": 2
+            }
+          ],
+          "aliases": [
+            "Academic Task 1"
+          ],
+          "slug": "task-1-describe-visual-data",
+          "sort_order": 0,
+          "tags": [],
+          "prerequisites": []
+        },
+        {
+          "name": "Task 2: Essay",
+          "difficulty": 8,
+          "skills": [
+            "coherence-and-cohesion"
+          ],
+          "prerequisites": [
+            "task-1-describe-visual-data"
+          ],
+          "subtopics": [
+            {
+              "name": "Opinion essay",
+              "slug": "opinion-essay",
+              "sort_order": 0
+            },
+            {
+              "name": "Discussion essay",
+              "slug": "discussion-essay",
+              "sort_order": 1
+            },
+            {
+              "name": "Problem-solution essay",
+              "slug": "problem-solution-essay",
+              "sort_order": 2
+            },
+            {
+              "name": "Thesis and structure",
+              "slug": "thesis-and-structure",
+              "sort_order": 3
+            }
+          ],
+          "slug": "task-2-essay",
+          "sort_order": 1,
+          "tags": [],
+          "aliases": []
+        },
+        {
+          "name": "Coherence and cohesion",
+          "difficulty": 6,
+          "skills": [
+            "coherence-and-cohesion"
+          ],
+          "subtopics": [
+            {
+              "name": "Linking devices",
+              "slug": "linking-devices",
+              "sort_order": 0
+            },
+            {
+              "name": "Paragraphing",
+              "slug": "paragraphing",
+              "sort_order": 1
+            }
+          ],
+          "slug": "coherence-and-cohesion",
+          "sort_order": 2,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Lexical resource",
+          "difficulty": 6,
+          "subtopics": [
+            {
+              "name": "Topic vocabulary",
+              "slug": "topic-vocabulary",
+              "sort_order": 0
+            },
+            {
+              "name": "Collocation",
+              "slug": "collocation",
+              "sort_order": 1
+            }
+          ],
+          "slug": "lexical-resource",
+          "sort_order": 3,
+          "tags": [],
+          "skills": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Grammatical range and accuracy",
+          "difficulty": 6,
+          "subtopics": [
+            {
+              "name": "Complex sentences",
+              "slug": "complex-sentences",
+              "sort_order": 0
+            },
+            {
+              "name": "Accuracy",
+              "slug": "accuracy",
+              "sort_order": 1
+            }
+          ],
+          "slug": "grammatical-range-and-accuracy",
+          "sort_order": 4,
+          "tags": [],
+          "skills": [],
+          "prerequisites": [],
+          "aliases": []
+        }
+      ],
+      "slug": "writing",
+      "sort_order": 2
+    },
+    {
+      "name": "Speaking",
+      "description": "An 11–14 minute face-to-face interview in three parts. Four assessment criteria.",
+      "source": "ielts_org_format",
+      "tags": [
+        "productive"
+      ],
+      "topics": [
+        {
+          "name": "Part 1: Introduction and interview",
+          "difficulty": 4,
+          "skills": [
+            "fluency"
+          ],
+          "subtopics": [
+            {
+              "name": "Familiar topics",
+              "slug": "familiar-topics",
+              "sort_order": 0
+            },
+            {
+              "name": "Short extended answers",
+              "slug": "short-extended-answers",
+              "sort_order": 1
+            }
+          ],
+          "slug": "part-1-introduction-and-interview",
+          "sort_order": 0,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        },
+        {
+          "name": "Part 2: Long turn (cue card)",
+          "difficulty": 7,
+          "skills": [
+            "fluency",
+            "coherence-and-cohesion"
+          ],
+          "prerequisites": [
+            "part-1-introduction-and-interview"
+          ],
+          "subtopics": [
+            {
+              "name": "One-minute preparation",
+              "slug": "one-minute-preparation",
+              "sort_order": 0
+            },
+            {
+              "name": "Speaking for two minutes",
+              "slug": "speaking-for-two-minutes",
+              "sort_order": 1
+            }
+          ],
+          "slug": "part-2-long-turn-cue-card",
+          "sort_order": 1,
+          "tags": [],
+          "aliases": []
+        },
+        {
+          "name": "Part 3: Two-way discussion",
+          "difficulty": 7,
+          "skills": [
+            "fluency",
+            "inferencing"
+          ],
+          "prerequisites": [
+            "part-2-long-turn-cue-card"
+          ],
+          "subtopics": [
+            {
+              "name": "Abstract ideas",
+              "slug": "abstract-ideas",
+              "sort_order": 0
+            },
+            {
+              "name": "Justifying opinions",
+              "slug": "justifying-opinions",
+              "sort_order": 1
+            }
+          ],
+          "slug": "part-3-two-way-discussion",
+          "sort_order": 2,
+          "tags": [],
+          "aliases": []
+        },
+        {
+          "name": "Pronunciation",
+          "difficulty": 6,
+          "skills": [
+            "pronunciation"
+          ],
+          "subtopics": [
+            {
+              "name": "Stress and intonation",
+              "slug": "stress-and-intonation",
+              "sort_order": 0
+            },
+            {
+              "name": "Individual sounds",
+              "slug": "individual-sounds",
+              "sort_order": 1
+            }
+          ],
+          "slug": "pronunciation",
+          "sort_order": 3,
+          "tags": [],
+          "prerequisites": [],
+          "aliases": []
+        }
+      ],
+      "slug": "speaking",
+      "sort_order": 3
+    }
+  ]
+}
