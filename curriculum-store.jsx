@@ -110,6 +110,17 @@ function _allCurriculumRows() {
   return base.concat(cache);
 }
 
+// All curriculum rows for one qualification (merged seed + remote + cache),
+// board-matched. Section-based exams (SAT/ACT/IELTS…) build one course from
+// the union of these — and a DB-ONLY exam (IELTS added as a pure DB row) has
+// its sections only in the remote catalog, so this MUST read the merged rows,
+// not just window.CURRICULUM_SEED.
+function curriculumRowsForQualification(qualificationId, board) {
+  return _allCurriculumRows().filter((r) =>
+    r.qualificationId === qualificationId && _boardMatches(r.board, board)
+  );
+}
+
 // ── Deterministic single-syllabus lookup — pure, synchronous, no AI call ───
 // qualificationId is the strong discriminator — it already pins the country
 // AND education system (nmt=UA, ib=international, alevel/gcse=GB, sat/act/ap=US,
@@ -325,7 +336,7 @@ function markCurriculumVerified(countryId, qualificationId, board, subject, spec
 
 Object.assign(window, {
   CURRICULUM_CACHE_KEY,
-  getCurriculumCache, getCurriculum, searchCurriculumSubjects, fetchAndCacheCurriculum, markCurriculumVerified,
+  getCurriculumCache, getCurriculum, curriculumRowsForQualification, searchCurriculumSubjects, fetchAndCacheCurriculum, markCurriculumVerified,
   fetchUrlText, extractTopicsFromText,
   getRemoteCurriculum, refreshRemoteCurriculum,
 });

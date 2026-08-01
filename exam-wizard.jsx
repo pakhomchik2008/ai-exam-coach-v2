@@ -193,26 +193,39 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   // Section-based exams (SAT, ACT) are ONE composite paper everyone sits in
   // full — there is no subject to choose. We auto-build a single course whose
   // topics are the union of every section's topics, and skip the subject step.
-  const SECTION_BASED = new Set(["sat", "act"]);
-  const isSectionBased = SECTION_BASED.has(examId);
+  // These two flags used to be hardcoded Sets. They now live ON the qualification
+  // (qualifications-store.jsx maps section_based / en_medium from the DB), so a
+  // DB-added exam (IELTS…) gets the right behaviour with no code change. The Sets
+  // survive as the snapshot fallback: the bundled EXAM_TYPES objects carry no such
+  // flag until a DB row is merged over them, so offline behaviour is unchanged.
+  const SECTION_BASED_FALLBACK = new Set(["sat", "act"]);
   // English-medium exams: the real paper is sat in English, so the student may
   // want the AI to teach in English even if their app is in another language.
-  const EN_MEDIUM = new Set(["sat", "act", "ap", "alevel", "gcse", "ib"]);
-  const isEnMedium = EN_MEDIUM.has(examId);
+  const EN_MEDIUM_FALLBACK = new Set(["sat", "act", "ap", "alevel", "gcse", "ib"]);
+  const isSectionBasedQual = (id) => { const e = window.examType(id); return typeof e.sectionBased === "boolean" ? e.sectionBased : SECTION_BASED_FALLBACK.has(id); };
+  const isEnMediumQual = (id) => { const e = window.examType(id); return typeof e.enMedium === "boolean" ? e.enMedium : EN_MEDIUM_FALLBACK.has(id); };
+  const isSectionBased = isSectionBasedQual(examId);
+  const isEnMedium = isEnMediumQual(examId);
+  // Merged catalog (bundled seed + remote DB + AI cache) — a section-based exam
+  // added as a pure DB row (IELTS…) has its sections ONLY in the remote catalog,
+  // so reading window.CURRICULUM_SEED alone would build an empty course.
+  const sectionRowsFor = (qualId) => (window.curriculumRowsForQualification
+    ? window.curriculumRowsForQualification(qualId)
+    : (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId));
   const buildSectionCourse = (qualId) => {
-    const rows = (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId);
-    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] })));
+    const rows = sectionRowsFor(qualId);
+    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, module: tp.module || "", difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] })));
     const label = window.examType(qualId).label;
     return { title: label, subject: label, curriculumRef: { qualificationId: qualId }, topics, knowledgeBase: { status: "empty", chapters: [], glossary: [], sourceFiles: [], extractedAt: null, updatedAt: null }, source: "official", verifiedByUser: true };
   };
-  const sectionLabelsFor = (qualId) => (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId).map((r) => r.subject);
+  const sectionLabelsFor = (qualId) => sectionRowsFor(qualId).map((r) => r.subject);
 
   const pickExam = (id) => {
     if (id === examId) return;
     const e = window.examType(id);
     setExamId(id);
     // Section-based → auto-populate ONE subject covering all sections, no picker.
-    if (SECTION_BASED.has(id)) {
+    if (isSectionBasedQual(id)) {
       setSubjects((subs) => [{
         ...blankSubject(),
         id: (subs[0] && subs[0].id) || ("s" + Date.now()),
