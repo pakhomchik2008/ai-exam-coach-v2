@@ -95,19 +95,30 @@ function CurriculumStep({
   const searchOptions = React.useMemo(() => {
     if (!qualificationId || !query.trim()) return [];
     return (window.searchCurriculumSubjects ? window.searchCurriculumSubjects(countryId, qualificationId, board, query) : [])
+      // `trusted` (from searchCurriculumSubjects) rather than source === "official":
+      // it also covers an admin-approved community contribution, and it refuses
+      // to call a stranger's unmoderated row verified.
       .map((r) => ({
         label: r.subject, value: r.subject, known: r.source === "known",
-        sublabel: r.source === "official" ? L("Verified curriculum", "Перевірена програма", "Проверенная программа", "Programme vérifié", "Verifizierter Lehrplan")
-          : r.source === "known" ? L("Tap to build syllabus", "Натисніть, щоб скласти програму", "Нажмите, чтобы составить программу", "Appuyez pour créer le programme", "Tippen, um den Lehrplan zu erstellen")
+        sublabel: r.source === "known" ? L("Tap to build syllabus", "Натисніть, щоб скласти програму", "Нажмите, чтобы составить программу", "Appuyez pour créer le programme", "Tippen, um den Lehrplan zu erstellen")
+          : r.trusted ? L("Verified curriculum", "Перевірена програма", "Проверенная программа", "Programme vérifié", "Verifizierter Lehrplan")
           : (r.verifiedByUser ? L("Community-verified", "Перевірено спільнотою", "Проверено сообществом", "Vérifié par la communauté", "Von der Community verifiziert") : L("AI-generated", "Згенеровано AI", "Сгенерировано AI", "Généré par l'IA", "KI-generiert")),
       }));
   }, [countryId, qualificationId, board, query]);
+
+  // Which rows may skip the confirm-before-save step. Delegates to
+  // curriculum-store's trust tiers so "official" is not re-derived from a string
+  // in two places; the inline fallback keeps the stricter old behaviour if the
+  // store predates it.
+  const rowIsTrusted = (row) => (window.isCurriculumRowTrusted
+    ? window.isCurriculumRowTrusted(row)
+    : !!row && (row.source === "official" || row.verifiedByUser));
 
   const resolveSubject = (name) => {
     onSubjectChange(name);
     setResolvedName(name);
     const row = window.getCurriculum ? window.getCurriculum(countryId, qualificationId, board, name) : null;
-    if (row && (row.source === "official" || row.verifiedByUser)) {
+    if (rowIsTrusted(row)) {
       const draft = buildCourseDraft(name, row, true);
       onCourseChange(draft);
       setStage("loaded");
@@ -135,7 +146,7 @@ function CurriculumStep({
     onSubjectChange(name);
     setResolvedName(name);
     const row = window.getCurriculum ? window.getCurriculum(countryId, qualificationId, board, name) : null;
-    if (row && (row.source === "official" || row.verifiedByUser)) {
+    if (rowIsTrusted(row)) {
       const draft = buildCourseDraft(name, row, true);
       onCourseChange(draft);
       setStage("loaded");

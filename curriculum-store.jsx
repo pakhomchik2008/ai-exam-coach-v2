@@ -29,20 +29,119 @@ function getCurriculumCache() { return _readCurriculumCache(); }
 // rows override or extend it once fetched. A localStorage mirror makes the last
 // known remote catalog available instantly on the next boot (and fully offline).
 const CURRICULUM_REMOTE_KEY = "curriculum_remote_v1";
-let _remoteCurriculum = (() => {
-  try { const raw = JSON.parse(localStorage.getItem(CURRICULUM_REMOTE_KEY) || "[]"); return Array.isArray(raw) ? raw : []; }
-  catch { return []; }
-})();
-function getRemoteCurriculum() { return _remoteCurriculum; }
-// Supabase row (snake_case) → the exact shape every consumer already expects.
+
+// ── Trust tiers ──────────────────────────────────────────────────────────────
+// Every "which row wins" decision in this file reduces to this one number, so
+// catalog poisoning has exactly one place to be reasoned about.
+//
+// Before this existed the merge gave EVERY remote row priority over the bundled
+// seed, while any signed-in account could insert remote rows — so one
+// contributed row could replace an official syllabus for every user worldwide
+// (S2 in ARCHITECTURE_AUDIT.md). Server-side half of the fix:
+// supabase/08_curriculum_trust.sql.
+const TRUST = {
+  CURATED:  4, // DB row with source:'official', or a contribution an admin approved
+  BUNDLED:  3, // CURRICULUM_SEED — ships with the app, reviewed by us
+  OWN_OK:   2, // this browser's cache, confirmed by this user in the verify UI
+  OWN_AI:   1, // this browser's cache, generated but not confirmed yet
+  STRANGER: 0, // someone else's unmoderated contribution
+};
+
+// Hard caps mirrored from 08_curriculum_trust.sql's trigger. Enforced again
+// here because rows contributed BEFORE that migration are not covered by it,
+// and because this data is mirrored into localStorage — one oversized row would
+// otherwise blow the storage quota for every visitor.
+const MAX_REMOTE_ROWS = 2000;
+const MAX_TOPICS_PER_ROW = 200;
+const MAX_SUBTOPICS_PER_TOPIC = 20;
+const MAX_ALIASES = 40;
+const MAX_NAME_CHARS = 200;
+const MAX_SUBJECT_CHARS = 120;
+const MAX_MIRROR_CHARS = 3000000; // localStorage is ~5 MB in total
+
+function _cleanStr(v, max) {
+  return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+function _cleanTopics(topics) {
+  if (!Array.isArray(topics)) return [];
+  const out = [];
+  for (const t of topics.slice(0, MAX_TOPICS_PER_ROW)) {
+    if (!t || typeof t !== "object") continue;
+    const name = _cleanStr(t.name, MAX_NAME_CHARS);
+    if (!name) continue;
+    out.push({
+      name,
+      module: _cleanStr(t.module, MAX_NAME_CHARS),
+      difficulty: clampInt(t.difficulty, 1, 10, 5),
+      importance: clampInt(t.importance, 1, 10, 5),
+      subtopics: (Array.isArray(t.subtopics) ? t.subtopics : [])
+        .slice(0, MAX_SUBTOPICS_PER_TOPIC)
+        .map((s) => _cleanStr(s, MAX_NAME_CHARS))
+        .filter(Boolean),
+    });
+  }
+  return out;
+}
+
+// Supabase row (snake_case) → the exact shape every consumer already expects,
+// sanitised and trust-stamped. Returns null for a row that is unusable or has
+// been moderated away, so callers filter with .filter(Boolean).
 function _remoteRowToSeed(row) {
+  if (!row || typeof row !== "object") return null;
+  if (row.moderation_status === "rejected") return null;
+  const subject = _cleanStr(row.subject, MAX_SUBJECT_CHARS);
+  if (!subject || !row.qualification_id) return null;
+  const topics = _cleanTopics(row.topics);
+  if (!topics.length) return null;
+
+  // Fail closed: only an EXPLICIT 'official' counts as curated. Every seed file
+  // sets source explicitly, so nothing legitimate depends on a default here —
+  // whereas defaulting to 'official' (as this used to) would promote any row
+  // whose source column was somehow empty.
+  const source = typeof row.source === "string" ? row.source : "community";
+  const trust = row.moderation_status === "approved" || source === "official"
+    ? TRUST.CURATED
+    : TRUST.STRANGER;
+
   return {
     countryId: row.country_id, educationSystemId: row.education_system_id,
     qualificationId: row.qualification_id, board: row.board, specVersion: row.spec_version,
-    subject: row.subject, aliases: row.aliases || [], topics: row.topics || [],
-    source: row.source || "official",
+    subject,
+    // An alias answers lookups for a name the row is not called, which is the
+    // cheapest way to hijack getCurriculum(). Only curated rows may claim one.
+    aliases: trust === TRUST.CURATED
+      ? (Array.isArray(row.aliases) ? row.aliases : [])
+          .slice(0, MAX_ALIASES).map((a) => _cleanStr(a, MAX_NAME_CHARS)).filter(Boolean)
+      : [],
+    topics,
+    source,
+    moderationStatus: row.moderation_status,
+    trust,
   };
 }
+
+// The localStorage mirror may have been written by an older build of this file,
+// back when remote rows were stored raw — re-derive trust and re-sanitise
+// instead of trusting a snapshot that predates the rules above.
+function _rehydrateMirrorRow(row) {
+  if (!row || typeof row !== "object") return null;
+  return _remoteRowToSeed({
+    country_id: row.countryId, education_system_id: row.educationSystemId,
+    qualification_id: row.qualificationId, board: row.board, spec_version: row.specVersion,
+    subject: row.subject, aliases: row.aliases, topics: row.topics,
+    source: row.source, moderation_status: row.moderationStatus,
+  });
+}
+
+let _remoteCurriculum = (() => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CURRICULUM_REMOTE_KEY) || "[]");
+    if (!Array.isArray(raw)) return [];
+    return raw.slice(0, MAX_REMOTE_ROWS).map(_rehydrateMirrorRow).filter(Boolean);
+  } catch { return []; }
+})();
+function getRemoteCurriculum() { return _remoteCurriculum; }
 // The inverse of _remoteRowToSeed: a locally-generated row → the Supabase
 // snake_case shape. country_id/education_system_id are NOT NULL in the schema,
 // so an AI row that never knew them is stored as '' (the unique de-dup key
@@ -55,22 +154,32 @@ function _seedRowToRemote(row) {
     board: row.board || null,
     spec_version: row.specVersion || null,
     subject: row.subject,
-    aliases: row.aliases || [],
+    // A contribution never claims another subject's name. The server forces
+    // this too (08_curriculum_trust.sql); stating it here documents the rule
+    // at the only place that builds the payload.
+    aliases: [],
     topics: row.topics || [],
     source: "community", // user-generated, unverified — never 'official'
   };
 }
 
-// Plan 2.2 auto-population: after a subject is AI-generated for the FIRST time,
-// push it to the shared Supabase catalog so every later student loads it
-// instantly instead of each paying the generation cost. Fully best-effort:
-//   * anonymous visitors are rejected by RLS (insert policy is authenticated-only)
+// Plan 2.2 auto-population: a subject nobody seeded is generated once and then
+// shared, so every later student loads it instantly instead of each paying the
+// generation cost. Fully best-effort:
+//   * demo/anonymous sessions are rejected by RLS — skipped below
+//   * a subject that already has a CURATED row is rejected by the server guard
+//     (a contribution may fill a gap, never override official content)
 //   * a subject someone already contributed hits the unique index and is ignored
 //   * offline / table-missing / any error → we just keep the local cache
 // None of these are surfaced; the user's own flow already has the row cached.
 async function _pushCurriculumToRemote(row) {
   const sb = window._supabase;
   if (!sb || !row) return;
+  // The demo account is a Supabase ANONYMOUS user (auth-store.jsx startDemo): it
+  // may read the catalog and use AI, but writing to shared reference data needs
+  // a real account. Skip the round trip instead of logging a guaranteed failure.
+  const session = window.getSession && window.getSession();
+  if (!session || session.mode !== "account") return;
   try { await sb.from("curriculum").insert(_seedRowToRemote(row)); } catch {}
 }
 
@@ -80,14 +189,31 @@ async function refreshRemoteCurriculum() {
   const sb = window._supabase;
   if (!sb) return _remoteCurriculum;
   try {
-    const { data, error } = await sb.from("curriculum").select("*");
+    // select("*") rather than an explicit column list so this still works
+    // against a database that has not run 08_curriculum_trust.sql yet.
+    // Ordering by source descending puts 'official' first, so if the catalog
+    // ever outgrows the cap it is curated content that survives truncation.
+    const { data, error } = await sb.from("curriculum").select("*")
+      .order("source", { ascending: false })
+      .limit(MAX_REMOTE_ROWS);
     if (error || !Array.isArray(data)) return _remoteCurriculum;
-    _remoteCurriculum = data.map(_remoteRowToSeed);
-    try { localStorage.setItem(CURRICULUM_REMOTE_KEY, JSON.stringify(_remoteCurriculum)); } catch {}
+    _remoteCurriculum = data.map(_remoteRowToSeed).filter(Boolean);
+    _mirrorRemoteCurriculum();
     // Let any mounted picker/wizard re-read the now-richer catalog.
     window.dispatchEvent(new CustomEvent("curriculum-updated"));
   } catch {}
   return _remoteCurriculum;
+}
+
+function _mirrorRemoteCurriculum() {
+  try {
+    const json = JSON.stringify(_remoteCurriculum);
+    // Skip an oversized mirror rather than let setItem throw on every boot and
+    // leave a stale snapshot silently in place. The in-memory catalog is
+    // already correct for this session either way.
+    if (json.length > MAX_MIRROR_CHARS) return;
+    localStorage.setItem(CURRICULUM_REMOTE_KEY, json);
+  } catch {}
 }
 
 function _sameCombo(a, b) {
@@ -98,27 +224,52 @@ function _sameCombo(a, b) {
     && String(a.subject || "").toLowerCase() === String(b.subject || "").toLowerCase();
 }
 
+// Every row from all three sources, most-trusted first. It no longer removes
+// anything: the old version dropped a bundled seed row whenever ANY remote row
+// matched its combo, which is what let a contributed row take an official
+// syllabus's place. Ranking replaces removal — a curated DB row still overrides
+// the seed (the "edit the DB, see it in the app" feature), while a contribution
+// can only ever fill a gap.
+//
+// Array#sort is stable, so within a tier the original seed → remote → cache
+// order is preserved.
 function _allCurriculumRows() {
-  const seed = (window.CURRICULUM_SEED || []);
-  const remote = _remoteCurriculum || [];
-  const cache = _readCurriculumCache();
-  // Remote wins over the bundled seed on the same combo (so a DB edit shows up),
-  // and remote-only rows (brand-new exams) are simply added.
-  const base = remote.length
-    ? seed.filter((s) => !remote.some((r) => _sameCombo(r, s))).concat(remote)
-    : seed;
-  return base.concat(cache);
+  const rows = [
+    ...(window.CURRICULUM_SEED || []).map((r) => ({ ...r, trust: TRUST.BUNDLED })),
+    ...(_remoteCurriculum || []), // trust stamped by _remoteRowToSeed
+    ..._readCurriculumCache().map((r) => ({
+      ...r, trust: r.verifiedByUser ? TRUST.OWN_OK : TRUST.OWN_AI,
+    })),
+  ];
+  return rows.sort((a, b) => b.trust - a.trust);
 }
 
-// All curriculum rows for one qualification (merged seed + remote + cache),
-// board-matched. Section-based exams (SAT/ACT/IELTS…) build one course from
-// the union of these — and a DB-ONLY exam (IELTS added as a pure DB row) has
-// its sections only in the remote catalog, so this MUST read the merged rows,
-// not just window.CURRICULUM_SEED.
+// All curriculum rows for one qualification, board-matched, one per subject.
+// Section-based exams (SAT/ACT/IELTS…) build one course from the UNION of
+// these — and a DB-ONLY exam (IELTS added as a pure DB row) has its sections
+// only in the remote catalog, so this MUST read the merged rows, not just
+// window.CURRICULUM_SEED.
+//
+// Untrusted rows are excluded outright. A union has no losing row: every row's
+// topics are concatenated, and exam-wizard's buildSectionCourse then labels the
+// result source:"official"/verifiedByUser:true with no confirmation step. So an
+// unmoderated contribution here would be injected into every student's course
+// silently — ranking is not enough on this path, only exclusion is.
 function curriculumRowsForQualification(qualificationId, board) {
-  return _allCurriculumRows().filter((r) =>
-    r.qualificationId === qualificationId && _boardMatches(r.board, board)
+  const rows = _allCurriculumRows().filter((r) =>
+    r.qualificationId === qualificationId &&
+    _boardMatches(r.board, board) &&
+    r.trust >= TRUST.BUNDLED
   );
+  // Rows are trust-sorted, so the first row per subject is the best one. This
+  // dedupe is what used to be handled by dropping shadowed seed rows.
+  const seen = new Set();
+  return rows.filter((r) => {
+    const key = String(r.subject || "").toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 // ── Deterministic single-syllabus lookup — pure, synchronous, no AI call ───
@@ -145,9 +296,16 @@ function getCurriculum(countryId, qualificationId, board, subject) {
   if (!matches.length) return null;
   // A board-specific row OVERRIDES the shared wildcard one (plan 2.3): most
   // subjects use one shared syllabus, but when a board-tuned row exists for the
-  // selected board it must win over the null-board general row, regardless of
-  // seed/remote/cache ordering.
-  return (board && matches.find((r) => (r.board || null) === (board || null))) || matches[0];
+  // selected board it must win over the null-board general row.
+  //
+  // That preference is applied WITHIN the most trusted tier only. Applied
+  // across tiers — as it was — it became the sharpest edge of S2: the unique
+  // index keys on (qualification, board, spec, subject), so a contributed row
+  // with board='AQA' does not collide with the curated board=null row, and this
+  // line would then hand it every AQA student.
+  const best = matches[0].trust;   // _allCurriculumRows sorted; filter kept order
+  const top = matches.filter((r) => r.trust === best);
+  return (board && top.find((r) => (r.board || null) === (board || null))) || top[0];
 }
 
 // ── Subject autocomplete surface — sync, fuzzy prefix/substring, no network ─
@@ -161,14 +319,20 @@ function searchCurriculumSubjects(countryId, qualificationId, board, query) {
     const hay = [r.subject, ...(r.aliases || [])].map((s) => s.toLowerCase());
     return hay.some((s) => s.includes(q) || q.includes(s));
   });
-  // Dedup by subject name, seed/cache rows first (kept ahead of KNOWN_SUBJECTS below)
+  // Dedup by subject name. Rows arrive trust-sorted, so the entry that survives
+  // is the most trusted one for that name — an unmoderated contribution can no
+  // longer take the autocomplete slot of a curated syllabus.
+  // `trusted` and `verifiedByUser` drive CurriculumStep's provenance label.
   const seen = new Set();
   const out = [];
   for (const r of matches) {
     const key = r.subject.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ subject: r.subject, board: r.board, specVersion: r.specVersion, source: r.source });
+    out.push({
+      subject: r.subject, board: r.board, specVersion: r.specVersion, source: r.source,
+      trusted: r.trust >= TRUST.BUNDLED, verifiedByUser: !!r.verifiedByUser,
+    });
   }
   // Real, publicly-known subject NAMES with no topics of their own yet (see
   // curriculum-data.jsx's KNOWN_SUBJECTS) — this is what keeps autocomplete
@@ -261,9 +425,10 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
   const cache = _readCurriculumCache().filter((r) => !_sameCombo(r, row));
   cache.push(row);
   _writeCurriculumCache(cache);
-  // Share it back to the catalog for everyone (fire-and-forget — the local
-  // cache above already serves THIS user regardless of whether the push lands).
-  _pushCurriculumToRemote(row);
+  // NOT shared with the catalog yet. It used to be pushed here, the moment the
+  // model answered — so the shared catalog filled with syllabi no human had
+  // ever read, and the confirm-before-save UI protected only this user's own
+  // course. The push now happens in markCurriculumVerified().
   return row;
 }
 
@@ -278,8 +443,11 @@ function clampInt(v, min, max, fallback) {
 //    it's a plain HTTP fetch, unrelated to api/complete.js's Anthropic key).
 async function fetchUrlText(url) {
   try {
+    const headers = window.apiHeaders
+      ? await window.apiHeaders()          // Supabase access token — required by api/_guard.js
+      : { "Content-Type": "application/json" };
     const resp = await fetch("/api/fetch-url", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+      method: "POST", headers, body: JSON.stringify({ url }),
     });
     const data = await resp.json();
     if (!resp.ok) return null;
@@ -323,20 +491,41 @@ async function extractTopicsFromText(subject, text) {
 //    users of the exact same combo skip the confirm-before-save step. ──────
 function markCurriculumVerified(countryId, qualificationId, board, subject, specVersion) {
   const cache = _readCurriculumCache();
-  let changed = false;
+  let verified = null;
   const next = cache.map((r) => {
     if (_sameCombo(r, { countryId, qualificationId, board, subject, specVersion }) && !r.verifiedByUser) {
-      changed = true;
-      return { ...r, verifiedByUser: true };
+      verified = { ...r, verifiedByUser: true };
+      return verified;
     }
     return r;
   });
-  if (changed) _writeCurriculumCache(next);
+  if (!verified) return;
+  _writeCurriculumCache(next);
+  // Only NOW is it offered to everyone else — a human has read this topic list
+  // and accepted it. Fire-and-forget: this user's own cache above serves them
+  // regardless of whether the push lands.
+  _pushCurriculumToRemote(verified);
+}
+
+// A row the app may build a Course from WITHOUT the confirm-before-save step:
+// curated content (bundled seed, official DB row, admin-approved contribution)
+// or something this user confirmed themselves. Exported so CurriculumStep does
+// not re-derive trust from string comparisons — which is how an approved
+// contribution ended up being treated as a stranger's, and how a future source
+// value would have silently defaulted to trusted.
+function isCurriculumRowTrusted(row) {
+  if (!row) return false;
+  if (row.verifiedByUser) return true;
+  const trust = typeof row.trust === "number"
+    ? row.trust
+    : (row.source === "official" ? TRUST.BUNDLED : TRUST.STRANGER);
+  return trust >= TRUST.BUNDLED;
 }
 
 Object.assign(window, {
   CURRICULUM_CACHE_KEY,
   getCurriculumCache, getCurriculum, curriculumRowsForQualification, searchCurriculumSubjects, fetchAndCacheCurriculum, markCurriculumVerified,
+  isCurriculumRowTrusted,
   fetchUrlText, extractTopicsFromText,
   getRemoteCurriculum, refreshRemoteCurriculum,
 });
