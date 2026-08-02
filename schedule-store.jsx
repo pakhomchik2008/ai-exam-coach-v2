@@ -839,10 +839,10 @@ function adaptSchedule() {
 //
 // These operate on real scheduling data through the same engine as
 // allocateBudget (time-slot packing, blackout-aware free intervals) rather
-// than calling the Claude API — this app's dev preview has no /api/complete
-// route, and more importantly these are genuinely deterministic scheduling
+// than calling the Claude API — these are genuinely deterministic scheduling
 // operations (rebalance, deconflict, fill gaps), not generative text, so a
-// real API round-trip would add latency and cost for no accuracy benefit.
+// real API round-trip would add latency, burn the user's daily AI quota, and
+// buy no accuracy.
 
 function _weekWeekdayList(weekStartKey, blackoutSlots, daysPerWeek) {
   const totalAvailDays = availableStudyDaysPerWeek(blackoutSlots);

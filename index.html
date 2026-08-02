@@ -22,20 +22,38 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../../_ds_bundle.js"></script>
 <script>
-  // No daily cap: this is a local prototype on a paid API key, not a shipped
-  // free tier yet. A shared cross-feature quota here was silently masquerading
-  // as real AI output once exhausted (see onboarding plan-summary bug).
+  // The daily cap now lives server-side, per user, in Supabase
+  // (supabase/07_ai_usage.sql) instead of as a client-side counter. The old
+  // client-side quota was both unenforceable — /api/complete accepted anyone —
+  // and silently masqueraded as real AI output once exhausted (see the
+  // onboarding plan-summary bug). A server 429 throws here, loudly.
+  //
+  // Every call carries the caller's Supabase access token; api/_guard.js
+  // rejects requests without one. window.apiHeaders comes from auth-store.jsx,
+  // which loads below this script but well before any AI call fires.
   window.claude = {
     complete: async (arg) => {
       const system = typeof arg === 'string' ? undefined : arg.system;
       const messages = typeof arg === 'string' ? [{ role: 'user', content: arg }] : arg.messages;
+      const headers = window.apiHeaders
+        ? await window.apiHeaders()
+        : { 'Content-Type': 'application/json' };
       const res = await fetch('/api/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ system, messages }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ? JSON.stringify(data.error) : 'proxy error');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // 401/429 carry a plain sentence meant for the user; anything else is
+        // an upstream object worth keeping verbatim for debugging.
+        const msg = (res.status === 401 || res.status === 403 || res.status === 429)
+          ? (data.error || 'AI is unavailable right now.')
+          : (data.error ? JSON.stringify(data.error) : 'proxy error');
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
+      }
       return data.text;
     },
   };

@@ -3,18 +3,49 @@
 // environment variable so it's never present in any file you upload.
 //
 // Setup on Vercel: Project Settings → Environment Variables →
-//   ANTHROPIC_API_KEY = <your key>
-// Redeploy after adding it.
+//   ANTHROPIC_API_KEY         = <your Anthropic key>
+//   SUPABASE_SERVICE_ROLE_KEY = <Supabase Settings → API → service_role>
+// Redeploy after adding them. See api/_guard.js for the optional ones.
+//
+// This endpoint is authenticated: every caller must present a live Supabase
+// access token and spends from a per-user daily quota (supabase/07_ai_usage.sql).
+// It used to be open, which meant anyone who found the URL could bill this
+// project's Anthropic key indefinitely.
+
+import { guard, recordUsage } from "./_guard.js";
 
 // Extend to 60 s so lesson generation (8-12 structured steps) doesn't time out
 // on Vercel Hobby. Pro plan supports up to 300 s.
 export const config = { maxDuration: 60 };
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
+// Size caps. Quota limits how MANY requests a user makes; these limit how
+// expensive any single one can be. The largest legitimate prompt in the app is
+// curriculum-store.jsx's URL import (12 000 chars of page text plus context),
+// so 200 KB leaves a wide margin while ruling out a 5 MB novel per call.
+const MAX_PAYLOAD_CHARS = 200_000;
+const MAX_MESSAGES = 80;
+
+function payloadError(system, msgs) {
+  if (!Array.isArray(msgs)) return "messages must be an array";
+  if (!msgs.length) return "messages is empty";
+  if (msgs.length > MAX_MESSAGES) return `Too many messages (max ${MAX_MESSAGES})`;
+  for (const m of msgs) {
+    if (!m || typeof m !== "object") return "Each message must be an object";
+    if (m.role !== "user" && m.role !== "assistant") return "Invalid message role";
+    if (typeof m.content !== "string" && !Array.isArray(m.content)) {
+      return "Message content must be a string or an array of blocks";
+    }
   }
+  const size = JSON.stringify({ system, msgs }).length;
+  if (size > MAX_PAYLOAD_CHARS) {
+    return `Payload too large (${size} chars, max ${MAX_PAYLOAD_CHARS})`;
+  }
+  return null;
+}
+
+export default async function handler(req, res) {
+  const gate = await guard(req, res, "complete");
+  if (!gate) return; // guard already wrote 401/403/405/429
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -30,6 +61,12 @@ export default async function handler(req, res) {
   const msgs = messages || (prompt ? [{ role: "user", content: prompt }] : null);
   if (!msgs) {
     res.status(400).json({ error: "Missing messages or prompt" });
+    return;
+  }
+
+  const invalid = payloadError(system, msgs);
+  if (invalid) {
+    res.status(400).json({ error: invalid });
     return;
   }
 
@@ -53,6 +90,8 @@ export default async function handler(req, res) {
       res.status(upstream.status).json({ error: data });
       return;
     }
+    // Bill the tokens this call actually cost against the user's daily budget.
+    recordUsage(gate.user, "complete", data.usage);
     const text = (data.content || []).map((b) => b.text || "").join("");
     res.status(200).json({ text });
   } catch (err) {

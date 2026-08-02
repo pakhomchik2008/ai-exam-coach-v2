@@ -21,6 +21,13 @@ let _cachedSession = null;
 
 function _supabaseUserToSession(user) {
   if (!user) return null;
+  // "Try the demo" is a real Supabase anonymous user (see startDemo). It must
+  // still read as mode:"demo" everywhere, otherwise onAuthStateChange would
+  // silently promote a demo visitor to a full account on sign-in and on every
+  // page refresh.
+  if (user.is_anonymous) {
+    return { id: user.id, email: null, name: "Demo", mode: "demo" };
+  }
   return {
     id:    user.id,
     email: user.email || null,
@@ -138,8 +145,48 @@ async function signInWithOAuth(provider) {
   // Browser will navigate away to the OAuth provider — nothing more to do here
 }
 
-function startDemo() {
-  return setSession({ email: null, name: "Demo", mode: "demo" });
+// Demo mode used to be a localStorage-only session with no server identity,
+// which is why /api/complete had to accept unauthenticated callers. It now signs
+// in anonymously, so a demo visitor carries a real JWT and a real (smaller)
+// daily quota — see supabase/07_ai_usage.sql, key 'complete:anon'.
+//
+// Requires Supabase → Authentication → Sign In / Providers → "Allow anonymous
+// sign-ins". If it is off, the demo still opens but every AI call returns 401.
+async function startDemo() {
+  // Set the local session first so the caller can route immediately even if
+  // Supabase is slow — the anonymous user id fills in a moment later.
+  const local = setSession({ id: null, email: null, name: "Demo", mode: "demo" });
+  try {
+    const { data, error } = await _supabase.auth.signInAnonymously();
+    if (error) throw error;
+    if (data?.user) return setSession(_supabaseUserToSession(data.user));
+  } catch (err) {
+    console.warn(
+      "[auth] Anonymous sign-in failed — demo mode will have no AI access. " +
+      "Enable it in Supabase → Authentication → Sign In / Providers.", err
+    );
+  }
+  return local;
+}
+
+// ─── server-call credentials ──────────────────────────────────────────────────
+// /api/complete and /api/fetch-url both require a live access token (api/_guard.js).
+// getSession() refreshes an expired token before returning it.
+
+async function getAccessToken() {
+  try {
+    const { data } = await _supabase.auth.getSession();
+    return data?.session?.access_token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function apiHeaders() {
+  const token = await getAccessToken();
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 // Legacy stubs — kept so any file that imports these symbols still compiles
@@ -152,4 +199,5 @@ Object.assign(window, {
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
   signUp, logIn, startDemo, signInWithOAuth,
+  getAccessToken, apiHeaders,
 });
