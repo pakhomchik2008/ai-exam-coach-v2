@@ -8,3 +8,7 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Local secrets for scripts/dev-api.mjs (ANTHROPIC_API_KEY, service role key)
+.env.local
+.env*.local

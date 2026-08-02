@@ -7,6 +7,9 @@
 // Because this endpoint fetches a URL the CLIENT supplies, it's a classic
 // SSRF surface (a malicious caller could point it at http://169.254.169.254/
 // or http://localhost:6379/ to probe/reach internal services). Guards below:
+//   - authenticated + per-user daily quota (api/_guard.js) — without it this is
+//     a free anonymous port scanner and outbound-traffic relay, even with every
+//     SSRF check below in place
 //   - http/https only
 //   - hostname AND every resolved IP checked against private/loopback/link-
 //     local ranges (blocks DNS-rebinding, not just literal IP URLs)
@@ -16,6 +19,7 @@
 
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { guard } from "./_guard.js";
 
 export const config = { maxDuration: 15 };
 
@@ -111,10 +115,9 @@ async function fetchOnce(urlStr) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
+  const gate = await guard(req, res, "fetch-url");
+  if (!gate) return; // guard already wrote 401/403/405/429
+
   const { url } = req.body || {};
   if (typeof url !== "string" || !url.trim()) {
     res.status(400).json({ error: "Missing url" });

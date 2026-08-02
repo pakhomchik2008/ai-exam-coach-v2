@@ -63,8 +63,15 @@ async function complete(system, user) {
     return data.content.map((c) => c.text || "").join("");
   }
   if (process.env.COMPLETE_URL) {
+    // /api/complete is authenticated (api/_guard.js) — a Supabase access token
+    // is required. Grab one from the browser devtools while signed in:
+    //   await window.getAccessToken()
+    // and export it as COMPLETE_TOKEN. Prefer ANTHROPIC_API_KEY above for
+    // batch runs: it skips both the proxy and the caller's daily quota.
+    const headers = { "content-type": "application/json" };
+    if (process.env.COMPLETE_TOKEN) headers.authorization = `Bearer ${process.env.COMPLETE_TOKEN}`;
     const res = await fetch(process.env.COMPLETE_URL, {
-      method: "POST", headers: { "content-type": "application/json" },
+      method: "POST", headers,
       body: JSON.stringify({ system, messages: [{ role: "user", content: user }] }),
     });
     const data = await res.json();

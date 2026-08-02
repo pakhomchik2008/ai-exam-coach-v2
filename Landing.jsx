@@ -216,8 +216,10 @@ function Landing({ onContinue, t, lang, onLangChange }) {
         "Visualisiere deine echte Lernsträhne, dein Selbstvertrauen pro Fach und schalte Erfolge frei, während du lernst.") },
   ];
 
-  function startDemo() {
-    if (window.startDemo) window.startDemo();
+  // Awaited: window.startDemo() now signs in anonymously with Supabase, and the
+  // demo user needs that JWT before the first AI call fires on the next screen.
+  async function startDemo() {
+    if (window.startDemo) await window.startDemo();
     onContinue();
   }
 
