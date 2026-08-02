@@ -51,7 +51,7 @@ const CURRICULUM_SEED = [
     ], source: "official",
   },
   {
-    countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: "AQA", specVersion: "2024",
+    countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: null, specVersion: "2024",
     subject: "Mathematics", aliases: ["GCSE Maths", "Maths", "Math", "GCSE Mathematics"],
     topics: [
       { name: "Number", difficulty: 3, importance: 7, subtopics: ["Place value", "Fractions, decimals & percentages", "Standard form", "Surds"] },
@@ -65,7 +65,7 @@ const CURRICULUM_SEED = [
     source: "official",
   },
   {
-    countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: "AQA", specVersion: "2024",
+    countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: null, specVersion: "2024",
     subject: "Combined Science", aliases: ["GCSE Combined Science", "Trilogy", "Double Science"],
     topics: [
       { name: "Cell Biology", difficulty: 4, importance: 7, subtopics: ["Cell structure", "Cell division", "Transport in cells"] },
@@ -86,7 +86,7 @@ const CURRICULUM_SEED = [
     source: "official",
   },
   {
-    countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: "AQA", specVersion: "2024",
+    countryId: "gb", educationSystemId: "k12", qualificationId: "gcse", board: null, specVersion: "2024",
     subject: "English Language", aliases: ["GCSE English Language", "English"],
     topics: [
       { name: "Explorations in Creative Reading & Writing", difficulty: 5, importance: 8, subtopics: ["Reading unseen fiction", "Descriptive & narrative writing"] },
@@ -1389,7 +1389,12 @@ const CURRICULUM_SEED = [
     countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
     subject: "English Language", aliases: ["English Language", "English", "Английский язык", "Англійська мова", "английский", "англійська", "Język Angielski"],
     topics: [
-      { name: "Topics", difficulty: 5, importance: 6, subtopics: ["Education", "Work", "Family", "Health", "Technology", "Environment", "Culture", "Science", "Travel", "Society"] },
+      { name: "Reading Comprehension", difficulty: 5, importance: 7, subtopics: ["Gist and main idea", "Specific information", "Matching", "Gap filling", "Inference"] },
+      { name: "Listening Comprehension", difficulty: 5, importance: 7, subtopics: ["Gist and main idea", "Specific information", "Matching", "Multiple choice", "Note completion"] },
+      { name: "Language in Use", difficulty: 6, importance: 7, subtopics: ["Grammar structures", "Word formation", "Vocabulary in context", "Gap filling", "Sentence transformation"] },
+      { name: "Writing", difficulty: 5, importance: 6, subtopics: ["Formal letter/email", "Informal letter/email", "Argumentative essay", "Narrative", "Opinion essay"] },
+      { name: "Speaking", difficulty: 6, importance: 5, subtopics: ["Picture description", "Roleplay", "Extended monologue", "Discussion"] },
+      { name: "Topic/Theme Areas", difficulty: 4, importance: 6, subtopics: ["Education", "Work", "Family", "Health", "Technology", "Environment", "Culture", "Science", "Travel", "Society"] },
     ],
     source: "official",
   },
@@ -1538,9 +1543,18 @@ const CURRICULUM_SEED = [
   },
   {
     countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
+    // Generic placeholder for German/French/Spanish/Russian/Italian matura
+    // (each sat under the same CKE exam format as English). Skill areas only —
+    // no language-specific vocabulary/grammar content, since that depends on
+    // which language the student actually picks.
     subject: "Foreign Languages", aliases: ["Foreign Languages", "Foreign Language", "Иностранные языки", "Іноземні мови"],
     topics: [
-      { name: "Same structure as English:", difficulty: 5, importance: 6, subtopics: ["Reading", "Listening", "Writing", "Speaking", "Grammar", "Vocabulary"] },
+      { name: "Reading Comprehension", difficulty: 5, importance: 7, subtopics: [] },
+      { name: "Listening Comprehension", difficulty: 5, importance: 7, subtopics: [] },
+      { name: "Writing", difficulty: 5, importance: 6, subtopics: [] },
+      { name: "Speaking", difficulty: 6, importance: 5, subtopics: [] },
+      { name: "Grammar", difficulty: 6, importance: 7, subtopics: [] },
+      { name: "Vocabulary", difficulty: 4, importance: 6, subtopics: [] },
     ],
     source: "official",
   },
@@ -1716,9 +1730,19 @@ const CURRICULUM_SEED = [
   },
   {
     countryId: "de", educationSystemId: "k12", qualificationId: "abitur", board: null, specVersion: "kmk",
+    // Generic placeholder for a fortgeführte Fremdsprache other than
+    // English/French (which have their own dedicated rows above). Skill areas
+    // only — same reasoning as matura's "Foreign Languages" row.
     subject: "Foreign Languages", aliases: ["Foreign Languages", "Foreign Language", "Иностранные языки", "Іноземні мови"],
     topics: [
-      { name: "For each:", difficulty: 5, importance: 6, subtopics: ["Reading", "Listening", "Writing", "Speaking", "Grammar", "Vocabulary", "Literature", "Cultural Studies"] },
+      { name: "Reading Comprehension", difficulty: 5, importance: 6, subtopics: [] },
+      { name: "Listening Comprehension", difficulty: 5, importance: 6, subtopics: [] },
+      { name: "Writing", difficulty: 5, importance: 6, subtopics: [] },
+      { name: "Speaking", difficulty: 6, importance: 5, subtopics: [] },
+      { name: "Grammar", difficulty: 6, importance: 6, subtopics: [] },
+      { name: "Vocabulary", difficulty: 4, importance: 6, subtopics: [] },
+      { name: "Literature", difficulty: 6, importance: 5, subtopics: [] },
+      { name: "Cultural Studies", difficulty: 5, importance: 5, subtopics: [] },
     ],
     source: "official",
   },
