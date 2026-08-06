@@ -157,21 +157,35 @@ async function consumeQuota(user, endpoint) {
   };
 }
 
-// Fire-and-forget: a failure to record tokens must never fail a reply the user
-// has already paid for. The request slot was spent in consumeQuota() regardless.
-export function recordUsage(user, endpoint, usage) {
+// MUST be awaited before the handler responds. Vercel runs these on Lambda, and
+// the execution environment is frozen the moment the response is flushed — an
+// un-awaited fetch() issued a tick earlier is not reliably sent. Left
+// fire-and-forget, ai_usage.output_tokens stayed at ~0 forever and the entire
+// daily_output_tokens budget was decorative.
+//
+// `day` comes from the consume call rather than being re-derived here: a request
+// admitted at 23:59:59 UTC and recorded at 00:00:01 UTC would otherwise update
+// zero rows, silently.
+//
+// Still swallows its own errors — failing to record must not fail a reply the
+// user has already been served. The request slot was spent in consumeQuota()
+// either way, so the request-count limit holds even if this call is lost.
+export async function recordUsage(user, endpoint, usage, day) {
   const headers = serviceHeaders();
   if (!headers || !usage) return;
-  fetch(`${SUPABASE_URL}/rest/v1/rpc/ai_usage_record`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      p_user: user.id,
-      p_endpoint: endpoint,
-      p_input: usage.input_tokens || 0,
-      p_output: usage.output_tokens || 0,
-    }),
-  }).catch(() => {});
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/rpc/ai_usage_record`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        p_user: user.id,
+        p_endpoint: endpoint,
+        p_input: usage.input_tokens || 0,
+        p_output: usage.output_tokens || 0,
+        p_day: day || null,
+      }),
+    });
+  } catch {}
 }
 
 // ─── entry point ──────────────────────────────────────────────────────────────

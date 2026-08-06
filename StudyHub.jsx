@@ -438,8 +438,20 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     ));
   };
 
+  // Escape BEFORE the **bold** substitution, exactly as AIChat.jsx's _md does.
+  // This text is model output, and the model's input includes text scraped from
+  // arbitrary third-party pages (api/fetch-url URL import) and from user-uploaded
+  // PDFs/pptx. Interpolating it raw let an attacker-authored page land
+  // <img src=x onerror=...> in a student's origin, where it can read the Supabase
+  // access + refresh tokens out of localStorage.
   const renderChatText = (text) => {
-    const html = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').split('\n\n').filter(Boolean).map(p => `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;">${p.replace(/\n/g, ' ')}</p>`).join('');
+    const esc = String(text || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = esc
+      .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+      .split('\n\n').filter(Boolean)
+      .map(p => `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;">${p.replace(/\n/g, ' ')}</p>`)
+      .join('');
     return React.createElement('div', { dangerouslySetInnerHTML: { __html: html } });
   };
 

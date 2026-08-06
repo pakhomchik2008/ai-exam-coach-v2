@@ -189,13 +189,25 @@ async function refreshRemoteCurriculum() {
   const sb = window._supabase;
   if (!sb) return _remoteCurriculum;
   try {
-    // select("*") rather than an explicit column list so this still works
-    // against a database that has not run 08_curriculum_trust.sql yet.
+    // Explicit column list, not select("*"): created_by is a contributor's user
+    // id and 10_audit_fixes.sql revokes it from the public roles, so "*" would
+    // now fail outright. Nothing here needs it.
     // Ordering by source descending puts 'official' first, so if the catalog
     // ever outgrows the cap it is curated content that survives truncation.
-    const { data, error } = await sb.from("curriculum").select("*")
+    const COLUMNS = "country_id,education_system_id,qualification_id,board," +
+                    "spec_version,subject,aliases,topics,source,moderation_status";
+    let { data, error } = await sb.from("curriculum").select(COLUMNS)
       .order("source", { ascending: false })
       .limit(MAX_REMOTE_ROWS);
+    // A database that has not run 08 yet has no moderation_status column, which
+    // PostgREST rejects outright. Retry without it rather than losing the whole
+    // remote catalog and silently falling back to the bundled seed.
+    if (error) {
+      ({ data, error } = await sb.from("curriculum")
+        .select(COLUMNS.replace(",moderation_status", ""))
+        .order("source", { ascending: false })
+        .limit(MAX_REMOTE_ROWS));
+    }
     if (error || !Array.isArray(data)) return _remoteCurriculum;
     _remoteCurriculum = data.map(_remoteRowToSeed).filter(Boolean);
     _mirrorRemoteCurriculum();

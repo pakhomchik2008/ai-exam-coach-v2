@@ -2,10 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "5050"],
-      "port": 5050
+      "name": "lnkrise",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "/Users/hlibpakhomov/Desktop/LnkRise",
+        "run",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": false
     }
   ]
 }

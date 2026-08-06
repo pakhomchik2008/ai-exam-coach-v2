@@ -91,7 +91,10 @@ export default async function handler(req, res) {
       return;
     }
     // Bill the tokens this call actually cost against the user's daily budget.
-    recordUsage(gate.user, "complete", data.usage);
+    // Awaited: the Lambda freezes at response time, so an un-awaited call here
+    // is not reliably delivered. gate.usage.day pins it to the day the request
+    // slot was spent, not the day this line happens to run.
+    await recordUsage(gate.user, "complete", data.usage, gate.usage && gate.usage.day);
     const text = (data.content || []).map((b) => b.text || "").join("");
     res.status(200).json({ text });
   } catch (err) {
