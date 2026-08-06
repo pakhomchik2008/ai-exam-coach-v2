@@ -15,11 +15,21 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500..800&family=Hanken+Grotesk:ital,wght@0,400..700;1,400..700&display=swap" />
 <link rel="stylesheet" href="../../styles.css?v=tier2" />
 <link rel="icon" href="../../assets/favicon.svg" />
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<!-- PRODUCTION builds. This shipped the development builds to real users:
+     react-dom.development.js alone is 1,080,227 bytes against 131,835 for the
+     production build — ~1.05 MB of extra download, parse and execute on every
+     single page load, on top of the 1.4 MB of JSX Babel already transforms in
+     the browser. Dev builds also run prop-type checks and keep verbose internals
+     on every render. Swap back to .development.js locally when debugging. -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+<!-- Pinned + hashed like React/Babel above. This was the one dependency on a
+     floating "@2" tag with no integrity — and it is the library that holds every
+     user's Supabase access AND refresh token in localStorage, so a bad publish
+     or a CDN compromise would have handed over every account. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <script src="../../_ds_bundle.js"></script>
 <script>
   // The daily cap now lives server-side, per user, in Supabase
