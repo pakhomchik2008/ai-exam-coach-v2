@@ -26,8 +26,18 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://cyftpdiabopydwytyudt.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || "sb_publishable_wL5HRZEHk9zAMUNWJa0BMA_IA4cC9Wo";
 
+// 11_created_by_revoke.sql drops the table-level SELECT grant on `curriculum`
+// and re-grants per column, so `select=*` is refused for the publishable key —
+// created_by holds contributor user ids and is deliberately not readable. Ask
+// for exactly the columns this exporter writes out.
+const COLUMNS = {
+  curriculum: "country_id,education_system_id,qualification_id,board,spec_version," +
+              "subject,aliases,topics,source",
+};
+
 async function fetchTable(name) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${name}?select=*`, {
+  const select = COLUMNS[name] || "*";
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${name}?select=${select}`, {
     headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
   });
   if (!res.ok) {
