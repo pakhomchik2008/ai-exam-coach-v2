@@ -9,6 +9,10 @@ Thumbs.db
 # Node
 node_modules/
 
+# Vite build output
+dist/
+*.tsbuildinfo
+
 # Local secrets for scripts/dev-api.mjs (ANTHROPIC_API_KEY, service role key)
 .env.local
 .env*.local

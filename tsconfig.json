@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // The 43 unconverted `.jsx` modules pass through the build untyped. They are
+    // converted to `.tsx` one at a time in Phase 1b; flipping `checkJs` on now
+    // would produce thousands of errors at once with no working baseline to
+    // triage them against.
+    "allowJs": true,
+    "checkJs": false,
+
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src", "vite.config.ts"]
+}
