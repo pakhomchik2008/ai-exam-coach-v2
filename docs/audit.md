@@ -46,14 +46,16 @@ Then `3f996d9` "FintechX redesign" rewrote `StudyCalendar.jsx` wholesale (+792/-
 25. `allocateBudget()` (the core scheduling engine) calls unmemoized `getMastery()` inside a nested loop — for 5 exams × 30 topics it triggers ~750 full JSON-parse-and-migrate passes over `courses_v1`, which can carry 100 KB–1 MB of embedded PDF-extracted knowledge-base content per course. Runs on every `saveExams` and every budget-field change.
 26. Six sites resolve exam/course by display **name** instead of id (`StudySession.jsx:60,82`, `session-store.jsx:83,96`, `Dashboard.jsx:114`) — the product explicitly supports multiple exams sharing a name (midterm + final of the same subject), so these resolve to whichever is first in the array, misattributing study data to the wrong exam.
 27. `StudySession.jsx:66` falls back to `topicIdx = 0` when a session can't be resolved — a silent write of real mastery data onto the wrong topic, not a no-op.
+28. **Cross-tab sync never remounts the screen it claims to.** The old inline `<script>` in `index.html` carried a detailed comment stating that `key={dataVersion}` forces the current screen to remount and re-read `localStorage` when another tab writes — but no such `key` was ever applied to any element. `setDataVersion` only re-renders `App`; child screens read `localStorage` in `useState` initialisers and on mount, so they keep serving stale data. Combined with finding #12 (only 7 of 23 keys are even watched), cross-tab sync is substantially non-functional. Found while porting the inline script to `src/app/App.tsx` in Phase 1; deliberately **not** fixed there (Phase 1 is behavior-frozen) — the remount has real side effects on in-progress form state and needs a test before it is switched on. Fix belongs with the Phase 2 Supabase sync layer.
 
-## Secrets — action needed before Phase 0 can close
+## Secrets — rotated
 
-Per user decision: **pausing rotation**, will supply new keys directly into Vercel env when asked (not via chat/file). Current known secret surface (from `README.md`):
-- `ANTHROPIC_API_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+- `ANTHROPIC_API_KEY` — rotated, new key in Vercel env
+- `SUPABASE_SERVICE_ROLE_KEY` — rotated, new key in Vercel env
 
-No secrets found committed into tracked `.jsx`/`.ts` files during this pass (`.env.local` correctly gitignored). Full `git filter-repo` history scan deferred — flagging as **open TODO**, not closing Phase 0's secret-rotation checkbox yet.
+No secrets found committed into tracked `.jsx`/`.ts` files (`.env.local` correctly gitignored).
+
+**Phase 0 close gate:** PASS ✓
 
 ## Repo hygiene set up this phase
 
