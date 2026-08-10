@@ -110,6 +110,7 @@ export const REQUIRED_GLOBALS = [
   "getProfile",
   "hasProfile",
   "getSession",
+  "clearSession",
   "getMistakes",
   "getBrain",
   "useBrain",

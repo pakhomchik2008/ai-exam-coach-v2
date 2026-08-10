@@ -55,6 +55,7 @@ export function App() {
   const getProfile = legacyFn<() => Dict>("getProfile");
   const saveProfile = legacyFn<(patch: Dict) => void>("saveProfile");
   const hasProfile = legacyFn<() => boolean>("hasProfile");
+  const clearSession = legacyFn<() => void>("clearSession");
 
   const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [route, setRoute] = React.useState<Route>(() => (getSession() ? "app" : "landing"));
@@ -169,7 +170,17 @@ export function App() {
       <AppNav
         current={tab}
         onNavigate={(id: string) => setTab(id)}
-        onLogout={() => setRoute("landing")}
+        // Bug (audit #29): this button used to call only setRoute("landing"),
+        // never window.clearSession() — unlike Settings.jsx's own logout button,
+        // which does call it. On a shared device (school computer), the header
+        // "Log out" button left the Supabase session AND every personal
+        // localStorage key (exams, mastery, mistakes, chat caches) in place for
+        // the next person. clearSession() now also wipes that data — see
+        // PERSONAL_DATA_KEYS in auth-store.jsx.
+        onLogout={() => {
+          clearSession();
+          setRoute("landing");
+        }}
         lang={lang}
         onLangChange={setLang}
       />

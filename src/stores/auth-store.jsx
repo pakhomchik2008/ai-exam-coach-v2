@@ -7,6 +7,30 @@
 const ACCOUNTS_KEY = "auth_accounts_v1"; // kept for compat
 const SESSION_KEY  = "auth_session_v1";
 
+// Every localStorage key that holds this student's own data — exams, schedule,
+// mastery, mistakes, chat caches. Cleared on explicit logout (audit finding
+// #29): before this fix, logOut() only removed the auth session, so on a
+// shared device (school computer, family laptop) the next person to open the
+// app saw the previous student's exams, mistake journal, and AI chat context.
+// Deliberately excludes the shared exam-catalog caches (curriculum/
+// qualifications) — those are not personal, are identical for every visitor,
+// and are expensive to refetch, plus the UI display prefs (calendar view) —
+// device settings, not this student's content.
+const PERSONAL_DATA_KEYS = [
+  "exams_list_v2", "courses_v1", "study_schedule_v1", "user_profile_v1",
+  "mistakes_v1", "mistake_review_log_v1", "active_session_v1",
+  "brain_mastery_v1", "brain_kb_v1", "brain_memory_v1", "brain_xp_v1",
+  "brain_difficulty_v1", "brain_lessoncache_v1", "study_result_v1",
+  "tier_seen_v1", ACCOUNTS_KEY,
+];
+// Note on "tier_seen_v1": tier-theme.jsx's subscribeBrain callback reacts to
+// the SIGNED_OUT StorageEvent dispatched below and immediately rewrites this
+// key to whatever xpTier() resolves to at that instant. Since brain_xp_v1 is
+// already gone by then, that is always "novice" (the correct fresh-account
+// default) — not the previous student's real tier. Harmless; left as-is
+// rather than reordering the clear around the signOut() call for a
+// non-personal, self-correcting field.
+
 // ─── Supabase client ──────────────────────────────────────────────────────────
 
 const { createClient } = window.supabase;
@@ -87,9 +111,17 @@ function setSession(session) {
   return session;
 }
 
+// Called ONLY from the explicit "Log out" button (Settings.jsx). Deliberately
+// not wired into the SIGNED_OUT branch of onAuthStateChange below — that fires
+// on any session invalidation, including a transient one (expired token,
+// network hiccup), and wiping a student's exams because of that would be worse
+// than the leak this function exists to fix.
 function clearSession() {
   _cachedSession = null;
   try { localStorage.removeItem(SESSION_KEY); } catch {}
+  for (const key of PERSONAL_DATA_KEYS) {
+    try { localStorage.removeItem(key); } catch {}
+  }
   _supabase.auth.signOut().catch(() => {}); // fire-and-forget
 }
 
