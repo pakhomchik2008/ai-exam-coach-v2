@@ -72,10 +72,16 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
           </button>
         )}
       </div>
+      {/* showBlackout={false} — audit bug #8. The "when are you unavailable"
+          grid is 21 toggles, asked of someone who has not finished signing up
+          yet. It stays available in Settings for anyone who actually wants it;
+          an empty blackoutSlots means "no constraints" to the scheduler, which
+          then picks a sane default window. */}
       <window.AvailabilityGrid
         daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
         sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
-        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} copy={c} />
+        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} copy={c}
+        showBlackout={false} />
       <div>
         <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_materials}</p>
         <window.ChipGrid items={window.MATERIALS} selected={materials} onToggle={toggle(setMaterials)} lang={lang} />

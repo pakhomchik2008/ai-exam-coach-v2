@@ -222,7 +222,15 @@ function copy_label(copy) { return copy.s2_current; }
 // turn "9h/week" into real dated sessions — see the audit that motivated this.
 // English-only for now, matching the precedent already set by AiHoursModal's
 // hardcoded placeholder text in this same file — i18n for these can follow later.
-function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots, copy }) {
+// `showBlackout` gates the 7-day x 3-period "when are you unavailable" grid.
+//
+// It is off in the exam wizard (audit bug #8): 21 toggles is far too much to ask
+// someone who is still deciding whether to use the product at all, and the
+// scheduler treats an empty blackoutSlots as "no constraints" and picks a sane
+// default window anyway (schedule-store.jsx:206 `hasSetAvailability`). It stays
+// on in Settings, where someone who actually wants to block out Friday evenings
+// can go and do it deliberately.
+function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots, copy, showBlackout = true }) {
   const DAY_LABELS = copy.day_abbr || { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const PERIOD_LABELS = copy.period_abbr || { morning: "AM", afternoon: "PM", evening: "Eve" };
   const days = window.WEEK_DAYS || Object.keys(DAY_LABELS);
@@ -277,6 +285,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
           ))}
         </div>
       </div>
+      {showBlackout && (
       <div>
         <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{copy.s2_when_unavailable}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -299,6 +308,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,11 @@
 .DS_Store
 **/.DS_Store
 
+# iCloud Drive conflict copies. This repo lives under ~/Documents, which iCloud
+# syncs, and it periodically duplicates files as "name 2.ext" / "name 3.ext".
+# 50 of these were committed by accident once; this stops it recurring.
+* [0-9].*
+
 # Editor / OS junk
 *.swp
 Thumbs.db
