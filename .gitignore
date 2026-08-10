@@ -13,6 +13,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Test coverage output
+coverage/
+
 # Local secrets for scripts/dev-api.mjs (ANTHROPIC_API_KEY, service role key)
 .env.local
 .env*.local

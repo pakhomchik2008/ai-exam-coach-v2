@@ -26,6 +26,27 @@ interface ExamLike {
   id: string;
 }
 
+// Resolved once, at module scope, so each has a stable component identity and
+// React never remounts a subtree just because App re-rendered. Each one is a
+// conversion to-do: when its module becomes a real ES module, import it here
+// instead and delete the line.
+const Landing = legacyComponent<AnyProps>("Landing");
+const Onboarding = legacyComponent<AnyProps>("Onboarding");
+const AIPlan = legacyComponent<AnyProps>("AIPlan");
+const AppNav = legacyComponent<AnyProps>("AppNav");
+const StudyLayer = legacyComponent<AnyProps>("StudyLayer");
+const TweaksPanel = legacyComponent<AnyProps>("TweaksPanel");
+const TweakSection = legacyComponent<AnyProps>("TweakSection");
+const TweakRadio = legacyComponent<AnyProps>("TweakRadio");
+const AIChat = legacyComponent<AnyProps>("AIChat");
+const StudyHub = legacyComponent<AnyProps>("StudyHub");
+const MistakeJournal = legacyComponent<AnyProps>("MistakeJournal");
+const CalendarHub = legacyComponent<AnyProps>("CalendarHub");
+const Exams = legacyComponent<AnyProps>("Exams");
+const Progress = legacyComponent<AnyProps>("Progress");
+const Settings = legacyComponent<AnyProps>("Settings");
+const Dashboard = legacyComponent<AnyProps>("Dashboard");
+
 export function App() {
   const useTweaks = legacyFn<(d: typeof TWEAK_DEFAULTS) => [Tweaks, (k: string, v: string) => void]>(
     "useTweaks",
@@ -114,11 +135,9 @@ export function App() {
   };
 
   if (route === "landing") {
-    const Landing = legacyComponent<AnyProps>("Landing");
     return <Landing onContinue={goAfterAuth} t={t} lang={lang} onLangChange={setLang} />;
   }
   if (route === "onboarding") {
-    const Onboarding = legacyComponent<AnyProps>("Onboarding");
     return (
       <Onboarding
         onFinish={(newExams: ExamLike[]) => goPlanning(newExams)}
@@ -128,15 +147,9 @@ export function App() {
     );
   }
   if (route === "planning") {
-    const AIPlan = legacyComponent<AnyProps>("AIPlan");
     return <AIPlan examIds={planExamIds} onStart={goApp} t={t} />;
   }
 
-  const AppNav = legacyComponent<AnyProps>("AppNav");
-  const StudyLayer = legacyComponent<AnyProps>("StudyLayer");
-  const TweaksPanel = legacyComponent<AnyProps>("TweaksPanel");
-  const TweakSection = legacyComponent<AnyProps>("TweakSection");
-  const TweakRadio = legacyComponent<AnyProps>("TweakRadio");
 
   const content = renderTab({
     tab,
@@ -241,15 +254,12 @@ function renderTab({
 }: TabArgs) {
   switch (tab) {
     case "chat": {
-      const AIChat = legacyComponent<AnyProps>("AIChat");
       return <AIChat t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />;
     }
     case "study": {
-      const StudyHub = legacyComponent<AnyProps>("StudyHub");
       return <StudyHub t={t} />;
     }
     case "journal": {
-      const MistakeJournal = legacyComponent<AnyProps>("MistakeJournal");
       return (
         <MistakeJournal
           t={t}
@@ -262,19 +272,15 @@ function renderTab({
     // from AppNav (audit finding #19); kept until the nav registry is unified.
     case "schedule":
     case "calendar": {
-      const CalendarHub = legacyComponent<AnyProps>("CalendarHub");
       return <CalendarHub t={t} onGoToExams={() => setTab("exams")} />;
     }
     case "exams": {
-      const Exams = legacyComponent<AnyProps>("Exams");
       return <Exams t={t} onPlanReady={(newExams: ExamLike[]) => goPlanning(newExams)} />;
     }
     case "progress": {
-      const Progress = legacyComponent<AnyProps>("Progress");
       return <Progress t={t} />;
     }
     case "settings": {
-      const Settings = legacyComponent<AnyProps>("Settings");
       return (
         <Settings
           t={t}
@@ -285,7 +291,6 @@ function renderTab({
       );
     }
     default: {
-      const Dashboard = legacyComponent<AnyProps>("Dashboard");
       return (
         <Dashboard
           onOpenCourse={() => {}}

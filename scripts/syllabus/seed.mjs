@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ids, sqlStr, sqlUuid, sqlInt, sqlJsonb, sqlTextArray, slugify } from "./lib.mjs";
+import { ids, sqlStr, sqlUuid, sqlInt, sqlTextArray, slugify } from "./lib.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const inPath = process.argv[2];

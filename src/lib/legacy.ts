@@ -11,6 +11,7 @@
  * `window.X` is a stable reference once its module has evaluated, so repeated
  * calls return the same object and React never sees a changed component type.
  */
+import { createElement } from "react";
 import type { ComponentType } from "react";
 
 const w = window as unknown as Record<string, unknown>;
@@ -23,9 +24,19 @@ function mustGet(name: string): unknown {
   return value;
 }
 
-/** A React component still defined by a legacy `.jsx` module. */
-export function legacyComponent<P>(name: string): ComponentType<P> {
-  return mustGet(name) as ComponentType<P>;
+/**
+ * A React component still defined by a legacy `.jsx` module.
+ *
+ * Returns a stable wrapper created once, at module scope, which looks the real
+ * component up on `window` at render time. The indirection matters twice over:
+ * the caller gets one unchanging component identity (so React never remounts the
+ * subtree), while the `window` read stays deferred until render, so this can be
+ * called before `bootstrap` has finished loading the module that defines it.
+ */
+export function legacyComponent<P extends object>(name: string): ComponentType<P> {
+  const Wrapper = (props: P) => createElement(mustGet(name) as ComponentType<P>, props);
+  Wrapper.displayName = `Legacy(${name})`;
+  return Wrapper;
 }
 
 /** A plain function still defined by a legacy `.jsx` module. */
