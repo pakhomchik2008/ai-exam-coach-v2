@@ -68,8 +68,15 @@ create policy storage_limits_read on public.storage_limits for select using (tru
 --
 -- Objects are laid out as `<user_id>/<filename>`, so ownership is the first path
 -- segment. That is also what the RLS policies below key on.
+--
+-- The function lives in `public`, not `storage`. The `storage` schema is owned
+-- by Supabase's own roles (supabase_storage_admin) — even the project's
+-- postgres/service-role user cannot CREATE FUNCTION inside it over the SQL
+-- editor ("permission denied for schema storage"). A trigger can still be
+-- attached to storage.objects from a function defined elsewhere; only the
+-- function's home schema mattered.
 
-create or replace function storage.enforce_user_upload_quota()
+create or replace function public.enforce_user_upload_quota()
 returns trigger
 language plpgsql
 security definer
@@ -141,7 +148,7 @@ $$;
 drop trigger if exists enforce_user_upload_quota on storage.objects;
 create trigger enforce_user_upload_quota
   before insert or update on storage.objects
-  for each row execute function storage.enforce_user_upload_quota();
+  for each row execute function public.enforce_user_upload_quota();
 
 -- ─── RLS: a user sees and touches only their own folder ───────────────────────
 
