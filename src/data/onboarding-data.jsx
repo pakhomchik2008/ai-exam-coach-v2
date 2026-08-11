@@ -30,7 +30,36 @@ const EXAM_TYPES = [
     grade: { kind: "scale", options: ["A","B","C","D","Pass"], current: "C", target: "A" } },
 ];
 
-function examType(id) { return EXAM_TYPES.find((e) => e.id === id) || EXAM_TYPES[1]; }
+// Resolving an unknown exam id used to return EXAM_TYPES[1] — A-Level — so a
+// student whose exam id was misspelt, renamed in the DB, or not yet loaded got
+// silently handed A-Level's A*–E grade scale and AQA board list. Nothing
+// surfaced; their exam simply started grading itself as a British A-Level.
+//
+// "custom" is the entry that exists precisely for an exam we do not model, so
+// that is the honest fallback. It is looked up by id rather than index because
+// the merged DB list (qualifications-store) can order entries any way it likes.
+//
+// Shared with qualifications-store, which rebuilds `examType` over the merged
+// list — one implementation so the two cannot drift apart.
+const _warnedExamTypeIds = new Set();
+
+function resolveExamType(list, id) {
+  const found = list.find((e) => e.id === id);
+  if (found) return found;
+
+  // A null/undefined id means "nothing picked yet", which is a normal state in
+  // several flows — only a non-empty id that fails to resolve is a real signal.
+  if (id && !_warnedExamTypeIds.has(id)) {
+    _warnedExamTypeIds.add(id);
+    const msg = `examType: unknown exam id "${id}" — falling back to "custom"`;
+    if (window.Sentry) window.Sentry.captureMessage(msg, "warning");
+    else console.warn(msg);
+  }
+
+  return list.find((e) => e.id === "custom") || list[0];
+}
+
+function examType(id) { return resolveExamType(EXAM_TYPES, id); }
 
 // ─── Study materials & learning preferences ────────────────────────────────────
 const MATERIALS = [
@@ -290,7 +319,7 @@ const INTENSITY_PRESETS = [
     multiplier: 1.4 },
 ];
 
-Object.assign(window, { EXAM_TYPES, examType, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB, COUNTRIES, COUNTRY_TO_EXAM_TYPE, EDUCATION_LEVELS, SUBJECT_PRESETS, UNIVERSITY_YEARS, INTENSITY_PRESETS });
+Object.assign(window, { EXAM_TYPES, examType, resolveExamType, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB, COUNTRIES, COUNTRY_TO_EXAM_TYPE, EDUCATION_LEVELS, SUBJECT_PRESETS, UNIVERSITY_YEARS, INTENSITY_PRESETS });
 
 // Module marker: these files carry no import/export of their own (they still
 // communicate via `window` globals), and without one the JSX transform treats

@@ -66,7 +66,12 @@ function _mergeQuals(snapshot, remote) {
 // COUNTRY_TO_EXAM_TYPE) transparently sees DB data with no per-consumer change.
 function _applyToGlobals(merged) {
   window.EXAM_TYPES = merged;
-  window.examType = (id) => merged.find((e) => e.id === id) || merged[1] || merged[0];
+  // Same resolution rule as the bundled catalog (onboarding-data.jsx): an
+  // unknown id resolves to "custom", never to whatever happens to sit at index
+  // 1. In this merged list that index is DB-ordered, so the old fallback was
+  // not even predictably A-Level — it was "whichever qualification loaded
+  // second", silently applying its grade scale to the student's exam.
+  window.examType = (id) => window.resolveExamType(merged, id);
 
   const presets = { ...(window.SUBJECT_PRESETS || {}) };
   const countryToExam = { ...(window.COUNTRY_TO_EXAM_TYPE || {}) };
