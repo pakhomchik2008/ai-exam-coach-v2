@@ -16,18 +16,17 @@ Running log for the Phase 2 work. Numbering continues `docs/audit.md` on the
 | 6 | AI Chat had no way to attach a file — it was text-only, so a photo of a textbook problem could not be sent at all | pending | Paperclip button, removable chips above the input, and multimodal send. Images go to Claude as vision blocks and PDFs as document blocks, so a photographed problem works as intended. Uses `CHAT_LIMITS` (5 files / 10 MB) rather than the study caps, because attachments are re-sent with the whole thread on every turn — a generous cap there multiplies token cost by thread length. An attachment with no text is a valid message |
 | 5 | Practice had no per-topic drill — every exam's topics were flattened into one list and then **truncated to the first 12**, so a student with three subjects could not reach most of their own topics at all. Question count was derived from difficulty, so wanting 5 quick questions meant picking "Easy" | pending | Setup screen now has a subject picker (shown when there is more than one exam), an explicit 5/10/20/50 length, an optional countdown timer, and the full topic list in a scroll area instead of the first 12. Changing subject clears the topic selection, since the old picks belong to a different syllabus |
 | 2b | Upload limits were client-side only — a cap in JavaScript the user is running is a UX affordance, not a control, and a signed-in student could fill the billed storage quota from a terminal | pending | `supabase/12_storage_limits.sql`. **Written but not applied — needs Hlib to run it** (see below) |
+| 12 | Multi-device sync didn't exist — every exam, mistake, and mastery record lived only in one browser's `localStorage`, so nothing carried over between a laptop and a phone | pending | `supabase/13_user_data_sync.sql` mirrors the 14 personal-data localStorage keys into one generic per-user table, RLS-scoped, with Realtime enabled. `src/lib/sync-reconcile.ts` is the pure last-write-wins decision logic (compares server timestamps only, never a client clock) — full unit coverage. `src/lib/data-sync.ts` patches `localStorage.setItem` once at the single point every store's writes already pass through, so no store file changed. Deliberately does **not** redesign the data model into relational tables — see `docs/phase-2c-plan.md` for why that's a separate, riskier project blocked on audit #14. **SQL written but not applied — needs Hlib to run it** (see below). Verified locally that the app degrades silently without the table (clear `PGRST205` warning, no crash) and that a real store write (`saveProfile`) correctly triggers a push attempt — full realtime cross-device behavior can't be verified until the table exists |
 
 ## Needs Hlib to run
 
-`supabase/12_storage_limits.sql` has not been executed. Applying DDL to the
-production database is not something I do without being asked, and I have no DB
-credentials locally in any case.
+Two migrations have not been executed. Applying DDL to the production database
+is not something I do without being asked, and I have no DB credentials locally
+in any case. Both apply the same way: Supabase dashboard → SQL Editor → paste
+the file → Run. Both are idempotent, so re-running either is safe.
 
-To apply: Supabase dashboard → SQL Editor → paste the file → Run. It is
-idempotent (`on conflict do update`, `drop policy if exists`), so re-running is
-safe.
-
-It adds three layers, because each catches what the others cannot:
+**`supabase/12_storage_limits.sql`** — adds three layers, because each catches
+what the others cannot:
 1. bucket `file_size_limit` — per-object cap, enforced by Storage itself
 2. bucket `allowed_mime_types` — per-object type, enforced by Storage itself
 3. RLS policies + a trigger — per-user file count and total bytes, which Storage
@@ -35,6 +34,12 @@ It adds three layers, because each catches what the others cannot:
 
 Until it is applied, the client-side limits are the only thing standing between
 a signed-in user and the storage bill.
+
+**`supabase/13_user_data_sync.sql`** — the cross-device sync table (audit
+#12). Until it is applied, the sync code degrades silently: every push/pull
+fails with a clear `PGRST205` (table not found), logged as a console warning,
+and the app keeps working exactly as it does today, purely off `localStorage`.
+Nothing breaks by leaving this unapplied for a while; nothing syncs either.
 
 ## Found, not yet fixed
 

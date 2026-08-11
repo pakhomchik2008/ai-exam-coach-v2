@@ -4,6 +4,8 @@
 // so every other file that calls those functions works without changes.
 // OAuth (Google, GitHub, Apple) added via window.signInWithOAuth(provider).
 
+import { startDataSync, stopDataSync } from "../lib/data-sync";
+
 const ACCOUNTS_KEY = "auth_accounts_v1"; // kept for compat
 const SESSION_KEY  = "auth_session_v1";
 
@@ -73,6 +75,9 @@ function _persistSession(session) {
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
+    // Covers a refresh while already signed in — onAuthStateChange's SIGNED_IN
+    // only fires on a *new* sign-in event, not on a session merely resuming.
+    void startDataSync(_supabase, session.user.id);
   } else {
     // Restore demo mode from localStorage if the user was demoing
     try {
@@ -86,10 +91,12 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
 _supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_IN" && session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
+    void startDataSync(_supabase, session.user.id);
   } else if (event === "SIGNED_OUT") {
     _cachedSession = null;
     try { localStorage.removeItem(SESSION_KEY); } catch {}
     window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
+    stopDataSync(_supabase);
   }
 });
 
@@ -118,6 +125,12 @@ function setSession(session) {
 // than the leak this function exists to fix.
 function clearSession() {
   _cachedSession = null;
+  // Stopped synchronously, before the localStorage sweep below and before
+  // signOut()'s own async SIGNED_OUT event lands — otherwise the realtime
+  // channel stays open on the now-stale user id for however long that promise
+  // takes to settle, and a reconcile racing in that window would run against
+  // a session that is already gone.
+  stopDataSync(_supabase);
   try { localStorage.removeItem(SESSION_KEY); } catch {}
   for (const key of PERSONAL_DATA_KEYS) {
     try { localStorage.removeItem(key); } catch {}
@@ -227,7 +240,7 @@ function saveAccounts() {}
 async function hashPassword(pw) { return pw; }
 
 Object.assign(window, {
-  ACCOUNTS_KEY, SESSION_KEY, _supabase,
+  ACCOUNTS_KEY, SESSION_KEY, _supabase, PERSONAL_DATA_KEYS,
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
   signUp, logIn, startDemo, signInWithOAuth,
