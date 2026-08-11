@@ -372,7 +372,7 @@ function CurriculumStep({
             <button type="button" onClick={addDraftTopic} style={{ padding: "8px 14px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)" }}>{L("Add", "Додати", "Добавить", "Ajouter", "Hinzufügen")}</button>
           </div>
           <button type="button" onClick={confirmDraft} disabled={!draftTopics.length}
-            style={{ width: "100%", padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: draftTopics.length ? "var(--emerald-600)" : "var(--slate-300)", color: "white", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: draftTopics.length ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>
+            style={{ width: "100%", padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: draftTopics.length ? "var(--emerald-600)" : "var(--slate-300)", color: "var(--white)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: draftTopics.length ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>
             ✓ {L("Looks correct — use this", "Виглядає правильно — використати", "Выглядит правильно — использовать", "C'est correct — utiliser ceci", "Sieht richtig aus — das verwenden")}
           </button>
         </div>

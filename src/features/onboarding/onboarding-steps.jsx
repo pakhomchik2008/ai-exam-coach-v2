@@ -73,7 +73,7 @@ function ChipGrid({ items, selected, onToggle, lang }) {
               color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
             <span aria-hidden="true" style={{ fontSize: 18 }}>{it.emoji}</span>
             <span style={{ flex: 1 }}>{it[lang] || it.en}</span>
-            <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: "var(--radius-full)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff",
+            <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: "var(--radius-full)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--white)",
               border: sel ? "none" : "1.5px solid var(--border-default)", background: sel ? "var(--indigo-500)" : "transparent" }}>{sel ? "✓" : ""}</span>
           </button>
         );
@@ -370,7 +370,7 @@ function AiHoursModal({ subjects, examLabel, onApply, onClose, copy }) {
         <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-1)" }}>
           <button type="button" onClick={onClose} style={{ flex: 1, minHeight: 44, border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{copy.cancel}</button>
           <button type="button" onClick={submit} disabled={loading}
-            style={{ flex: 1, minHeight: 44, border: "none", background: loading ? "var(--slate-200)" : "var(--indigo-600)", color: loading ? "var(--text-faint)" : "#fff", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
+            style={{ flex: 1, minHeight: 44, border: "none", background: loading ? "var(--slate-200)" : "var(--indigo-600)", color: loading ? "var(--text-faint)" : "var(--white)", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
             {loading ? copy.thinking : copy.estimate}
           </button>
         </div>

@@ -115,7 +115,7 @@ function TodaysMission({ session, course, onBegin, onSkip, t }) {
         <button onClick={onBegin} style={{
           flex: 1, padding: "14px 24px", borderRadius: "var(--radius-xl)",
           border: "none", background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))",
-          color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
+          color: "var(--white)", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
           boxShadow: "0 4px 20px rgba(34,124,99,0.3)",
         }}>
           {L("Begin Session","Розпочати сесію","Начать сессию","Commencer la séance","Sitzung beginnen")} →

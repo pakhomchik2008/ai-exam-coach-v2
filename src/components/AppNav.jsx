@@ -9,7 +9,7 @@ function NavLogoMark({ size = 26 }) {
       <rect width="26" height="26" rx="8" fill="var(--ink-900)" />
       <path d="M13 6.5 a6.5 6.5 0 1 1 -6.2 8.5" fill="none"
         stroke="var(--emerald-500)" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="13" cy="13" r="2.4" fill="#FFFFFF" />
+      <circle cx="13" cy="13" r="2.4" fill="var(--white)" />
     </svg>
   );
 }
