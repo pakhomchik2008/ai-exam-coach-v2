@@ -6,6 +6,49 @@
 import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
+import { checkAndRecordQuestion } from "../../lib/question-novelty";
+
+// Novelty engine (Phase 3 §3a) — proof point wired into Practice Engine only,
+// the highest-traffic generator. Checks each generated question against the
+// shared ai_question_bank; if any come back as exact/near-exact duplicates of
+// something already banked, generates ONE replacement batch and swaps in
+// whichever of those aren't ALSO duplicates. Never blocks or fails the round:
+// a table that isn't applied yet (or any Supabase hiccup) degrades to
+// checkAndRecordQuestion's built-in `{duplicate:false}` no-op, and a
+// duplicate that survives the one retry is served anyway — a repeated
+// question beats a broken practice round.
+async function dedupeAgainstQuestionBank(questions, examTaxonomy, regenerate) {
+  const sb = window._supabase;
+  const userId = window.getSession && window.getSession()?.id;
+  if (!sb || !userId || !examTaxonomy) return questions;
+
+  const checks = await Promise.all(
+    questions.map((q) => checkAndRecordQuestion(sb, userId, examTaxonomy, q.topic || null, q.question)),
+  );
+  const dupIdxs = checks.map((r, i) => (r.duplicate ? i : -1)).filter((i) => i >= 0);
+  if (dupIdxs.length === 0) return questions;
+
+  let replacement = null;
+  try {
+    replacement = await regenerate();
+  } catch {
+    return questions; // one retry only — serve the original batch as-is on any failure
+  }
+  if (!Array.isArray(replacement) || replacement.length === 0) return questions;
+
+  const replacementChecks = await Promise.all(
+    replacement.map((q) => checkAndRecordQuestion(sb, userId, examTaxonomy, q.topic || null, q.question)),
+  );
+  const freshReplacements = replacement.filter((_, i) => !replacementChecks[i].duplicate);
+
+  const next = questions.slice();
+  let r = 0;
+  for (const idx of dupIdxs) {
+    if (r >= freshReplacements.length) break;
+    next[idx] = freshReplacements[r++];
+  }
+  return next;
+}
 //
 // The AI generates a structured lesson plan upfront. The UI renders each step
 // as its own full-screen phase — not chat bubbles. Progress is always visible.
@@ -1262,13 +1305,20 @@ RULES:
 - No duplicate concepts`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
-        const raw = await Promise.race([
+        const generate = () => Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }] }),
           timeout,
-        ]);
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-        setQuestions(parsed.questions);
+        ]).then((r) => {
+          const p = window.parseJSON ? window.parseJSON(r) : JSON.parse(r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1));
+          if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return p.questions;
+        });
+
+        const rawQuestions = await generate();
+        const exam = config.examId && window.getExams ? window.getExams().find((e) => e.id === config.examId) : null;
+        const examTaxonomy = (exam && exam.qualificationId) || config.examId;
+        const questions = await dedupeAgainstQuestionBank(rawQuestions, examTaxonomy, generate);
+        setQuestions(questions);
         setLoading(false);
       } catch (e) {
         console.error("Practice generation failed:", e);
