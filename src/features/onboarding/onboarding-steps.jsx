@@ -1,6 +1,10 @@
 // AI Exam Coach — Onboarding bits: coach bubble, grade picker, upload, plan review
 // All exported to window for Onboarding.jsx to compose. Inline styles, mobile-first.
 
+// First real ES import in this legacy module — the upload limits are shared with
+// every other upload surface, so they must not be re-declared per screen.
+import { validateFiles, rejectionSummary, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
+
 // ── Coach speech bubble — sells the "talking to an advisor" feel ───────────────
 function CoachBubble({ children, advisor }) {
   return (
@@ -69,7 +73,7 @@ function ChipGrid({ items, selected, onToggle, lang }) {
               color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
             <span aria-hidden="true" style={{ fontSize: 18 }}>{it.emoji}</span>
             <span style={{ flex: 1 }}>{it[lang] || it.en}</span>
-            <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: "var(--radius-full)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff",
+            <span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: "var(--radius-full)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "var(--white)",
               border: sel ? "none" : "1.5px solid var(--border-default)", background: sel ? "var(--indigo-500)" : "transparent" }}>{sel ? "✓" : ""}</span>
           </button>
         );
@@ -82,9 +86,23 @@ function ChipGrid({ items, selected, onToggle, lang }) {
 function UploadZone({ files, onAdd, onRemove, copy }) {
   const inputRef = React.useRef(null);
   const [drag, setDrag] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState("");
+
   // Pass the real File objects through (not just name/size) so the parent can
   // actually read their content for AI analysis instead of faking it.
-  const pick = (list) => { if (list && list.length) onAdd(Array.from(list)); };
+  //
+  // Everything is validated against the shared limits (audit #2) before it
+  // reaches the parent: 20 files, 25 MB each, 200 MB total. Rejected files are
+  // named in an error the student can act on — previously anything oversized
+  // was accepted here and only failed later, during AI analysis, as a generic
+  // failure with no mention of which file caused it.
+  const pick = (list) => {
+    if (!list || !list.length) return;
+    const lang = (window.getProfile && window.getProfile().lang) || "en";
+    const { accepted, rejected } = validateFiles(Array.from(list), files || []);
+    setUploadError(rejected.length ? rejectionSummary(rejected, lang) : "");
+    if (accepted.length) onAdd(accepted);
+  };
   return (
     <div>
       <button type="button"
@@ -99,8 +117,13 @@ function UploadZone({ files, onAdd, onRemove, copy }) {
         <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", lineHeight: 1.3, textAlign: "center" }}>{copy.s4_upload}</span>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.3, textAlign: "center" }}>{copy.s4_upload_sub}</span>
       </button>
-      <input ref={inputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.ppt,.pptx,.doc,.docx,.txt"
+      <input ref={inputRef} type="file" multiple accept={ACCEPT_ATTRIBUTE}
         onChange={(e) => { pick(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      {uploadError && (
+        <p role="alert" style={{ margin: "var(--space-2) 0 0", padding: "var(--space-2) var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--red-50)", border: "1px solid var(--red-200)", color: "var(--red-700)", fontSize: "var(--text-xs)", lineHeight: 1.4 }}>
+          {uploadError}
+        </p>
+      )}
       {files.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
           {files.map((f, i) => (
@@ -222,7 +245,15 @@ function copy_label(copy) { return copy.s2_current; }
 // turn "9h/week" into real dated sessions — see the audit that motivated this.
 // English-only for now, matching the precedent already set by AiHoursModal's
 // hardcoded placeholder text in this same file — i18n for these can follow later.
-function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots, copy }) {
+// `showBlackout` gates the 7-day x 3-period "when are you unavailable" grid.
+//
+// It is off in the exam wizard (audit bug #8): 21 toggles is far too much to ask
+// someone who is still deciding whether to use the product at all, and the
+// scheduler treats an empty blackoutSlots as "no constraints" and picks a sane
+// default window anyway (schedule-store.jsx:206 `hasSetAvailability`). It stays
+// on in Settings, where someone who actually wants to block out Friday evenings
+// can go and do it deliberately.
+function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots, copy, showBlackout = true }) {
   const DAY_LABELS = copy.day_abbr || { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
   const PERIOD_LABELS = copy.period_abbr || { morning: "AM", afternoon: "PM", evening: "Eve" };
   const days = window.WEEK_DAYS || Object.keys(DAY_LABELS);
@@ -277,6 +308,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
           ))}
         </div>
       </div>
+      {showBlackout && (
       <div>
         <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{copy.s2_when_unavailable}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -299,6 +331,7 @@ function AvailabilityGrid({ daysPerWeek, setDaysPerWeek, sessionLengthMin, setSe
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -337,7 +370,7 @@ function AiHoursModal({ subjects, examLabel, onApply, onClose, copy }) {
         <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-1)" }}>
           <button type="button" onClick={onClose} style={{ flex: 1, minHeight: 44, border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{copy.cancel}</button>
           <button type="button" onClick={submit} disabled={loading}
-            style={{ flex: 1, minHeight: 44, border: "none", background: loading ? "var(--slate-200)" : "var(--indigo-600)", color: loading ? "var(--text-faint)" : "#fff", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
+            style={{ flex: 1, minHeight: 44, border: "none", background: loading ? "var(--slate-200)" : "var(--indigo-600)", color: loading ? "var(--text-faint)" : "var(--white)", borderRadius: "var(--radius-lg)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
             {loading ? copy.thinking : copy.estimate}
           </button>
         </div>

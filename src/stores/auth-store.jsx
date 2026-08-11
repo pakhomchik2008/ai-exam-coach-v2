@@ -4,8 +4,34 @@
 // so every other file that calls those functions works without changes.
 // OAuth (Google, GitHub, Apple) added via window.signInWithOAuth(provider).
 
+import { startDataSync, stopDataSync } from "../lib/data-sync";
+
 const ACCOUNTS_KEY = "auth_accounts_v1"; // kept for compat
 const SESSION_KEY  = "auth_session_v1";
+
+// Every localStorage key that holds this student's own data — exams, schedule,
+// mastery, mistakes, chat caches. Cleared on explicit logout (audit finding
+// #29): before this fix, logOut() only removed the auth session, so on a
+// shared device (school computer, family laptop) the next person to open the
+// app saw the previous student's exams, mistake journal, and AI chat context.
+// Deliberately excludes the shared exam-catalog caches (curriculum/
+// qualifications) — those are not personal, are identical for every visitor,
+// and are expensive to refetch, plus the UI display prefs (calendar view) —
+// device settings, not this student's content.
+const PERSONAL_DATA_KEYS = [
+  "exams_list_v2", "courses_v1", "study_schedule_v1", "user_profile_v1",
+  "mistakes_v1", "mistake_review_log_v1", "active_session_v1",
+  "brain_mastery_v1", "brain_kb_v1", "brain_memory_v1", "brain_xp_v1",
+  "brain_difficulty_v1", "brain_lessoncache_v1", "study_result_v1",
+  "tier_seen_v1", ACCOUNTS_KEY,
+];
+// Note on "tier_seen_v1": tier-theme.jsx's subscribeBrain callback reacts to
+// the SIGNED_OUT StorageEvent dispatched below and immediately rewrites this
+// key to whatever xpTier() resolves to at that instant. Since brain_xp_v1 is
+// already gone by then, that is always "novice" (the correct fresh-account
+// default) — not the previous student's real tier. Harmless; left as-is
+// rather than reordering the clear around the signOut() call for a
+// non-personal, self-correcting field.
 
 // ─── Supabase client ──────────────────────────────────────────────────────────
 
@@ -49,6 +75,9 @@ function _persistSession(session) {
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
+    // Covers a refresh while already signed in — onAuthStateChange's SIGNED_IN
+    // only fires on a *new* sign-in event, not on a session merely resuming.
+    void startDataSync(_supabase, session.user.id);
   } else {
     // Restore demo mode from localStorage if the user was demoing
     try {
@@ -62,10 +91,12 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
 _supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_IN" && session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
+    void startDataSync(_supabase, session.user.id);
   } else if (event === "SIGNED_OUT") {
     _cachedSession = null;
     try { localStorage.removeItem(SESSION_KEY); } catch {}
     window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
+    stopDataSync(_supabase);
   }
 });
 
@@ -87,9 +118,23 @@ function setSession(session) {
   return session;
 }
 
+// Called ONLY from the explicit "Log out" button (Settings.jsx). Deliberately
+// not wired into the SIGNED_OUT branch of onAuthStateChange below — that fires
+// on any session invalidation, including a transient one (expired token,
+// network hiccup), and wiping a student's exams because of that would be worse
+// than the leak this function exists to fix.
 function clearSession() {
   _cachedSession = null;
+  // Stopped synchronously, before the localStorage sweep below and before
+  // signOut()'s own async SIGNED_OUT event lands — otherwise the realtime
+  // channel stays open on the now-stale user id for however long that promise
+  // takes to settle, and a reconcile racing in that window would run against
+  // a session that is already gone.
+  stopDataSync(_supabase);
   try { localStorage.removeItem(SESSION_KEY); } catch {}
+  for (const key of PERSONAL_DATA_KEYS) {
+    try { localStorage.removeItem(key); } catch {}
+  }
   _supabase.auth.signOut().catch(() => {}); // fire-and-forget
 }
 
@@ -195,7 +240,7 @@ function saveAccounts() {}
 async function hashPassword(pw) { return pw; }
 
 Object.assign(window, {
-  ACCOUNTS_KEY, SESSION_KEY, _supabase,
+  ACCOUNTS_KEY, SESSION_KEY, _supabase, PERSONAL_DATA_KEYS,
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
   signUp, logIn, startDemo, signInWithOAuth,

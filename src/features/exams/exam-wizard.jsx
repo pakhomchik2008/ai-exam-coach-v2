@@ -72,10 +72,16 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
           </button>
         )}
       </div>
+      {/* showBlackout={false} — audit bug #8. The "when are you unavailable"
+          grid is 21 toggles, asked of someone who has not finished signing up
+          yet. It stays available in Settings for anyone who actually wants it;
+          an empty blackoutSlots means "no constraints" to the scheduler, which
+          then picks a sane default window. */}
       <window.AvailabilityGrid
         daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
         sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
-        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} copy={c} />
+        blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} copy={c}
+        showBlackout={false} />
       <div>
         <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_materials}</p>
         <window.ChipGrid items={window.MATERIALS} selected={materials} onToggle={toggle(setMaterials)} lang={lang} />
@@ -91,8 +97,8 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
 // Own footer buttons — no dependency on the legacy _ds_bundle design system.
 function WizardButton({ variant = "primary", fullWidth, disabled, onClick, children }) {
   const styles = {
-    primary:   { background: disabled ? "var(--slate-300)" : "var(--ink-900)", color: "#fff", border: "none", boxShadow: disabled ? "none" : "var(--shadow-md)" },
-    accent:    { background: disabled ? "var(--slate-300)" : "var(--indigo-600)", color: "#fff", border: "none", boxShadow: disabled ? "none" : "var(--shadow-sm)" },
+    primary:   { background: disabled ? "var(--slate-300)" : "var(--ink-900)", color: "var(--white)", border: "none", boxShadow: disabled ? "none" : "var(--shadow-md)" },
+    accent:    { background: disabled ? "var(--slate-300)" : "var(--indigo-600)", color: "var(--white)", border: "none", boxShadow: disabled ? "none" : "var(--shadow-sm)" },
     secondary: { background: "var(--surface-card)", color: "var(--text-strong)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-sm)" },
   }[variant];
   return (
@@ -593,7 +599,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                       )}
                       {customPassHelper && <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{customPassHelper}</p>}
                       <button type="button" onClick={applyCustomGrading}
-                        style={{ alignSelf: "flex-start", border: "none", background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-full)", padding: "12px 22px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                        style={{ alignSelf: "flex-start", border: "none", background: "var(--indigo-600)", color: "var(--white)", borderRadius: "var(--radius-full)", padding: "12px 22px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
                         {lang === "uk" ? "Продовжити" : lang === "ru" ? "Продолжить" : lang === "fr" ? "Continuer" : lang === "de" ? "Weiter" : "Continue"}
                       </button>
                     </div>

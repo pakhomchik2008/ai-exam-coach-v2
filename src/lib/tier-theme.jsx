@@ -9,16 +9,19 @@
 // profile-store.jsx (needs getProfile/saveProfile for the on/off setting).
 
 (function () {
-  // Tier ladder. `minLevel` is the level at which the tier unlocks. Only
-  // "legend" ships a full CSS theme today (proof-of-concept); the others use
-  // the base look but their rank title still shows so leveling always feels
-  // like progress. `theme:false` → no data-tier attribute (base tokens).
+  // Tier ladder. `minLevel` is the level at which the tier unlocks.
+  //
+  // All five tiers theme the page (audit finding #11 — previously only "legend"
+  // did, so leveling through the first four changed nothing visible). The lower
+  // four are deliberately subtle light-mode treatments that re-tint the ambient
+  // wash only; "legend" is the one full re-skin. See src/styles/tokens/tiers.css
+  // for why the lower tiers must not override the accent tokens.
   const XP_TIERS = [
-    { id: "novice",  minLevel: 1,  theme: false, emoji: "🌱", title: { en: "Novice",  uk: "Новачок",  ru: "Новичок",  fr: "Novice",  de: "Neuling" } },
-    { id: "scholar", minLevel: 3,  theme: false, emoji: "📘", title: { en: "Scholar", uk: "Учень",    ru: "Ученик",   fr: "Élève",   de: "Schüler" } },
-    { id: "adept",   minLevel: 5,  theme: false, emoji: "🔷", title: { en: "Adept",   uk: "Знавець",  ru: "Знаток",   fr: "Adepte",  de: "Kenner" } },
-    { id: "master",  minLevel: 8,  theme: false, emoji: "🟣", title: { en: "Master",  uk: "Майстер",  ru: "Мастер",   fr: "Maître",  de: "Meister" } },
-    { id: "legend",  minLevel: 12, theme: true,  emoji: "👑", title: { en: "Legend",  uk: "Легенда",  ru: "Легенда",  fr: "Légende", de: "Legende" } },
+    { id: "novice",  minLevel: 1,  theme: true, emoji: "🌱", title: { en: "Novice",  uk: "Новачок",  ru: "Новичок",  fr: "Novice",  de: "Neuling" } },
+    { id: "scholar", minLevel: 3,  theme: true, emoji: "📘", title: { en: "Scholar", uk: "Учень",    ru: "Ученик",   fr: "Élève",   de: "Schüler" } },
+    { id: "adept",   minLevel: 5,  theme: true, emoji: "🔷", title: { en: "Adept",   uk: "Знавець",  ru: "Знаток",   fr: "Adepte",  de: "Kenner" } },
+    { id: "master",  minLevel: 8,  theme: true, emoji: "🟣", title: { en: "Master",  uk: "Майстер",  ru: "Мастер",   fr: "Maître",  de: "Meister" } },
+    { id: "legend",  minLevel: 12, theme: true, emoji: "👑", title: { en: "Legend",  uk: "Легенда",  ru: "Легенда",  fr: "Légende", de: "Legende" } },
   ];
 
   function tierForLevel(level) {
@@ -71,6 +74,13 @@
   function showTierToast(tier) {
     const lang = currentLang();
     const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[lang] || en);
+    // Now that every tier themes the page, this fires for bronze/silver/gold
+    // promotions too — so the toast reads the tier's own accent instead of the
+    // gold that was hardcoded back when only "legend" could reach here.
+    // applyTierTheme() has already written data-tier by this point.
+    const accent =
+      getComputedStyle(document.documentElement).getPropertyValue("--tier-accent").trim() ||
+      "#F3D062";
     const el = document.createElement("div");
     el.setAttribute("role", "status");
     el.style.cssText = [
@@ -78,14 +88,14 @@
       "z-index:6000", "display:flex", "align-items:center", "gap:12px",
       "padding:14px 20px", "border-radius:16px",
       "background:linear-gradient(135deg,#1b2119,#0f1410)",
-      "border:1px solid rgba(243,208,98,0.5)",
-      "box-shadow:0 12px 40px -12px rgba(0,0,0,0.6),0 0 24px -4px rgba(243,208,98,0.4)",
+      "border:1px solid " + accent,
+      "box-shadow:0 12px 40px -12px rgba(0,0,0,0.6)",
       "color:#F3F6F1", "font-family:var(--font-sans,system-ui)", "font-weight:600",
       "opacity:0", "transition:opacity .5s ease,transform .5s cubic-bezier(0.16,1,0.3,1)",
     ].join(";");
     el.innerHTML =
       '<span style="font-size:26px">' + tier.emoji + '</span>' +
-      '<span><span style="display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#F3D062">' +
+      '<span><span style="display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:' + accent + '">' +
       L("New tier unlocked", "Відкрито новий тир", "Открыт новый тир", "Nouveau palier", "Neue Stufe") +
       '</span><span style="font-size:16px">' + tierTitle(tier, lang) + '</span></span>';
     document.body.appendChild(el);

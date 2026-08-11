@@ -8,6 +8,7 @@
  * visible, reviewed change rather than something that quietly starts passing.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import "../bootstrap";
 
 interface Tier {
@@ -74,12 +75,24 @@ describe("tierTitle", () => {
   });
 });
 
-describe("BUG #11 — tier theming is not wired up for 4 of 5 tiers", () => {
-  // Documented in docs/audit.md. Phase 2 sets `theme: true` on all five and
-  // adds the matching gradient sets to tiers.css; this assertion should fail
-  // loudly at that point so the change is reviewed, not silently absorbed.
-  it("currently themes only `legend` — flip this when Phase 2 lands", () => {
+describe("audit #11 — every tier themes the page", () => {
+  // Was: only `legend` carried `theme: true`, so levelling through the first
+  // four tiers changed nothing visible. Phase 2 gave each tier a palette in
+  // src/styles/tokens/tiers.css.
+  it("themes all five tiers", () => {
     const themed = api.XP_TIERS.filter((t) => t.theme).map((t) => t.id);
-    expect(themed).toEqual(["legend"]);
+    expect(themed).toEqual(["novice", "scholar", "adept", "master", "legend"]);
+  });
+
+  // `applyTierTheme` only writes data-tier for tiers where `theme` is true, and
+  // the CSS keys off that attribute — so a tier with no matching rule block
+  // would silently render as the base look. This pins the two together.
+  it("has a CSS rule block for every themed tier id", () => {
+    // Read from the repo root — vitest runs with cwd there, and `import.meta.url`
+    // is not a file: URL under the jsdom environment.
+    const css = readFileSync("src/styles/tokens/tiers.css", "utf8");
+    for (const tier of api.XP_TIERS.filter((t) => t.theme)) {
+      expect(css, tier.id).toContain(`[data-tier="${tier.id}"]`);
+    }
   });
 });

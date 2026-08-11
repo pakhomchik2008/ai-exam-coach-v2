@@ -103,7 +103,7 @@ function SessionRecap({ data, onClose, t }) {
                     fontFamily: "var(--font-sans)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)",
                     border: on ? "2px solid var(--indigo-600)" : "1.5px solid var(--border-default)",
                     background: on ? "var(--indigo-600)" : "var(--surface-card)",
-                    color: on ? "#fff" : "var(--text-body)",
+                    color: on ? "var(--white)" : "var(--text-body)",
                     transition: "all 0.15s ease",
                   }}
                 >
@@ -159,7 +159,7 @@ function SessionRecap({ data, onClose, t }) {
 
         <div style={{ marginTop: "var(--space-6)", display: "grid", gridTemplateColumns: `repeat(${stats.length}, 1fr)`, gap: "var(--space-3)" }}>
           {stats.map((stat, i) => (
-            <div key={i} style={{ borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-3)" }}>
+            <div key={i} style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-3)" }}>
               <div style={{ fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-mono)", color: stat.color || "var(--text-strong)" }}>{stat.value}</div>
               <div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)", marginTop: 2 }}>{stat.label}</div>
             </div>
@@ -168,7 +168,7 @@ function SessionRecap({ data, onClose, t }) {
 
         {/* Topics covered — the auto-updated coverage the user just confirmed */}
         {coveredNames.length > 0 && (
-          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", textAlign: "left" }}>
+          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", textAlign: "left" }}>
             <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>
               {L("Marked as covered", "Позначено пройденим", "Отмечено пройденным", "Marqué comme couvert", "Als behandelt markiert")}
             </p>
@@ -216,7 +216,7 @@ function SessionRecap({ data, onClose, t }) {
         {(r.newAchievements || []).length > 0 && (
           <div style={{ marginTop: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
             {r.newAchievements.map((a) => (
-              <div key={a.id} style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "#fff", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <div key={a.id} style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", padding: "var(--space-3) var(--space-4)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                 <span style={{ fontSize: 20 }}>{a.emoji}</span>
                 {L("Achievement unlocked", "Досягнення", "Достижение", "Succès débloqué", "Erfolg freigeschaltet")} — {a.label}
               </div>
@@ -225,7 +225,7 @@ function SessionRecap({ data, onClose, t }) {
         )}
 
         {d.nextFocus && (
-          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "#fff", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", textAlign: "left" }}>
+          <div style={{ marginTop: "var(--space-4)", borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", textAlign: "left" }}>
             <p style={{ margin: "0 0 4px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--indigo-600)" }}>{L("Next up", "Далі", "Далее", "Ensuite", "Als Nächstes")}</p>
             <p style={{ margin: 0, fontSize: "var(--text-base)", color: "var(--text-strong)" }}>{d.nextFocus.topic} · {d.nextFocus.subject}</p>
           </div>
