@@ -15,6 +15,7 @@ import {
   DENSITY_OPTIONS,
   DEPTH_OPTIONS,
 } from "./tweaks";
+import { remountKeyFor, isTrackedKey } from "./data-version";
 
 type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
@@ -76,9 +77,12 @@ export function App() {
   const [chatQuery, setChatQuery] = React.useState<string | null>(null);
   const [planExamIds, setPlanExamIds] = React.useState<string[] | null>(null);
 
-  // Bumped whenever another tab/window writes to one of this app's localStorage
-  // keys. localStorage itself is already shared across tabs in the same origin —
-  // the gap was that a mounted screen here never knew to re-read it.
+  // Bumped whenever this student's data changes underneath a mounted screen —
+  // from another tab (localStorage's native `storage` event) or, since Phase 2c,
+  // from another device (the sync layer dispatches the same event after a pull,
+  // deliberately reusing this one listener rather than adding a second
+  // reactivity path). Feeds the content `key` below; see ./data-version.ts for
+  // which screens that remounts and which it must not.
   const [dataVersion, setDataVersion] = React.useState(0);
 
   // Re-apply CSS overrides whenever a tweak changes.
@@ -88,18 +92,18 @@ export function App() {
 
   React.useEffect(() => {
     const sessionKey = legacyOptional<string>("SESSION_KEY");
-    const syncedKeys = [
-      legacyOptional<string>("EXAMS_KEY"),
-      legacyOptional<string>("SCHEDULE_KEY"),
-      legacyOptional<string>("PROFILE_KEY"),
-      legacyOptional<string>("ACCOUNTS_KEY"),
-      sessionKey,
-      legacyOptional<string>("MISTAKES_KEY"),
-      legacyOptional<string>("ACTIVE_SESSION_KEY"),
+    // PERSONAL_DATA_KEYS is the same list the sync layer syncs and logout
+    // clears, so a key can never be added to one and forgotten in the others.
+    // The hand-maintained list of seven that used to live here had exactly that
+    // problem: it never gained the brain/mastery/XP keys, so those changes were
+    // ignored (audit #28).
+    const trackedKeys = [
+      ...(legacyOptional<string[]>("PERSONAL_DATA_KEYS") ?? []),
+      ...(sessionKey ? [sessionKey] : []),
     ];
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key && !syncedKeys.includes(e.key)) return;
+      if (!isTrackedKey(e.key, trackedKeys)) return;
       if (e.key === sessionKey) {
         // A logout (or login) in another tab should be reflected here too, not
         // just the data underneath an already-rendered screen.
@@ -185,23 +189,24 @@ export function App() {
         onLangChange={setLang}
       />
 
-      {/* NOTE: the original code carried a comment claiming `key={dataVersion}`
-          remounts the screen when another tab writes to localStorage — but no
-          such key was ever applied, so cross-tab sync only re-renders App and
-          child screens keep serving what they read on their own first mount.
-          Preserved as-is here (Phase 1 is behavior-frozen); logged in
-          docs/audit.md as finding #28 to fix deliberately, with a test, once
-          the Supabase sync layer lands in Phase 2. `dataVersion` is referenced
-          below purely to keep the state wired until then. */}
+      {/* Audit #28. The remount is on the tab content, NOT on <main> or the
+          whole tree: StudyLayer below holds a running study session with a live
+          timer, and remounting that on a background sync would drop the
+          student's session. remountKeyFor also pins the tabs that hold unsaved
+          input — see ./data-version.ts. */}
       <main
-        data-data-version={dataVersion}
         style={{
           maxWidth: "var(--container-app)",
           margin: "0 auto",
           padding: "var(--space-8) var(--space-4)",
         }}
       >
-        {content}
+        {/* A keyed Fragment rather than a wrapper element: changing a key at
+            this position is what makes React discard the subtree and re-run
+            every useState initializer inside it (which is how the legacy
+            screens read localStorage), and a Fragment does that without adding
+            a DOM node that would change the layout. */}
+        <React.Fragment key={remountKeyFor(tab, dataVersion)}>{content}</React.Fragment>
       </main>
 
       {/* Active study session — app-level overlay + floating mini-timer.
