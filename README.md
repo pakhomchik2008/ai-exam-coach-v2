@@ -1,10 +1,40 @@
-# AI Exam Coach — deploy package
+# AI Exam Coach
 
-This folder is self-contained and ready to deploy to Vercel: a no-build React app (loaded via CDN script tags) plus two serverless functions.
+A Vite + React app plus two Vercel serverless functions.
+
+## Local development
+
+```bash
+npm install
+npm run dev
+```
+
+Serves on <http://localhost:5173> with HMR. `/api/*` is proxied to `scripts/dev-api.mjs`, which runs the real `api/*.js` handlers — start it in a second terminal:
+
+```bash
+npm run dev:api
+```
+
+Put `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` in a `.env.local` at the repo root (gitignored) if you want AI calls to succeed locally; without them the auth gate still works and returns clear errors.
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run build` | `tsc --noEmit` then `vite build` → `dist/` |
+| `npm run preview` | Serves the production build |
+| `npm run typecheck` | TypeScript only |
+
+## Source layout
+
+`src/main.tsx` is the entry point. **Its import order is load-bearing** — it reproduces the order of the `<script>` tags this app used before the Vite migration, and `ARCHITECTURE_AUDIT.md` §4.3 documents seven ordering dependencies between modules, six of which fail silently when violated. Read the comment at the top of that file before touching it.
+
+Most modules under `src/` are still pre-migration `.jsx` files that communicate through `window` globals rather than imports. That is deliberate and temporary; they are being converted to typed ES modules one at a time. `src/lib/legacy.ts` marks every remaining boundary.
 
 ## Deploy
 
-1. Go to vercel.com → **Add New Project** → drag-and-drop this whole folder (or `vercel deploy` via the CLI from inside it).
+Vercel builds with `npm run build` and serves `dist/` (see `vercel.json`).
+
+1. Go to vercel.com → **Add New Project** → import this repo.
 2. **Supabase → SQL editor**: run `supabase/07_ai_usage.sql` (per-user AI quota tables + the service-role functions the API gate calls), then `supabase/08_curriculum_trust.sql` (locks down the community write path — **run this before enabling anonymous sign-ins in step 3**, otherwise demo visitors can write to the shared catalog).
 3. **Supabase → Authentication → Sign In / Providers**: turn on **Allow anonymous sign-ins**. This is what makes the landing page's "Try the demo" button work — a demo visitor becomes a real anonymous Supabase user with its own (smaller) AI budget. Leave it off and the demo still opens, but every AI call returns 401.
 4. **Vercel → Project Settings → Environment Variables**:
@@ -71,22 +101,10 @@ node scripts/catalog-gaps.mjs
 node scripts/catalog-gaps.mjs --sql supabase/09_catalog_fill.sql
 ```
 
-## Local development
-
-```bash
-node scripts/dev-api.mjs
-```
-
-```bash
-python3 serve.py 5050
-```
-
-`serve.py` serves the static files with no-cache headers on <http://127.0.0.1:5050> and proxies `/api/*` to `dev-api.mjs` on port 8745, which runs the real `api/*.js` handlers. Put `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` in a `.env.local` at the repo root (gitignored) if you want AI calls to succeed locally; without them the auth gate still works and returns clear errors.
-
 ## What's in here
 
-- `index.html` + all `.jsx` files — the app itself (plain React 18, no build step, Babel transforms JSX in the browser).
-- `_ds_bundle.js`, `styles.css`, `tokens/` — the design system the app's components are built on.
+- `index.html` + `src/` — the app itself (React 18, bundled by Vite).
+- `src/lib/_ds_bundle.js`, `src/styles/` — the design system the app's components are built on.
 - `api/complete.js` — proxies AI requests to Anthropic using the env var above.
 - `api/fetch-url.js` — server-side fetch of a syllabus page for the URL-import panel (works around browser CORS; SSRF-guarded).
 - `api/_guard.js` — shared auth/quota gate. Files under `api/` starting with `_` are not routed by Vercel.

@@ -12,7 +12,14 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = readFileSync(join(ROOT, "curriculum-store.jsx"), "utf8");
+// The Vite migration (Phase 1) appended `export {};` to every legacy module so
+// bundlers treat it as ESM. This harness runs the source through `new
+// Function()` in sloppy-script mode, not a module loader, so that trailing
+// export throws a SyntaxError — strip it before eval.
+const SRC = readFileSync(join(ROOT, "src/stores/curriculum-store.jsx"), "utf8").replace(
+  /\nexport\s*\{\};\s*$/,
+  "",
+);
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
@@ -50,7 +57,6 @@ function makeStore({ seed = [], remoteRows = [], cache = [], session = { mode: "
     },
   };
   const CustomEvent = class { constructor(t) { this.type = t; } };
-  // eslint-disable-next-line no-new-func
   new Function("window", "localStorage", "CustomEvent", SRC)(win, localStorage, CustomEvent);
   return { win, localStorage, inserted, rawStore: store };
 }
