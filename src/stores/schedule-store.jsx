@@ -189,6 +189,20 @@ function _topicRetention(examId, topicIdx) {
 // the user typed into Settings; Minimal/Ambitious scale it down/up.
 const INTENSITY_MULTIPLIERS = { minimal: 0.55, balanced: 1, ambitious: 1.5 };
 
+// Ceiling on how many sessions can land in one calendar day (Phase 3 §3e).
+// Nobody sits down for 10 back-to-back lessons — the old scheduler could
+// produce that, so the calendar visibly overflowed a day and buried the
+// weeks around it. Derived from what the student ACTUALLY entered: the
+// hours/day the onboarding hours step asked about. Falls back to the
+// weekly figure ÷ study days for legacy profiles that never stored it.
+function hoursPerDayFor(profile) {
+  const p = profile || {};
+  if (typeof p.hoursPerDay === "number" && p.hoursPerDay > 0) return p.hoursPerDay;
+  const days = Math.max(1, Number(p.daysPerWeek) || 5);
+  const weekly = Math.max(0, Number(p.weeklyHours) || 0);
+  return Math.max(0.5, weekly / days);
+}
+
 // ─── time-of-day assignment (feeds StudyCalendar.jsx) ──────────────────────
 // blackoutSlots only records recurring morning/afternoon/evening/all-day
 // windows, not exact hours, so a day's free time is modeled as one 06:00–
@@ -255,6 +269,7 @@ function allocateBudget(exams, profile) {
     sessionLengthMin = 45,
     blackoutSlots = [],
     planIntensity = "balanced",
+    studyDays = null,
   } = profile || {};
 
   const effectiveWeeklyHours = weeklyHours * (INTENSITY_MULTIPLIERS[planIntensity] || 1);
@@ -360,13 +375,19 @@ function allocateBudget(exams, profile) {
     }
 
     // ── 5. Which weekdays are actual study days ────────────────────────────
-    // daysPerWeek picks how many distinct weekdays get used, not how many
-    // sessions exist — e.g. daysPerWeek=5 with a big hour budget means 5
-    // busy days, not 5 sessions total. Weekdays are chosen in a fixed
-    // mon→sun order (skipping fully-blacked-out days) so the choice is
-    // deterministic and stable across re-runs.
+    // Explicit studyDays list wins — this is what the student actually said
+    // they can do (Phase 3 3e). Falls back to Mon-Fri (+Sat if
+    // daysPerWeek > 5) for anyone whose profile predates that field, which
+    // fixes the old "daysPerWeek: 2 literally meant Mon and Tue" bug: a
+    // student who could only do weekends used to get an empty calendar.
     const WEEKDAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-    const studyWeekdays = WEEKDAY_ORDER.filter((d) => !fullyBlockedDayNames.has(d)).slice(0, effectiveDaysPerWeek);
+    const DEFAULT_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+    const explicit = Array.isArray(studyDays) && studyDays.length
+      ? studyDays.filter((d) => WEEKDAY_ORDER.includes(d) && !fullyBlockedDayNames.has(d))
+      : null;
+    const studyWeekdays = explicit && explicit.length
+      ? explicit
+      : DEFAULT_ORDER.filter((d) => !fullyBlockedDayNames.has(d)).slice(0, effectiveDaysPerWeek);
     const studyWeekdaySet = new Set(studyWeekdays.length ? studyWeekdays : WEEKDAY_ORDER.filter((d) => !fullyBlockedDayNames.has(d)));
 
     const availableDates = [];
@@ -384,20 +405,40 @@ function allocateBudget(exams, profile) {
       continue;
     }
 
-    // ── 6. Stack multiple sessions per active day to actually hit the budget ─
-    // sessionsPerDay = how many sessionLengthMin blocks a single active day
-    // needs to carry this exam's share of the weekly hour budget. Sessions
-    // are assigned `sessionsPerDay` at a time to the same date before moving
-    // to the next one — so 40h/week really produces 40h/week of sessions,
-    // stacked across the days the user said they can study, instead of being
-    // silently capped at one slot per calendar day.
-    const sessionsPerDay = Math.max(1, Math.round(sessionsPerWeekForExam / studyWeekdaySet.size));
+    // ── 6. Spread sessions EVENLY across the full window, not clumped ─────
+    // The old code walked `availableDates` sequentially and filled from day
+    // one — so a short plan (few sessions, many days) piled everything into
+    // the first week and left the calendar empty until exam week.
+    // sessionsPerDay is still the ceiling the student picked (see 3e:
+    // hours/day ÷ session length). Below the ceiling we EVENLY DISTRIBUTE
+    // the plan across the whole window; above it we start stacking, so a
+    // heavy schedule genuinely fills days rather than silently spilling
+    // past the exam.
+    //
+    // Excess above the day cap is trimmed rather than pushed past the exam
+    // date — a session scheduled for after the exam is worse than an
+    // honest "the budget doesn't fit" warning the student can act on.
+    const capPerDay = Math.max(1, Math.round((hoursPerDayFor(profile) * 60) / examSessionLen));
+    const dayCap = Math.max(1, Math.min(capPerDay, Math.ceil(sessionsPerWeekForExam / studyWeekdaySet.size)));
+    const capacity = availableDates.length * dayCap;
+    const overflow = Math.max(0, sessionPlan.length - capacity);
+    const packed = overflow > 0 ? sessionPlan.slice(0, capacity) : sessionPlan;
+    const scheduledOverflowWarning = overflow > 0
+      ? `Only ${capacity} sessions fit before the exam at up to ${dayCap} per day — ${overflow} could not be scheduled. Add more study days, raise the daily hours, or shorten each session.`
+      : null;
+    const finalWarning = scheduledOverflowWarning || budgetWarning;
+
     const usedIds = new Set();
     const sessions = [];
 
-    sessionPlan.forEach((topicIdx, k) => {
-      const dateIdx = Math.floor(k / sessionsPerDay) % availableDates.length;
-      const date = availableDates[dateIdx];
+    packed.forEach((topicIdx, k) => {
+      // Even spread: k=0 lands on availableDates[0], last k lands on the
+      // last available date. The `/ dayCap` grouping keeps stacked slots
+      // that DO exist on the same date grouped rather than smeared apart.
+      const groupIdx = Math.floor(k / dayCap);
+      const groups = Math.max(1, Math.ceil(packed.length / dayCap));
+      const dateIdx = groups <= 1 ? 0 : Math.round(groupIdx * (availableDates.length - 1) / (groups - 1));
+      const date = availableDates[Math.min(dateIdx, availableDates.length - 1)];
 
       // Deduplicate within this exam's session set
       let id = makeSessionId(exam.id, topicIdx);
@@ -423,7 +464,7 @@ function allocateBudget(exams, profile) {
       });
     });
 
-    result.set(exam.id, { sessions, budgetWarning });
+    result.set(exam.id, { sessions, budgetWarning: finalWarning });
   }
 
   return result;

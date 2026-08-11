@@ -114,6 +114,8 @@ describe("QuickOnboarding", () => {
     // Defaults are 2 hours/day across 5 days.
     expect(commits[0]?.profilePatch.weeklyHours).toBe(10);
     expect(commits[0]?.profilePatch.daysPerWeek).toBe(5);
+    expect(commits[0]?.profilePatch.studyDays).toEqual(["mon", "tue", "wed", "thu", "fri"]);
+    expect(commits[0]?.profilePatch.hoursPerDay).toBe(2);
   });
 
   it("keeps the qualification on the exam so its scale and format resolve later", () => {

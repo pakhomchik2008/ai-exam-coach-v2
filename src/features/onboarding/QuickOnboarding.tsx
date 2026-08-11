@@ -73,6 +73,8 @@ interface ProfilePatch {
   daysPerWeek: number;
   sessionLengthMin: number;
   planIntensity: string;
+  studyDays: string[];
+  hoursPerDay: number;
 }
 
 type Lang = string;
@@ -100,6 +102,8 @@ const COPY: Record<string, Copy> = {
     email_pending: "Check your email to confirm the address — your plan is saved either way.",
     plan_sessions: "study sessions", plan_weeks: "weeks", plan_hours: "hours total",
     start: "Start studying", pw_short: "Password needs at least 6 characters.", email_bad: "That doesn't look like an email address.",
+    day_mon: "Mon", day_tue: "Tue", day_wed: "Wed", day_thu: "Thu", day_fri: "Fri", day_sat: "Sat", day_sun: "Sun",
+    pick_at_least_one_day: "Pick at least one day you can study.",
   },
   uk: {
     step: "Крок", of: "з", back: "Назад", next: "Далі", skip: "Пропустити",
@@ -116,6 +120,8 @@ const COPY: Record<string, Copy> = {
     email_pending: "Підтвердьте адресу в листі — план збережено в будь-якому разі.",
     plan_sessions: "занять", plan_weeks: "тижнів", plan_hours: "годин загалом",
     start: "Почати навчання", pw_short: "Пароль має бути щонайменше 6 символів.", email_bad: "Це не схоже на email.",
+    day_mon: "Пн", day_tue: "Вт", day_wed: "Ср", day_thu: "Чт", day_fri: "Пт", day_sat: "Сб", day_sun: "Нд",
+    pick_at_least_one_day: "Оберіть хоча б один день, коли можете вчитися.",
   },
   ru: {
     step: "Шаг", of: "из", back: "Назад", next: "Далее", skip: "Пропустить",
@@ -132,6 +138,8 @@ const COPY: Record<string, Copy> = {
     email_pending: "Подтвердите адрес в письме — план сохранён в любом случае.",
     plan_sessions: "занятий", plan_weeks: "недель", plan_hours: "часов всего",
     start: "Начать учиться", pw_short: "Пароль должен быть не короче 6 символов.", email_bad: "Это не похоже на email.",
+    day_mon: "Пн", day_tue: "Вт", day_wed: "Ср", day_thu: "Чт", day_fri: "Пт", day_sat: "Сб", day_sun: "Вс",
+    pick_at_least_one_day: "Выберите хотя бы один день, когда можете учиться.",
   },
   fr: {
     step: "Étape", of: "sur", back: "Retour", next: "Continuer", skip: "Plus tard",
@@ -148,6 +156,8 @@ const COPY: Record<string, Copy> = {
     email_pending: "Confirmez l'adresse par e-mail — votre plan est enregistré dans tous les cas.",
     plan_sessions: "séances", plan_weeks: "semaines", plan_hours: "heures au total",
     start: "Commencer", pw_short: "Le mot de passe doit faire au moins 6 caractères.", email_bad: "Cela ne ressemble pas à un e-mail.",
+    day_mon: "Lun", day_tue: "Mar", day_wed: "Mer", day_thu: "Jeu", day_fri: "Ven", day_sat: "Sam", day_sun: "Dim",
+    pick_at_least_one_day: "Choisis au moins un jour où tu peux étudier.",
   },
   de: {
     step: "Schritt", of: "von", back: "Zurück", next: "Weiter", skip: "Später",
@@ -164,6 +174,8 @@ const COPY: Record<string, Copy> = {
     email_pending: "Bestätige die Adresse per E-Mail — dein Plan ist so oder so gespeichert.",
     plan_sessions: "Lerneinheiten", plan_weeks: "Wochen", plan_hours: "Stunden insgesamt",
     start: "Loslegen", pw_short: "Das Passwort braucht mindestens 6 Zeichen.", email_bad: "Das sieht nicht nach einer E-Mail aus.",
+    day_mon: "Mo", day_tue: "Di", day_wed: "Mi", day_thu: "Do", day_fri: "Fr", day_sat: "Sa", day_sun: "So",
+    pick_at_least_one_day: "Wähle mindestens einen Tag zum Lernen.",
   },
 };
 
@@ -224,6 +236,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   const examTypes = legacyOptional<ExamTypeDef[]>("EXAM_TYPES") ?? [];
   const examTypeOf = legacyFn<(id: string) => ExamTypeDef>("examType");
   const commitExamWizard = legacyFn<(a: { examDrafts: ExamDraft[]; profilePatch: ProfilePatch }) => CreatedExam[]>("commitExamWizard");
+  const searchSubjects = legacyOptional<(country: string | null, qual: string, board: string | null, q: string) => { subject: string }[]>("searchCurriculumSubjects");
 
   const [stepIdx, setStepIdx] = React.useState(0); // 0..4, then 5 = preview
   const [qualId, setQualId] = React.useState<string>("");
@@ -231,7 +244,11 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   const [examDate, setExamDate] = React.useState(() => addDaysISO(90));
   const [target, setTarget] = React.useState<string | number | null>(null);
   const [hoursPerDay, setHoursPerDay] = React.useState(2);
-  const [daysPerWeek, setDaysPerWeek] = React.useState(5);
+  // Explicit weekday picker — was implicit "first N days of the week" before,
+  // so a student who could only do weekends ended up with an empty calendar
+  // (Phase 3, live-caught scheduler bug).
+  const [studyDays, setStudyDays] = React.useState<string[]>(["mon", "tue", "wed", "thu", "fri"]);
+  const daysPerWeek = studyDays.length;
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -272,7 +289,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
       case 0: return !!qualId && subject.trim().length > 0;
       case 1: return examDate >= new Date().toISOString().slice(0, 10);
       case 2: return effectiveTarget !== "";
-      case 3: return hoursPerDay > 0 && daysPerWeek > 0;
+      case 3: return hoursPerDay > 0 && studyDays.length > 0;
       default: return true;
     }
   })();
@@ -313,7 +330,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
       examDrafts: [draft],
       // weeklyHours is the unit the scheduler reads; hours/day is only ever an
       // input format. See the module header for why this is × daysPerWeek.
-      profilePatch: { weeklyHours, daysPerWeek, sessionLengthMin: 45, planIntensity: "balanced" },
+      profilePatch: { weeklyHours, daysPerWeek, sessionLengthMin: 45, planIntensity: "balanced", studyDays, hoursPerDay },
     });
     setCreated(exams);
     // Topic names are filled in the background — the plan preview and the
@@ -425,8 +442,33 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
             </div>
             <input
               value={subject} onChange={(ev) => setSubject(ev.target.value)} placeholder={tr("subject_ph")}
-              style={{ width: "100%", minHeight: 52, padding: "0 var(--space-4)", borderRadius: "var(--radius-lg)", border: "1.5px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-strong)", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", boxSizing: "border-box" }}
+              disabled={!qualId}
+              style={{ width: "100%", minHeight: 52, padding: "0 var(--space-4)", borderRadius: "var(--radius-lg)", border: "1.5px solid var(--border-default)", background: qualId ? "var(--surface-card)" : "var(--surface-page)", color: "var(--text-strong)", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", boxSizing: "border-box" }}
             />
+            {/* Autocomplete against the real curriculum catalog for the picked
+                qualification. Answers "why doesn't 'математика' pull anything
+                up" — the old input was a bare text field; the wizard version
+                (CurriculumStep) had this, the fast onboarding did not. */}
+            {qualId && searchSubjects && subject.trim().length >= 1 && (() => {
+              const q = subject.trim().toLowerCase();
+              const rows = searchSubjects(null, qualId, null, subject.trim()).slice(0, 6);
+              // Hide the panel when the ONLY match is what the student already
+              // typed — the suggestion would be a no-op tap.
+              const shown = rows.filter((r) => r.subject.toLowerCase() !== q);
+              if (!shown.length) return null;
+              return (
+                <div style={{ marginTop: "var(--space-2)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", background: "var(--surface-card)", overflow: "hidden" }}>
+                  {shown.map((r) => (
+                    <button
+                      key={r.subject} type="button" onClick={() => setSubject(r.subject)}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "10px var(--space-4)", border: "none", background: "transparent", color: "var(--text-strong)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", cursor: "pointer" }}
+                    >
+                      {r.subject}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -502,15 +544,28 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
               ))}
             </div>
             <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{tr("days_week")}</p>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[2, 3, 4, 5, 6, 7].map((d) => (
-                <button key={d} type="button" onClick={() => setDaysPerWeek(d)} style={{ ...selectable(daysPerWeek === d), flex: 1, minHeight: 44, textAlign: "center", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" }}>
-                  {d}
-                </button>
-              ))}
+            {/* Explicit weekday chips — Sun-only students get a plan on Sunday,
+                weekday-only students get one on weekdays. The scheduler reads
+                this exact list, no "first N days of the week" guessing. */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {(["mon","tue","wed","thu","fri","sat","sun"] as const).map((d) => {
+                const on = studyDays.includes(d);
+                return (
+                  <button
+                    key={d} type="button"
+                    onClick={() => setStudyDays((cur) => on ? cur.filter((x) => x !== d) : [...cur, d])}
+                    aria-pressed={on}
+                    style={{ ...selectable(on), flex: 1, minHeight: 44, textAlign: "center", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", padding: "0 6px" }}
+                  >
+                    {(tr("day_" + d) || d).slice(0, 3)}
+                  </button>
+                );
+              })}
             </div>
-            <p style={{ margin: "var(--space-4) 0 0", textAlign: "center", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              {tr("weekly_total").replace("%H", String(weeklyHours))}
+            <p style={{ margin: "var(--space-4) 0 0", textAlign: "center", fontSize: "var(--text-sm)", color: studyDays.length ? "var(--text-muted)" : "var(--red-700)" }}>
+              {studyDays.length
+                ? tr("weekly_total").replace("%H", String(weeklyHours))
+                : tr("pick_at_least_one_day")}
             </p>
           </div>
         )}

@@ -1286,7 +1286,12 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
   const [error, setError] = React.useState(null);
   const [qIdx, setQIdx] = React.useState(0);
   const [selected, setSelected] = React.useState(null);
-  const [confidence, setConfidence] = React.useState(null);
+  // Confidence is inferred from time-to-answer, not asked. The old two-tap
+  // "select A/B/C/D, then pick Guessing/Okay/Easy, then Submit" flow was the
+  // #1 friction in Practice; time-to-first-select is a real signal, doesn't
+  // interrupt, and keeps the brain-store input the review path already reads.
+  // Kept as state so re-renders don't reset the reference clock.
+  const [questionShownAt, setQuestionShownAt] = React.useState(() => Date.now());
   const [showWhy, setShowWhy] = React.useState(false);
   const [whyInput, setWhyInput] = React.useState("");
   const [revealed, setRevealed] = React.useState(false);
@@ -1505,7 +1510,7 @@ RULES:
       // topics preselected rather than routing through the parent.
       onDrillWeak: (topics) => {
         setConfig((c) => ({ ...c, topics }));
-        setQuestions(null); setResults([]); setQIdx(0); setSelected(null); setConfidence(null);
+        setQuestions(null); setResults([]); setQIdx(0); setSelected(null); setQuestionShownAt(Date.now());
         setRevealed(false); setShowWhy(false); setPatternAlert(null); setRemainingSec(null);
         xpAwardedRef.current = false;
         setPhase("setup");
@@ -1522,7 +1527,13 @@ RULES:
   const pctDone = Math.round(((qIdx + 1) / totalQ) * 100);
 
   const submitAnswer = () => {
-    if (selected === null || confidence === null) return;
+    if (selected === null) return;
+    // Under 4s = confident, under 12s = normal, longer = probably guessed.
+    // Thresholds match what students report anecdotally and what StudyHub's
+    // pacing already assumes (60-90s per Q on paper, faster on multiple
+    // choice). Feeds recordReview via the same key the old chip used.
+    const elapsedSec = (Date.now() - questionShownAt) / 1000;
+    const confidence = elapsedSec < 4 ? "easy" : elapsedSec < 12 ? "okay" : "guessing";
     const isCorrect = selected === q.correct;
     const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
     if (resolved && window.recordReview) {
@@ -1543,15 +1554,10 @@ RULES:
   };
 
   const advance = () => {
-    setSelected(null); setConfidence(null); setRevealed(false); setShowWhy(false); setWhyInput(""); setPatternAlert(null);
+    setSelected(null); setRevealed(false); setShowWhy(false); setWhyInput(""); setPatternAlert(null);
+    setQuestionShownAt(Date.now()); // reset the timer for the next question
     if (qIdx + 1 >= totalQ) { setPhase("summary"); } else { setQIdx(qIdx + 1); }
   };
-
-  const CONF_OPTS = [
-    { key: "guessing", emoji: "🤔", label: L("Guessing", "Здогадка", "Догадка", "Je devine", "Rate mal") },
-    { key: "okay", emoji: "🤨", label: L("Okay", "Нормально", "Нормально", "Correct", "Okay") },
-    { key: "easy", emoji: "😎", label: L("Easy", "Легко", "Легко", "Facile", "Einfach") },
-  ];
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Progress header
@@ -1606,17 +1612,10 @@ RULES:
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
           })),
 
-        // Confidence selector (before submitting)
+        // Submit — one tap, not three. Confidence is inferred from time-to-
+        // answer in submitAnswer above (see the note there for the thresholds
+        // and why chip-tapping was cut).
         selected !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 16 } },
-          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", margin: "0 0 8px" } }, L("How confident are you?", "Наскільки ви впевнені?", "Насколько вы уверены?", "Quel est votre degré de confiance ?", "Wie sicher bist du dir?")),
-          React.createElement("div", { style: { display: "flex", gap: 8 } },
-            ...CONF_OPTS.map((c) => React.createElement("button", {
-              key: c.key, onClick: () => setConfidence(c.key),
-              style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 8px", background: confidence === c.key ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${confidence === c.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: confidence === c.key ? "var(--indigo-700)" : "var(--text-muted)" }
-            }, React.createElement("span", null, c.emoji), c.label)))),
-
-        // Submit button
-        selected !== null && confidence !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 12 } },
           _btn(L("Submit →", "Надіслати →", "Отправить →", "Envoyer →", "Absenden →"), submitAnswer, true, false)),
 
         // "Why did you choose?" (wrong answer)
