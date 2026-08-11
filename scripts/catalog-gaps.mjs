@@ -40,7 +40,13 @@ const SQL_FILE = sqlArg > -1 ? resolve(process.argv[sqlArg + 1]) : null;
 // ── the bundled seed, evaluated straight out of the shipped file ─────────────
 function loadBundledSeed() {
   const ctx = createContext({ window: {}, console });
-  runInContext(readFileSync(join(ROOT, "curriculum-data.jsx"), "utf8"), ctx);
+  // Strip the Phase-1 ESM marker (`export {};`) — this runs the source as a
+  // vm script, not a module, and a trailing `export` throws there.
+  const src = readFileSync(join(ROOT, "src/data/curriculum-data.jsx"), "utf8").replace(
+    /\nexport\s*\{\};\s*$/,
+    "",
+  );
+  runInContext(src, ctx);
   return {
     seed: ctx.window.CURRICULUM_SEED || [],
     known: ctx.window.KNOWN_SUBJECTS || {},

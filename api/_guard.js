@@ -185,7 +185,10 @@ export async function recordUsage(user, endpoint, usage, day) {
         p_day: day || null,
       }),
     });
-  } catch {}
+  } catch {
+    // Deliberately swallowed: this is best-effort usage telemetry. A failure to
+    // record usage must never turn into a failed request for the user.
+  }
 }
 
 // ─── entry point ──────────────────────────────────────────────────────────────
