@@ -15,32 +15,19 @@ Running log for the Phase 2 work. Numbering continues `docs/audit.md` on the
 | 2a | The Study tab took **one** file per drop — `handleDrop` read `files[0]` and the input had no `multiple`, so a multi-file drop silently discarded everything after the first | `1686429` | State model reworked from three mutually exclusive slots (`imageFile`/`pdfFile`/`docFile`) to one `files` array. All attachments go into a single multimodal message, so the study set covers the whole batch. Per-file extraction failures are collected rather than aborting the drop |
 | 6 | AI Chat had no way to attach a file — it was text-only, so a photo of a textbook problem could not be sent at all | pending | Paperclip button, removable chips above the input, and multimodal send. Images go to Claude as vision blocks and PDFs as document blocks, so a photographed problem works as intended. Uses `CHAT_LIMITS` (5 files / 10 MB) rather than the study caps, because attachments are re-sent with the whole thread on every turn — a generous cap there multiplies token cost by thread length. An attachment with no text is a valid message |
 | 5 | Practice had no per-topic drill — every exam's topics were flattened into one list and then **truncated to the first 12**, so a student with three subjects could not reach most of their own topics at all. Question count was derived from difficulty, so wanting 5 quick questions meant picking "Easy" | pending | Setup screen now has a subject picker (shown when there is more than one exam), an explicit 5/10/20/50 length, an optional countdown timer, and the full topic list in a scroll area instead of the first 12. Changing subject clears the topic selection, since the old picks belong to a different syllabus |
-| 2b | Upload limits were client-side only — a cap in JavaScript the user is running is a UX affordance, not a control, and a signed-in student could fill the billed storage quota from a terminal | pending | `supabase/12_storage_limits.sql`. **Written but not applied — needs Hlib to run it** (see below) |
-| 12 | Multi-device sync didn't exist — every exam, mistake, and mastery record lived only in one browser's `localStorage`, so nothing carried over between a laptop and a phone | pending | `supabase/13_user_data_sync.sql` mirrors the 14 personal-data localStorage keys into one generic per-user table, RLS-scoped, with Realtime enabled. `src/lib/sync-reconcile.ts` is the pure last-write-wins decision logic (compares server timestamps only, never a client clock) — full unit coverage. `src/lib/data-sync.ts` patches `localStorage.setItem` once at the single point every store's writes already pass through, so no store file changed. Deliberately does **not** redesign the data model into relational tables — see `docs/phase-2c-plan.md` for why that's a separate, riskier project blocked on audit #14. **SQL written but not applied — needs Hlib to run it** (see below). Verified locally that the app degrades silently without the table (clear `PGRST205` warning, no crash) and that a real store write (`saveProfile`) correctly triggers a push attempt — full realtime cross-device behavior can't be verified until the table exists |
+| 2b | Upload limits were client-side only — a cap in JavaScript the user is running is a UX affordance, not a control, and a signed-in student could fill the billed storage quota from a terminal | `2a8949c` | `supabase/12_storage_limits.sql`. **Applied by Hlib** — bucket, RLS, and quota trigger are live |
+| 12 | Multi-device sync didn't exist — every exam, mistake, and mastery record lived only in one browser's `localStorage`, so nothing carried over between a laptop and a phone | `db88b6e` | `supabase/13_user_data_sync.sql` mirrors the 14 personal-data localStorage keys into one generic per-user table, RLS-scoped, with Realtime enabled. `src/lib/sync-reconcile.ts` is the pure last-write-wins decision logic (compares server timestamps only, never a client clock) — full unit coverage. `src/lib/data-sync.ts` patches `localStorage.setItem` once at the single point every store's writes already pass through, so no store file changed. Deliberately does **not** redesign the data model into relational tables — see `docs/phase-2c-plan.md` for why that's a separate, riskier project blocked on audit #14. **Applied by Hlib and verified live**: after the table was created, PostgREST's schema cache needed a manual reload (`NOTIFY pgrst, 'reload schema'` — a known Supabase gotcha, DDL from the SQL editor doesn't always trigger PostgREST's auto-reload) — once done, the running demo session pushed its 3 populated keys (`exams_list_v2`, `study_schedule_v1`, `user_profile_v1`) to `public.user_data` with no further changes needed |
 | 28 | **Cross-tab sync re-rendered nothing.** The code carried a comment describing a `key={dataVersion}` remount that was never applied to any element, so a write from another tab bumped a counter and no screen ever re-read it. Compounded by a hand-maintained list of seven watched keys that had never gained the brain/mastery/XP keys — so a mastery change was not even noticed, let alone rendered | pending | `src/app/data-version.ts` + 8 unit tests. The watch list is now `PERSONAL_DATA_KEYS`, the same list the sync layer syncs and logout clears, so a key cannot be added to one and forgotten in the others. The remount is deliberately **not** blanket: `chat` and `study` are pinned because they hold unsaved input (a half-typed message with attachments, an upload batch mid-extraction) that a remount would destroy, and it sits on the tab content rather than the tree so `StudyLayer`'s running session timer survives. This is what makes Phase 2c's cross-*device* pulls actually visible — the sync layer dispatches the same `storage` event, so both paths land on this one listener |
 
-## Needs Hlib to run
+## Migrations applied
 
-Two migrations have not been executed. Applying DDL to the production database
-is not something I do without being asked, and I have no DB credentials locally
-in any case. Both apply the same way: Supabase dashboard → SQL Editor → paste
-the file → Run. Both are idempotent, so re-running either is safe.
-
-**`supabase/12_storage_limits.sql`** — adds three layers, because each catches
-what the others cannot:
-1. bucket `file_size_limit` — per-object cap, enforced by Storage itself
-2. bucket `allowed_mime_types` — per-object type, enforced by Storage itself
-3. RLS policies + a trigger — per-user file count and total bytes, which Storage
-   has no native concept of
-
-Until it is applied, the client-side limits are the only thing standing between
-a signed-in user and the storage bill.
-
-**`supabase/13_user_data_sync.sql`** — the cross-device sync table (audit
-#12). Until it is applied, the sync code degrades silently: every push/pull
-fails with a clear `PGRST205` (table not found), logged as a console warning,
-and the app keeps working exactly as it does today, purely off `localStorage`.
-Nothing breaks by leaving this unapplied for a while; nothing syncs either.
+Both `supabase/12_storage_limits.sql` and `supabase/13_user_data_sync.sql`
+have been run by Hlib and verified live. Note for next time: after creating a
+table via the SQL editor, PostgREST's schema cache doesn't always pick it up
+immediately — if the app logs `PGRST205 — table not found` right after
+running a migration that clearly succeeded, run `NOTIFY pgrst, 'reload
+schema';` (or Settings → API → "Reload schema cache") rather than assuming
+the migration failed.
 
 ## Found, not yet fixed
 
