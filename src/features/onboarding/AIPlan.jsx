@@ -247,10 +247,10 @@ function AIPlan({ examIds, onStart, t }) {
       <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "linear-gradient(135deg, var(--ink-900) 0%, var(--indigo-800) 40%, var(--indigo-800) 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", overflow: "hidden" }}>
         {/* Pulsing coach icon */}
         <div style={{ animation: "pulse 2s ease-in-out infinite", marginBottom: 32 }}>
-          {window.CoachIcon ? <window.CoachIcon size={72} /> : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-500))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, color: "#fff" }}>🧠</div>}
+          {window.CoachIcon ? <window.CoachIcon size={72} /> : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-500))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, color: "var(--white)" }}>🧠</div>}
         </div>
 
-        <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, color: "#fff", textAlign: "center" }}>
+        <h1 style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, color: "var(--white)", textAlign: "center" }}>
           {L("Building your study plan…","Створюю ваш план…","Создаю ваш план…","Création de votre plan…","Ihr Lernplan wird erstellt…")}
         </h1>
         <p style={{ margin: "0 0 40px", fontSize: 14, color: "rgba(255,255,255,0.6)", textAlign: "center" }}>
@@ -271,7 +271,7 @@ function AIPlan({ examIds, onStart, t }) {
                 <span style={{ fontSize: 18, width: 28, textAlign: "center", flexShrink: 0 }}>
                   {checked ? <span style={{ color: "var(--emerald-300)", animation: "fadeUp 0.3s ease" }}>✓</span> : s.icon}
                 </span>
-                <span style={{ fontSize: 14, color: checked ? "rgba(255,255,255,0.5)" : "#fff", transition: "color 0.3s ease" }}>{s.text}</span>
+                <span style={{ fontSize: 14, color: checked ? "rgba(255,255,255,0.5)" : "var(--white)", transition: "color 0.3s ease" }}>{s.text}</span>
               </div>
             );
           })}
@@ -312,7 +312,7 @@ function AIPlan({ examIds, onStart, t }) {
             </span>
             <button onClick={scrollToWhy} aria-label={L("Why this plan?","Чому цей план?","Почему этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
               style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "1px solid var(--indigo-200, var(--indigo-200))", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-full)", padding: "3px 10px 3px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-              <span style={{ display: "inline-flex", width: 15, height: 15, borderRadius: "50%", background: "var(--indigo-600)", color: "#fff", alignItems: "center", justifyContent: "center", fontSize: 10, fontStyle: "italic", fontWeight: 700 }}>i</span>
+              <span style={{ display: "inline-flex", width: 15, height: 15, borderRadius: "50%", background: "var(--indigo-600)", color: "var(--white)", alignItems: "center", justifyContent: "center", fontSize: 10, fontStyle: "italic", fontWeight: 700 }}>i</span>
               {L("Why this plan?","Чому цей?","Почему?","Pourquoi ?","Warum?")}
             </button>
           </div>
@@ -549,7 +549,7 @@ function AIPlan({ examIds, onStart, t }) {
           <button onClick={onStart} style={{
             border: "none", borderRadius: "var(--radius-2xl)", padding: "18px 48px",
             background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))",
-            color: "#fff", fontSize: 18, fontWeight: 700, cursor: "pointer",
+            color: "var(--white)", fontSize: 18, fontWeight: 700, cursor: "pointer",
             fontFamily: "var(--font-sans)", boxShadow: "0 8px 30px rgba(34,124,99,0.35)",
             transition: "transform 0.15s ease, box-shadow 0.15s ease",
           }}

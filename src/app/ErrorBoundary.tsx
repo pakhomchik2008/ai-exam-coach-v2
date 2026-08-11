@@ -62,7 +62,7 @@ export class AppErrorBoundary extends React.Component<Props, State> {
               borderRadius: 10,
               border: "none",
               background: "var(--ink-900, #111)",
-              color: "#fff",
+              color: "var(--white, #fff)",
               fontWeight: 700,
               cursor: "pointer",
             }}

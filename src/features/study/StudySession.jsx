@@ -19,7 +19,7 @@ function StudySession({ session, startedAt, onDone, onCancel, t }) {
       cursor: "pointer", fontFamily: "var(--font-sans)",
       border: variant === "secondary" ? "1px solid var(--border-strong)" : "none",
       background: variant === "secondary" ? "var(--surface-card)" : "var(--ink-900)",
-      color: variant === "secondary" ? "var(--text-strong)" : "#fff",
+      color: variant === "secondary" ? "var(--text-strong)" : "var(--white)",
       boxShadow: variant === "secondary" ? "var(--shadow-sm)" : "var(--shadow-md)",
       ...style,
     }}>{children}</button>
@@ -39,7 +39,7 @@ function StudySession({ session, startedAt, onDone, onCancel, t }) {
         {ratings.map((r) => (
           <button key={r.v} type="button" onClick={() => onRate(r.v)} style={{
             textAlign: "left", padding: "var(--space-4)", border: "none", cursor: "pointer",
-            borderRadius: "var(--radius-xl)", background: r.color, color: "#fff",
+            borderRadius: "var(--radius-xl)", background: r.color, color: "var(--white)",
             fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-sm)",
             transition: "transform var(--dur-fast) var(--ease-out)",
           }}>
@@ -257,7 +257,7 @@ Rules:
               borderRadius: chatOpen ? "var(--radius-xl) var(--radius-xl) 0 0" : "var(--radius-xl)",
               border: "1.5px solid var(--indigo-200)",
               background: chatOpen ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--indigo-50)",
-              color: chatOpen ? "#fff" : "var(--indigo-700)",
+              color: chatOpen ? "var(--white)" : "var(--indigo-700)",
               fontFamily: "var(--font-sans)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)",
               cursor: "pointer", transition: "all 0.2s ease",
             }}
@@ -270,7 +270,7 @@ Rules:
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {userMsgCount > 0 && !chatOpen && (
-                <span style={{ background: "var(--indigo-600)", color: "#fff", borderRadius: "var(--radius-full)", padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>{userMsgCount} {L("exchanges","обмінів","обменов","échanges","Nachrichten")}</span>
+                <span style={{ background: "var(--indigo-600)", color: "var(--white)", borderRadius: "var(--radius-full)", padding: "2px 9px", fontSize: 11, fontWeight: 700 }}>{userMsgCount} {L("exchanges","обмінів","обменов","échanges","Nachrichten")}</span>
               )}
               <span style={{ opacity: 0.6, fontSize: 11 }}>{chatOpen ? "▲" : "▼"}</span>
             </span>
@@ -285,13 +285,13 @@ Rules:
                 {chatMessages.map((msg, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-end" }}>
                     {msg.role === "assistant" && (
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(34,124,99,0.3)" }}>🤖</div>
+                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(34,124,99,0.3)" }}>🤖</div>
                     )}
                     <div style={{
                       maxWidth: "80%", padding: "10px 14px", lineHeight: 1.55, fontSize: "var(--text-sm)",
                       borderRadius: msg.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
                       background: msg.role === "user" ? "var(--indigo-600)" : "var(--surface-page)",
-                      color: msg.role === "user" ? "#fff" : "var(--text-body)",
+                      color: msg.role === "user" ? "var(--white)" : "var(--text-body)",
                       border: msg.role === "user" ? "none" : "1px solid var(--border-subtle)",
                       boxShadow: msg.role === "user" ? "0 2px 8px rgba(34,124,99,0.25)" : "none",
                     }}>
@@ -303,7 +303,7 @@ Rules:
                 {/* Typing indicator */}
                 {chatLoading && (
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🤖</div>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>🤖</div>
                     <div style={{ padding: "12px 16px", borderRadius: "18px 18px 18px 4px", background: "var(--surface-page)", border: "1px solid var(--border-subtle)", display: "flex", gap: 4, alignItems: "center" }}>
                       {[0, 1, 2].map((j) => (
                         <span key={j} style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-200)", display: "inline-block", animation: `loadDot 1.2s ${j * 0.2}s ease-in-out infinite` }} />
@@ -341,7 +341,7 @@ Rules:
                 <button
                   onClick={() => sendChat()}
                   disabled={!chatInput.trim() || chatLoading}
-                  style={{ width: 40, height: 40, borderRadius: "50%", border: "none", fontSize: 17, flexShrink: 0, cursor: chatInput.trim() && !chatLoading ? "pointer" : "default", background: chatInput.trim() && !chatLoading ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--slate-100)", color: chatInput.trim() && !chatLoading ? "#fff" : "var(--text-muted)", transition: "all 0.15s ease" }}>
+                  style={{ width: 40, height: 40, borderRadius: "50%", border: "none", fontSize: 17, flexShrink: 0, cursor: chatInput.trim() && !chatLoading ? "pointer" : "default", background: chatInput.trim() && !chatLoading ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--slate-100)", color: chatInput.trim() && !chatLoading ? "var(--white)" : "var(--text-muted)", transition: "all 0.15s ease" }}>
                   ↑
                 </button>
               </div>
@@ -353,7 +353,7 @@ Rules:
       {/* Mid-session quiz */}
       {activeQuiz && (
         <div style={{ marginTop: "var(--space-6)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", animation: "revealUp 0.4s ease-out" }}>
-          <span style={{ display: "inline-block", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "white", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ {L("QUICK CHECK","ШВИДКА ПЕРЕВІРКА","БЫСТРАЯ ПРОВЕРКА","VÉRIFICATION RAPIDE","SCHNELLCHECK")}</span>
+          <span style={{ display: "inline-block", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ {L("QUICK CHECK","ШВИДКА ПЕРЕВІРКА","БЫСТРАЯ ПРОВЕРКА","VÉRIFICATION RAPIDE","SCHNELLCHECK")}</span>
           <p style={{ fontWeight: 700, fontSize: 14, margin: "var(--space-3) 0 11px", color: "var(--text-strong)", lineHeight: 1.45 }}>{activeQuiz.question}</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {activeQuiz.options.map((opt, oi) => {
@@ -361,8 +361,8 @@ Rules:
               const isSelected = oi === quizSelected;
               let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
               if (quizAnswered) {
-                if (isCorrect) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "white"; }
-                else if (isSelected) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "white"; }
+                if (isCorrect) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "var(--white)"; }
+                else if (isSelected) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "var(--white)"; }
                 else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
               }
               return (

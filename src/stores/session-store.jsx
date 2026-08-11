@@ -142,7 +142,7 @@ function FloatingTimer({ active, t }) {
         position: "fixed", bottom: 24, right: 24, zIndex: 300,
         display: "flex", alignItems: "center", gap: 12,
         padding: "12px 18px 12px 14px", border: "none", cursor: "pointer",
-        borderRadius: "var(--radius-full)", background: "var(--ink-900)", color: "#fff",
+        borderRadius: "var(--radius-full)", background: "var(--ink-900)", color: "var(--white)",
         boxShadow: "var(--shadow-lg)", fontFamily: "var(--font-sans)",
         animation: "fadeUp 0.25s var(--ease-out)",
       }}>

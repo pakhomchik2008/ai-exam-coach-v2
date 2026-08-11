@@ -373,7 +373,7 @@ function Exams({ t, onPlanReady }) {
           </div>
           <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
-            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
+            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
           </div>
         </div>
       </div>
@@ -448,7 +448,7 @@ function Exams({ t, onPlanReady }) {
               </div>
               <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
                 <button onClick={() => setEditingMode(false)} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Cancel","Скасувати","Отмена","Annuler","Abbrechen")}</button>
-                <button onClick={saveEdit} disabled={!canSaveEdit} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSaveEdit ? "var(--indigo-600)" : "var(--slate-200)", color: canSaveEdit ? "#fff" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSaveEdit ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{L("Save changes","Зберегти зміни","Сохранить изменения","Enregistrer","Änderungen speichern")}</button>
+                <button onClick={saveEdit} disabled={!canSaveEdit} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSaveEdit ? "var(--indigo-600)" : "var(--slate-200)", color: canSaveEdit ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSaveEdit ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{L("Save changes","Зберегти зміни","Сохранить изменения","Enregistrer","Änderungen speichern")}</button>
               </div>
             </>
           ) : (

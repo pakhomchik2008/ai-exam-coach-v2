@@ -330,7 +330,7 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
                                 position: "absolute", top: 2, right: 2, width: 14, height: 14, lineHeight: "14px", textAlign: "center",
                                 border: "none", borderRadius: "50%", cursor: "pointer", fontSize: 9,
                                 background: armedDelete === s.id ? "var(--red-500)" : "rgba(0,0,0,0.12)",
-                                color: armedDelete === s.id ? "#fff" : "var(--text-muted)",
+                                color: armedDelete === s.id ? "var(--white)" : "var(--text-muted)",
                               }}>{armedDelete === s.id ? "✓" : "×"}</button>
                               <div onMouseDown={(e) => startResize(e, s)} style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 6, cursor: "ns-resize" }} />
                             </>
@@ -408,7 +408,7 @@ function AiProposalModal({ proposal, courseById, onAccept, onReject, t }) {
             {L("Reject","Відхилити","Отклонить","Refuser","Ablehnen")}
           </button>
           <button onClick={onAccept} disabled={totalChanges === 0}
-            style={{ flex: 1, border: "none", background: totalChanges ? "var(--indigo-600)" : "var(--slate-200)", color: totalChanges ? "#fff" : "var(--text-faint)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: totalChanges ? "pointer" : "default", fontWeight: 700, fontFamily: "var(--font-sans)" }}>
+            style={{ flex: 1, border: "none", background: totalChanges ? "var(--indigo-600)" : "var(--slate-200)", color: totalChanges ? "var(--white)" : "var(--text-faint)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: totalChanges ? "pointer" : "default", fontWeight: 700, fontFamily: "var(--font-sans)" }}>
             {L("Accept","Прийняти","Принять","Accepter","Übernehmen")} {totalChanges > 0 ? `(${totalChanges})` : ""}
           </button>
         </div>
@@ -604,7 +604,7 @@ function CalFab({ open, setOpen, onCreate, onGoToExams, t }) {
       )}
       <button onClick={() => setOpen((v) => !v)} aria-label={L("Create","Створити","Создать","Créer","Erstellen")} style={{
         width: 56, height: 56, borderRadius: "50%", border: "none", cursor: "pointer",
-        background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))", color: "#fff",
+        background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))", color: "var(--white)",
         fontSize: 26, boxShadow: "0 8px 24px rgba(34,124,99,0.4)", display: "flex", alignItems: "center", justifyContent: "center",
         transform: open ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s ease",
       }}>+</button>
@@ -779,7 +779,7 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate, 
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <button onClick={onClose} style={{ flex: 1, border: "1px solid var(--border-default)", background: "var(--surface-page)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: "pointer", fontFamily: "var(--font-sans)" }}>Cancel</button>
             <button onClick={save} disabled={!canSave || (recurring && weekdays.size === 0)}
-              style={{ flex: 1, border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "#fff" : "var(--text-faint)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: canSave ? "pointer" : "default", fontWeight: 600, fontFamily: "var(--font-sans)" }}>
+              style={{ flex: 1, border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", borderRadius: "var(--radius-lg)", padding: "10px", cursor: canSave ? "pointer" : "default", fontWeight: 600, fontFamily: "var(--font-sans)" }}>
               {recurring ? "Add series" : "Add"}
             </button>
           </div>

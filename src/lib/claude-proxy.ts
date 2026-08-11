@@ -38,13 +38,18 @@ async function complete(arg: CompleteArg): Promise<string> {
 
   if (!res.ok) {
     // 401/403/429 carry a plain sentence meant for the user; anything else is an
-    // upstream object worth keeping verbatim for debugging.
+    // upstream object worth keeping verbatim for debugging. `data.error` is
+    // usually already a plain string (our own validation messages, e.g.
+    // "Payload too large (...)") — JSON.stringify-ing a string just wraps it in
+    // an extra pair of quotes, so only reach for that on a non-string payload.
     const msg =
       res.status === 401 || res.status === 403 || res.status === 429
         ? data.error || "AI is unavailable right now."
-        : data.error
-          ? JSON.stringify(data.error)
-          : "proxy error";
+        : typeof data.error === "string"
+          ? data.error
+          : data.error
+            ? JSON.stringify(data.error)
+            : "proxy error";
     const err: ProxyError = new Error(msg);
     err.status = res.status;
     throw err;

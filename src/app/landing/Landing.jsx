@@ -169,8 +169,8 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
         </div>
 
         <button type="submit" disabled={submitting}
-          style={{ width: "100%", padding: "14px", borderRadius: "var(--radius-full)", border: "none", background: submitting ? "var(--slate-300)" : "var(--ink-900)", color: "#fff", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-base)", cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "var(--shadow-md)" }}>
-          {submitting && <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.5)", borderTopColor: "#fff", animation: "authSpin 0.7s linear infinite" }} />}
+          style={{ width: "100%", padding: "14px", borderRadius: "var(--radius-full)", border: "none", background: submitting ? "var(--slate-300)" : "var(--ink-900)", color: "var(--white)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-base)", cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: "var(--shadow-md)" }}>
+          {submitting && <span aria-hidden="true" style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.5)", borderTopColor: "var(--white)", animation: "authSpin 0.7s linear infinite" }} />}
           {submitting
             ? (isSignUp ? L("Creating account…", "Створення акаунту…", "Создание аккаунта…", "Création du compte…", "Konto wird erstellt…") : L("Signing in…", "Вхід…", "Вход…", "Connexion…", "Anmeldung…"))
             : (isSignUp ? L("Create account", "Створити акаунт", "Создать аккаунт", "Créer un compte", "Konto erstellen") : L("Log in", "Увійти", "Войти", "Connexion", "Anmelden"))}

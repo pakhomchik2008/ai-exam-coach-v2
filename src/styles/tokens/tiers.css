@@ -4,10 +4,86 @@
    coherent re-theme applied by setting  data-tier  on <html>;
    because the whole app reads semantic + ramp tokens, overriding
    them here re-skins every screen at once — no per-component edits.
-   Tier 1 "Novice" is the default (no [data-tier] rules → base tokens).
-   This file ships the top tier "Legend" as the proof-of-concept:
-   a dark "night" theme with a luminous gold accent and glow.
+   All five tiers theme the page. The four lower tiers stay in light
+   mode and change only the ambient wash + a tier accent used for
+   badges and rank chips; "Legend" is the dramatic payoff and is the
+   one full re-skin (dark night + gold).
+
+   Two deliberate constraints on the lower four:
+
+   1. They do NOT override --indigo-* / --action-accent. The accent
+      tweak system (src/app/tweaks.ts) injects
+      `:root { --indigo-*: … !important }`, so a tier that wanted to
+      win would have to !important its way past a choice the student
+      made explicitly. Legend does exactly that because it is a whole
+      theme; a subtle tier has no business overriding a user setting.
+
+   2. They stay light. 246 hardcoded colour literals across the app
+      bypass these tokens (128 of them raw white — see
+      ARCHITECTURE_AUDIT.md §5.4), so a dark tier has visible holes
+      wherever a component hardcodes a colour. Legend already lives
+      with that. More dark tiers have to wait for the token cleanup.
+
+   Because `novice` is level 1, its theme is what every new user sees:
+   it is intentionally almost imperceptible — a faint bronze warmth on
+   the existing page, nothing more.
    ============================================================ */
+
+/* ─── Shared: each tier replaces the base FintechX sky+mint ambient
+   wash (defined inline in index.html as body::before) with its own,
+   so tiers read as one coherent surface rather than two washes
+   fighting. ─────────────────────────────────────────────────────── */
+
+/* Default so `var(--tier-accent)` is never empty — e.g. when a student has
+   turned tier theming off (profile.tierThemeDisabled clears data-tier) but a
+   rank badge still wants the accent. */
+:root {
+  --tier-accent: var(--indigo-600);
+}
+
+/* ─── Novice (L1): bronze, barely there ──────────────────────────── */
+:root[data-tier="novice"] {
+  --tier-accent: #A9754B;
+  --border-accent: rgba(169, 117, 75, 0.35);
+}
+:root[data-tier="novice"] body::before {
+  background:
+    radial-gradient(60rem 28rem at 18% -8%, rgba(169, 117, 75, 0.07), transparent 60%),
+    radial-gradient(70rem 32rem at 85% -12%, rgba(196, 150, 96, 0.06), transparent 62%);
+}
+
+/* ─── Scholar (L3): cool silver ──────────────────────────────────── */
+:root[data-tier="scholar"] {
+  --tier-accent: #6B7A88;
+  --border-accent: rgba(107, 122, 136, 0.35);
+}
+:root[data-tier="scholar"] body::before {
+  background:
+    radial-gradient(62rem 30rem at 16% -8%, rgba(122, 140, 156, 0.09), transparent 60%),
+    radial-gradient(70rem 32rem at 86% -12%, rgba(158, 172, 184, 0.07), transparent 62%);
+}
+
+/* ─── Adept (L5): warm gold ──────────────────────────────────────── */
+:root[data-tier="adept"] {
+  --tier-accent: #B08A22;
+  --border-accent: rgba(176, 138, 34, 0.35);
+}
+:root[data-tier="adept"] body::before {
+  background:
+    radial-gradient(64rem 30rem at 20% -8%, rgba(214, 175, 62, 0.10), transparent 60%),
+    radial-gradient(70rem 32rem at 84% -12%, rgba(176, 138, 34, 0.07), transparent 62%);
+}
+
+/* ─── Master (L8): cool platinum ─────────────────────────────────── */
+:root[data-tier="master"] {
+  --tier-accent: #5C6B87;
+  --border-accent: rgba(92, 107, 135, 0.38);
+}
+:root[data-tier="master"] body::before {
+  background:
+    radial-gradient(64rem 32rem at 18% -10%, rgba(122, 138, 176, 0.11), transparent 60%),
+    radial-gradient(72rem 34rem at 86% -12%, rgba(150, 140, 190, 0.08), transparent 62%);
+}
 
 /* ─── Legend (top tier): night + gold ─────────────────────────── */
 :root[data-tier="legend"] {
@@ -90,6 +166,7 @@
   --shadow-sm:  0 1px 2px rgba(0,0,0,0.5), 0 10px 30px -14px rgba(0,0,0,0.7);
   --shadow-md:  0 4px 12px rgba(0,0,0,0.55), 0 24px 60px -24px rgba(0,0,0,0.75);
   --border-accent: rgba(243, 208, 98, 0.45);
+  --tier-accent: #F3D062;
 }
 
 /* Night sky texture: a still, layered radial glow behind everything.

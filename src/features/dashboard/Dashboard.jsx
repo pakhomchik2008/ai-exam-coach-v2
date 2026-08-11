@@ -267,7 +267,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
 
             <button onClick={startRecommended} style={{
               width: "100%", padding: "15px", borderRadius: "var(--radius-full)", border: "none",
-              background: "var(--ink-900)", color: "#fff",
+              background: "var(--ink-900)", color: "var(--white)",
               fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)", cursor: "pointer",
               fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-md)",
               transition: "transform 0.15s ease, box-shadow 0.15s ease",
@@ -453,7 +453,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       <div style={{
         position: "fixed", bottom: 28, right: 28, zIndex: 9999,
         background: "rgba(15, 23, 42, 0.82)", backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
-        border: "1px solid rgba(255, 255, 255, 0.08)", color: "#fff",
+        border: "1px solid rgba(255, 255, 255, 0.08)", color: "var(--white)",
         borderRadius: "var(--radius-xl)", padding: "12px 20px",
         fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
         display: "flex", alignItems: "center", gap: 10,

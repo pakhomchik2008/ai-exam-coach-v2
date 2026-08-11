@@ -19,10 +19,23 @@ import { guard, recordUsage } from "./_guard.js";
 export const config = { maxDuration: 60 };
 
 // Size caps. Quota limits how MANY requests a user makes; these limit how
-// expensive any single one can be. The largest legitimate prompt in the app is
-// curriculum-store.jsx's URL import (12 000 chars of page text plus context),
-// so 200 KB leaves a wide margin while ruling out a 5 MB novel per call.
-const MAX_PAYLOAD_CHARS = 200_000;
+// expensive any single one can be.
+//
+// This used to be 200_000 — sized for the largest *text* prompt in the app
+// (curriculum-store.jsx's URL import, ~12 KB of scraped page text). It did not
+// account for file attachments: a single phone photo is 2-5 MB raw, which is
+// 3-7 MB once base64-encoded, so the very first image attachment already blew
+// past it. That surfaced as a generic "Analysis failed" / "Connection hiccup"
+// with no indication it was a size problem.
+//
+// Raised to sit just under Vercel's own hard ~4.5 MB request-body limit for
+// Node serverless functions, which cannot be worked around by changing this
+// number — it is a platform ceiling, not application config. This gives real
+// headroom for a resized image (see src/lib/image-resize.ts, which downscales
+// to Claude's own 1568px recommendation before encoding) plus conversation
+// history, while a truly huge attachment — a many-page PDF sent whole — will
+// still correctly fail here rather than being silently truncated upstream.
+const MAX_PAYLOAD_CHARS = 4_000_000;
 const MAX_MESSAGES = 80;
 
 function payloadError(system, msgs) {

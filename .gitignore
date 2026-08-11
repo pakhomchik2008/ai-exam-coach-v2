@@ -2,6 +2,11 @@
 .DS_Store
 **/.DS_Store
 
+# iCloud Drive conflict copies. This repo lives under ~/Documents, which iCloud
+# syncs, and it periodically duplicates files as "name 2.ext" / "name 3.ext".
+# 50 of these were committed by accident once; this stops it recurring.
+* [0-9].*
+
 # Editor / OS junk
 *.swp
 Thumbs.db
@@ -19,3 +24,6 @@ coverage/
 # Local secrets for scripts/dev-api.mjs (ANTHROPIC_API_KEY, service role key)
 .env.local
 .env*.local
+
+# Agent worktrees (isolated checkouts for background subagent work)
+.claude/worktrees/

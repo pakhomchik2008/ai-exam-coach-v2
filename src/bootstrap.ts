@@ -102,6 +102,10 @@ export const REQUIRED_GLOBALS = [
   // i18n + catalogs
   "LANGS",
   "EXAM_TYPES",
+  "examType",
+  // qualifications-store rebuilds `examType` over the DB-merged catalog by
+  // calling this, so it must already exist when that module evaluates.
+  "resolveExamType",
   "CURRICULUM_SEED",
   // stores
   "getExams",
@@ -110,6 +114,7 @@ export const REQUIRED_GLOBALS = [
   "getProfile",
   "hasProfile",
   "getSession",
+  "clearSession",
   "getMistakes",
   "getBrain",
   "useBrain",

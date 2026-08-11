@@ -301,7 +301,7 @@ function Settings({ t, lang, onLangChange, onLogout }) {
       {/* Toast notification */}
       <div style={{
         position: "fixed", bottom: 28, right: 28, zIndex: 9999,
-        background: "var(--slate-900)", color: "#fff",
+        background: "var(--slate-900)", color: "var(--white)",
         borderRadius: "var(--radius-xl)", padding: "12px 20px",
         fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
         display: "flex", alignItems: "center", gap: 10,
