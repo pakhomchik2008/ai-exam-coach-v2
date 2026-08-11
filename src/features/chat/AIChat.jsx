@@ -1,5 +1,10 @@
 // AI Exam Coach — AI Coach v6: Lesson Engine
 //
+// Chat attachments use CHAT_LIMITS rather than the study upload limits: every
+// attached file is re-sent with the whole conversation on each turn, so the cap
+// multiplies token cost by thread length, not just by file size.
+import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
+//
 // The AI generates a structured lesson plan upfront. The UI renders each step
 // as its own full-screen phase — not chat bubbles. Progress is always visible.
 // Brain write-back happens after every quiz interaction. Celebration at the end.
@@ -2571,6 +2576,9 @@ function ChatMode({ onExit, initialQuery, t }) {
   const HISTORY_KEY = "aicoach_chat_hist_v2";
   const [messages, setMessages] = React.useState(() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } });
   const [input, setInput] = React.useState("");
+  const [attachments, setAttachments] = React.useState([]);
+  const [attachError, setAttachError] = React.useState("");
+  const fileInputRef = React.useRef(null);
   const [typing, setTyping] = React.useState(false);
   const bodyRef = React.useRef(null);
   const inputRef = React.useRef(null);
@@ -2667,12 +2675,58 @@ function ChatMode({ onExit, initialQuery, t }) {
     setMessages((m) => [...m, { id: Date.now() + Math.random(), role: "ai", text, actions }]);
   };
 
+  // Reads a batch into base64 descriptors. Images and PDFs go to Claude as
+  // native vision/document blocks — a photo of a textbook problem is the whole
+  // point of this feature — while text files are inlined.
+  const attachFiles = async (list) => {
+    const incoming = Array.from(list || []);
+    if (!incoming.length) return;
+    const lang = (window.getProfile && window.getProfile().lang) || "en";
+    const { accepted, rejected } = validateFiles(incoming, attachments, CHAT_LIMITS);
+    setAttachError(rejected.length ? rejectionSummary(rejected, lang, CHAT_LIMITS) : "");
+
+    const read = [];
+    for (const file of accepted) {
+      const name = file.name || "file";
+      const ext = name.split(".").pop().toLowerCase();
+      try {
+        if ((file.type || "").startsWith("image/")) {
+          const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = (e) => res(e.target.result); r.onerror = rej; r.readAsDataURL(file); });
+          read.push({ kind: "image", name, size: file.size, mimeType: file.type, base64: dataUrl.split(",")[1], dataUrl });
+        } else if (ext === "pdf") {
+          const ab = await file.arrayBuffer();
+          read.push({ kind: "pdf", name, size: file.size, base64: btoa(String.fromCharCode(...new Uint8Array(ab))) });
+        } else {
+          const text = await file.text();
+          read.push({ kind: "text", name, size: file.size, text: text.substring(0, 5000) });
+        }
+      } catch {
+        setAttachError(L(`${name} — could not be read`, `${name} — не вдалося прочитати`, `${name} — не удалось прочитать`, `${name} — lecture impossible`, `${name} — nicht lesbar`));
+      }
+    }
+    if (read.length) setAttachments((a) => a.concat(read));
+  };
+
   const send = async (raw) => {
     const text = (typeof raw === "string" ? raw : "").trim();
-    if (!text || typing) return;
-    historyRef.current = [...historyRef.current, { role: "user", content: text }];
-    setMessages((m) => [...m, { id: Date.now() + Math.random(), role: "user", text }]);
+    // An attachment on its own is a legitimate message — "here is the problem,
+    // help" — so text is only required when nothing is attached.
+    if ((!text && !attachments.length) || typing) return;
+
+    const sent = attachments;
+    const content = sent.length
+      ? sent.map((f) =>
+            f.kind === "image" ? { type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } }
+          : f.kind === "pdf" ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } }
+          : { type: "text", text: `File "${f.name}":\n\n${f.text}` })
+          .concat([{ type: "text", text: text || "Explain what is in the attached file(s)." }])
+      : text;
+
+    historyRef.current = [...historyRef.current, { role: "user", content }];
+    setMessages((m) => [...m, { id: Date.now() + Math.random(), role: "user", text, attachments: sent }]);
     setInput("");
+    setAttachments([]);
+    setAttachError("");
     setTyping(true);
     try {
       const complete = window.brainComplete || ((a) => window.claude.complete(a));
@@ -2886,10 +2940,37 @@ If no actions fit, omit the ACTIONS line entirely.`,
         style: { display: "flex", alignItems: "center", gap: 4, padding: "5px 12px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 20, fontSize: 11, fontWeight: 500, color: "var(--text-body)", cursor: "pointer", fontFamily: "var(--font-sans)", whiteSpace: "nowrap", flexShrink: 0 }
       }, React.createElement("span", null, s.icon), s.text))),
 
+    // Attachment chips — sit above the input so the student can see and remove
+    // what is about to be sent.
+    (attachments.length > 0 || attachError) && React.createElement("div", { style: { padding: "8px 16px 0", background: "var(--surface-card)", display: "flex", flexDirection: "column", gap: 6 } },
+      attachments.length > 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+        ...attachments.map((f, i) => React.createElement("span", {
+          key: `${f.name}-${i}`,
+          style: { display: "inline-flex", alignItems: "center", gap: 6, maxWidth: 220, padding: "4px 8px", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: 8, fontSize: 11, color: "var(--text-body)" }
+        },
+          f.kind === "image"
+            ? React.createElement("img", { src: f.dataUrl, alt: "", style: { width: 18, height: 18, objectFit: "cover", borderRadius: 4, display: "block" } })
+            : React.createElement("span", null, f.kind === "pdf" ? "📄" : "📃"),
+          React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.name),
+          React.createElement("button", {
+            onClick: () => setAttachments((a) => a.filter((_, j) => j !== i)),
+            "aria-label": L("Remove", "Видалити", "Удалить", "Retirer", "Entfernen"),
+            style: { border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 13, lineHeight: 1, padding: 0 }
+          }, "\u2715")))),
+      attachError && React.createElement("p", { role: "alert", style: { margin: 0, fontSize: 11, color: "var(--red-600)" } }, attachError)),
+
     // Input area
     React.createElement("div", { style: { padding: "12px 16px", borderTop: "1px solid var(--border-subtle)", background: "var(--surface-card)", display: "flex", gap: 8, alignItems: "flex-end" } },
+      React.createElement("input", { ref: fileInputRef, type: "file", multiple: true, accept: ACCEPT_ATTRIBUTE, onChange: (e) => { attachFiles(e.target.files); e.target.value = ""; }, style: { display: "none" } }),
+      React.createElement("button", {
+        onClick: () => fileInputRef.current && fileInputRef.current.click(),
+        disabled: typing,
+        title: L("Attach files", "Прикріпити файли", "Прикрепить файлы", "Joindre des fichiers", "Dateien anhängen"),
+        "aria-label": L("Attach files", "Прикріпити файли", "Прикрепить файлы", "Joindre des fichiers", "Dateien anhängen"),
+        style: { flexShrink: 0, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "1px solid var(--border-default)", borderRadius: 12, cursor: typing ? "default" : "pointer", color: "var(--text-muted)", fontSize: 16 }
+      }, "\uD83D\uDCCE"),
       React.createElement("textarea", { ref: inputRef, value: input, onChange: (e) => setInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }, placeholder: L("Ask anything…", "Запитайте що завгодно…", "Спросите что угодно…", "Posez toutes vos questions…", "Frag alles…"), rows: 1, style: { flex: 1, border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", lineHeight: 1.5, maxHeight: 100, overflowY: "auto" } }),
-      React.createElement("button", { onClick: () => send(input), disabled: !input.trim() || typing, style: { background: input.trim() && !typing ? "var(--indigo-600)" : "var(--indigo-200)", color: "white", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: input.trim() && !typing ? "pointer" : "default", fontFamily: "var(--font-sans)" } }, L("Send", "Надіслати", "Отправить", "Envoyer", "Senden"))));
+      (() => { const canSend = (input.trim() || attachments.length) && !typing; return React.createElement("button", { onClick: () => send(input), disabled: !canSend, style: { background: canSend ? "var(--indigo-600)" : "var(--indigo-200)", color: "white", border: "none", borderRadius: 12, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: canSend ? "pointer" : "default", fontFamily: "var(--font-sans)" } }, L("Send", "Надіслати", "Отправить", "Envoyer", "Senden")); })()));
 }
 
 // ─── MAIN ROUTER ─────────────────────────────────────────────────────────────

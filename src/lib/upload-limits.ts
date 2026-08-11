@@ -9,12 +9,36 @@
  *
  * These limits are the client half. The server half is a Supabase Storage bucket
  * policy — a client-side cap is a UX affordance, not a control, since anyone can
- * POST directly to the endpoint. See `supabase/11_storage_limits.sql`.
+ * POST directly to the endpoint. See `supabase/12_storage_limits.sql`.
  */
 
-export const MAX_FILES = 20;
-export const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
-export const MAX_TOTAL_BYTES = 200 * 1024 * 1024; // 200 MB
+export interface Limits {
+  readonly maxFiles: number;
+  readonly maxFileBytes: number;
+  readonly maxTotalBytes: number;
+}
+
+/** Study material uploads — whole lecture decks and past papers. */
+export const STUDY_LIMITS: Limits = {
+  maxFiles: 20,
+  maxFileBytes: 25 * 1024 * 1024,
+  maxTotalBytes: 200 * 1024 * 1024,
+};
+
+/**
+ * Chat attachments are tighter on purpose: every attached file is re-sent with
+ * the whole conversation on each turn, so a generous cap here multiplies token
+ * cost by the length of the thread, not just by the file.
+ */
+export const CHAT_LIMITS: Limits = {
+  maxFiles: 5,
+  maxFileBytes: 10 * 1024 * 1024,
+  maxTotalBytes: 50 * 1024 * 1024,
+};
+
+export const MAX_FILES = STUDY_LIMITS.maxFiles;
+export const MAX_FILE_BYTES = STUDY_LIMITS.maxFileBytes;
+export const MAX_TOTAL_BYTES = STUDY_LIMITS.maxTotalBytes;
 
 /** Extensions accepted across every upload surface. */
 export const ACCEPTED_EXTENSIONS = [
@@ -76,6 +100,7 @@ export function isAcceptedType(name: string): boolean {
 export function validateFiles(
   incoming: readonly FileLike[],
   existing: readonly FileLike[] = [],
+  limits: Limits = STUDY_LIMITS,
 ): ValidationResult {
   const accepted: FileLike[] = [];
   const rejected: Rejection[] = [];
@@ -88,15 +113,15 @@ export function validateFiles(
       rejected.push({ file, reason: "unsupported-type" });
       continue;
     }
-    if (file.size > MAX_FILE_BYTES) {
+    if (file.size > limits.maxFileBytes) {
       rejected.push({ file, reason: "file-too-large" });
       continue;
     }
-    if (count >= MAX_FILES) {
+    if (count >= limits.maxFiles) {
       rejected.push({ file, reason: "too-many-files" });
       continue;
     }
-    if (total + file.size > MAX_TOTAL_BYTES) {
+    if (total + file.size > limits.maxTotalBytes) {
       rejected.push({ file, reason: "total-too-large" });
       continue;
     }
@@ -117,7 +142,7 @@ export function formatBytes(bytes: number): string {
 
 type Lang = "en" | "uk" | "ru" | "fr" | "de";
 
-const MESSAGES: Record<RejectionReason, Record<Lang, (f: FileLike) => string>> = {
+const MESSAGES: Record<RejectionReason, Record<Lang, (f: FileLike, l: Limits) => string>> = {
   "unsupported-type": {
     en: (f) => `${f.name} — unsupported file type`,
     uk: (f) => `${f.name} — непідтримуваний тип файлу`,
@@ -126,41 +151,49 @@ const MESSAGES: Record<RejectionReason, Record<Lang, (f: FileLike) => string>> =
     de: (f) => `${f.name} — nicht unterstützter Dateityp`,
   },
   "file-too-large": {
-    en: (f) => `${f.name} is ${formatBytes(f.size)} — the limit is ${formatBytes(MAX_FILE_BYTES)} per file`,
-    uk: (f) => `${f.name} має ${formatBytes(f.size)} — ліміт ${formatBytes(MAX_FILE_BYTES)} на файл`,
-    ru: (f) => `${f.name} весит ${formatBytes(f.size)} — лимит ${formatBytes(MAX_FILE_BYTES)} на файл`,
-    fr: (f) => `${f.name} fait ${formatBytes(f.size)} — la limite est de ${formatBytes(MAX_FILE_BYTES)} par fichier`,
-    de: (f) => `${f.name} ist ${formatBytes(f.size)} groß — das Limit liegt bei ${formatBytes(MAX_FILE_BYTES)} pro Datei`,
+    en: (f, l) => `${f.name} is ${formatBytes(f.size)} — the limit is ${formatBytes(l.maxFileBytes)} per file`,
+    uk: (f, l) => `${f.name} має ${formatBytes(f.size)} — ліміт ${formatBytes(l.maxFileBytes)} на файл`,
+    ru: (f, l) => `${f.name} весит ${formatBytes(f.size)} — лимит ${formatBytes(l.maxFileBytes)} на файл`,
+    fr: (f, l) => `${f.name} fait ${formatBytes(f.size)} — la limite est de ${formatBytes(l.maxFileBytes)} par fichier`,
+    de: (f, l) => `${f.name} ist ${formatBytes(f.size)} groß — das Limit liegt bei ${formatBytes(l.maxFileBytes)} pro Datei`,
   },
   "too-many-files": {
-    en: () => `You can attach up to ${MAX_FILES} files`,
-    uk: () => `Можна додати щонайбільше ${MAX_FILES} файлів`,
-    ru: () => `Можно прикрепить не более ${MAX_FILES} файлов`,
-    fr: () => `Vous pouvez joindre jusqu'à ${MAX_FILES} fichiers`,
-    de: () => `Sie können bis zu ${MAX_FILES} Dateien anhängen`,
+    en: (_f, l) => `You can attach up to ${l.maxFiles} files`,
+    uk: (_f, l) => `Можна додати щонайбільше ${l.maxFiles} файлів`,
+    ru: (_f, l) => `Можно прикрепить не более ${l.maxFiles} файлов`,
+    fr: (_f, l) => `Vous pouvez joindre jusqu'à ${l.maxFiles} fichiers`,
+    de: (_f, l) => `Sie können bis zu ${l.maxFiles} Dateien anhängen`,
   },
   "total-too-large": {
-    en: () => `That would go over the ${formatBytes(MAX_TOTAL_BYTES)} total limit`,
-    uk: () => `Це перевищить загальний ліміт ${formatBytes(MAX_TOTAL_BYTES)}`,
-    ru: () => `Это превысит общий лимит ${formatBytes(MAX_TOTAL_BYTES)}`,
-    fr: () => `Cela dépasserait la limite totale de ${formatBytes(MAX_TOTAL_BYTES)}`,
-    de: () => `Das würde das Gesamtlimit von ${formatBytes(MAX_TOTAL_BYTES)} überschreiten`,
+    en: (_f, l) => `That would go over the ${formatBytes(l.maxTotalBytes)} total limit`,
+    uk: (_f, l) => `Це перевищить загальний ліміт ${formatBytes(l.maxTotalBytes)}`,
+    ru: (_f, l) => `Это превысит общий лимит ${formatBytes(l.maxTotalBytes)}`,
+    fr: (_f, l) => `Cela dépasserait la limite totale de ${formatBytes(l.maxTotalBytes)}`,
+    de: (_f, l) => `Das würde das Gesamtlimit von ${formatBytes(l.maxTotalBytes)} überschreiten`,
   },
 };
 
 /** A message naming the file and what to do, not a generic "upload failed". */
-export function rejectionMessage(rejection: Rejection, lang: string = "en"): string {
+export function rejectionMessage(
+  rejection: Rejection,
+  lang: string = "en",
+  limits: Limits = STUDY_LIMITS,
+): string {
   const table = MESSAGES[rejection.reason];
   const key: Lang = (["en", "uk", "ru", "fr", "de"] as const).includes(lang as Lang)
     ? (lang as Lang)
     : "en";
-  return table[key](rejection.file);
+  return table[key](rejection.file, limits);
 }
 
 /** One line summarising a batch, for a toast. */
-export function rejectionSummary(rejected: readonly Rejection[], lang: string = "en"): string {
+export function rejectionSummary(
+  rejected: readonly Rejection[],
+  lang: string = "en",
+  limits: Limits = STUDY_LIMITS,
+): string {
   if (rejected.length === 0) return "";
-  const first = rejectionMessage(rejected[0]!, lang);
+  const first = rejectionMessage(rejected[0]!, lang, limits);
   if (rejected.length === 1) return first;
   const more = rejected.length - 1;
   const suffix: Record<Lang, string> = {

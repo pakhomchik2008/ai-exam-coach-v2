@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  STUDY_LIMITS,
+  CHAT_LIMITS,
   MAX_FILES,
   MAX_FILE_BYTES,
   MAX_TOTAL_BYTES,
@@ -171,5 +173,50 @@ describe("messages", () => {
 
   it("returns an empty string when nothing was rejected", () => {
     expect(rejectionSummary([])).toBe("");
+  });
+});
+
+describe("per-surface limit presets", () => {
+  it("uses 20 files / 25 MB for study material", () => {
+    expect(STUDY_LIMITS).toEqual({
+      maxFiles: 20,
+      maxFileBytes: 25 * MB,
+      maxTotalBytes: 200 * MB,
+    });
+  });
+
+  // Chat attachments are re-sent with the whole conversation on every turn, so
+  // the cap has to be tighter than the one-shot study upload.
+  it("uses a tighter 5 files / 10 MB for chat", () => {
+    expect(CHAT_LIMITS).toEqual({
+      maxFiles: 5,
+      maxFileBytes: 10 * MB,
+      maxTotalBytes: 50 * MB,
+    });
+    expect(CHAT_LIMITS.maxFiles).toBeLessThan(STUDY_LIMITS.maxFiles);
+    expect(CHAT_LIMITS.maxFileBytes).toBeLessThan(STUDY_LIMITS.maxFileBytes);
+  });
+
+  it("applies the chat cap when asked", () => {
+    const batch = Array.from({ length: 8 }, (_, i) => file(`f${i}.pdf`, 0.1));
+    const { accepted, rejected } = validateFiles(batch, [], CHAT_LIMITS);
+    expect(accepted).toHaveLength(5);
+    expect(rejected).toHaveLength(3);
+  });
+
+  it("rejects a 12 MB file in chat that study would accept", () => {
+    const big = [file("scan.pdf", 12)];
+    expect(validateFiles(big, [], CHAT_LIMITS).rejected[0]!.reason).toBe("file-too-large");
+    expect(validateFiles(big, [], STUDY_LIMITS).accepted).toHaveLength(1);
+  });
+
+  it("quotes the chat limit, not the study one, in its message", () => {
+    const msg = rejectionMessage(
+      { file: file("scan.pdf", 12), reason: "file-too-large" },
+      "en",
+      CHAT_LIMITS,
+    );
+    expect(msg).toContain("10 MB");
+    expect(msg).not.toContain("25 MB");
   });
 });
