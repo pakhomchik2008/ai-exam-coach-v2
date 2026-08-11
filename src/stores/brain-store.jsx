@@ -102,12 +102,55 @@ function _courseTopicToLegacyEntry(exam, course, topicIdx) {
   return { ...base, examId: exam.id, topicIdx, topicName: topic.name };
 }
 
+// Audit finding #14 (detection-only, no migration): a LEGACY (non-course)
+// exam's mastery/schedule/mistake records key off "examId::topicIdx" — the
+// topic's position in exam.topics, not a stable id. Course-backed exams
+// already avoid this (see _courseTopicToLegacyEntry above — keyed by
+// topic.id). If exam.topics is ever replaced wholesale in a different order
+// (the one confirmed live path: ai-enrichment.jsx's requestTopicNames /
+// requestCourseExtraction, which overwrite the whole array with an
+// AI-decided ordering after placeholder sessions may already have been
+// studied), every mastery entry recorded under the old index now silently
+// describes whatever topic ended up at that index instead — irreversibly,
+// since nothing here tracks the old order.
+//
+// This only detects the drift (a legacy entry's stored topicName no longer
+// matching exam.topics[topicIdx]'s CURRENT name) and logs it once per key, so
+// real occurrences can be measured before committing to a migration design.
+// It does not correct, drop, or re-key anything — every caller keeps reading
+// exactly what it read before.
+const _warnedTopicDriftKeys = new Set();
+function _detectTopicDrift(examId, topicIdx, entry) {
+  const key = topicKey(examId, topicIdx);
+  if (_warnedTopicDriftKeys.has(key)) return;
+  const exam = _findExam(examId);
+  // Not yet loaded, deleted since, or already migrated to course-backed —
+  // none of these are the drift this check exists to catch.
+  if (!exam || exam.courseId || !Array.isArray(exam.topics)) return;
+  const currentName = exam.topics[topicIdx];
+  if (currentName == null) return; // topic removed, not reordered — different bug
+  const currentNameStr = typeof currentName === "string" ? currentName : currentName.name;
+  if (!entry.topicName || currentNameStr === entry.topicName) return;
+  _warnedTopicDriftKeys.add(key);
+  const msg =
+    `brain-store: topic drift at "${key}" — mastery was recorded for ` +
+    `"${entry.topicName}" but exam.topics[${topicIdx}] is now "${currentNameStr}". ` +
+    `Likely a topic-list reorder reattributing history to the wrong topic (audit #14).`;
+  if (window.Sentry) window.Sentry.captureMessage(msg, "warning");
+  else console.warn(msg);
+}
+
 // PUBLIC getMastery(): the legacy flat map, PLUS reconstructed entries for
 // every course-backed exam's topics — one consistent "examId::topicIdx"
 // shape regardless of whether an exam is legacy or course-backed, so
 // schedule-store/AIChat/Dashboard/StudySession need zero changes.
 function getMastery() {
   const legacy = _legacyGetMastery();
+  Object.entries(legacy).forEach(([key, entry]) => {
+    if (entry && entry.examId != null && entry.topicIdx != null) {
+      _detectTopicDrift(entry.examId, entry.topicIdx, entry);
+    }
+  });
   const exams = window.getExams ? window.getExams() : [];
   const courseBacked = exams.filter((e) => e.courseId);
   if (!courseBacked.length) return legacy;
