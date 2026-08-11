@@ -1,4 +1,8 @@
 // AI Exam Coach — Study tab.
+
+// Shared upload limits — the same 20 files / 25 MB / 200 MB rules the exam
+// wizard enforces, so the two surfaces cannot drift apart.
+import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
@@ -35,9 +39,10 @@ function StudyHub({ t }) {
     inputText: '',
     isDragOver: false,
     isExtractingFile: false,
-    imageFile: null,
-    pdfFile: null,
-    docFile: null,
+    // One list instead of three single slots. The old model held exactly one
+    // image OR one pdf OR one doc, so a multi-file drop silently kept `files[0]`
+    // and discarded the rest with no message (audit #2a).
+    files: [],
     youtubeData: null,
     isLoadingYT: false,
     errorMsg: '',
@@ -154,27 +159,27 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   };
 
   /* ─── FILE HANDLING ───────────────────────────────────────── */
-  const readFile = async (file) => {
+  // Extracts one file into a descriptor. Returns null and throws nothing on an
+  // unsupported type — the caller reports it alongside every other rejection so
+  // one bad file in a batch of twenty cannot abort the whole drop.
+  const extractFile = async (file) => {
     const name = file.name || 'file';
     const ext = name.split('.').pop().toLowerCase();
     const mime = file.type;
-    setState({ errorMsg: '', isExtractingFile: true, imageFile: null, pdfFile: null, docFile: null, youtubeData: null });
 
-    try {
+    {
       if (mime.startsWith('image/')) {
         const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsDataURL(file); });
-        setState({ imageFile: { base64: dataUrl.split(',')[1], mimeType: mime, dataUrl, name }, isExtractingFile: false });
-        return;
+        return { kind: 'image', base64: dataUrl.split(',')[1], mimeType: mime, dataUrl, name };
       }
       if (ext === 'pdf' || mime === 'application/pdf') {
         const ab = await file.arrayBuffer();
         const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-        setState({ pdfFile: { base64: b64, name }, isExtractingFile: false });
-        return;
+        return { kind: 'pdf', base64: b64, name };
       }
       if (['pptx', 'ppt', 'docx', 'doc'].includes(ext) || mime.includes('presentationml') || mime.includes('wordprocessingml') || mime.includes('powerpoint') || mime.includes('msword')) {
         const JSZip = window.JSZip;
-        if (!JSZip) { setState({ isExtractingFile: false, errorMsg: L('JSZip not ready — try refreshing.','JSZip не готовий — оновіть сторінку.','JSZip не готов — обновите страницу.','JSZip pas prêt — actualisez la page.','JSZip nicht bereit — Seite neu laden.') }); return; }
+        if (!JSZip) throw new Error(L('JSZip not ready — try refreshing.','JSZip не готовий — оновіть сторінку.','JSZip не готов — обновите страницу.','JSZip pas prêt — actualisez la page.','JSZip nicht bereit — Seite neu laden.'));
         const ab = await file.arrayBuffer();
         const zip = await JSZip.loadAsync(ab);
         let text = '';
@@ -185,36 +190,79 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
           const doc = zip.files['word/document.xml'];
           if (doc) { const xml = await doc.async('string'); const d = document.createElement('div'); d.innerHTML = xml.replace(/<\/w:t>/g, ' ').replace(/<[^>]+>/g, ''); text = d.textContent.replace(/\s+/g, ' ').trim(); }
         }
-        if (!text.trim()) { setState({ isExtractingFile: false, errorMsg: L('Could not extract text from this file. Try copy-pasting the content instead.','Не вдалося витягти текст із файлу. Спробуйте вставити вміст вручну.','Не удалось извлечь текст из файла. Попробуйте вставить содержимое вручную.','Impossible d\'extraire le texte. Essayez de coller le contenu.','Text konnte nicht extrahiert werden. Füge den Inhalt manuell ein.') }); return; }
-        setState({ docFile: { text: text.substring(0, 5000), name, ext }, isExtractingFile: false });
-        return;
+        if (!text.trim()) throw new Error(L('no text','no text','no text','no text','no text'));
+        return { kind: 'doc', text: text.substring(0, 5000), name, ext };
       }
       if (mime === 'text/plain' || ext === 'txt') {
         const text = await file.text();
-        setState({ docFile: { text: text.substring(0, 5000), name, ext: 'txt' }, isExtractingFile: false });
-        return;
+        return { kind: 'doc', text: text.substring(0, 5000), name, ext: 'txt' };
       }
-      setState({ isExtractingFile: false, errorMsg: L('Unsupported file type. Try: image, PDF, PPTX, DOCX or TXT.','Непідтримуваний тип файлу. Спробуйте: зображення, PDF, PPTX, DOCX або TXT.','Неподдерживаемый тип файла. Попробуйте: изображение, PDF, PPTX, DOCX или TXT.','Type de fichier non pris en charge : image, PDF, PPTX, DOCX ou TXT.','Nicht unterstützter Dateityp: Bild, PDF, PPTX, DOCX oder TXT.') });
-    } catch (err) {
-      setState({ isExtractingFile: false, errorMsg: L('Could not read this file. Try another format.','Не вдалося прочитати файл. Спробуйте інший формат.','Не удалось прочитать файл. Попробуйте другой формат.','Lecture du fichier impossible. Essayez un autre format.','Datei konnte nicht gelesen werden. Anderes Format versuchen.') });
+      return null;
     }
   };
 
-  const handleDrop = (e) => { setState({ isDragOver: false }); const f = e.dataTransfer.files[0]; if (f) readFile(f); };
+  // Reads a whole batch: shared limits first (20 files / 25 MB each / 200 MB
+  // total), then extraction, accumulating onto whatever is already attached.
+  // Failures are collected per file rather than aborting the batch.
+  const readFiles = async (list) => {
+    const incoming = Array.from(list || []);
+    if (!incoming.length) return;
+
+    const lang = (window.getProfile && window.getProfile().lang) || 'en';
+    const existing = state.files || [];
+    const { accepted, rejected } = validateFiles(incoming, existing);
+    const problems = rejected.map((r) => rejectionMessage(r, lang));
+
+    if (!accepted.length) {
+      setState({ errorMsg: problems.join(' · ') });
+      return;
+    }
+
+    setState({ errorMsg: '', isExtractingFile: true, youtubeData: null });
+
+    const extracted = [];
+    for (const file of accepted) {
+      try {
+        const descriptor = await extractFile(file);
+        if (descriptor) extracted.push(descriptor);
+        else problems.push(L(`${file.name} — unsupported file type`, `${file.name} — непідтримуваний тип файлу`, `${file.name} — неподдерживаемый тип файла`, `${file.name} — type non pris en charge`, `${file.name} — nicht unterstützter Dateityp`));
+      } catch {
+        problems.push(L(`${file.name} — could not be read`, `${file.name} — не вдалося прочитати`, `${file.name} — не удалось прочитать`, `${file.name} — lecture impossible`, `${file.name} — nicht lesbar`));
+      }
+    }
+
+    setState({
+      files: existing.concat(extracted),
+      isExtractingFile: false,
+      errorMsg: problems.join(' · '),
+    });
+  };
+
+  const handleDrop = (e) => { setState({ isDragOver: false }); readFiles(e.dataTransfer.files); };
 
   /* ─── CLAUDE CALLS ────────────────────────────────────────── */
   const buildUserContent = (suffix) => {
-    const { imageFile, pdfFile, docFile, youtubeData, inputText } = state;
-    if (imageFile) return [{ type: 'image', source: { type: 'base64', media_type: imageFile.mimeType, data: imageFile.base64 } }, { type: 'text', text: suffix || 'Generate study materials for what is shown in this image.' }];
-    if (pdfFile) return [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfFile.base64 } }, { type: 'text', text: suffix || 'Generate study materials based on this document.' }];
-    if (docFile) return `Generate study materials based on this document ("${docFile.name}"):\n\n${docFile.text}`;
+    const { files, youtubeData, inputText } = state;
+    // Every attached file goes into one multimodal message, so a study set is
+    // built from the whole batch. Previously only the single stored file was
+    // sent, whichever slot happened to be filled.
+    if (files && files.length) {
+      const blocks = files.map((f) =>
+        f.kind === 'image' ? { type: 'image', source: { type: 'base64', media_type: f.mimeType, data: f.base64 } }
+        : f.kind === 'pdf' ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 } }
+        : { type: 'text', text: `Document "${f.name}":\n\n${f.text}` });
+      const fallback = files.length === 1
+        ? 'Generate study materials based on this content.'
+        : `Generate one combined set of study materials covering all ${files.length} attached documents.`;
+      return blocks.concat([{ type: 'text', text: suffix || fallback }]);
+    }
     if (youtubeData) return `Generate study materials for a YouTube video titled: "${youtubeData.title}" by ${youtubeData.channel}. Create content about the likely topic of this video.`;
     return `Generate study materials for the topic: "${inputText.trim()}"`;
   };
 
   const analyze = async () => {
-    const { imageFile, pdfFile, docFile, youtubeData, inputText } = state;
-    if (!imageFile && !pdfFile && !docFile && !youtubeData && !inputText.trim()) return;
+    const { files, youtubeData, inputText } = state;
+    if (!(files && files.length) && !youtubeData && !inputText.trim()) return;
     setState({ mode: 'loading', loadingMsg: L('Reading your content…','Читаю ваш матеріал…','Читаю ваш материал…','Lecture de votre contenu…','Lese deine Inhalte…'), errorMsg: '' });
 
     const loadMsgs = [L('Identifying key concepts…','Визначаю ключові поняття…','Определяю ключевые понятия…','Identification des concepts clés…','Erkenne Schlüsselkonzepte…'), L('Creating flashcards…','Створюю картки…','Создаю карточки…','Création des cartes…','Erstelle Karteikarten…'), L('Building quiz questions…','Складаю питання квізу…','Составляю вопросы квиза…','Préparation du quiz…','Erstelle Quizfragen…'), L('Almost ready…','Майже готово…','Почти готово…','Presque prêt…','Fast fertig…')];
@@ -278,25 +326,38 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     );
   };
 
+  // Renders every attached file as its own removable row, with a count header
+  // once there is more than one. The old version could only ever show a single
+  // image OR a single document card.
   const buildFilePreviewEl = () => {
-    const { imageFile, pdfFile, docFile } = state;
-    if (imageFile) {
-      return React.createElement('div', { style: { marginTop: '10px', borderRadius: '14px', overflow: 'hidden', border: '2px solid var(--indigo-500)', position: 'relative', animation: 'fadeUp 0.25s ease-out both' } },
-        React.createElement('img', { src: imageFile.dataUrl, style: { width: '100%', maxHeight: '160px', objectFit: 'cover', display: 'block' } }),
-        React.createElement('button', { onClick: () => setState({ imageFile: null }), style: { position: 'absolute', top: '8px', right: '8px', background: 'rgba(17,24,39,0.75)', color: 'white', border: 'none', borderRadius: '20px', padding: '4px 11px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' } }, `${imageFile.name} ✕`)
-      );
-    }
-    const fileInfo = pdfFile ? { icon: '📄', color: 'var(--red-500)', name: pdfFile.name, preview: 'PDF ready — Claude will read the full document' }
-      : docFile ? { icon: docFile.ext === 'pptx' || docFile.ext === 'ppt' ? '📊' : docFile.ext === 'txt' ? '📃' : '📝', color: docFile.ext === 'pptx' || docFile.ext === 'ppt' ? 'var(--orange-500)' : docFile.ext === 'txt' ? 'var(--slate-500)' : 'var(--sky-500)', name: docFile.name, preview: docFile.text.substring(0, 100).replace(/\n/g, ' ') + '…' }
-      : null;
-    if (!fileInfo) return null;
-    return React.createElement('div', { style: { marginTop: '10px', borderRadius: '14px', border: `2px solid ${fileInfo.color}`, background: 'white', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: '12px', animation: 'fadeUp 0.25s ease-out both' } },
-      React.createElement('div', { style: { fontSize: '26px', flexShrink: 0, lineHeight: 1 } }, fileInfo.icon),
-      React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-        React.createElement('div', { style: { fontWeight: 700, fontSize: '13px', color: 'var(--slate-900)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, fileInfo.name),
-        React.createElement('div', { style: { fontSize: '11px', color: 'var(--slate-400)', lineHeight: 1.5 } }, fileInfo.preview)
-      ),
-      React.createElement('button', { onClick: () => setState({ pdfFile: null, docFile: null }), style: { background: 'var(--slate-100)', border: 'none', borderRadius: '8px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: '13px', color: 'var(--slate-500)' } }, '✕')
+    const list = state.files || [];
+    if (!list.length) return null;
+
+    const removeAt = (idx) => setState({ files: list.filter((_, i) => i !== idx) });
+
+    const meta = (f) =>
+      f.kind === 'image' ? { icon: '🖼️', color: 'var(--indigo-500)', preview: L('Image ready','Зображення готове','Изображение готово','Image prête','Bild bereit') }
+      : f.kind === 'pdf' ? { icon: '📄', color: 'var(--red-500)', preview: L('PDF ready — Claude will read the full document','PDF готовий — Claude прочитає весь документ','PDF готов — Claude прочитает весь документ','PDF prêt — Claude lira tout le document','PDF bereit — Claude liest das ganze Dokument') }
+      : { icon: f.ext === 'pptx' || f.ext === 'ppt' ? '📊' : f.ext === 'txt' ? '📃' : '📝',
+          color: f.ext === 'pptx' || f.ext === 'ppt' ? 'var(--amber-500)' : f.ext === 'txt' ? 'var(--slate-500)' : 'var(--sky-500)',
+          preview: (f.text || '').substring(0, 100).replace(/\n/g, ' ') + '…' };
+
+    return React.createElement('div', { style: { marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' } },
+      list.length > 1 && React.createElement('div', { style: { fontSize: '11px', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--slate-500)', textTransform: 'uppercase' } },
+        L(`${list.length} files attached`, `Додано файлів: ${list.length}`, `Прикреплено файлов: ${list.length}`, `${list.length} fichiers joints`, `${list.length} Dateien angehängt`)),
+      ...list.map((f, i) => {
+        const m = meta(f);
+        return React.createElement('div', { key: `${f.name}-${i}`, style: { borderRadius: '14px', border: `2px solid ${m.color}`, background: 'var(--surface-card)', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '12px', animation: 'fadeUp 0.25s ease-out both' } },
+          f.kind === 'image'
+            ? React.createElement('img', { src: f.dataUrl, alt: '', style: { width: '40px', height: '40px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0, display: 'block' } })
+            : React.createElement('div', { style: { fontSize: '24px', flexShrink: 0, lineHeight: 1 } }, m.icon),
+          React.createElement('div', { style: { flex: 1, minWidth: 0 } },
+            React.createElement('div', { style: { fontWeight: 700, fontSize: '13px', color: 'var(--slate-900)', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, f.name),
+            React.createElement('div', { style: { fontSize: '11px', color: 'var(--slate-400)', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, m.preview)
+          ),
+          React.createElement('button', { onClick: () => removeAt(i), 'aria-label': L('Remove','Видалити','Удалить','Retirer','Entfernen'), style: { background: 'var(--slate-100)', border: 'none', borderRadius: '8px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, fontSize: '13px', color: 'var(--slate-500)' } }, '✕')
+        );
+      })
     );
   };
 
@@ -523,14 +584,14 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   };
 
   /* ─── RENDER ──────────────────────────────────────────────── */
-  const { mode, inputText, isDragOver, isExtractingFile, imageFile, pdfFile, docFile, youtubeData, flashcards, quiz, chatInput, isChatMode, chatMessages, isChatLoading, loadingMsg, topic, topicEmoji, errorMsg } = state;
+  const { mode, inputText, isDragOver, isExtractingFile, files, youtubeData, flashcards, quiz, chatInput, isChatMode, chatMessages, isChatLoading, loadingMsg, topic, topicEmoji, errorMsg } = state;
 
   const chatInputBarEl = React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--slate-50)', border: '1.5px solid var(--slate-200)', borderRadius: '22px', padding: '6px 6px 6px 14px' } },
     React.createElement('input', { value: chatInput, onChange: (e) => setState({ chatInput: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } }, placeholder: L('Ask Claude anything about this topic…','Запитайте Claude будь-що про цю тему…','Спросите Claude что угодно об этой теме…','Demandez tout à Claude sur ce sujet…','Frag Claude alles zu diesem Thema…'), style: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: 'var(--slate-900)', background: 'none' } }),
     React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(34,124,99,0.3)', flexShrink: 0 } },
       React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'white', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('line', { x1: '22', y1: '2', x2: '11', y2: '13' }), React.createElement('polygon', { points: '22 2 15 22 11 13 2 9 22 2' })))
   );
-  const hasInput = !!(inputText.trim() || imageFile || pdfFile || docFile || youtubeData);
+  const hasInput = !!(inputText.trim() || (files && files.length) || youtubeData);
 
   const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     React.createElement('div', { style: { padding: '20px 20px 14px', flexShrink: 0 } },
@@ -547,7 +608,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('h1', { style: { fontSize: '26px', fontWeight: 900, color: 'var(--slate-900)', lineHeight: 1.2, margin: '0 0 8px', letterSpacing: '-0.5px' } }, L('Drop anything.','Закиньте будь-що.','Закиньте что угодно.','Déposez n\'importe quoi.','Leg alles ab.'), React.createElement('br'), L('Learn everything.','Вивчіть усе.','Изучите всё.','Apprenez tout.','Lerne alles.')),
         React.createElement('p', { style: { fontSize: '13px', color: 'var(--slate-500)', margin: 0, lineHeight: 1.7 } }, L('Image · PDF · PPTX · DOCX · YouTube link · or just type a topic. Claude builds your study set instantly.','Зображення · PDF · PPTX · DOCX · YouTube-посилання · або просто введіть тему. Claude миттєво збере ваш навчальний набір.','Изображение · PDF · PPTX · DOCX · ссылка YouTube · или просто введите тему. Claude мгновенно соберёт ваш учебный набор.','Image · PDF · PPTX · DOCX · lien YouTube · ou tapez un sujet. Claude crée votre kit d\'étude instantanément.','Bild · PDF · PPTX · DOCX · YouTube-Link · oder einfach ein Thema eingeben. Claude erstellt sofort dein Lernset.'))
       ),
-      React.createElement('input', { type: 'file', id: 'study-file-input', accept: 'image/*,.pdf,.pptx,.ppt,.docx,.doc,.txt', onChange: (e) => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; }, style: { display: 'none' } }),
+      React.createElement('input', { type: 'file', id: 'study-file-input', multiple: true, accept: ACCEPT_ATTRIBUTE, onChange: (e) => { readFiles(e.target.files); e.target.value = ''; }, style: { display: 'none' } }),
       buildDropZoneEl(isDragOver, isExtractingFile, {
         onDragOver: (e) => { e.preventDefault(); setState({ isDragOver: true }); },
         onDragLeave: () => setState({ isDragOver: false }),
@@ -598,7 +659,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const resultsScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     React.createElement('div', { style: { padding: '10px 12px', background: 'white', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' } },
-      React.createElement('button', { onClick: () => { try { localStorage.removeItem(STUDY_RESULT_KEY); } catch {} setState({ mode: 'upload', inputText: '', imageFile: null, pdfFile: null, docFile: null, youtubeData: null, errorMsg: '' }); }, style: { width: '34px', height: '34px', background: 'var(--slate-100)', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 } },
+      React.createElement('button', { onClick: () => { try { localStorage.removeItem(STUDY_RESULT_KEY); } catch {} setState({ mode: 'upload', inputText: '', files: [], youtubeData: null, errorMsg: '' }); }, style: { width: '34px', height: '34px', background: 'var(--slate-100)', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 } },
         React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'var(--slate-700)', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '15 18 9 12 15 6' }))),
       React.createElement('div', { style: { fontSize: '26px', flexShrink: 0, lineHeight: 1 } }, topicEmoji),
       React.createElement('div', { style: { flex: 1, minWidth: 0 } },

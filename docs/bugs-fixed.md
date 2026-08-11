@@ -14,6 +14,8 @@ Running log for the Phase 2 work. Numbering continues `docs/audit.md` on the
 
 | 2 | Upload caps were undocumented and unenforced — the onboarding UploadZone took unlimited files of unlimited size | pending | **Partial.** `src/lib/upload-limits.ts` is now the single source of truth (20 files, 25 MB each, 200 MB total) with named, translated rejection messages. Enforced in `UploadZone`, which covers the exam wizard and CurriculumStep. 40 unit tests. See below for the two halves still open |
 
+| 2a | The Study tab took **one** file per drop — `handleDrop` read `files[0]` and the input had no `multiple`, so a multi-file drop silently discarded everything after the first | pending | State model reworked from three single slots (`imageFile`/`pdfFile`/`docFile`) to one `files` array. All attachments now go into a single multimodal message, so the study set is built from the whole batch. Per-file extraction failures are collected rather than aborting the drop |
+
 ## Found, not yet fixed
 
 | # | Bug | Where | Why deferred |
@@ -21,5 +23,4 @@ Running log for the Phase 2 work. Numbering continues `docs/audit.md` on the
 | 28 | Cross-tab sync never remounts the screen it claims to — the old code carried a comment describing a `key={dataVersion}` remount that was never applied to any element, so child screens keep serving what they read on first mount | `src/app/App.tsx` | The remount has real side effects on in-progress form state and needs a test first. Belongs with the Phase 2 Supabase sync layer |
 | 17 | 246 hardcoded colour literals bypass the design tokens; 128 are raw white | app-wide, worst in `AIChat.jsx` (38) and `StudyHub.jsx` (27) | Blocks real dark mode and puts holes in the `legend` tier theme. Needs its own pass — mechanical but large |
 | 14 | Positional topic identity (`examId::topicIdx`) in 108 places; a topic-list reorder silently reattributes mastery history to the wrong topic, irreversibly | `brain-store.jsx`, `schedule-store.jsx`, others | The highest-severity data-integrity issue in the codebase. Needs the detection step first (log when a completed session's stored topic name no longer matches its decoded index) before any migration |
-| 2a | The Study tab still takes **one** file per drop — `handleDrop` reads `files[0]` and the input has no `multiple` | `src/features/study/StudyHub.jsx` | Its state model has single slots (`imageFile` / `pdfFile` / `docFile`) and builds one study set from one source. Going to 20 files means reworking that model and merging extracted text, which is a bigger change than the limits themselves and deserves its own commit |
 | 2b | Upload limits are client-side only | — | A client cap is a UX affordance, not a control — anyone can POST straight at the endpoint. Real enforcement is a Supabase Storage bucket policy, which needs DB access (phase 2c) |
