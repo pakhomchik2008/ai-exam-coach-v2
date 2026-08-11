@@ -20,7 +20,7 @@ const SESSION_KEY  = "auth_session_v1";
 // device settings, not this student's content.
 const PERSONAL_DATA_KEYS = [
   "exams_list_v2", "courses_v1", "study_schedule_v1", "user_profile_v1",
-  "mistakes_v1", "mistake_review_log_v1", "active_session_v1",
+  "mistakes_v1", "mistake_review_log_v1", "active_session_v1", "exam_attempts_v1",
   "brain_mastery_v1", "brain_kb_v1", "brain_memory_v1", "brain_xp_v1",
   "brain_difficulty_v1", "brain_lessoncache_v1", "study_result_v1",
   "tier_seen_v1", ACCOUNTS_KEY,

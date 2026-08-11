@@ -89,6 +89,14 @@ function migrateExam(raw, index) {
     // Lesson explanation language override ("en" or null=interface lang) — set
     // for English-medium exams in the wizard; read by AIChat's LessonEngine.
     explainLang: e.explainLang === "en" ? "en" : null,
+    // Which qualification (nmt/sat/gcse/...) this exam sits under. Course-backed
+    // exams carry it on the Course's curriculumRef instead; this field is the
+    // direct route for exams created without a course. It was previously read
+    // by _examQualId and by AIChat's mock-exam specs but never whitelisted
+    // here, so saveExams() silently dropped it on every write — meaning
+    // official exam formats and real score scales only ever resolved for
+    // course-backed exams.
+    qualificationId: typeof e.qualificationId === "string" && e.qualificationId ? e.qualificationId : null,
     kind: ["exam", "midterm", "final", "resit", "mock", "certification"].includes(e.kind) ? e.kind : "exam",
     // Per-exam lesson length in minutes, chosen per subject in the wizard.
     // null = "use the profile default" (legacy exams, and any created before
@@ -419,7 +427,7 @@ Object.assign(window, {
   EXAMS_KEY, getExams, getExamsSnapshot, saveExams, subscribeExams,
   daysAway, fmtDateKey, sessionsNeeded, requiredPct, migrateExam,
   deriveCourse, deriveCourses, commitExamWizard, computePriority,
-  examDisplayName,
+  examDisplayName, examQualificationId: _examQualId,
 });
 
 // Module marker: these files carry no import/export of their own (they still

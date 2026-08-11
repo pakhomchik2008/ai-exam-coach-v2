@@ -8,6 +8,20 @@ import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { specFor } from "../../lib/exam-specs";
+import { ExamRecap } from "../study/ExamRecap.jsx";
+
+/**
+ * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
+ * key that picks both the mock-exam spec (exam-specs.ts) and the reporting
+ * scale (scales.ts).
+ *
+ * Delegates to exams-store's `examQualificationId` so there is one definition
+ * of "which qualification is this", not a copy per feature.
+ */
+function _qualificationOf(exam) {
+  if (!exam) return null;
+  return (window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId) || null;
+}
 
 // Novelty engine (Phase 3 §3a) — proof point wired into Practice Engine only,
 // the highest-traffic generator. Checks each generated question against the
@@ -217,6 +231,17 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
               setCpResults((r) => [...r, correct]);
               onResult(correct);
               if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct });
+              // The end-of-lesson checkpoint is the highest-signal moment in a
+              // lesson, and until now a wrong answer here moved mastery but
+              // was never journalled — so the one question the student most
+              // needed to revisit was the one the review queue never saw.
+              if (!correct && resolved && window.logMistake) {
+                window.logMistake({
+                  topic: resolved.topicName, question: q.question,
+                  options: q.options, correctIndex: q.correct, selectedIndex: i, explanation: q.explanation,
+                  examId: resolved.examId, topicIdx: resolved.topicIdx,
+                });
+              }
             },
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
@@ -708,6 +733,15 @@ RULES:
     setResults((r) => [...r, { correct: isCorrect, topic: q.topic || topic }]);
     isCorrect ? _sfx.correct() : _sfx.wrong();
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+    // Quick Check used to record the review but never the mistake, so a wrong
+    // answer here lowered mastery yet left nothing in the journal to retry.
+    if (!isCorrect && resolved && window.logMistake) {
+      window.logMistake({
+        topic: resolved.topicName || q.topic || topic, question: q.question,
+        options: q.options, correctIndex: q.correct, selectedIndex: optIdx, explanation: q.explanation,
+        examId: resolved.examId, topicIdx: resolved.topicIdx,
+      });
+    }
   };
 
   const answerFill = () => {
@@ -1220,15 +1254,33 @@ RULES:
 
 // ─── PRACTICE ENGINE (Exam simulation) ───────────────────────────────────────
 
-function PracticeEngine({ examViews, onExit, t }) {
+function PracticeEngine({ examViews, onExit, seed, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | session | summary
   // examId scopes the drill to one subject; null means "across everything".
   // `length` is chosen explicitly rather than derived from difficulty — a
   // student who wants 5 quick questions should not have to pick "Easy" to get
   // a shorter set. `timed` adds an optional countdown (audit #5).
-  const [config, setConfig] = React.useState({ difficulty: "adaptive", examId: null, topics: [], length: 10, timed: false });
+  const [config, setConfig] = React.useState({
+    difficulty: "adaptive", length: 10, timed: false,
+    // A recap's "Drill weak topics" CTA arrives as `seed` — it preselects the
+    // subject and topics but deliberately still lands on the setup screen, so
+    // the student sees (and can change) what is about to be generated instead
+    // of an AI call firing from one tap.
+    // With a single subject the picker below is hidden, so leaving examId null
+    // meant that student's drills were never attributed to their exam — no
+    // score on the real exam scale and no attempt history in the recap. One
+    // exam is unambiguous: attribute to it.
+    examId: (seed && seed.examId) || (examViews.length === 1 ? examViews[0].id : null),
+    topics: (seed && seed.topics) || [],
+  });
   const [remainingSec, setRemainingSec] = React.useState(null);
+  const [startedAt, setStartedAt] = React.useState(null);
+  // XP used to be awarded inline in the summary's render body, so every
+  // re-render of that screen granted it again. The recap below re-renders
+  // several times (attempt recorded, AI comment resolved), which would have
+  // turned that into runaway XP.
+  const xpAwardedRef = React.useRef(false);
   const [questions, setQuestions] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -1282,6 +1334,7 @@ function PracticeEngine({ examViews, onExit, t }) {
     const startPractice = async () => {
       // ~1 minute per question is the pace a timed drill should feel like.
       setRemainingSec(config.timed ? config.length * 60 : null);
+      setStartedAt(Date.now());
       setPhase("session"); setLoading(true); setError(null);
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
@@ -1422,7 +1475,10 @@ RULES:
     const correct = results.filter((r) => r.correct).length;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     const xpEarned = correct * 20 + 50;
-    if (window.addXp && total > 0) window.addXp(xpEarned);
+    if (window.addXp && total > 0 && !xpAwardedRef.current) {
+      xpAwardedRef.current = true;
+      window.addXp(xpEarned);
+    }
     const byTopic = {};
     results.forEach((r) => {
       const tp = r.topic || L("Unknown", "Невідомо", "Неизвестно", "Inconnu", "Unbekannt");
@@ -1431,27 +1487,32 @@ RULES:
       if (r.correct) byTopic[tp].correct++;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
+    const drillExam = config.examId && window.getExams ? window.getExams().find((e) => e.id === config.examId) : null;
 
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out", gap: 4 } },
-      React.createElement("span", { style: { fontSize: 56, marginBottom: 8 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : "💪"),
-      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, L("Practice Complete!", "Тренування завершено!", "Тренировка завершена!", "Entraînement terminé !", "Übung abgeschlossen!")),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, L(`${correct}/${total} correct · ${pct}%`, `${correct}/${total} правильно · ${pct}%`, `${correct}/${total} правильно · ${pct}%`, `${correct}/${total} correct · ${pct}%`, `${correct}/${total} richtig · ${pct}%`)),
-
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 20 } },
-        ...[
-          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 70 ? "var(--emerald-700)" : "var(--red-700)" },
-          { val: `${total}`, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen"), color: "var(--indigo-600)" },
-          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
-        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
-          React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
-
-      weakTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase" } }, L("🎯 Pattern detected — focus on:", "🎯 Виявлено закономірність — зверніть увагу на:", "🎯 Обнаружена закономерность — обратите внимание на:", "🎯 Schéma détecté — concentrez-vous sur :", "🎯 Muster erkannt — konzentriere dich auf:")),
-        ...weakTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `• ${tp}`))),
-
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false)));
+    return React.createElement(ExamRecap, {
+      mode: "practice",
+      examId: config.examId,
+      examName: drillExam ? drillExam.name : L("Practice drill", "Тренування", "Тренировка", "Entraînement", "Übung"),
+      taxonomy: _qualificationOf(drillExam),
+      correct, total, weakTopics,
+      sessionStartedAt: startedAt,
+      headline: L("Practice Complete!", "Тренування завершено!", "Тренировка завершена!", "Entraînement terminé !", "Übung abgeschlossen!"),
+      stats: [
+        { val: `${total}`, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen"), color: "var(--indigo-600)" },
+        { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
+      ],
+      // Re-seeding the drill it is already inside: reset to setup with the weak
+      // topics preselected rather than routing through the parent.
+      onDrillWeak: (topics) => {
+        setConfig((c) => ({ ...c, topics }));
+        setQuestions(null); setResults([]); setQIdx(0); setSelected(null); setConfidence(null);
+        setRevealed(false); setShowWhy(false); setPatternAlert(null); setRemainingSec(null);
+        xpAwardedRef.current = false;
+        setPhase("setup");
+      },
+      onExit,
+      t,
+    });
   }
 
   // ── Question view ──
@@ -1468,7 +1529,14 @@ RULES:
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     }
     if (!isCorrect && resolved && window.logMistake) {
-      window.logMistake({ topic: resolved?.topicName || q.topic, question: q.question, examId: resolved?.examId, topicIdx: resolved?.topicIdx });
+      // Full payload, not just topic+question: without options/correctIndex/
+      // explanation the mistake journal cannot re-ask the question, so the
+      // entry is un-retryable and the recap has nothing to show (audit #3c).
+      window.logMistake({
+        topic: resolved?.topicName || q.topic, question: q.question,
+        options: q.options, correctIndex: q.correct, selectedIndex: selected, explanation: q.explanation,
+        examId: resolved?.examId, topicIdx: resolved?.topicIdx,
+      });
     }
     setResults((r) => [...r, { correct: isCorrect, topic: q.topic, confidence, selected }]);
     if (!isCorrect) { setShowWhy(true); } else { setRevealed(true); }
@@ -1582,7 +1650,7 @@ RULES:
 // a real paper runs, and a style/difficulty note that steers the generator
 // toward that exam's actual character. Falls back to a topic-count heuristic
 // for anything not listed. Extend by adding a key — no code change needed.
-function ExamSimEngine({ examViews, onExit, t }) {
+function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
   const [examId, setExamId] = React.useState(examViews[0]?.id || null);
@@ -1594,6 +1662,7 @@ function ExamSimEngine({ examViews, onExit, t }) {
   const [timeLimitSec, setTimeLimitSec] = React.useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = React.useState(false);
   const [autoSubmitted, setAutoSubmitted] = React.useState(false);
+  const [startedAt, setStartedAt] = React.useState(null);
   const finishedRef = React.useRef(false);
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
@@ -1602,13 +1671,10 @@ function ExamSimEngine({ examViews, onExit, t }) {
   // it on the Course's curriculumRef, legacy exams directly — to pick the
   // named spec (src/lib/exam-specs.ts); specFor() falls back to a
   // topic-count heuristic for anything unlisted.
-  const examQual = React.useMemo(() => {
-    const ex = window.getExams ? window.getExams().find((e) => e.id === examId) : null;
-    if (!ex) return null;
-    if (ex.qualificationId) return ex.qualificationId;
-    const course = ex.courseId && window.getCourse ? window.getCourse(ex.courseId) : null;
-    return (course && course.curriculumRef && course.curriculumRef.qualificationId) || null;
-  }, [examId]);
+  const examQual = React.useMemo(
+    () => _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null),
+    [examId]
+  );
   const spec = React.useMemo(() => specFor(examQual, examTopics.length), [examQual, examTopics.length]);
   const questionCount = spec.questionCount;
   const styleNote = spec.note;
@@ -1631,7 +1697,11 @@ function ExamSimEngine({ examViews, onExit, t }) {
         window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
       }
       if (!isCorrect && resolved && window.logMistake) {
-        window.logMistake({ topic: resolved?.topicName || q.topic, question: q.question, examId: resolved?.examId, topicIdx: resolved?.topicIdx });
+        window.logMistake({
+          topic: resolved?.topicName || q.topic, question: q.question,
+          options: q.options, correctIndex: q.correct, selectedIndex: sel, explanation: q.explanation,
+          examId: resolved?.examId, topicIdx: resolved?.topicIdx,
+        });
       }
     });
     const pct = Math.round((correctCount / questions.length) * 100);
@@ -1659,6 +1729,7 @@ function ExamSimEngine({ examViews, onExit, t }) {
     const startExam = async () => {
       if (!selectedExam) return;
       setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
+      setStartedAt(Date.now());
       // Generate in PARALLEL CHUNKS of ~6 questions each, not one giant call.
       // A single 20-24 question request with explanations regularly blew past
       // the 60s budget or returned truncated/invalid JSON on the fast model —
@@ -1769,7 +1840,9 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
     const correctCount = questions.filter((q, i) => answers[i] === q.correct).length;
     const pct = Math.round((correctCount / total) * 100);
     const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0); // display only — actually awarded once in finishExam()
-    const predictedGrade = window.gradeFromReadiness ? window.gradeFromReadiness(pct) : null;
+    // The old "Predicted grade: B" badge is gone: ExamRecap reports the score
+    // on the exam's real scale instead. Letter grades were audit #10 — none of
+    // the exams this app targets reports one (see src/lib/scales.ts).
     const timeUsed = timeLimitSec - timeLeft;
 
     const byTopic = {};
@@ -1781,44 +1854,35 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
 
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 20px 24px", overflowY: "auto" } },
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 4px 20px", animation: "fadeUp 0.5s ease-out" } },
-        React.createElement("span", { style: { fontSize: 52, marginBottom: 6 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : pct >= 40 ? "💪" : "📖"),
-        React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, autoSubmitted ? L("Time's up!", "Час вийшов!", "Время вышло!", "Temps écoulé !", "Zeit ist um!") : L("Exam Submitted", "Іспит здано", "Экзамен сдан", "Examen soumis", "Prüfung eingereicht")),
-        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, L(`${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} правильно · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} правильно · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} richtig · ${pct}% · ${selectedExam?.name}`)),
-        predictedGrade && React.createElement("div", { style: { marginTop: 10 } }, _badge("var(--indigo-100)", "var(--indigo-700)", L(`Predicted grade: ${predictedGrade}`, `Прогнозована оцінка: ${predictedGrade}`, `Прогнозируемая оценка: ${predictedGrade}`, `Note prévue : ${predictedGrade}`, `Voraussichtliche Note: ${predictedGrade}`)))),
-
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 20 } },
-        ...[
-          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 70 ? "var(--emerald-700)" : "var(--red-700)" },
-          { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
-          { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
-          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
-        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 4px" } },
-          React.createElement("p", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: s.color } }, s.val),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
-
-      weakTopics.length > 0 && React.createElement("div", { style: { background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 20 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase" } }, L("Focus on:", "Зверніть увагу на:", "Обратите внимание на:", "Concentrez-vous sur :", "Konzentriere dich auf:")),
-        ...weakTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `• ${tp}`))),
-
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" } }, L("Full review", "Повний огляд", "Полный обзор", "Revue complète", "Vollständige Übersicht")),
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 } },
-        ...questions.map((q, i) => {
-          const sel = answers[i];
-          const answered = sel !== null && sel !== undefined;
-          const isCorrect = answered && sel === q.correct;
-          return React.createElement("div", { key: i, style: { background: "var(--surface-card)", border: `1px solid ${answered ? (isCorrect ? "var(--emerald-100)" : "var(--red-200)") : "var(--border-subtle)"}`, borderRadius: 12, padding: "12px 14px" } },
-            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 } },
-              React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.5 } }, `${i + 1}. ${q.question}`),
-              React.createElement("span", { style: { fontSize: 15, flexShrink: 0 } }, !answered ? "⬜" : isCorrect ? "✅" : "❌")),
-            React.createElement("p", { style: { margin: "0 0 2px", fontSize: 12, color: "var(--text-muted)" } },
-              answered ? L(`Your answer: ${(q.options || [])[sel]}`, `Ваша відповідь: ${(q.options || [])[sel]}`, `Ваш ответ: ${(q.options || [])[sel]}`, `Votre réponse : ${(q.options || [])[sel]}`, `Deine Antwort: ${(q.options || [])[sel]}`) : L("Not answered", "Немає відповіді", "Нет ответа", "Sans réponse", "Nicht beantwortet")),
-            !isCorrect && React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, color: "var(--emerald-700)", fontWeight: 600 } }, L(`Correct: ${(q.options || [])[q.correct]}`, `Правильно: ${(q.options || [])[q.correct]}`, `Правильно: ${(q.options || [])[q.correct]}`, `Correct : ${(q.options || [])[q.correct]}`, `Richtig: ${(q.options || [])[q.correct]}`)),
-            React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 } }, q.explanation));
-        })),
-
-      _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
+    return React.createElement(ExamRecap, {
+      mode: "real",
+      examId,
+      examName: selectedExam?.name || "",
+      taxonomy: examQual,
+      correct: correctCount,
+      total,
+      weakTopics,
+      sessionStartedAt: startedAt,
+      headline: autoSubmitted
+        ? L("Time's up!", "Час вийшов!", "Время вышло!", "Temps écoulé !", "Zeit ist um!")
+        : L("Exam Submitted", "Іспит здано", "Экзамен сдан", "Examen soumis", "Prüfung eingereicht"),
+      stats: [
+        { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
+        { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
+        { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
+      ],
+      // The per-question breakdown stays — it is the most-used part of a mock
+      // recap and has no equivalent anywhere else in the app.
+      review: questions.map((q, i) => ({
+        question: q.question, options: q.options, correct: q.correct,
+        selected: answers[i], explanation: q.explanation,
+      })),
+      // Routes out to the Practice engine via the parent (a mock exam cannot
+      // re-run itself as a drill), pre-filtered to what was just missed.
+      onDrillWeak: onDrillTopics ? (topics) => onDrillTopics(examId, topics) : null,
+      onExit,
+      t,
+    });
   }
 
   // ── Session (question) view ──
@@ -2197,7 +2261,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
     isCorrect ? _sfx.correct() : _sfx.wrong();
   };
 
-  const answerMcq = (idx, correct, explanation) => {
+  const answerMcq = (idx, correct, explanation, question, options) => {
     if (selected !== null) return;
     const isCorrect = idx === correct;
     setSelected(idx);
@@ -2206,9 +2270,16 @@ function LessonEngine({ topic, mode, onExit, t }) {
     registerAnswer(isCorrect, isCorrect ? 20 : 5);
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     if (!isCorrect && resolved && window.logMistake) {
-      const s = plan.steps[step];
-      const q = s.type === "checkpoint" ? "checkpoint" : (s.question || "");
-      window.logMistake({ topic: resolved.topicName, question: q, examId: resolved.examId, topicIdx: resolved.topicIdx });
+      // Question and options come in as arguments rather than being re-read
+      // from `plan.steps[step]` — the old lookup also carried a dead
+      // `type === "checkpoint"` branch (checkpoints render LessonCheckpoint,
+      // which never reaches here) and logged the literal string "checkpoint"
+      // as the question.
+      window.logMistake({
+        topic: resolved.topicName, question: question || "",
+        options, correctIndex: correct, selectedIndex: idx, explanation,
+        examId: resolved.examId, topicIdx: resolved.topicIdx,
+      });
     }
   };
 
@@ -2370,7 +2441,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
             else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
           }
           return React.createElement("button", {
-            key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation),
+            key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation, question, options),
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
@@ -3110,6 +3181,11 @@ If no actions fit, omit the ACTIONS line entirely.`,
 function AIChat({ t, initialQuery, onConsumeQuery }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [mode, setMode] = React.useState(null);
+  // Set by a recap's "Drill weak topics" CTA before switching to Practice, so
+  // the drill opens pre-filtered to the topics the student just lost marks on.
+  // Lives here rather than inside PracticeEngine because the mock-exam recap
+  // (a different engine) is what usually sets it.
+  const [practiceSeed, setPracticeSeed] = React.useState(null);
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
   const [expandedFolders, setExpandedFolders] = React.useState({}); // examId -> bool, "show all N" toggle in the topic picker
@@ -3145,7 +3221,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     }
   }, [initialQuery]);
 
-  const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); setReviewTopic(null); };
+  const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); setReviewTopic(null); setPracticeSeed(null); };
+  const drillTopics = (examId, topics) => { setPracticeSeed({ examId, topics }); setMode("practice"); };
   // Finishing one review returns to the QUEUE (not the lobby) so "clear the
   // stack" is one continuous flow — the queue re-derives from the brain, so
   // the topic just reviewed drops out or shows its new retention.
@@ -3233,7 +3310,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
   // Practice mode — full exam simulator with confidence + why
   if (mode === "practice") {
-    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby, t });
+    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby, seed: practiceSeed, t });
   }
 
   // Speed Round mode
@@ -3243,7 +3320,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
   // Exam Simulation — full timed mock exam covering ALL topics of one subject
   if (mode === "exam_sim") {
-    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby, t });
+    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby, onDrillTopics: drillTopics, t });
   }
 
   // Topic picker for Learn mode — grouped into ONE FOLDER PER SUBJECT so a
