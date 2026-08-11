@@ -1,6 +1,10 @@
 // AI Exam Coach — Onboarding bits: coach bubble, grade picker, upload, plan review
 // All exported to window for Onboarding.jsx to compose. Inline styles, mobile-first.
 
+// First real ES import in this legacy module — the upload limits are shared with
+// every other upload surface, so they must not be re-declared per screen.
+import { validateFiles, rejectionSummary, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
+
 // ── Coach speech bubble — sells the "talking to an advisor" feel ───────────────
 function CoachBubble({ children, advisor }) {
   return (
@@ -82,9 +86,23 @@ function ChipGrid({ items, selected, onToggle, lang }) {
 function UploadZone({ files, onAdd, onRemove, copy }) {
   const inputRef = React.useRef(null);
   const [drag, setDrag] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState("");
+
   // Pass the real File objects through (not just name/size) so the parent can
   // actually read their content for AI analysis instead of faking it.
-  const pick = (list) => { if (list && list.length) onAdd(Array.from(list)); };
+  //
+  // Everything is validated against the shared limits (audit #2) before it
+  // reaches the parent: 20 files, 25 MB each, 200 MB total. Rejected files are
+  // named in an error the student can act on — previously anything oversized
+  // was accepted here and only failed later, during AI analysis, as a generic
+  // failure with no mention of which file caused it.
+  const pick = (list) => {
+    if (!list || !list.length) return;
+    const lang = (window.getProfile && window.getProfile().lang) || "en";
+    const { accepted, rejected } = validateFiles(Array.from(list), files || []);
+    setUploadError(rejected.length ? rejectionSummary(rejected, lang) : "");
+    if (accepted.length) onAdd(accepted);
+  };
   return (
     <div>
       <button type="button"
@@ -99,8 +117,13 @@ function UploadZone({ files, onAdd, onRemove, copy }) {
         <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", lineHeight: 1.3, textAlign: "center" }}>{copy.s4_upload}</span>
         <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.3, textAlign: "center" }}>{copy.s4_upload_sub}</span>
       </button>
-      <input ref={inputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.ppt,.pptx,.doc,.docx,.txt"
+      <input ref={inputRef} type="file" multiple accept={ACCEPT_ATTRIBUTE}
         onChange={(e) => { pick(e.target.files); e.target.value = ""; }} style={{ display: "none" }} />
+      {uploadError && (
+        <p role="alert" style={{ margin: "var(--space-2) 0 0", padding: "var(--space-2) var(--space-3)", borderRadius: "var(--radius-lg)", background: "var(--red-50)", border: "1px solid var(--red-200)", color: "var(--red-700)", fontSize: "var(--text-xs)", lineHeight: 1.4 }}>
+          {uploadError}
+        </p>
+      )}
       {files.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
           {files.map((f, i) => (
