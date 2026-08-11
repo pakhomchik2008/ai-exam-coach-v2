@@ -7,6 +7,7 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+import { specFor } from "../../lib/exam-specs";
 
 // Novelty engine (Phase 3 §3a) — proof point wired into Practice Engine only,
 // the highest-traffic generator. Checks each generated question against the
@@ -1581,18 +1582,6 @@ RULES:
 // a real paper runs, and a style/difficulty note that steers the generator
 // toward that exam's actual character. Falls back to a topic-count heuristic
 // for anything not listed. Extend by adding a key — no code change needed.
-const EXAM_MOCK_SPECS = {
-  nmt:    { count: 20, note: "НМТ style: single-best-answer and matching items, moderate-to-hard, curriculum-faithful to the Ukrainian program." },
-  sat:    { count: 22, note: "Digital SAT style: concise multiple-choice, evidence and reasoning focus, adaptive difficulty." },
-  act:    { count: 20, note: "ACT style: fast-paced four-option multiple-choice." },
-  ap:     { count: 16, note: "AP style: college-level multiple-choice, application-heavy." },
-  ib:     { count: 18, note: "IB style: multiple-choice using command terms, HL-level rigour." },
-  gcse:   { count: 18, note: "GCSE style: graduated difficulty from foundation to higher tier." },
-  alevel: { count: 18, note: "A-Level style: demanding multi-step multiple-choice." },
-  matura: { count: 18, note: "Matura style: exam-board multiple-choice." },
-  abitur: { count: 16, note: "Abitur style: analytical multiple-choice." },
-};
-
 function ExamSimEngine({ examViews, onExit, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
@@ -1609,17 +1598,21 @@ function ExamSimEngine({ examViews, onExit, t }) {
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
   const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
-  // Resolve the exam's qualification (nmt/sat/...) via its Course's curriculumRef
-  // to pick the official mock spec; fall back to a topic-count heuristic.
+  // Resolve the exam's qualification (nmt/sat/...) — course-backed exams carry
+  // it on the Course's curriculumRef, legacy exams directly — to pick the
+  // named spec (src/lib/exam-specs.ts); specFor() falls back to a
+  // topic-count heuristic for anything unlisted.
   const examQual = React.useMemo(() => {
     const ex = window.getExams ? window.getExams().find((e) => e.id === examId) : null;
-    const course = ex && ex.courseId && window.getCourse ? window.getCourse(ex.courseId) : null;
+    if (!ex) return null;
+    if (ex.qualificationId) return ex.qualificationId;
+    const course = ex.courseId && window.getCourse ? window.getCourse(ex.courseId) : null;
     return (course && course.curriculumRef && course.curriculumRef.qualificationId) || null;
   }, [examId]);
-  const mockSpec = EXAM_MOCK_SPECS[examQual] || null;
-  const questionCount = mockSpec ? mockSpec.count : Math.max(12, Math.min(24, examTopics.length > 0 ? examTopics.length * 2 : 16));
-  const styleNote = mockSpec ? mockSpec.note : "at genuine exam difficulty for this subject";
-  const estMinutes = Math.round(questionCount * 1.5);
+  const spec = React.useMemo(() => specFor(examQual, examTopics.length), [examQual, examTopics.length]);
+  const questionCount = spec.questionCount;
+  const styleNote = spec.note;
+  const estMinutes = spec.durationMin;
 
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -1701,7 +1694,13 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
         // Merge, validate shape, cap at target count.
         const all = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
         if (all.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
-        const secs = Math.round(all.length * 1.5) * 60;
+        // An official-spec paper keeps its full named time budget even if a
+        // chunk failure shortened the actual question count — the point of
+        // "official format" is the clock matching the real thing, not
+        // shrinking alongside a generation hiccup. An unlisted qualification
+        // has no such budget to protect, so it stays proportional to what
+        // was actually generated.
+        const secs = spec.official ? spec.durationMin * 60 : Math.round(all.length * 1.5) * 60;
         setQuestions(all);
         setAnswers(new Array(all.length).fill(null));
         setIdx(0);
@@ -1732,6 +1731,14 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
         },
           React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: examId === e.id ? "var(--indigo-700)" : "var(--text-strong)" } }, e.name),
           React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, L(`${(e.topics || []).length || "?"} topics`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} sujets`, `${(e.topics || []).length || "?"} Themen`))))),
+
+      // Real vs Practice made visible (Phase 3 §3b): only a named spec can
+      // honestly claim to mirror an exam's official shape — everything else
+      // is a generic mock, and the copy says so rather than implying more
+      // precision than the fallback heuristic actually has.
+      selectedExam && spec.official && React.createElement("div", {
+        style: { display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "var(--emerald-50)", border: "1px solid var(--emerald-100)", borderRadius: 999, marginBottom: 12, fontSize: 11, fontWeight: 700, color: "var(--emerald-700)" }
+      }, "✓ ", L(`Official ${examQual?.toUpperCase()} format`, `Офіційний формат ${examQual?.toUpperCase()}`, `Официальный формат ${examQual?.toUpperCase()}`, `Format officiel ${examQual?.toUpperCase()}`, `Offizielles ${examQual?.toUpperCase()}-Format`)),
 
       selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
         ...[
