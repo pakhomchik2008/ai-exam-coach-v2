@@ -16,6 +16,7 @@ import {
   DEPTH_OPTIONS,
 } from "./tweaks";
 import { remountKeyFor, isTrackedKey } from "./data-version";
+import { QuickOnboarding } from "../features/onboarding/QuickOnboarding";
 
 type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
@@ -32,7 +33,6 @@ interface ExamLike {
 // conversion to-do: when its module becomes a real ES module, import it here
 // instead and delete the line.
 const Landing = legacyComponent<AnyProps>("Landing");
-const Onboarding = legacyComponent<AnyProps>("Onboarding");
 const AIPlan = legacyComponent<AnyProps>("AIPlan");
 const AppNav = legacyComponent<AnyProps>("AppNav");
 const StudyLayer = legacyComponent<AnyProps>("StudyLayer");
@@ -143,13 +143,12 @@ export function App() {
     return <Landing onContinue={goAfterAuth} t={t} lang={lang} onLangChange={setLang} />;
   }
   if (route === "onboarding") {
-    return (
-      <Onboarding
-        onFinish={(newExams: ExamLike[]) => goPlanning(newExams)}
-        lang={lang}
-        onLangChange={setLang}
-      />
-    );
+    // QuickOnboarding (Phase 3 §3d) replaces the ExamWizard-based `Onboarding`
+    // here. It ends on its own plan preview rather than routing to AIPlan, so
+    // onFinish lands straight on the dashboard — the preview already showed
+    // the student what was built, and AIPlan's 6.4s animation on top of that
+    // would just be the same information a second time, slower.
+    return <QuickOnboarding onFinish={goApp} lang={lang} onLangChange={setLang} />;
   }
   if (route === "planning") {
     return <AIPlan examIds={planExamIds} onStart={goApp} t={t} />;

@@ -369,6 +369,10 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     explainLang: d.explainLang,
     kind: d.kind,
     sessionLengthMin: d.sessionLengthMin, // per-subject lesson length from the wizard
+    // Which qualification the wizard picked. Without this the field migrateExam
+    // now preserves would never be populated in the first place for an exam
+    // created without a course — see migrateExam's note.
+    qualificationId: d.qualificationId,
   }, exams.length + i));
 
   saveExams([...exams, ...newExams]); // triggers reconcileSchedule automatically

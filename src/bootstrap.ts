@@ -67,7 +67,6 @@ import "./features/onboarding/onboarding-steps.jsx";
 import "./components/Combobox.jsx";
 import "./features/exams/CurriculumStep.jsx";
 import "./features/exams/exam-wizard.jsx";
-import "./features/onboarding/Onboarding.jsx";
 
 // ── Tier 5: screens
 import "./features/dashboard/Dashboard.jsx";
@@ -127,7 +126,6 @@ export const REQUIRED_GLOBALS = [
   "TweaksPanel",
   "AppNav",
   "Landing",
-  "Onboarding",
   "AIPlan",
   "Dashboard",
   "AIChat",

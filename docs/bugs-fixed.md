@@ -28,6 +28,10 @@ Running log for the Phase 2 work. Numbering continues `docs/audit.md` on the
 | 3c-4 | Practice drills by a single-subject student were attributed to no exam — the subject picker is hidden when there is only one exam, and `config.examId` defaulted to `null` regardless. That student's recaps could never show a score on their exam's real scale or compare against their own history | pending | With exactly one exam, that exam is now the default. One subject is unambiguous |
 
 
+| 3d-1 | **`commitExamWizard` dropped `qualificationId` before it ever reached the exam.** The companion to 3c-2: even once `migrateExam` preserved the field, the one function that creates exams never passed it through, so no wizard-created exam could carry its qualification | pending | Passed through. This is what makes an exam created in onboarding resolve its official mock format and its real score scale — verified live: a new НМТ exam persists `qualificationId: "nmt"` and its recap reports балів |
+| 3d-2 | **No way to turn an anonymous visitor into an account without losing their data.** `signUp()` creates a NEW user id, orphaning the anonymous user's synced `user_data` rows, seen-question history and AI-quota row — which made "build your plan first, sign up after" impossible to ship correctly | pending | `upgradeAnonymousAccount()` in auth-store.jsx uses `updateUser` to convert the anonymous user in place, same auth id, and falls back to `signUp` when there is no anonymous session. Password is applied before email so a pending email confirmation still leaves a usable credential; a confirmation requirement is reported back rather than thrown, because nothing failed |
+
+
 ## Migrations applied
 
 Both `supabase/12_storage_limits.sql` and `supabase/13_user_data_sync.sql`
