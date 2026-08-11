@@ -1177,7 +1177,12 @@ RULES:
 function PracticeEngine({ examViews, onExit, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | session | summary
-  const [config, setConfig] = React.useState({ difficulty: "adaptive", topics: [], estMinutes: 20 });
+  // examId scopes the drill to one subject; null means "across everything".
+  // `length` is chosen explicitly rather than derived from difficulty — a
+  // student who wants 5 quick questions should not have to pick "Easy" to get
+  // a shorter set. `timed` adds an optional countdown (audit #5).
+  const [config, setConfig] = React.useState({ difficulty: "adaptive", examId: null, topics: [], length: 10, timed: false });
+  const [remainingSec, setRemainingSec] = React.useState(null);
   const [questions, setQuestions] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
@@ -1190,7 +1195,22 @@ function PracticeEngine({ examViews, onExit, t }) {
   const [results, setResults] = React.useState([]);
   const [patternAlert, setPatternAlert] = React.useState(null);
 
-  const allTopics = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName || t.name, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
+  const everyTopic = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName || t.name, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
+  // Scoped to the chosen exam. Previously every exam's topics were flattened
+  // into one list and then truncated to the first 12, so a student with three
+  // subjects could not reach most of their own topics at all.
+  const allTopics = config.examId ? everyTopic.filter((tp) => tp.examId === config.examId) : everyTopic;
+
+  // Countdown for a timed drill. Hooks cannot come after the conditional
+  // returns below, so it lives here with the pattern detector. Ticking stops
+  // as soon as the session leaves the question phase, and hitting zero ends the
+  // drill at the summary rather than discarding the answers already given.
+  React.useEffect(() => {
+    if (remainingSec === null || phase !== "session") return undefined;
+    if (remainingSec <= 0) { setPhase("summary"); return undefined; }
+    const id = setTimeout(() => setRemainingSec((sec) => (sec === null ? null : sec - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [remainingSec, phase]);
 
   // Pattern detection must be declared here — hooks cannot come after conditional returns
   React.useEffect(() => {
@@ -1214,11 +1234,13 @@ function PracticeEngine({ examViews, onExit, t }) {
     const selectedTopics = config.topics.length > 0 ? config.topics : allTopics.slice(0, 3).map((t) => t.name);
 
     const startPractice = async () => {
+      // ~1 minute per question is the pace a timed drill should feel like.
+      setRemainingSec(config.timed ? config.length * 60 : null);
       setPhase("session"); setLoading(true); setError(null);
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicList = selectedTopics.join(", ");
-        const n = config.difficulty === "easy" ? 10 : config.difficulty === "hard" ? 15 : 12;
+        const n = config.length;
         const diffNote = config.difficulty === "adaptive"
           ? "Start at medium difficulty. If 2+ correct in a row, increase. If wrong, decrease. Mix difficulties."
           : `All questions should be ${config.difficulty} difficulty.`;
@@ -1269,10 +1291,47 @@ RULES:
             React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: config.difficulty === d.key ? "var(--indigo-700)" : "var(--text-strong)" } }, d.label),
             React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)" } }, d.desc))))),
 
+      // Subject — only worth showing when there is more than one to choose from.
+      examViews.length > 1 && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Subject", "Предмет", "Предмет", "Matière", "Fach")),
+      examViews.length > 1 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20 } },
+        ...[{ id: null, name: L("All subjects", "Усі предмети", "Все предметы", "Toutes les matières", "Alle Fächer") }].concat(examViews.map((e) => ({ id: e.id, name: e.name }))).map((e) => {
+          const on = config.examId === e.id;
+          return React.createElement("button", {
+            key: e.id || "all",
+            // Changing subject clears the topic selection — the old picks
+            // belong to a different syllabus.
+            onClick: () => setConfig((c) => ({ ...c, examId: e.id, topics: [] })),
+            style: { padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 20, border: `1px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "var(--indigo-50)" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" }
+          }, e.name);
+        })),
+
+      // Length
+      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Questions", "Питань", "Вопросов", "Questions", "Fragen")),
+      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } },
+        ...[5, 10, 20, 50].map((n) => {
+          const on = config.length === n;
+          return React.createElement("button", {
+            key: n, onClick: () => setConfig((c) => ({ ...c, length: n })),
+            style: { flex: 1, padding: "10px 0", fontSize: 14, fontWeight: 700, borderRadius: 12, border: `1.5px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "var(--indigo-50)" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" }
+          }, n);
+        })),
+
+      // Optional timer
+      React.createElement("button", {
+        onClick: () => setConfig((c) => ({ ...c, timed: !c.timed })),
+        "aria-pressed": config.timed,
+        style: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 14px", marginBottom: 20, background: config.timed ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${config.timed ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
+      },
+        React.createElement("span", { style: { fontSize: 18 } }, "\u23F1\uFE0F"),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: config.timed ? "var(--indigo-700)" : "var(--text-strong)" } }, L("Timer", "Таймер", "Таймер", "Minuteur", "Timer")),
+          React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)" } }, config.timed ? L(`${config.length} min — about a minute a question`, `${config.length} хв — приблизно хвилина на питання`, `${config.length} мин — примерно минута на вопрос`, `${config.length} min — environ une minute par question`, `${config.length} Min — etwa eine Minute pro Frage`) : L("Off — take your time", "Вимкнено — не поспішайте", "Выключен — не спешите", "Désactivé — prenez votre temps", "Aus — lass dir Zeit"))),
+        React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: config.timed ? "var(--indigo-600)" : "var(--text-faint)" } }, config.timed ? L("ON", "УВІМК", "ВКЛ", "ON", "AN") : L("OFF", "ВИМК", "ВЫКЛ", "OFF", "AUS"))),
+
       // Topics
       React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Topics", "Теми", "Темы", "Sujets", "Themen")),
-      React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24 } },
-        ...allTopics.slice(0, 12).map((tp) => {
+      React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24, maxHeight: 180, overflowY: "auto" } },
+        ...allTopics.map((tp) => {
           const on = selectedTopics.includes(tp.name);
           return React.createElement("button", {
             key: tp.name, onClick: () => setConfig((c) => {
@@ -1379,6 +1438,12 @@ RULES:
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         React.createElement("span", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)" } }, L(`Question ${qIdx + 1} / ${totalQ}`, `Питання ${qIdx + 1} / ${totalQ}`, `Вопрос ${qIdx + 1} / ${totalQ}`, `Question ${qIdx + 1} / ${totalQ}`, `Frage ${qIdx + 1} / ${totalQ}`)),
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", fontSize: 12 } },
+          // Turns red under a minute — the only moment the number needs to grab
+          // attention.
+          remainingSec !== null && React.createElement("span", {
+            role: "timer",
+            style: { fontFamily: "var(--font-mono)", fontWeight: 700, color: remainingSec <= 60 ? "var(--red-600)" : "var(--text-muted)" }
+          }, `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, "0")}`),
           q.difficulty && _badge(q.difficulty === "hard" ? "var(--red-50)" : q.difficulty === "easy" ? "var(--emerald-50)" : "var(--amber-50)",
             q.difficulty === "hard" ? "var(--red-700)" : q.difficulty === "easy" ? "var(--emerald-700)" : "var(--amber-700)", q.difficulty),
           React.createElement("button", { onClick: () => setPhase("summary"),
