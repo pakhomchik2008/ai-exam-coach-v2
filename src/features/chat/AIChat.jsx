@@ -4,6 +4,8 @@
 // attached file is re-sent with the whole conversation on each turn, so the cap
 // multiplies token cost by thread length, not just by file size.
 import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
+import { resizeImageFile } from "../../lib/image-resize";
+import { describeAiError } from "../../lib/ai-error";
 //
 // The AI generates a structured lesson plan upfront. The UI renders each step
 // as its own full-screen phase — not chat bubbles. Progress is always visible.
@@ -2756,8 +2758,12 @@ function ChatMode({ onExit, initialQuery, t }) {
       const ext = name.split(".").pop().toLowerCase();
       try {
         if ((file.type || "").startsWith("image/")) {
-          const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = (e) => res(e.target.result); r.onerror = rej; r.readAsDataURL(file); });
-          read.push({ kind: "image", name, size: file.size, mimeType: file.type, base64: dataUrl.split(",")[1], dataUrl });
+          // Same fix as StudyHub: resized to Claude's 1568px recommendation
+          // before base64 encoding. A raw phone photo blew past our payload
+          // guard and, in production, Vercel's request-body ceiling — that was
+          // "Connection hiccup" on a 2-photo attach.
+          const resized = await resizeImageFile(file);
+          read.push({ kind: "image", name, size: file.size, mimeType: resized.mimeType, base64: resized.base64, dataUrl: resized.dataUrl });
         } else if (ext === "pdf") {
           const ab = await file.arrayBuffer();
           read.push({ kind: "pdf", name, size: file.size, base64: btoa(String.fromCharCode(...new Uint8Array(ab))) });
@@ -2823,7 +2829,11 @@ If no actions fit, omit the ACTIONS line entirely.`,
       pushAI(mainText, actions);
     } catch (e) {
       setTyping(false);
-      pushAI(L("Connection hiccup — try again in a moment.", "Тимчасовий збій зв'язку — спробуйте за хвилину.", "Временный сбой связи — попробуйте через минуту.", "Petit souci de connexion — réessayez dans un instant.", "Kurzer Verbindungsaussetzer — versuch es gleich noch einmal."));
+      // Real server message (e.g. a specific payload-too-large or quota
+      // reason) instead of always showing the same generic line — see
+      // src/lib/ai-error.ts. A bare network failure with no HTTP response
+      // still falls back to the generic phrase there.
+      pushAI(describeAiError(e, t?.code || "en"));
     }
   };
 

@@ -31,8 +31,14 @@ const SUPABASE_ANON_KEY =
 
 const DEFAULT_ORIGINS = [
   "https://ai-exam-coach-v2.vercel.app",
-  "http://127.0.0.1:5050",
-  "http://localhost:5050",
+  // 5050 was serve.py's port, replaced by Vite (5173) in Phase 1. Left stale
+  // here meant every AI request from the local dev server was silently
+  // rejected with a 403 "Origin not allowed" — found while reproducing a
+  // report of AI calls failing on 2+ file attachments; the attachments were
+  // never the issue for this specific path, the dev server could not reach
+  // /api/complete at all.
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
 ];
 
 function allowedOrigins() {

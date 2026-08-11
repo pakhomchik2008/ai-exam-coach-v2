@@ -3,6 +3,8 @@
 // Shared upload limits — the same 20 files / 25 MB / 200 MB rules the exam
 // wizard enforces, so the two surfaces cannot drift apart.
 import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
+import { resizeImageFile } from "../../lib/image-resize";
+import { describeAiError } from "../../lib/ai-error";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
@@ -169,8 +171,13 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
     {
       if (mime.startsWith('image/')) {
-        const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej; r.readAsDataURL(file); });
-        return { kind: 'image', base64: dataUrl.split(',')[1], mimeType: mime, dataUrl, name };
+        // Resized to Claude's own 1568px recommended ceiling before it becomes
+        // base64. A raw phone photo is 2-5 MB (3-7 MB once base64-encoded);
+        // two of those in one request were blowing past both our own payload
+        // guard AND Vercel's ~4.5 MB hard request-body limit in production,
+        // which is what "Analysis failed" actually was.
+        const resized = await resizeImageFile(file);
+        return { kind: 'image', base64: resized.base64, mimeType: resized.mimeType, dataUrl: resized.dataUrl, name };
       }
       if (ext === 'pdf' || mime === 'application/pdf') {
         const ab = await file.arrayBuffer();
@@ -304,7 +311,11 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       }
     } catch (err) {
       clearInterval(iv);
-      setState({ mode: 'upload', errorMsg: L('Analysis failed — please try again, or use shorter text.','Аналіз не вдався — спробуйте ще раз або скоротіть текст.','Анализ не удался — попробуйте ещё раз или сократите текст.','Échec de l\'analyse — réessayez ou raccourcissez le texte.','Analyse fehlgeschlagen — erneut versuchen oder Text kürzen.') });
+      // Surfaces the real reason (a specific "Payload too large" or quota
+      // message from the server) instead of always showing the same generic
+      // line regardless of cause — see src/lib/ai-error.ts.
+      const lang = (window.getProfile && window.getProfile().lang) || 'en';
+      setState({ mode: 'upload', errorMsg: describeAiError(err, lang) });
     }
   };
 
