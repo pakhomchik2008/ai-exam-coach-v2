@@ -1,4 +1,6 @@
 // AI Exam Coach — i18n strings (EN + UK subset for the UI kit)
+import { LANDING_STRINGS } from "./landing";
+
 const LANGS = {
   en: {
     code: "en", flag: "🇬🇧", label: "English",
@@ -383,6 +385,10 @@ const EXAM_SYSTEMS = [
   { group: "🇦🇪 UAE / Middle East", options: ["Emirates Standardized Test (EmSAT)","TOEFL","IELTS"] },
   { group: "✏️ Custom / Other", options: ["University custom exam","School internal exam","Professional certification","Other"] },
 ];
+
+for (const code of Object.keys(LANDING_STRINGS)) {
+  Object.assign(LANGS[code], LANDING_STRINGS[code]);
+}
 
 window.LANGS = LANGS;
 window.EXAM_SYSTEMS = EXAM_SYSTEMS;
