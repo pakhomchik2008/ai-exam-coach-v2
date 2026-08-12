@@ -2342,10 +2342,242 @@ function LearnTheoryReader({ topic, onExit, t }) {
   ]);
 }
 
+// ─── Learn mode: flashcards slide reader (Phase 3.7c) ────────────────────────
+//
+// Second Learn method, alongside LearnTheoryReader. Same audience, different
+// intake: some students learn by reading through, others by cycling 6-10
+// bite-sized cards. AI decides card count (6 for simple topics, 10 for
+// complex ones) so a trivial recall topic doesn't get padded and a deep one
+// isn't compressed. Cards are one-concept-each (front only — no flip; the
+// concept + short explanation + micro-example live on the same face).
+// KaTeX-rendered math via _md, same pipeline as the theory reader.
+
+const FLASHCARDS_MODE_TAG = "flashcards";
+
+async function generateFlashcards({ topic, resolved, tcode, force }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
+  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
+  const cacheKey = lessonCacheKey({ mode: FLASHCARDS_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: _lessonExam?.explainLang, ui: tcode });
+  if (!force) {
+    const cached = getCachedLesson(cacheKey);
+    if (cached) return cached;
+    if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
+  }
+  const run = (async () => {
+    const complete = window.brainComplete || ((a) => window.claude.complete(a));
+    const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+    const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
+    const system = `You are the best exam-prep teacher in the world. Break the topic "${topic}" into a small deck of concept cards — each card is ONE clear idea a student can absorb in under 30 seconds.
+
+OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
+
+STRUCTURE:
+{
+  "title": "One clear title, matching the topic",
+  "cards": [
+    {"heading": "Concept name (3-5 words)", "body": "1-2 short sentences explaining the concept. Concrete, active voice.", "example": "Optional: one tiny worked example or formula (leave off if the body already speaks for itself)"}
+  ]
+}
+
+RULES:
+- Total cards: 6 for a simple recall topic, 10 for a deep multi-step topic, else pick something between based on how much genuinely different content there is. Never fewer than 6 or more than 10.
+- Cards are ordered easiest → hardest, each building on the last.
+- Each card covers ONE distinct concept — no repeats, no near-duplicates.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+- **Bold** the single key term on each card.
+- Skip filler like "in this card we will…" — get straight to the point.`;
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
+    const raw = await Promise.race([
+      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride }),
+      timeout,
+    ]);
+    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    if (!parsed || !Array.isArray(parsed.cards) || parsed.cards.length === 0) throw new Error(L("Invalid deck", "Некоректна колода", "Некорректная колода", "Deck invalide", "Ungültiges Deck"));
+    // Clamp defensively — the prompt says 6-10 but a rogue call could still
+    // return more/less. Truncating past 10 keeps the UX contract.
+    parsed.cards = parsed.cards.slice(0, 10);
+    saveCachedLesson(cacheKey, parsed);
+    _lessonInFlight.delete(cacheKey);
+    return parsed;
+  })();
+  _lessonInFlight.set(cacheKey, run);
+  run.catch(() => _lessonInFlight.delete(cacheKey));
+  return run;
+}
+
+function LearnFlashcards({ topic, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [plan, setPlan] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [retry, setRetry] = React.useState(0);
+  const [idx, setIdx] = React.useState(0);
+  const [markedRead, setMarkedRead] = React.useState(false);
+  const grantedRef = React.useRef(false);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(null); setPlan(null); setIdx(0);
+    (async () => {
+      try {
+        const parsed = await generateFlashcards({ topic, resolved, tcode: t?.code, force: retry > 0 });
+        if (cancelled) return;
+        setPlan(parsed); setLoading(false);
+      } catch (e) {
+        if (cancelled) return;
+        console.error("Flashcards generation failed:", e);
+        setError(e.message || L("Failed to load", "Не вдалося завантажити", "Не удалось загрузить", "Échec du chargement", "Fehler beim Laden"));
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [topic, retry]);
+
+  // Left/right arrow keys navigate the deck — same shape every slide reader
+  // ships with, so the interaction is discoverable without a legend.
+  React.useEffect(() => {
+    if (!plan) return;
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") setIdx((i) => Math.max(0, i - 1));
+      else if (e.key === "ArrowRight") setIdx((i) => Math.min(plan.cards.length - 1, i + 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [plan]);
+
+  const markAsRead = () => {
+    if (grantedRef.current || markedRead) return;
+    grantedRef.current = true;
+    setMarkedRead(true);
+    if (window.addXp) window.addXp(50);
+    if (resolved && window.recordReview) {
+      window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: true });
+    }
+    _sfx.correct();
+  };
+
+  const wrap = (children) => React.createElement("div", {
+    style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px 80px", fontFamily: "var(--font-sans)", color: "var(--text-body)" },
+  }, children);
+  const header = React.createElement("div", { key: "hdr", style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 18 } },
+    React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+    React.createElement("span", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600 } },
+      L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten")),
+  );
+
+  if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
+    L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"))]);
+  if (error) return wrap([header,
+    React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
+    React.createElement("button", { key: "r", onClick: () => setRetry((n) => n + 1), style: { marginTop: 10, padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontFamily: "var(--font-sans)" } },
+      L("Retry", "Ще раз", "Ещё раз", "Réessayer", "Erneut versuchen")),
+  ]);
+  if (!plan) return wrap([header]);
+
+  const card = plan.cards[idx];
+  const isLast = idx === plan.cards.length - 1;
+  const html = (s) => ({ __html: _md(s || "") });
+
+  return wrap([
+    header,
+    React.createElement("h1", { key: "title", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.25 } }, plan.title),
+    // Progress dots — one per card, current is filled. Compact hint that
+    // the deck has an end without hiding it behind a counter.
+    React.createElement("div", { key: "dots", style: { display: "flex", gap: 6, marginBottom: 20, marginTop: 4 } },
+      ...plan.cards.map((_, i) => React.createElement("span", {
+        key: i,
+        style: { width: 8, height: 8, borderRadius: "50%", background: i === idx ? "var(--indigo-600)" : i < idx ? "var(--indigo-300)" : "var(--slate-200)" },
+      })),
+    ),
+    React.createElement("div", { key: "card", style: {
+      background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16,
+      padding: "28px 26px", minHeight: 260, display: "flex", flexDirection: "column", gap: 14,
+      boxShadow: "var(--shadow-sm)",
+    } },
+      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
+      React.createElement("h2", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, card.heading),
+      React.createElement("div", { style: { fontSize: 16, lineHeight: 1.7, color: "var(--text-body)" }, dangerouslySetInnerHTML: html(card.body) }),
+      card.example && React.createElement("div", { style: { marginTop: "auto", padding: "12px 14px", background: "var(--surface-muted)", borderRadius: 10, fontSize: 14, lineHeight: 1.65 }, dangerouslySetInnerHTML: html(card.example) }),
+    ),
+    React.createElement("div", { key: "nav", style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, gap: 12 } },
+      React.createElement("button", {
+        onClick: () => setIdx((i) => Math.max(0, i - 1)),
+        disabled: idx === 0,
+        style: { padding: "12px 20px", borderRadius: 12, border: "1px solid var(--border-default)", background: idx === 0 ? "var(--surface-muted)" : "var(--surface-card)", color: idx === 0 ? "var(--text-faint)" : "var(--text-body)", cursor: idx === 0 ? "default" : "pointer", fontFamily: "var(--font-sans)", fontWeight: 600 },
+      }, "← " + L("Back", "Назад", "Назад", "Précédent", "Zurück")),
+      isLast
+        ? (markedRead
+            ? React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, color: "var(--emerald-600)", fontWeight: 600, fontSize: 15 } },
+                React.createElement("span", { style: { fontSize: 20 } }, "✓"),
+                L("+50 XP", "+50 XP", "+50 XP", "+50 XP", "+50 XP"),
+              )
+            : React.createElement("button", {
+                onClick: markAsRead,
+                style: { padding: "12px 24px", borderRadius: 999, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
+              }, L("Got it · +50 XP", "Зрозумів · +50 XP", "Понял · +50 XP", "Compris · +50 XP", "Verstanden · +50 XP")))
+        : React.createElement("button", {
+            onClick: () => setIdx((i) => Math.min(plan.cards.length - 1, i + 1)),
+            style: { padding: "12px 20px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 700 },
+          }, L("Next", "Далі", "Далее", "Suivant", "Weiter") + " →"),
+    ),
+  ]);
+}
+
+// Picker — asked every time the student opens Learn mode. Two clear options,
+// no persistence: the "right" method depends on the topic and the mood, not
+// on a permanent setting somewhere the student would forget to change.
+function LearnMethodPicker({ topic, onExit, onPick, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const wrap = (children) => React.createElement("div", {
+    style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },
+  }, children);
+  const cardStyle = { flex: 1, padding: "24px 22px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms" };
+  return wrap([
+    React.createElement("div", { key: "hdr", style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 18 } },
+      React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+      React.createElement("span", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600 } },
+        L("How do you want to learn?", "Як ви хочете вчити?", "Как хотите учить?", "Comment veux-tu apprendre ?", "Wie möchtest du lernen?")),
+    ),
+    React.createElement("h1", { key: "title", style: { margin: "0 0 24px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, topic),
+    React.createElement("div", { key: "opts", style: { display: "flex", gap: 14, flexWrap: "wrap" } },
+      React.createElement("button", { onClick: () => onPick("theory"), style: cardStyle },
+        React.createElement("div", { style: { fontSize: 28 } }, "📖"),
+        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
+          L("Full theory page", "Повна теорія", "Полная теория", "Théorie complète", "Vollständige Theorie")),
+        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
+          L("Structured read — TL;DR, concepts, worked examples, common mistakes, cheat sheet.",
+            "Структурований конспект — TL;DR, концепції, приклади, помилки, шпаргалка.",
+            "Структурированный конспект — TL;DR, концепции, примеры, ошибки, шпаргалка.",
+            "Lecture structurée — TL;DR, concepts, exemples, erreurs, aide-mémoire.",
+            "Strukturierte Lektüre — TL;DR, Konzepte, Beispiele, Fehler, Spickzettel.")),
+      ),
+      React.createElement("button", { onClick: () => onPick("flashcards"), style: cardStyle },
+        React.createElement("div", { style: { fontSize: 28 } }, "🎴"),
+        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
+          L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten")),
+        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
+          L("6-10 bite-sized cards, one concept each. Swipe through at your pace.",
+            "6-10 коротких карток, по одному концепту. Гортайте у своєму темпі.",
+            "6-10 коротких карточек, по одному концепту. Листайте в своём темпе.",
+            "6-10 cartes courtes, un concept chacune. Passe à ton rythme.",
+            "6-10 kurze Karten, ein Konzept pro Karte. Blättere in deinem Tempo.")),
+      ),
+    ),
+  ]);
+}
+
 function LessonEngine({ topic, mode, onExit, t }) {
-  // Learn mode is now the pure-theory reader — no quiz script. Practice and
-  // review still use the old mixed-step LessonEngine body below.
+  // Learn mode: pick method (theory reader vs flashcards) first, then
+  // delegate. Practice and review skip the picker.
+  const [learnMethod, setLearnMethod] = React.useState(null);
   if (mode === "learn") {
+    if (!learnMethod) {
+      return React.createElement(LearnMethodPicker, { topic, onExit, t, onPick: setLearnMethod });
+    }
+    if (learnMethod === "flashcards") {
+      return React.createElement(LearnFlashcards, { topic, onExit, t });
+    }
     return React.createElement(LearnTheoryReader, { topic, onExit, t });
   }
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
