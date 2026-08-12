@@ -7,3 +7,4 @@
 @import "tokens/spacing.css";
 @import "tokens/base.css";
 @import "tokens/tiers.css";   /* level-tier re-themes — must win over base tokens */
+@import "learn.css";          /* Learn list / sheet / medal motion */
