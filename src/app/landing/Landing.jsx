@@ -89,7 +89,7 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
   return (
     <div style={{ minHeight: "100vh", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-5)" }}>
       <style>{`@keyframes authShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-4px)}40%,60%{transform:translateX(4px)}}@keyframes authRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes authSpin{to{transform:rotate(360deg)}}`}</style>
-      <form onSubmit={submit} style={{ width: "100%", maxWidth: 420, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)", animation: "authRise var(--dur-normal) var(--ease-out)" }}>
+      <form className="land-auth" onSubmit={submit} style={{ width: "100%", maxWidth: 420, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
 
         <div>
           <button type="button" onClick={onBack} style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0, marginBottom: "var(--space-3)" }}>← {L("Back", "Назад", "Назад", "Retour", "Zurück")}</button>
@@ -259,6 +259,8 @@ function Landing({ onContinue, t, lang, onLangChange }) {
     boxShadow: filled ? "var(--shadow-md)" : "var(--shadow-sm)",
   });
 
+  const headline = L("Study smarter, not longer", "Навчайтесь розумніше, а не довше", "Учитесь умнее, а не дольше", "Étudiez plus intelligemment, pas plus longtemps", "Klüger lernen, nicht länger");
+
   return (
     <div style={{ maxWidth: "58rem", margin: "0 auto", padding: "var(--space-10) var(--space-6) var(--space-12)" }}>
       {/* Mini-nav: brand mark left, language picker right */}
@@ -270,35 +272,38 @@ function Landing({ onContinue, t, lang, onLangChange }) {
         {langPicker}
       </div>
 
-      <div className="ux-page" style={{ textAlign: "center" }}>
-        {/* Eyebrow chip — FintechX "Core features" style */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-sm)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", letterSpacing: "var(--tracking-wide)", textTransform: "uppercase", color: "var(--indigo-600)", marginBottom: "var(--space-5)" }}>
-          <span className="ux-live" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--emerald-500)" }} />
+      <div style={{ textAlign: "center" }}>
+        <div className="land-chip" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-sm)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", letterSpacing: "var(--tracking-wide)", textTransform: "uppercase", color: "var(--indigo-600)", marginBottom: "var(--space-5)" }}>
+          <span className="land-ping" aria-hidden="true" />
           AI Exam Coach
         </div>
-        <h1 style={{ margin: 0, fontSize: "clamp(2.4rem, 5.5vw, 3.6rem)", fontWeight: "var(--weight-bold)", letterSpacing: "var(--tracking-tight)", lineHeight: "var(--leading-tight)", color: "var(--text-strong)", fontFamily: "var(--font-display)" }}>{L("Study smarter, not longer", "Навчайтесь розумніше, а не довше", "Учитесь умнее, а не дольше", "Étudiez plus intelligemment, pas plus longtemps", "Klüger lernen, nicht länger")}</h1>
-        <p style={{ margin: "var(--space-4) auto 0", maxWidth: "34rem", fontSize: "var(--text-lg)", lineHeight: "var(--leading-normal)", color: "var(--text-muted)" }}>
+        <h1 className="land-headline" style={{ margin: 0, fontSize: "clamp(2.4rem, 5.5vw, 3.6rem)", fontWeight: "var(--weight-bold)", letterSpacing: "var(--tracking-tight)", lineHeight: "var(--leading-tight)", color: "var(--text-strong)", fontFamily: "var(--font-display)" }}>
+          {headline.split(" ").map((word, i) => (
+            <span key={i} style={{ animationDelay: `${80 + i * 90}ms` }}>{word}</span>
+          ))}
+        </h1>
+        <p className="land-sub" style={{ margin: "var(--space-4) auto 0", maxWidth: "34rem", fontSize: "var(--text-lg)", lineHeight: "var(--leading-normal)", color: "var(--text-muted)" }}>
           {L("Your AI coach builds a day-by-day study plan that adapts as you go. Add a course, set your exam date, and start revising.",
             "Ваш AI-коуч створює щоденний план навчання, який підлаштовується на ходу. Додайте курс, встановіть дату іспиту й починайте повторення.",
             "Ваш AI-коуч создаёт ежедневный план обучения, который подстраивается на ходу. Добавьте курс, установите дату экзамена и начните повторение.",
             "Votre coach IA élabore un plan d'étude quotidien qui s'adapte au fil du temps. Ajoutez un cours, fixez votre date d'examen et commencez à réviser.",
             "Dein KI-Coach erstellt einen Tag-für-Tag-Lernplan, der sich unterwegs anpasst. Füge einen Kurs hinzu, lege dein Prüfungsdatum fest und beginne mit dem Lernen.")}
         </p>
-        <div style={{ marginTop: "var(--space-8)", display: "flex", justifyContent: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+        <div className="land-cta" style={{ marginTop: "var(--space-8)", display: "flex", justifyContent: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
           <button className="ux-press" style={pillBtn(true)} onClick={() => setView("signup")}>{L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren")} →</button>
           <button className="ux-press" style={pillBtn(false)} onClick={() => setView("login")}>{L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}</button>
         </div>
-        <button className="ux-press" onClick={startDemo} style={{ marginTop: "var(--space-5)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
+        <button className="ux-press land-demo" onClick={startDemo} style={{ marginTop: "var(--space-5)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
           {L("Try demo — no account needed →", "Спробувати демо — без акаунту →", "Попробовать демо — без аккаунта →", "Essayer la démo — sans compte →", "Demo ausprobieren — kein Konto nötig →")}
         </button>
       </div>
 
-      <div className="ux-stagger" style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-5)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+      <div className="land-cards" style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-5)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
         {features.map((f, i) => {
           // Middle card gets the FintechX "dark insight card" treatment.
           const dark = i === 1;
           return (
-            <div key={f.title} className="ux-card" style={{
+            <div key={f.title} style={{
               borderRadius: "var(--radius-2xl)",
               border: dark ? "1px solid var(--ink-700)" : "1px solid var(--border-default)",
               background: dark ? "var(--surface-ink)" : "var(--surface-card)",

@@ -1,0 +1,97 @@
+/* Landing — first paint people actually notice. Marketing durations, transform+opacity. */
+
+@keyframes land-rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes land-word {
+  from { opacity: 0; transform: translateY(28px); filter: blur(8px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes land-card {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes land-auth {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes land-ping {
+  0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 160, 110, 0.55); }
+  70%  { transform: scale(0.85); box-shadow: 0 0 0 10px rgba(22, 160, 110, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 160, 110, 0); }
+}
+
+.land-chip {
+  animation: land-rise 520ms var(--ease-out) both;
+}
+
+.land-headline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.28em;
+}
+.land-headline span {
+  display: inline-block;
+  animation: land-word 640ms var(--ease-out) both;
+}
+
+.land-sub {
+  animation: land-rise 560ms var(--ease-out) 280ms both;
+}
+
+.land-cta {
+  animation: land-rise 560ms var(--ease-out) 420ms both;
+}
+
+.land-demo {
+  animation: land-rise 560ms var(--ease-out) 520ms both;
+}
+
+.land-cards > * {
+  animation: land-card 640ms var(--ease-out) both;
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+.land-cards > *:nth-child(1) { animation-delay: 560ms; }
+.land-cards > *:nth-child(2) { animation-delay: 660ms; }
+.land-cards > *:nth-child(3) { animation-delay: 760ms; }
+
+.land-ping {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--emerald-500);
+  animation: land-ping 1.8s var(--ease-out) infinite;
+}
+
+.land-auth {
+  animation: land-auth 420ms var(--ease-out) both;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .land-cards > *:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .land-chip,
+  .land-headline span,
+  .land-sub,
+  .land-cta,
+  .land-demo,
+  .land-cards > *,
+  .land-auth,
+  .land-ping {
+    animation: none;
+    filter: none;
+  }
+}
