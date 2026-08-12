@@ -9,3 +9,4 @@
 @import "tokens/tiers.css";   /* level-tier re-themes — must win over base tokens */
 @import "tokens/motion.css";  /* fadeUp + shared overlay / press / stagger */
 @import "learn.css";          /* Learn list / sheet / medal motion */
+@import "onboarding.css";     /* first-run slit unveil, pick snap, plan ready */
