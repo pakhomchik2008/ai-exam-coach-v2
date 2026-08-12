@@ -41,6 +41,7 @@ const TweakSection = legacyComponent<AnyProps>("TweakSection");
 const TweakRadio = legacyComponent<AnyProps>("TweakRadio");
 const AIChat = legacyComponent<AnyProps>("AIChat");
 const StudyHub = legacyComponent<AnyProps>("StudyHub");
+const LearnMain = legacyComponent<AnyProps>("LearnMain");
 const MistakeJournal = legacyComponent<AnyProps>("MistakeJournal");
 const CalendarHub = legacyComponent<AnyProps>("CalendarHub");
 const Exams = legacyComponent<AnyProps>("Exams");
@@ -272,6 +273,13 @@ function renderTab({
       return <AIChat t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />;
     }
     case "study": {
+      // Phase 3.7a — new Learn section replaces StudyHub for exams with a
+      // tree defined (currently nmt, ielts). StudyHub stays available on
+      // /studyhub for one release as a rollback path if LearnMain
+      // regresses something in production.
+      return <LearnMain t={t} />;
+    }
+    case "studyhub": {
       return <StudyHub t={t} />;
     }
     case "journal": {
