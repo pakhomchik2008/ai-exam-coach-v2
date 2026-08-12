@@ -2186,7 +2186,7 @@ STRUCTURE — every field required unless marked optional:
 {
   "title": "One clear title, matching the topic",
   "tldr": "2-3 sentences summarising the whole idea in plain language a beginner can grasp",
-  "diagram": "OPTIONAL raw SVG code (only when a diagram genuinely helps — geometry, coordinate axes, function graph, tree). Full <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"…\\">…</svg>. Skip the field entirely if the topic is purely verbal.",
+  "diagram": "REQUIRED unless the topic is purely verbal (grammar, essay structure, vocab). Raw SVG code: full <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 W H\\">…</svg>. For anything numeric, spatial, structural, or process-shaped — draw it. Better to have a decent diagram than none. See DIAGRAM PLAYBOOK below.",
   "concepts": [
     {"heading": "Concept name", "body": "2-4 short paragraphs explaining it. Use analogies and concrete examples. **Bold** key terms."}
   ],
@@ -2203,7 +2203,21 @@ RULES:
 - 2-3 worked examples that cover different situations.
 - 3-6 pitfalls; 4-8 cheat-sheet lines.
 - 2-3 relatedConcepts — topic names the student would naturally study NEXT to build on this one. Real topic names only, no filler like "practice problems".
-- diagram: include ONLY when it clearly helps. Use plain colors that read on both light and dark backgrounds (use currentColor for strokes/text). No <script>, no on* attributes, no external images.
+- diagram: include for EVERY topic that has any visual anchor — see DIAGRAM PLAYBOOK. Only skip when the topic is purely verbal (essay writing, grammar rules, vocabulary lists). "I couldn't think of one" is never a reason. currentColor for every stroke, fill, and text so the same SVG works on light and dark themes. Never <script>, never on* attributes, never external images.
+
+DIAGRAM PLAYBOOK — pick the shape by topic type:
+- Geometry (triangle, circle, quadrilateral, angle) → draw the actual figure with labelled vertices/sides/angles. Include the specific values from your worked example.
+- Coordinate geometry / vectors → axes with numbered gridlines and the points/lines plotted.
+- Functions (linear, quadratic, trig, exp, log) → plot the graph on axes across a sensible range. Mark intercepts and any key features (vertex, asymptote).
+- Derivatives / integrals → the function's graph with the tangent line, or the shaded region under the curve.
+- Stereometry (prism, cone, sphere, pyramid) → 3D-projected wireframe with dashed hidden edges.
+- Number-line topics (inequalities, absolute value, intervals) → horizontal number line with the solution set shaded.
+- Probability / combinatorics → tree diagram or Venn diagram, whichever fits the example.
+- Statistics → bar chart, histogram, or box plot matching the sample data.
+- Physics-shaped topics (motion, forces) → free-body diagram or a time-vs-position graph.
+- IELTS Listening/Reading passage shapes → flow chart, table skeleton, or map — whatever the task uses.
+- Sizing: viewBox 0 0 400 260 for most; larger for wide graphs. No fixed width or height on the <svg> element itself, only viewBox — the reader wraps at max 480px.
+- Style: 1.5-2px strokes, small filled circles for points, sans-serif text 12-14px. Prefer simplicity over decoration.
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
 - Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
