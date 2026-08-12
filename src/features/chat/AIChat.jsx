@@ -8,6 +8,8 @@ import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { tokenizeMath, renderMathSegment, escapeHtml as _escapeHtmlMath } from "../../lib/math-render";
+import { sanitizeSvg } from "../../lib/svg-sanitize";
+import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
 import { ExamRecap } from "../study/ExamRecap.jsx";
 
@@ -2180,10 +2182,11 @@ async function generateTheoryReader({ topic, resolved, tcode, force }) {
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
 
-STRUCTURE — every field is required:
+STRUCTURE — every field required unless marked optional:
 {
   "title": "One clear title, matching the topic",
   "tldr": "2-3 sentences summarising the whole idea in plain language a beginner can grasp",
+  "diagram": "OPTIONAL raw SVG code (only when a diagram genuinely helps — geometry, coordinate axes, function graph, tree). Full <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"…\\">…</svg>. Skip the field entirely if the topic is purely verbal.",
   "concepts": [
     {"heading": "Concept name", "body": "2-4 short paragraphs explaining it. Use analogies and concrete examples. **Bold** key terms."}
   ],
@@ -2191,13 +2194,16 @@ STRUCTURE — every field is required:
     {"prompt": "A worked example problem", "steps": ["Step 1: …", "Step 2: …", "…"], "answer": "The final answer"}
   ],
   "pitfalls": ["Common mistake 1 (short, one sentence)", "Common mistake 2", "…"],
-  "cheatsheet": ["Key formula or rule 1", "Key formula or rule 2", "…"]
+  "cheatsheet": ["Key formula or rule 1", "Key formula or rule 2", "…"],
+  "relatedConcepts": ["Related topic name 1", "Related topic name 2", "Related topic name 3"]
 }
 
 RULES:
 - 3-5 concepts, ordered from easiest to hardest.
 - 2-3 worked examples that cover different situations.
 - 3-6 pitfalls; 4-8 cheat-sheet lines.
+- 2-3 relatedConcepts — topic names the student would naturally study NEXT to build on this one. Real topic names only, no filler like "practice problems".
+- diagram: include ONLY when it clearly helps. Use plain colors that read on both light and dark backgrounds (use currentColor for strokes/text). No <script>, no on* attributes, no external images.
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
 - Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
@@ -2217,21 +2223,24 @@ RULES:
   return run;
 }
 
-function LearnTheoryReader({ topic, onExit, t }) {
+function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [retry, setRetry] = React.useState(0);
   const [markedRead, setMarkedRead] = React.useState(false);
+  const [speaking, setSpeaking] = React.useState(false);
   // Once-per-open XP grant so re-scrolling to the "Got it" button doesn't
   // multiply the reward. Same shape as LessonEngine's xpCommittedRef.
   const grantedRef = React.useRef(false);
+  const speechRef = React.useRef(null);
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
 
   React.useEffect(() => {
     let cancelled = false;
-    setLoading(true); setError(null); setPlan(null);
+    setLoading(true); setError(null); setPlan(null); setMarkedRead(false);
+    grantedRef.current = false;
     (async () => {
       try {
         const parsed = await generateTheoryReader({ topic, resolved, tcode: t?.code, force: retry > 0 });
@@ -2246,6 +2255,31 @@ function LearnTheoryReader({ topic, onExit, t }) {
     })();
     return () => { cancelled = true; };
   }, [topic, retry]);
+
+  // Stop narration whenever the reader unmounts, the topic swaps, or a
+  // re-fetch tears down `plan` — otherwise the browser's global speech
+  // queue keeps talking on the next page (see src/lib/speech.ts header).
+  React.useEffect(() => {
+    return () => { if (speechRef.current) { speechRef.current.stop(); speechRef.current = null; } };
+  }, [topic]);
+
+  const toggleSpeak = () => {
+    if (speaking) {
+      if (speechRef.current) speechRef.current.stop();
+      speechRef.current = null;
+      setSpeaking(false);
+      return;
+    }
+    if (!plan) return;
+    const chunks = [
+      plan.title,
+      plan.tldr,
+      ...(Array.isArray(plan.concepts) ? plan.concepts.flatMap((c) => [c.heading, c.body]) : []),
+      ...(Array.isArray(plan.pitfalls) ? [L("Common mistakes:", "Типові помилки:", "Типичные ошибки:", "Erreurs fréquentes :", "Häufige Fehler:"), ...plan.pitfalls] : []),
+    ].filter((s) => typeof s === "string" && s.trim().length > 0);
+    setSpeaking(true);
+    speechRef.current = speak(chunks, t?.code || "en", () => setSpeaking(false));
+  };
 
   const markAsRead = () => {
     if (grantedRef.current || markedRead) return;
@@ -2263,10 +2297,23 @@ function LearnTheoryReader({ topic, onExit, t }) {
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px 80px", fontFamily: "var(--font-sans)", color: "var(--text-body)" },
   }, children);
+  const speechAvailable = isSpeechSupported();
   const header = React.createElement("div", { key: "hdr", style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 18 } },
     React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
-    React.createElement("span", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600 } },
+    React.createElement("span", { style: { flex: 1, fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600 } },
       L("Theory", "Теорія", "Теория", "Théorie", "Theorie")),
+    // Voice narration button — hidden entirely when the browser has no
+    // SpeechSynthesis at all (a handful of embedded WebViews). Otherwise
+    // toggles between Play / Stop on the same button.
+    plan && speechAvailable && React.createElement("button", {
+      onClick: toggleSpeak,
+      "aria-label": speaking ? L("Stop", "Зупинити", "Остановить", "Arrêter", "Stopp") : L("Listen", "Слухати", "Слушать", "Écouter", "Vorlesen"),
+      title: speaking ? L("Stop", "Зупинити", "Остановить", "Arrêter", "Stopp") : L("Listen", "Слухати", "Слушать", "Écouter", "Vorlesen"),
+      style: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: speaking ? "var(--indigo-600)" : "var(--surface-card)", color: speaking ? "#fff" : "var(--text-body)", border: `1px solid ${speaking ? "var(--indigo-600)" : "var(--border-default)"}`, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
+    },
+      React.createElement("span", { style: { fontSize: 14 } }, speaking ? "⏹" : "▶"),
+      React.createElement("span", null, speaking ? L("Stop", "Стоп", "Стоп", "Stop", "Stopp") : L("Listen", "Слухати", "Слушать", "Écouter", "Vorlesen")),
+    ),
   );
 
   if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
@@ -2290,6 +2337,23 @@ function LearnTheoryReader({ topic, onExit, t }) {
       React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, "TL;DR"),
       React.createElement("div", { dangerouslySetInnerHTML: html(plan.tldr) }),
     ),
+    // AI-authored SVG diagram — only when Claude judged it helpful. Runs
+    // through sanitizeSvg (DOMPurify) so a stray <script> or on* attribute
+    // is dropped before it reaches the DOM. `currentColor` in stroke/fill
+    // makes strokes follow text color, so the same diagram reads on light
+    // and dark themes.
+    plan.diagram && (() => {
+      const clean = sanitizeSvg(plan.diagram);
+      if (!clean) return null;
+      return React.createElement("figure", {
+        key: "diagram",
+        style: { margin: "24px 0 0", padding: "18px 20px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, textAlign: "center", color: "var(--text-strong)" },
+      },
+        React.createElement("div", { style: { maxWidth: 480, margin: "0 auto" }, dangerouslySetInnerHTML: { __html: clean } }),
+        React.createElement("figcaption", { style: { marginTop: 10, fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" } },
+          L("Diagram", "Схема", "Схема", "Schéma", "Diagramm")),
+      );
+    })(),
     // Concepts — the main body. Each concept renders as its own heading +
     // multi-paragraph explanation. KaTeX-rendered math inline via _md.
     Array.isArray(plan.concepts) && plan.concepts.length > 0 && React.createElement("div", { key: "concepts", style: kSect },
@@ -2324,6 +2388,38 @@ function LearnTheoryReader({ topic, onExit, t }) {
         React.createElement("ul", { style: { paddingLeft: 22, margin: 0, fontSize: 15, lineHeight: 1.85, color: "var(--text-strong)" } },
           ...plan.cheatsheet.map((c, i) => React.createElement("li", { key: i, style: { marginBottom: 4 }, dangerouslySetInnerHTML: html(c) })),
         ),
+      ),
+    ),
+    // Watch on YouTube — plain search link, no API key needed. Opens the
+    // student's YouTube results for "<topic> explained" in a new tab,
+    // letting them pick a video that fits their level. When we later add a
+    // Google API key, this button can graduate to an inline first-result
+    // embed without changing anywhere else.
+    React.createElement("div", { key: "yt", style: kSect },
+      React.createElement("div", { style: kSectLabel }, L("Watch a video", "Подивитися відео", "Посмотреть видео", "Regarder une vidéo", "Video ansehen")),
+      React.createElement("a", {
+        href: `https://www.youtube.com/results?search_query=${encodeURIComponent(topic + " explained")}`,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        style: { display: "inline-flex", alignItems: "center", gap: 10, padding: "12px 18px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, textDecoration: "none", color: "var(--text-body)", fontSize: 14, fontWeight: 600, fontFamily: "var(--font-sans)" },
+      },
+        React.createElement("span", { style: { fontSize: 18 } }, "▶"),
+        React.createElement("span", null,
+          L(`Search "${topic}" on YouTube`, `Пошук "${topic}" на YouTube`, `Найти "${topic}" на YouTube`, `Chercher "${topic}" sur YouTube`, `"${topic}" auf YouTube suchen`)),
+      ),
+    ),
+    // Related concepts — bridges to the next topics. Clicking swaps this
+    // reader in place via onOpenTopic (falls back to plain buttons that
+    // do nothing extra if the parent didn't wire the callback).
+    Array.isArray(plan.relatedConcepts) && plan.relatedConcepts.length > 0 && React.createElement("div", { key: "rel", style: kSect },
+      React.createElement("div", { style: kSectLabel }, L("Related concepts", "Пов'язані теми", "Связанные темы", "Concepts liés", "Verwandte Konzepte")),
+      React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } },
+        ...plan.relatedConcepts.map((rc, i) => React.createElement("button", {
+          key: i,
+          onClick: () => onOpenTopic && onOpenTopic(rc),
+          disabled: !onOpenTopic,
+          style: { padding: "10px 16px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 999, cursor: onOpenTopic ? "pointer" : "default", color: "var(--text-body)", fontSize: 13, fontWeight: 500, fontFamily: "var(--font-sans)" },
+        }, "→ ", rc)),
       ),
     ),
     React.createElement("div", { key: "cta", style: { marginTop: 40, display: "flex", justifyContent: "center" } },
@@ -2571,14 +2667,19 @@ function LessonEngine({ topic, mode, onExit, t }) {
   // Learn mode: pick method (theory reader vs flashcards) first, then
   // delegate. Practice and review skip the picker.
   const [learnMethod, setLearnMethod] = React.useState(null);
+  // Topic can swap while the reader is open — LearnTheoryReader's
+  // "Related concepts" pills call this to jump to a new topic without
+  // leaving the section. Falls back to the initial prop otherwise.
+  const [activeTopic, setActiveTopic] = React.useState(topic);
+  React.useEffect(() => { setActiveTopic(topic); }, [topic]);
   if (mode === "learn") {
     if (!learnMethod) {
-      return React.createElement(LearnMethodPicker, { topic, onExit, t, onPick: setLearnMethod });
+      return React.createElement(LearnMethodPicker, { topic: activeTopic, onExit, t, onPick: setLearnMethod });
     }
     if (learnMethod === "flashcards") {
-      return React.createElement(LearnFlashcards, { topic, onExit, t });
+      return React.createElement(LearnFlashcards, { topic: activeTopic, onExit, t });
     }
-    return React.createElement(LearnTheoryReader, { topic, onExit, t });
+    return React.createElement(LearnTheoryReader, { topic: activeTopic, onExit, t, onOpenTopic: setActiveTopic });
   }
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [plan, setPlan] = React.useState(null);
