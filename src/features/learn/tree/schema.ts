@@ -29,11 +29,13 @@ export interface LearnNode {
   // 5 = trap / edge case / multi-step derivation
   readonly complexity: 1 | 2 | 3 | 4 | 5;
   readonly estimatedMinutes: number;
-  // Node ids that must be mastered before this one unlocks. Stored now but
-  // NOT enforced until Phase 3.7e — MVP renders every unlocked node as
-  // available so a student can pick their entry point. `readonly []` for
-  // top-of-unit nodes.
+  // Node ids that must be bronze+ before this one unlocks. Enforced in
+  // Phase 3.7e via canOpenNode() — empty means the node is an entry point.
   readonly prerequisites: readonly string[];
+  // Omitted on every hand-authored lesson node. `withBossNodes()` appends
+  // a synthetic `boss` node per unit at render time so the static trees
+  // stay lesson-only (a title edit never accidentally drops a boss).
+  readonly kind?: "lesson" | "boss";
 }
 
 export interface LearnUnit {
@@ -59,4 +61,57 @@ export function totalNodeCount(tree: LearnTree): number {
 // the same way every other i18n site in this app does (see AIChat.jsx's L()).
 export function localize(str: I18nString, lang: string): string {
   return (str as unknown as Record<string, string | undefined>)[lang] || str.en;
+}
+
+export function isBossNode(node: LearnNode): boolean {
+  return node.kind === "boss";
+}
+
+export function lessonNodes(unit: LearnUnit): readonly LearnNode[] {
+  return unit.nodes.filter((n) => n.kind !== "boss");
+}
+
+function bossTitle(unit: LearnUnit): I18nString {
+  const t = unit.title;
+  return {
+    en: `${t.en} — Boss`,
+    ...(t.uk ? { uk: `${t.uk} — Бос` } : {}),
+    ...(t.ru ? { ru: `${t.ru} — Босс` } : {}),
+    ...(t.fr ? { fr: `${t.fr} — Boss` } : {}),
+    ...(t.de ? { de: `${t.de} — Boss` } : {}),
+  };
+}
+
+// Appends one synthetic boss node per unit. Idempotent — a tree that
+// already has bosses is returned unchanged. Boss prerequisites are every
+// lesson in the unit, so the lock engine treats "unit cleared" as "all
+// lessons bronze+".
+export function withBossNodes(tree: LearnTree): LearnTree {
+  return {
+    ...tree,
+    units: tree.units.map((unit) => {
+      if (unit.nodes.some(isBossNode)) return unit;
+      const lessons = lessonNodes(unit);
+      const boss: LearnNode = {
+        id: `${unit.id}-boss`,
+        title: bossTitle(unit),
+        complexity: 5,
+        estimatedMinutes: 10,
+        prerequisites: lessons.map((n) => n.id),
+        kind: "boss",
+      };
+      return { ...unit, nodes: [...lessons, boss] };
+    }),
+  };
+}
+
+export function findNode(
+  tree: LearnTree,
+  nodeId: string,
+): { unit: LearnUnit; node: LearnNode } | null {
+  for (const unit of tree.units) {
+    const node = unit.nodes.find((n) => n.id === nodeId);
+    if (node) return { unit, node };
+  }
+  return null;
 }

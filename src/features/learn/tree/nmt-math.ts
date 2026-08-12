@@ -11,8 +11,8 @@
 // learn-store keys by id (see schema.ts).
 //
 // `prerequisites` are populated where they're obvious ("logarithms" needs
-// "exponents"), but not enforced until Phase 3.7e. MVP treats every node
-// as unlocked so learners can drop in anywhere.
+// "exponents") and enforced from Phase 3.7e — a node stays locked until
+// every parent is bronze+. Entry-point nodes keep `prerequisites: []`.
 
 import type { LearnTree } from "./schema";
 

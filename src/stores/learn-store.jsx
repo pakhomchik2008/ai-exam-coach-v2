@@ -21,9 +21,10 @@
 //       }
 //     }
 //   }
-// A missing entry is implicitly "unlocked" (MVP treats every node as
-// available — Phase 3.7e will start enforcing prerequisites and the
-// "locked" state).
+// A missing entry is implicitly "unlocked" in storage. Whether the student
+// can *open* the node is derived in tree/locks.ts from prerequisites
+// (Phase 3.7e) — we never persist "locked", so a syllabus edit that adds
+// a parent re-locks without a migration.
 
 const LEARN_KEY = "learn_progress_v1";
 const LEARN_SCHEMA_VERSION = 1;
