@@ -1,0 +1,112 @@
+# AI Exam Coach — Cursor rules
+
+Read CLAUDE.md in repo root FIRST. It is the canonical agent context —
+stack, phases, architecture patterns, standing rules. This file is a
+Cursor-specific supplement.
+
+## Absolute rules
+
+- Hlib approves every merge. Never merge or push --force without an
+  explicit "мержи" / equivalent.
+- No DDL to production Supabase from code. SQL goes in supabase/NN_*.sql
+  as a migration file for Hlib to run manually. Client code degrades
+  gracefully until he does (PGRST205 for tables, PGRST202 for RPCs).
+- Never touch, echo, or commit API keys or secrets. If one appears in
+  chat, it must be rotated.
+- CAVEMAN MODE for chat replies. Terse Russian when Hlib writes
+  Russian/Ukrainian. Drop articles, filler, hedging. Code, commits,
+  security responses stay normal English.
+- Grill Hlib. For any non-obvious design decision, ask before coding.
+- Never add a new AI vendor (OpenAI, Google, etc.) without an explicit
+  yes — Decision Log #39.
+- Never mock the database in tests. Fake the client surface (see
+  src/lib/question-novelty.test.ts pattern).
+
+## Repo shape (skim)
+
+- api/                     Vercel serverless (AI proxy, cron, unsubscribe)
+- src/bootstrap.ts         Ordered legacy-module load — DO NOT REORDER
+- src/main.tsx             React entry
+- src/features/chat/AIChat.jsx    The big one: Coach modes, Practice, Speed Round, Exam Sim, Learn theory + flashcards
+- src/features/learn/      Phase 3.7 skill-tree section
+- src/stores/*.jsx         Legacy stores, publish window.* getters/setters
+- src/lib/*.ts             New TypeScript modules (data-sync, math-render, speech, svg-sanitize, ...)
+- src/i18n/i18n.jsx        5 languages: en / uk / ru / fr / de
+- supabase/*.sql           Ordered migrations
+- docs/phase-*-plan.md     Plan docs — read the current phase's before touching related code
+
+## Architecture patterns
+
+- Legacy stores publish getFoo / saveFoo / subscribeFoo / migrateFoo on
+  `window`. Migration functions normalise data, never throw.
+- New TS modules reach the legacy layer via `window.*` calls. Bootstrap
+  order in src/bootstrap.ts is the only serialization guarantee.
+- Sync: `src/lib/data-sync.ts` patches localStorage.setItem once at
+  init; PERSONAL_DATA_KEYS in `src/stores/auth-store.jsx` is the
+  allowlist for what pushes to Supabase.
+- AI calls: always `window.brainComplete`, never `window.claude.complete`
+  directly. brainComplete injects buildLearnerContext() + language hint.
+- Structured AI JSON: use `window.parseJSON` OR
+  `raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)`. Set a race
+  timeout of 30-45s.
+- Any new module publishing a window global must add its name to
+  REQUIRED_GLOBALS in src/bootstrap.ts.
+
+## Coding style
+
+- Explain WHY, not WHAT. Every file opens with a header on why it
+  exists. Inline comments only for non-obvious constraints, workarounds,
+  or surprising behavior.
+- Don't add features, refactoring, or abstractions beyond what the task
+  requires. A bug fix doesn't need surrounding cleanup.
+- Prefer editing existing files over creating new ones. New file needs
+  a real reason.
+- Never invent English abbreviations (cfg, impl, req). They tokenize the
+  same as the full word.
+- Test files sit next to their target: foo.ts → foo.test.ts.
+- Migrating jsx → tsx: keep the exact window-global contract, just add
+  types. Don't restructure at the same time.
+
+## Workflows
+
+### New phase / feature
+
+1. Branch: phase-3.7X/short-slug
+2. If non-trivial: write docs/phase-3-7X-plan.md (MVP scope, deferred,
+   Decision Log, reversibility, "what could break silently" table)
+3. SQL migration if needed (supabase/NN_*.sql WITH verification block)
+4. Tests alongside code
+5. Gate: `npm run typecheck && npm run lint && npx vitest run && npm run build`
+6. Commit body explains WHY
+7. Push, open PR, wait for "мержи"
+
+### External services (all optional in dev)
+
+- Supabase: cyftpdiabopydwytyudt project. Client anon key already
+  hardcoded in auth-store.jsx (safe — RLS enforces isolation).
+- Vercel: Hobby plan. Cron `0 16 * * *`.
+- Resend: sandbox sender by default, no domain yet.
+- OneSignal: Web Push only; site config in dashboard must be saved,
+  OneSignalSDKWorker.js served from /public.
+- Claude: server proxy at /api/complete. Never call the API directly
+  from the client.
+
+## Anti-patterns to reject
+
+- Silent try/catch that swallows everything without a comment saying WHY
+- Adding a comment that just restates the next line of code
+- Introducing a new dependency for one utility function (write the
+  utility)
+- Renaming a public window global — every consumer breaks silently
+  because REQUIRED_GLOBALS won't catch removal of one already-required
+  name
+- Bumping a package major version as a side effect of another change
+- Adding a new AI vendor to solve a single feature (see Decision Log
+  #39)
+- "Just re-run the migration" — always additive, never destructive
+
+## Language
+
+Match Hlib's language in the current message. Ru/Uk → respond
+caveman-terse Russian. En → respond English (caveman-terse still). Code,
+commit messages, PR bodies stay full English.
