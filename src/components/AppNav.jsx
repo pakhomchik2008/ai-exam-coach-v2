@@ -38,6 +38,10 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     { id: "dashboard", label: t.nav_dashboard },
     { id: "chat",      label: t.nav_chat || "AI Coach" },
     { id: "study",     label: t.nav_study },
+    // Phase 3.7a-follow-up: the original StudyHub (upload + flashcards +
+    // mock test off uploaded files) lives on its own tab as "Study Tools"
+    // now that "study" routes to the Learn tree.
+    { id: "studyhub",  label: t.nav_tools || "Tools" },
     { id: "journal",   label: t.nav_journal },
     // "schedule" (month overview) merged into CalendarHub — one calendar tab.
     { id: "calendar",  label: t.nav_calendar || "Calendar" },
