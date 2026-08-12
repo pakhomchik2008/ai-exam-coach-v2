@@ -257,7 +257,6 @@ function Landing({ onContinue, t, lang, onLangChange }) {
     padding: "14px 30px", fontSize: "var(--text-base)",
     fontWeight: "var(--weight-semibold)", fontFamily: "var(--font-sans)",
     boxShadow: filled ? "var(--shadow-md)" : "var(--shadow-sm)",
-    transition: "transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)",
   });
 
   return (
@@ -271,10 +270,10 @@ function Landing({ onContinue, t, lang, onLangChange }) {
         {langPicker}
       </div>
 
-      <div style={{ textAlign: "center" }}>
+      <div className="ux-page" style={{ textAlign: "center" }}>
         {/* Eyebrow chip — FintechX "Core features" style */}
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-sm)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", letterSpacing: "var(--tracking-wide)", textTransform: "uppercase", color: "var(--indigo-600)", marginBottom: "var(--space-5)" }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--emerald-500)" }} />
+          <span className="ux-live" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--emerald-500)" }} />
           AI Exam Coach
         </div>
         <h1 style={{ margin: 0, fontSize: "clamp(2.4rem, 5.5vw, 3.6rem)", fontWeight: "var(--weight-bold)", letterSpacing: "var(--tracking-tight)", lineHeight: "var(--leading-tight)", color: "var(--text-strong)", fontFamily: "var(--font-display)" }}>{L("Study smarter, not longer", "Навчайтесь розумніше, а не довше", "Учитесь умнее, а не дольше", "Étudiez plus intelligemment, pas plus longtemps", "Klüger lernen, nicht länger")}</h1>
@@ -286,20 +285,20 @@ function Landing({ onContinue, t, lang, onLangChange }) {
             "Dein KI-Coach erstellt einen Tag-für-Tag-Lernplan, der sich unterwegs anpasst. Füge einen Kurs hinzu, lege dein Prüfungsdatum fest und beginne mit dem Lernen.")}
         </p>
         <div style={{ marginTop: "var(--space-8)", display: "flex", justifyContent: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
-          <button style={pillBtn(true)} onClick={() => setView("signup")}>{L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren")} →</button>
-          <button style={pillBtn(false)} onClick={() => setView("login")}>{L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}</button>
+          <button className="ux-press" style={pillBtn(true)} onClick={() => setView("signup")}>{L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren")} →</button>
+          <button className="ux-press" style={pillBtn(false)} onClick={() => setView("login")}>{L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}</button>
         </div>
-        <button onClick={startDemo} style={{ marginTop: "var(--space-5)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
+        <button className="ux-press" onClick={startDemo} style={{ marginTop: "var(--space-5)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
           {L("Try demo — no account needed →", "Спробувати демо — без акаунту →", "Попробовать демо — без аккаунта →", "Essayer la démo — sans compte →", "Demo ausprobieren — kein Konto nötig →")}
         </button>
       </div>
 
-      <div style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-5)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+      <div className="ux-stagger" style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-5)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
         {features.map((f, i) => {
           // Middle card gets the FintechX "dark insight card" treatment.
           const dark = i === 1;
           return (
-            <div key={f.title} style={{
+            <div key={f.title} className="ux-card" style={{
               borderRadius: "var(--radius-2xl)",
               border: dark ? "1px solid var(--ink-700)" : "1px solid var(--border-default)",
               background: dark ? "var(--surface-ink)" : "var(--surface-card)",

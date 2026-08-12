@@ -249,7 +249,7 @@ function selectable(on: boolean): React.CSSProperties {
 function PrimaryButton({ disabled, onClick, children }: { disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
-      type="button" disabled={disabled} onClick={onClick}
+      type="button" className="ux-press" disabled={disabled} onClick={onClick}
       style={{
         width: "100%", minHeight: 52, borderRadius: "var(--radius-full)", border: "none",
         background: disabled ? "var(--slate-300)" : "var(--ink-900)", color: "var(--white)",
