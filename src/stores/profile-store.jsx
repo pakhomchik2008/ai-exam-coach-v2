@@ -65,6 +65,20 @@ function migrateProfile(raw) {
     email: typeof p.email === "string" ? p.email : "",
     reminderEnabled: typeof p.reminderEnabled === "boolean" ? p.reminderEnabled : true,
     reminderHour: isFiniteNumber(p.reminderHour) && p.reminderHour >= 0 && p.reminderHour <= 23 ? Math.round(p.reminderHour) : 9,
+    // Phase 3 §3.5 email triggers, each independently toggleable in Settings.
+    // Read server-side by api/notifications-cron.js via the SAME synced
+    // user_data row this whole profile already lives in — see
+    // supabase/15_notification_log.sql's header for why there's no separate
+    // prefs table. Default true: a student who never opens Settings should
+    // still get the reminders that make the product actually work.
+    notifyExamCountdown: typeof p.notifyExamCountdown === "boolean" ? p.notifyExamCountdown : true,
+    notifyWeeklyDigest: typeof p.notifyWeeklyDigest === "boolean" ? p.notifyWeeklyDigest : true,
+    notifyStreakDanger: typeof p.notifyStreakDanger === "boolean" ? p.notifyStreakDanger : true,
+    notifyMistakeReview: typeof p.notifyMistakeReview === "boolean" ? p.notifyMistakeReview : true,
+    // One-click unsubscribe (CAN-SPAM/GDPR) sets this from api/unsubscribe.js,
+    // NOT from this app's own UI — see that file. A global kill switch, not
+    // per-trigger, matching what a footer link can realistically offer.
+    notifUnsubscribed: typeof p.notifUnsubscribed === "boolean" ? p.notifUnsubscribed : false,
     hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",

@@ -5,6 +5,9 @@
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
+  "crons": [
+    { "path": "/api/notifications-cron", "schedule": "0 16 * * *" }
+  ],
   "headers": [
     {
       "source": "/index.html",

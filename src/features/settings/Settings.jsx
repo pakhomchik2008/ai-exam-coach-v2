@@ -45,6 +45,13 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   });
   const [reminderEnabled, setReminderEnabled] = React.useState(profile.reminderEnabled);
   const [reminderHour, setReminderHour] = React.useState(profile.reminderHour);
+  // Phase 3 §3.5 email trigger toggles — each independently controllable so a
+  // student who only wants exam-countdown emails can silence the daily nudge
+  // without silencing the whole channel. Read by api/notifications-cron.js.
+  const [notifyExamCountdown, setNotifyExamCountdown] = React.useState(profile.notifyExamCountdown);
+  const [notifyWeeklyDigest, setNotifyWeeklyDigest] = React.useState(profile.notifyWeeklyDigest);
+  const [notifyStreakDanger, setNotifyStreakDanger] = React.useState(profile.notifyStreakDanger);
+  const [notifyMistakeReview, setNotifyMistakeReview] = React.useState(profile.notifyMistakeReview);
   // Study-plan budget inputs — feed schedule-store.jsx's allocateBudget
   // (Phase 3). Editing any of these here goes through the same saveProfile()
   // path as the wizard, which already diffs BUDGET_FIELDS and calls
@@ -83,6 +90,7 @@ function Settings({ t, lang, onLangChange, onLogout }) {
     // email field itself is withheld until it's fixed.
     window.saveProfile({
       fullName, timezone: tz.id, reminderEnabled, reminderHour,
+      notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
       email: emailValid ? trimmedEmail : profile.email,
       weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, planIntensity,
     });
@@ -178,8 +186,43 @@ function Settings({ t, lang, onLangChange, onLogout }) {
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginTop: "2px" }}>
                 <span>6:00</span><span>22:00</span>
               </div>
+              <p style={{ margin: "6px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                {L(lang,
+                  "Emails currently arrive once a day at 16:00 UTC — precise per-user timing needs a paid cron. Your local hour above is used in the app itself.",
+                  "Листи наразі приходять раз на день о 16:00 UTC — точний час для кожного користувача потребує платного крона. Обрана година діє в самому застосунку.",
+                  "Письма пока приходят раз в день в 16:00 UTC — точное время для каждого пользователя требует платного крона. Выбранный час действует в самом приложении.",
+                  "Les e-mails arrivent une fois par jour à 16:00 UTC — un horaire par utilisateur nécessite un cron payant. L'heure choisie s'applique dans l'app.",
+                  "E-Mails kommen einmal täglich um 16:00 UTC — genaue Zeit pro Nutzer erfordert einen kostenpflichtigen Cron. Die Uhrzeit gilt in der App.")}
+              </p>
             </div>
           )}
+
+          {/* Per-trigger email toggles (Phase 3 §3.5). Grouped under the daily
+              reminder because they share one channel (email) and one send
+              path — see api/notifications-cron.js. */}
+          {[
+            { k: "notifyExamCountdown", v: notifyExamCountdown, set: setNotifyExamCountdown,
+              label: L(lang, "Exam countdown emails", "Листи з відліком до іспиту", "Письма с обратным отсчётом до экзамена", "E-mails du compte à rebours", "Prüfungs-Countdown-E-Mails"),
+              sub: L(lang, "One email at T-30, 14, 7, 3, and 1 day before each exam.", "По одному листу за 30, 14, 7, 3 та 1 день до кожного іспиту.", "По одному письму за 30, 14, 7, 3 и 1 день до каждого экзамена.", "Un e-mail à T-30, 14, 7, 3 et 1 jour avant chaque examen.", "Je eine E-Mail 30, 14, 7, 3 und 1 Tag vor jeder Prüfung.") },
+            { k: "notifyWeeklyDigest", v: notifyWeeklyDigest, set: setNotifyWeeklyDigest,
+              label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdomadaire", "Wochenübersicht"),
+              sub: L(lang, "Sunday summary — hours studied, sessions completed, streak.", "Підсумок у неділю — години, сесії, серія.", "Итог в воскресенье — часы, сессии, серия.", "Résumé du dimanche — heures, séances, série.", "Sonntags-Zusammenfassung — Stunden, Sitzungen, Serie.") },
+            { k: "notifyStreakDanger", v: notifyStreakDanger, set: setNotifyStreakDanger,
+              label: L(lang, "Streak-in-danger nudge", "Нагадування про серію", "Напоминание о серии", "Alerte série en danger", "Serien-Warnung"),
+              sub: L(lang, "One email when a 2+ day streak is at risk of breaking today.", "Один лист, коли серія від 2 днів під загрозою.", "Одно письмо, когда серия от 2 дней под угрозой.", "Un e-mail quand une série de 2 jours+ risque de se rompre.", "Eine E-Mail, wenn eine 2-Tage-Serie in Gefahr ist.") },
+            { k: "notifyMistakeReview", v: notifyMistakeReview, set: setNotifyMistakeReview,
+              label: L(lang, "Mistake review reminders", "Нагадування про помилки", "Напоминания об ошибках", "Rappels d'erreurs à réviser", "Fehler-Wiederholungserinnerungen"),
+              sub: L(lang, "At most once a day, only when there's something due in the journal.", "Не більше разу на день і лише коли є що переглядати.", "Не чаще раза в день и только когда есть что просмотреть.", "Au maximum une fois par jour, uniquement s'il y a quelque chose à réviser.", "Höchstens einmal täglich, nur wenn wirklich etwas fällig ist.") },
+          ].map((row) => (
+            <label key={row.k} style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", cursor: "pointer" }}>
+              <input type="checkbox" checked={row.v} onChange={(e) => row.set(e.target.checked)}
+                style={{ width: 16, height: 16, marginTop: 2, accentColor: "var(--indigo-600)", cursor: "pointer", flexShrink: 0 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>{row.label}</span>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.4 }}>{row.sub}</span>
+              </div>
+            </label>
+          ))}
         </Section>
 
         <Section title={L(lang, "Study intensity","Режим навчання","Режим учёбы","Intensité d'étude","Lernintensität")}>
