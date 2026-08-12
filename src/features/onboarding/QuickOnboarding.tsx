@@ -62,6 +62,8 @@ interface ExamDraft {
   explainLang: null;
   kind: "exam";
   qualificationId: string;
+  topics?: string[];      // set for language exams (see LANGUAGE_SECTIONS)
+  topicsStatus?: string;  // "ready" when we filled topics ourselves
 }
 
 interface CreatedExam {
@@ -75,11 +77,25 @@ interface ProfilePatch {
   planIntensity: string;
   studyDays: string[];
   hoursPerDay: number;
+  blackoutSlots: { day: string; period: string }[];
 }
 
 type Lang = string;
 
 const STEP_COUNT = 5;
+
+// Language exams (IELTS, TOEFL, Duolingo) are ONE exam with fixed sections, not
+// a subject picker — a student prepping for IELTS Reading + Listening is doing
+// one IELTS with two sections active, not two separate exams. The wizard's
+// section handling (buildSectionCourse) reads from CURRICULUM_SEED, but these
+// three qualifications have no seed rows yet, so the fallback lives here.
+// Order matches the real papers: Reading and Listening first (input skills),
+// Speaking and Writing last (output skills).
+const LANGUAGE_SECTIONS: Record<string, string[]> = {
+  ielts: ["Listening", "Reading", "Writing", "Speaking"],
+  toefl: ["Reading", "Listening", "Speaking", "Writing"],
+  duolingo: ["Literacy", "Comprehension", "Conversation", "Production"],
+};
 
 // ─── copy ───────────────────────────────────────────────────────────────────
 // Inline rather than in ONB (onboarding-data.jsx): these strings exist only
@@ -90,10 +106,15 @@ const COPY: Record<string, Copy> = {
   en: {
     step: "Step", of: "of", back: "Back", next: "Continue", skip: "Skip for now",
     q_exam: "Which exam are you preparing for?", q_exam_sub: "Pick the qualification, then name the subject.",
+    q_exam_sub_sections: "Pick which sections you want to prepare for.",
+    sections_label: "Sections", sections_hint: "All on by default — untick anything you're not sitting.",
+    sections_pick_at_least_one: "Pick at least one section.",
+    pick_qual_first: "Pick a qualification above to continue.",
     subject_ph: "Subject — e.g. Mathematics",
     q_date: "When is it?", q_date_sub: "We build the schedule backwards from this date.",
     in_1m: "In a month", in_3m: "In 3 months", in_6m: "In 6 months",
     q_target: "What are you aiming for?", q_target_sub: "Your target on this exam's own scale.",
+    when_of_day: "When of day", period_morning: "🌅 Morning", period_afternoon: "☀️ Afternoon", period_evening: "🌙 Evening",
     q_hours: "How much can you study a day?", q_hours_sub: "Be honest — a plan you can keep beats an ambitious one you drop.",
     days_week: "Days a week", per_day: "hours a day", weekly_total: "That's %H hours a week",
     q_account: "Save your plan", q_account_sub: "Your plan is ready. Create an account to keep it across devices.",
@@ -108,10 +129,15 @@ const COPY: Record<string, Copy> = {
   uk: {
     step: "Крок", of: "з", back: "Назад", next: "Далі", skip: "Пропустити",
     q_exam: "До якого іспиту готуєтесь?", q_exam_sub: "Оберіть кваліфікацію та назвіть предмет.",
+    q_exam_sub_sections: "Оберіть частини, до яких готуєтесь.",
+    sections_label: "Частини", sections_hint: "Усі увімкнені — вимкніть те, що не складаєте.",
+    sections_pick_at_least_one: "Оберіть хоча б одну частину.",
+    pick_qual_first: "Оберіть кваліфікацію вище, щоб продовжити.",
     subject_ph: "Предмет — напр. Математика",
     q_date: "Коли він?", q_date_sub: "Розклад будується назад від цієї дати.",
     in_1m: "Через місяць", in_3m: "Через 3 місяці", in_6m: "Через 6 місяців",
     q_target: "Яка ваша ціль?", q_target_sub: "Ваш результат за шкалою цього іспиту.",
+    when_of_day: "Коли зручно", period_morning: "🌅 Ранок", period_afternoon: "☀️ День", period_evening: "🌙 Вечір",
     q_hours: "Скільки можете вчитися на день?", q_hours_sub: "Чесно — план, якого дотримаєтесь, кращий за амбітний, який кинете.",
     days_week: "Днів на тиждень", per_day: "годин на день", weekly_total: "Це %H годин на тиждень",
     q_account: "Збережіть план", q_account_sub: "План готовий. Створіть акаунт, щоб мати його на всіх пристроях.",
@@ -126,10 +152,15 @@ const COPY: Record<string, Copy> = {
   ru: {
     step: "Шаг", of: "из", back: "Назад", next: "Далее", skip: "Пропустить",
     q_exam: "К какому экзамену готовитесь?", q_exam_sub: "Выберите квалификацию и назовите предмет.",
+    q_exam_sub_sections: "Выберите части, к которым готовитесь.",
+    sections_label: "Части", sections_hint: "Все включены — снимите то, что не сдаёте.",
+    sections_pick_at_least_one: "Выберите хотя бы одну часть.",
+    pick_qual_first: "Выберите квалификацию выше, чтобы продолжить.",
     subject_ph: "Предмет — напр. Математика",
     q_date: "Когда он?", q_date_sub: "Расписание строится назад от этой даты.",
     in_1m: "Через месяц", in_3m: "Через 3 месяца", in_6m: "Через 6 месяцев",
     q_target: "К чему стремитесь?", q_target_sub: "Ваша цель по шкале этого экзамена.",
+    when_of_day: "Когда удобно", period_morning: "🌅 Утро", period_afternoon: "☀️ День", period_evening: "🌙 Вечер",
     q_hours: "Сколько можете заниматься в день?", q_hours_sub: "Честно — план, который выдержите, лучше амбициозного, который бросите.",
     days_week: "Дней в неделю", per_day: "часов в день", weekly_total: "Это %H часов в неделю",
     q_account: "Сохраните план", q_account_sub: "План готов. Создайте аккаунт, чтобы он был на всех устройствах.",
@@ -144,10 +175,15 @@ const COPY: Record<string, Copy> = {
   fr: {
     step: "Étape", of: "sur", back: "Retour", next: "Continuer", skip: "Plus tard",
     q_exam: "Quel examen préparez-vous ?", q_exam_sub: "Choisissez la qualification, puis la matière.",
+    q_exam_sub_sections: "Choisissez les sections à préparer.",
+    sections_label: "Sections", sections_hint: "Toutes cochées par défaut — décochez ce que vous ne passez pas.",
+    sections_pick_at_least_one: "Choisissez au moins une section.",
+    pick_qual_first: "Choisissez une qualification ci-dessus pour continuer.",
     subject_ph: "Matière — ex. Mathématiques",
     q_date: "C'est quand ?", q_date_sub: "Le planning part de cette date, à rebours.",
     in_1m: "Dans un mois", in_3m: "Dans 3 mois", in_6m: "Dans 6 mois",
     q_target: "Votre objectif ?", q_target_sub: "Votre cible sur l'échelle de cet examen.",
+    when_of_day: "Quand", period_morning: "🌅 Matin", period_afternoon: "☀️ Après-midi", period_evening: "🌙 Soir",
     q_hours: "Combien par jour ?", q_hours_sub: "Soyez honnête — un plan tenable vaut mieux qu'un plan ambitieux abandonné.",
     days_week: "Jours par semaine", per_day: "heures par jour", weekly_total: "Soit %H heures par semaine",
     q_account: "Enregistrez votre plan", q_account_sub: "Votre plan est prêt. Créez un compte pour le garder.",
@@ -162,10 +198,15 @@ const COPY: Record<string, Copy> = {
   de: {
     step: "Schritt", of: "von", back: "Zurück", next: "Weiter", skip: "Später",
     q_exam: "Auf welche Prüfung bereitest du dich vor?", q_exam_sub: "Wähle den Abschluss, dann das Fach.",
+    q_exam_sub_sections: "Wähle die Teile aus, auf die du dich vorbereitest.",
+    sections_label: "Teile", sections_hint: "Alle standardmäßig an — deaktiviere, was du nicht ablegst.",
+    sections_pick_at_least_one: "Wähle mindestens einen Teil.",
+    pick_qual_first: "Wähle oben eine Prüfung, um fortzufahren.",
     subject_ph: "Fach — z. B. Mathematik",
     q_date: "Wann ist sie?", q_date_sub: "Der Plan wird von diesem Datum rückwärts gebaut.",
     in_1m: "In einem Monat", in_3m: "In 3 Monaten", in_6m: "In 6 Monaten",
     q_target: "Was ist dein Ziel?", q_target_sub: "Dein Ziel auf der Skala dieser Prüfung.",
+    when_of_day: "Wann", period_morning: "🌅 Morgen", period_afternoon: "☀️ Nachmittag", period_evening: "🌙 Abend",
     q_hours: "Wie viel schaffst du pro Tag?", q_hours_sub: "Ehrlich — ein Plan, den du durchhältst, schlägt einen ehrgeizigen, den du abbrichst.",
     days_week: "Tage pro Woche", per_day: "Stunden pro Tag", weekly_total: "Das sind %H Stunden pro Woche",
     q_account: "Plan sichern", q_account_sub: "Dein Plan ist fertig. Erstelle ein Konto, um ihn zu behalten.",
@@ -241,6 +282,13 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   const [stepIdx, setStepIdx] = React.useState(0); // 0..4, then 5 = preview
   const [qualId, setQualId] = React.useState<string>("");
   const [subject, setSubject] = React.useState("");
+  const [sections, setSections] = React.useState<Record<string, string[]>>({});
+  // Time-of-day windows the student says they can actually study in. Written
+  // out to profile.blackoutSlots at commit time as the INVERTED set (blackouts
+  // are the ones NOT picked), so the scheduler places sessions inside these
+  // hours. Default is evening only — matches "after school/work", which is
+  // when the vast majority of high-school and uni students report studying.
+  const [studyPeriods, setStudyPeriods] = React.useState<Array<"morning" | "afternoon" | "evening">>(["evening"]);
   const [examDate, setExamDate] = React.useState(() => addDaysISO(90));
   const [target, setTarget] = React.useState<string | number | null>(null);
   const [hoursPerDay, setHoursPerDay] = React.useState(2);
@@ -262,6 +310,15 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   const [mountedAt] = React.useState(() => Date.now());
 
   const qual: ExamTypeDef | null = qualId ? examTypeOf(qualId) : null;
+  // Available section names, or null when the current qualification is not
+  // language-sectioned (GCSE/NMT etc — those use the subject input instead).
+  const availableSections = qualId ? LANGUAGE_SECTIONS[qualId] : undefined;
+  const isSectionExam = !!availableSections;
+  // Which sections this student picked for the current qualification, defaulting
+  // to all-on the first time they see this qualification.
+  const activeSections = qualId && isSectionExam
+    ? (sections[qualId] ?? availableSections!)
+    : [];
 
   // An anonymous Supabase session is what lets the four steps before the
   // account step actually work (AI calls are quota'd per user, see
@@ -286,7 +343,9 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
 
   const canContinue = (() => {
     switch (stepIdx) {
-      case 0: return !!qualId && subject.trim().length > 0;
+      // Language exams: valid the moment the qual is picked (all sections on
+      // by default). Non-language: need a subject name.
+      case 0: return !!qualId && (isSectionExam ? activeSections.length > 0 : subject.trim().length > 0);
       case 1: return examDate >= new Date().toISOString().slice(0, 10);
       case 2: return effectiveTarget !== "";
       case 3: return hoursPerDay > 0 && studyDays.length > 0;
@@ -306,16 +365,28 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
     if (committedRef.current || !qual) return;
     committedRef.current = true;
     const label = qual.label;
-    const raw = subject.trim() || "My subject";
-    const prefixed = qualId === "custom" || qualId === "uni" || raw.toLowerCase().startsWith(label.toLowerCase())
-      ? raw
-      : `${label} ${raw}`;
+    // Language exam: the "subject" IS the exam (IELTS itself), and the picked
+    // sections are its topics. Non-language: prefix the subject with the qual
+    // label so a student prepping for the same subject across boards can tell
+    // them apart on the dashboard.
+    let examName: string;
+    let topics: string[] | undefined;
+    if (isSectionExam) {
+      examName = label;
+      topics = activeSections;
+    } else {
+      const raw = subject.trim() || "My subject";
+      examName = qualId === "custom" || qualId === "uni" || raw.toLowerCase().startsWith(label.toLowerCase())
+        ? raw
+        : `${label} ${raw}`;
+      topics = undefined;
+    }
     const draft: ExamDraft = {
-      name: prefixed,
+      name: examName,
       color: null,
       examDate,
       examBoard: qual.board,
-      topicCount: 10,
+      topicCount: topics ? topics.length : 10,
       targetGrade: String(effectiveTarget || qual.grade.target),
       currentGrade: String(qual.grade.current),
       gradingSystem: qual.grade,
@@ -325,19 +396,34 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
       explainLang: null,
       kind: "exam",
       qualificationId: qualId,
+      ...(topics ? { topics, topicsStatus: "ready" } : {}),
     };
     const exams = commitExamWizard({
       examDrafts: [draft],
       // weeklyHours is the unit the scheduler reads; hours/day is only ever an
       // input format. See the module header for why this is × daysPerWeek.
-      profilePatch: { weeklyHours, daysPerWeek, sessionLengthMin: 45, planIntensity: "balanced", studyDays, hoursPerDay },
+      // blackoutSlots is the INVERSE of studyPeriods: the scheduler treats
+      // any weekday/period pair in blackoutSlots as unavailable. So if the
+      // student picked "evening", we block morning+afternoon on every day.
+      // (studyDays already handles which weekdays; this handles which hours.)
+      profilePatch: {
+        weeklyHours, daysPerWeek, sessionLengthMin: 45, planIntensity: "balanced", studyDays, hoursPerDay,
+        blackoutSlots: (["mon","tue","wed","thu","fri","sat","sun"] as const).flatMap((day) =>
+          (["morning","afternoon","evening"] as const)
+            .filter((period) => !studyPeriods.includes(period))
+            .map((period) => ({ day, period }))
+        ),
+      },
     });
     setCreated(exams);
-    // Topic names are filled in the background — the plan preview and the
-    // dashboard both work with the placeholder count until they land.
-    const enrich = legacyOptional<(id: string, exam: CreatedExam, files: unknown[]) => void>("requestCourseExtraction")
-      ?? legacyOptional<(id: string, exam: CreatedExam, files: unknown[]) => void>("requestTopicNames");
-    if (enrich) exams.forEach((e) => enrich(e.id, e, []));
+    // Language exams already carry real topic names (the sections), so an AI
+    // enrichment call would overwrite them with a hallucinated list. For
+    // everything else we still kick off the background name-extraction.
+    if (!topics) {
+      const enrich = legacyOptional<(id: string, exam: CreatedExam, files: unknown[]) => void>("requestCourseExtraction")
+        ?? legacyOptional<(id: string, exam: CreatedExam, files: unknown[]) => void>("requestTopicNames");
+      if (enrich) exams.forEach((e) => enrich(e.id, e, []));
+    }
   };
 
   const goNext = () => {
@@ -426,7 +512,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
         {/* ── 1. exam ───────────────────────────────────────────────────── */}
         {stepIdx === 0 && (
           <div>
-            {heading(tr("q_exam"), tr("q_exam_sub"))}
+            {heading(tr("q_exam"), isSectionExam ? tr("q_exam_sub_sections") : tr("q_exam_sub"))}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
               {examTypes.map((e) => (
                 <button key={e.id} type="button" onClick={() => { setQualId(e.id); setTarget(null); }} style={{ ...selectable(qualId === e.id), padding: "var(--space-3)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
@@ -440,35 +526,77 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 </button>
               ))}
             </div>
-            <input
-              value={subject} onChange={(ev) => setSubject(ev.target.value)} placeholder={tr("subject_ph")}
-              disabled={!qualId}
-              style={{ width: "100%", minHeight: 52, padding: "0 var(--space-4)", borderRadius: "var(--radius-lg)", border: "1.5px solid var(--border-default)", background: qualId ? "var(--surface-card)" : "var(--surface-page)", color: "var(--text-strong)", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", boxSizing: "border-box" }}
-            />
-            {/* Autocomplete against the real curriculum catalog for the picked
-                qualification. Answers "why doesn't 'математика' pull anything
-                up" — the old input was a bare text field; the wizard version
-                (CurriculumStep) had this, the fast onboarding did not. */}
-            {qualId && searchSubjects && subject.trim().length >= 1 && (() => {
-              const q = subject.trim().toLowerCase();
-              const rows = searchSubjects(null, qualId, null, subject.trim()).slice(0, 6);
-              // Hide the panel when the ONLY match is what the student already
-              // typed — the suggestion would be a no-op tap.
-              const shown = rows.filter((r) => r.subject.toLowerCase() !== q);
-              if (!shown.length) return null;
-              return (
-                <div style={{ marginTop: "var(--space-2)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", background: "var(--surface-card)", overflow: "hidden" }}>
-                  {shown.map((r) => (
-                    <button
-                      key={r.subject} type="button" onClick={() => setSubject(r.subject)}
-                      style={{ display: "block", width: "100%", textAlign: "left", padding: "10px var(--space-4)", border: "none", background: "transparent", color: "var(--text-strong)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", cursor: "pointer" }}
-                    >
-                      {r.subject}
-                    </button>
-                  ))}
+            {/* Section-based language exams (IELTS/TOEFL/Duolingo): the
+                "subject" IS the exam and the four papers are its topics —
+                asking for a subject name is nonsensical here (would produce
+                names like "IELTS reading" that duplicate what the exam
+                already implies). Chip grid of sections instead, all-on by
+                default, unclick what you're not preparing for. */}
+            {qualId && isSectionExam && (
+              <div>
+                <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>
+                  {tr("sections_label")}
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+                  {availableSections!.map((sec) => {
+                    const on = activeSections.includes(sec);
+                    return (
+                      <button
+                        key={sec} type="button" aria-pressed={on}
+                        onClick={() => setSections((cur) => ({
+                          ...cur,
+                          [qualId]: on ? activeSections.filter((s) => s !== sec) : [...activeSections, sec],
+                        }))}
+                        style={{ ...selectable(on), padding: "var(--space-3) var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", minHeight: 52 }}
+                      >
+                        <span style={{ width: 20, height: 20, borderRadius: 6, background: on ? "var(--indigo-600)" : "var(--surface-page)", border: on ? "none" : "1.5px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--white)", fontSize: 13, flexShrink: 0 }}>
+                          {on ? "✓" : ""}
+                        </span>
+                        <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" }}>{sec}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+                <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-xs)", color: activeSections.length ? "var(--text-faint)" : "var(--red-700)" }}>
+                  {activeSections.length ? tr("sections_hint") : tr("sections_pick_at_least_one")}
+                </p>
+              </div>
+            )}
+
+            {/* Non-language qualifications: freeform subject name with a real
+                autocomplete against the bundled curriculum catalog. */}
+            {qualId && !isSectionExam && (
+              <>
+                <input
+                  value={subject} onChange={(ev) => setSubject(ev.target.value)} placeholder={tr("subject_ph")}
+                  style={{ width: "100%", minHeight: 52, padding: "0 var(--space-4)", borderRadius: "var(--radius-lg)", border: "1.5px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-strong)", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", boxSizing: "border-box" }}
+                />
+                {searchSubjects && subject.trim().length >= 1 && (() => {
+                  const q = subject.trim().toLowerCase();
+                  const rows = searchSubjects(null, qualId, null, subject.trim()).slice(0, 6);
+                  const shown = rows.filter((r) => r.subject.toLowerCase() !== q);
+                  if (!shown.length) return null;
+                  return (
+                    <div style={{ marginTop: "var(--space-2)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", background: "var(--surface-card)", overflow: "hidden" }}>
+                      {shown.map((r) => (
+                        <button
+                          key={r.subject} type="button" onClick={() => setSubject(r.subject)}
+                          style={{ display: "block", width: "100%", textAlign: "left", padding: "10px var(--space-4)", border: "none", background: "transparent", color: "var(--text-strong)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", cursor: "pointer" }}
+                        >
+                          {r.subject}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+
+            {!qualId && (
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-faint)", textAlign: "center" }}>
+                {tr("pick_qual_first")}
+              </p>
+            )}
           </div>
         )}
 
@@ -562,11 +690,39 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 );
               })}
             </div>
-            <p style={{ margin: "var(--space-4) 0 0", textAlign: "center", fontSize: "var(--text-sm)", color: studyDays.length ? "var(--text-muted)" : "var(--red-700)" }}>
+            <p style={{ margin: "var(--space-4) 0 var(--space-5)", textAlign: "center", fontSize: "var(--text-sm)", color: studyDays.length ? "var(--text-muted)" : "var(--red-700)" }}>
               {studyDays.length
                 ? tr("weekly_total").replace("%H", String(weeklyHours))
                 : tr("pick_at_least_one_day")}
             </p>
+
+            {/* Time-of-day chips. Scheduler currently drops the first session
+                at 15:00 for every profile with no blackoutSlots — turning this
+                choice into real blackoutSlots at commit time makes the very
+                first calendar look right instead of always the same 15:00 default. */}
+            <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>
+              {tr("when_of_day")}
+            </p>
+            <div style={{ display: "flex", gap: "var(--space-2)" }}>
+              {([
+                { key: "morning", label: tr("period_morning") },
+                { key: "afternoon", label: tr("period_afternoon") },
+                { key: "evening", label: tr("period_evening") },
+              ] as const).map((p) => {
+                const on = studyPeriods.includes(p.key);
+                return (
+                  <button
+                    key={p.key} type="button" aria-pressed={on}
+                    onClick={() => setStudyPeriods((cur) => on
+                      ? (cur.length > 1 ? cur.filter((x) => x !== p.key) : cur) // must keep at least one
+                      : [...cur, p.key])}
+                    style={{ ...selectable(on), flex: 1, minHeight: 52, textAlign: "center", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", padding: "0 6px" }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

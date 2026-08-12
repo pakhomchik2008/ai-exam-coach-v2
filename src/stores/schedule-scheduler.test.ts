@@ -142,10 +142,8 @@ describe("hoursPerDay cap", () => {
   });
 });
 
-describe("even spread", () => {
-  it("does not pile every session into the first available week", () => {
-    // Sparse plan: 4 topics, 30 days, ~10h/week. The old code clumped sessions
-    // into the first 5 slots and left day 15-30 empty.
+describe("weekly planning window (§3g)", () => {
+  it("plans only the next 7 days rather than the full window to the exam", () => {
     store.saveProfile({
       studyDays: ["mon", "tue", "wed", "thu", "fri"],
       hoursPerDay: 2,
@@ -157,11 +155,24 @@ describe("even spread", () => {
 
     const dates = sessionsForExam().map((s) => s.date).sort();
     expect(dates.length).toBeGreaterThan(0);
-    const first = new Date(dates[0]!).getTime();
     const last = new Date(dates[dates.length - 1]!).getTime();
-    const spanDays = (last - first) / 86_400_000;
-    // With a 30-day exam window, expect sessions to cover at least 40% of it —
-    // sanity check that "even spread" actually spreads.
-    expect(spanDays).toBeGreaterThan(12);
+    const daysAhead = (last - Date.now()) / 86_400_000;
+    // §3g: horizon capped at 7 days — the end-of-week dashboard prompt asks
+    // the student before generating another week.
+    expect(daysAhead).toBeLessThanOrEqual(8);
+  });
+
+  it("spreads that week's sessions across multiple days, not one day", () => {
+    store.saveProfile({
+      studyDays: ["mon", "tue", "wed", "thu", "fri"],
+      hoursPerDay: 2,
+      daysPerWeek: 5,
+      weeklyHours: 10,
+      sessionLengthMin: 45,
+    });
+    seedExam(30, 4);
+
+    const uniqueDates = new Set(sessionsForExam().map((s) => s.date));
+    expect(uniqueDates.size).toBeGreaterThan(1);
   });
 });

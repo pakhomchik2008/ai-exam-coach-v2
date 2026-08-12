@@ -373,6 +373,12 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     // now preserves would never be populated in the first place for an exam
     // created without a course — see migrateExam's note.
     qualificationId: d.qualificationId,
+    // Wizard drafts can now arrive with real topics pre-populated (language
+    // exams in QuickOnboarding — sections are the topics). Passing them
+    // through means migrateExam accepts them as-is; without this, saveExams
+    // would drop them and the schedule would use "Topic review N" placeholders.
+    topics: d.topics,
+    topicsStatus: d.topicsStatus,
   }, exams.length + i));
 
   saveExams([...exams, ...newExams]); // triggers reconcileSchedule automatically

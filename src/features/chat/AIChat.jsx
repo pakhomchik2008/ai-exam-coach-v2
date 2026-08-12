@@ -1292,8 +1292,6 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
   // interrupt, and keeps the brain-store input the review path already reads.
   // Kept as state so re-renders don't reset the reference clock.
   const [questionShownAt, setQuestionShownAt] = React.useState(() => Date.now());
-  const [showWhy, setShowWhy] = React.useState(false);
-  const [whyInput, setWhyInput] = React.useState("");
   const [revealed, setRevealed] = React.useState(false);
   const [results, setResults] = React.useState([]);
   const [patternAlert, setPatternAlert] = React.useState(null);
@@ -1511,7 +1509,7 @@ RULES:
       onDrillWeak: (topics) => {
         setConfig((c) => ({ ...c, topics }));
         setQuestions(null); setResults([]); setQIdx(0); setSelected(null); setQuestionShownAt(Date.now());
-        setRevealed(false); setShowWhy(false); setPatternAlert(null); setRemainingSec(null);
+        setRevealed(false); setPatternAlert(null); setRemainingSec(null);
         xpAwardedRef.current = false;
         setPhase("setup");
       },
@@ -1526,35 +1524,40 @@ RULES:
   const totalQ = questions.length;
   const pctDone = Math.round(((qIdx + 1) / totalQ) * 100);
 
-  const submitAnswer = () => {
-    if (selected === null) return;
+  // Single argument, not a read from state: the click handler passes the option
+  // index straight in, so we don't have to wait a render for setSelected to
+  // land before submitting — kept the "tap answer = submit" flow feeling
+  // instant, which was the whole point of dropping the confidence step.
+  const submitAnswer = (optIdx) => {
+    if (selected !== null) return; // second tap on the same question is a no-op
+    setSelected(optIdx);
     // Under 4s = confident, under 12s = normal, longer = probably guessed.
     // Thresholds match what students report anecdotally and what StudyHub's
     // pacing already assumes (60-90s per Q on paper, faster on multiple
     // choice). Feeds recordReview via the same key the old chip used.
     const elapsedSec = (Date.now() - questionShownAt) / 1000;
     const confidence = elapsedSec < 4 ? "easy" : elapsedSec < 12 ? "okay" : "guessing";
-    const isCorrect = selected === q.correct;
+    const isCorrect = optIdx === q.correct;
     const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     }
     if (!isCorrect && resolved && window.logMistake) {
-      // Full payload, not just topic+question: without options/correctIndex/
-      // explanation the mistake journal cannot re-ask the question, so the
-      // entry is un-retryable and the recap has nothing to show (audit #3c).
       window.logMistake({
         topic: resolved?.topicName || q.topic, question: q.question,
-        options: q.options, correctIndex: q.correct, selectedIndex: selected, explanation: q.explanation,
+        options: q.options, correctIndex: q.correct, selectedIndex: optIdx, explanation: q.explanation,
         examId: resolved?.examId, topicIdx: resolved?.topicIdx,
       });
     }
-    setResults((r) => [...r, { correct: isCorrect, topic: q.topic, confidence, selected }]);
-    if (!isCorrect) { setShowWhy(true); } else { setRevealed(true); }
+    setResults((r) => [...r, { correct: isCorrect, topic: q.topic, confidence, selected: optIdx }]);
+    // No "why did you choose" prompt any more — tapping the wrong answer
+    // reveals the explanation immediately. Students were skipping the textarea
+    // anyway, and the extra tap made a five-question drill feel like ten.
+    setRevealed(true);
   };
 
   const advance = () => {
-    setSelected(null); setRevealed(false); setShowWhy(false); setWhyInput(""); setPatternAlert(null);
+    setSelected(null); setRevealed(false); setPatternAlert(null);
     setQuestionShownAt(Date.now()); // reset the timer for the next question
     if (qIdx + 1 >= totalQ) { setPhase("summary"); } else { setQIdx(qIdx + 1); }
   };
@@ -1581,7 +1584,7 @@ RULES:
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
       // Pattern alert
-      patternAlert && !revealed && !showWhy && React.createElement("div", {
+      patternAlert && !revealed && React.createElement("div", {
         style: { marginBottom: 16, padding: "12px 16px", background: "var(--red-50)", border: "1px solid var(--red-400)", borderRadius: 12, animation: "fadeUp 0.3s" }
       },
         React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 700, color: "var(--red-700)" } }, L("🎯 Pattern detected", "🎯 Виявлено закономірність", "🎯 Обнаружена закономерность", "🎯 Schéma détecté", "🎯 Muster erkannt")),
@@ -1598,38 +1601,19 @@ RULES:
             const isCorrect = i === q.correct;
             const isSel = i === selected;
             let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
-            if (revealed || showWhy) {
+            if (revealed) {
               if (isCorrect) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "var(--white)"; }
               else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "var(--white)"; }
               else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
-            } else if (isSel) { bg = "var(--indigo-50)"; bc = "var(--indigo-500)"; col = "var(--indigo-700)"; lbg = "var(--indigo-500)"; lcol = "var(--white)"; }
+            }
             return React.createElement("button", {
-              key: i, disabled: revealed || showWhy,
-              onClick: () => setSelected(i),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: (revealed || showWhy) ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+              key: i, disabled: revealed,
+              onClick: () => submitAnswer(i),
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
           })),
-
-        // Submit — one tap, not three. Confidence is inferred from time-to-
-        // answer in submitAnswer above (see the note there for the thresholds
-        // and why chip-tapping was cut).
-        selected !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 16 } },
-          _btn(L("Submit →", "Надіслати →", "Отправить →", "Envoyer →", "Absenden →"), submitAnswer, true, false)),
-
-        // "Why did you choose?" (wrong answer)
-        showWhy && React.createElement("div", { style: { marginTop: 16, animation: "fadeUp 0.3s" } },
-          React.createElement("div", { style: { padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, marginBottom: 12 } },
-            React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--amber-700)" } }, L(`Why did you choose ${["A", "B", "C", "D"][selected]}?`, `Чому ви обрали ${["A", "B", "C", "D"][selected]}?`, `Почему вы выбрали ${["A", "B", "C", "D"][selected]}?`, `Pourquoi avez-vous choisi ${["A", "B", "C", "D"][selected]} ?`, `Warum hast du ${["A", "B", "C", "D"][selected]} gewählt?`)),
-            React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "var(--amber-700)" } }, L("Explain your reasoning — this helps you learn from mistakes.", "Поясніть свою логіку — це допоможе вчитися на помилках.", "Объясните свою логику — это поможет учиться на ошибках.", "Expliquez votre raisonnement — cela vous aide à apprendre de vos erreurs.", "Erkläre deine Überlegung — das hilft dir, aus Fehlern zu lernen."))),
-          React.createElement("textarea", {
-            value: whyInput, onChange: (e) => setWhyInput(e.target.value), autoFocus: true,
-            placeholder: L("I thought this because...", "Я так вважав, тому що...", "Я так думал, потому что...", "J'ai pensé cela parce que...", "Ich dachte das, weil..."), rows: 2,
-            style: { width: "100%", border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", boxSizing: "border-box" }
-          }),
-          React.createElement("div", { style: { marginTop: 8 } },
-            _btn(whyInput.trim() ? L("See explanation →", "Переглянути пояснення →", "Посмотреть объяснение →", "Voir l'explication →", "Erklärung ansehen →") : L("Skip →", "Пропустити →", "Пропустить →", "Passer →", "Überspringen →"), () => { setShowWhy(false); setRevealed(true); }, true, false))),
 
         // Explanation (after reveal)
         revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
