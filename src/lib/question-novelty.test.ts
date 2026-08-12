@@ -31,7 +31,17 @@ describe("hashQuestionText", () => {
   });
 });
 
-function makeFakeSupabase(bank: Map<string, { id: string; hash: string }>, seen: Set<string>) {
+// `rpcMatch` is optional — when provided, the fake's rpc() calls it with the
+// exact-question text and returns whatever id it decides is a paraphrase
+// match (or null for no match). Lets each test control the "does pg_trgm
+// think this is similar?" outcome deterministically.
+type RpcMatch = (params: { p_exam_taxonomy: string; p_text: string }) => string | null;
+
+function makeFakeSupabase(
+  bank: Map<string, { id: string; hash: string; text: string; taxonomy: string }>,
+  seen: Set<string>,
+  rpcMatch?: RpcMatch,
+) {
   let nextId = 1;
   return {
     from: (table: string) => {
@@ -53,7 +63,12 @@ function makeFakeSupabase(bank: Map<string, { id: string; hash: string }>, seen:
             const p = Promise.resolve({ error: null }) as unknown as { select: (c: string) => { single: () => Promise<unknown> } } & Promise<{ error: unknown }>;
             p.select = () => ({
               single: async () => {
-                bank.set(key, { id, hash: row.question_hash as string });
+                bank.set(key, {
+                  id,
+                  hash: row.question_hash as string,
+                  text: row.question_text as string,
+                  taxonomy: row.exam_taxonomy as string,
+                });
                 return { data: { id }, error: null };
               },
             });
@@ -73,6 +88,15 @@ function makeFakeSupabase(bank: Map<string, { id: string; hash: string }>, seen:
           return { error: null };
         },
       };
+    },
+    rpc: async (fn: string, params: Record<string, unknown>) => {
+      if (fn !== "match_similar_question") return { data: null, error: { code: "PGRST202" } };
+      if (!rpcMatch) return { data: [], error: null };
+      const matchedId = rpcMatch({
+        p_exam_taxonomy: params.p_exam_taxonomy as string,
+        p_text: params.p_text as string,
+      });
+      return { data: matchedId ? [{ id: matchedId, similarity: 0.85 }] : [], error: null };
     },
   } as unknown as Parameters<typeof checkAndRecordQuestion>[0];
 }
@@ -116,5 +140,56 @@ describe("checkAndRecordQuestion", () => {
     } as unknown as Parameters<typeof checkAndRecordQuestion>[0];
     const result = await checkAndRecordQuestion(sb, "user-1", "ielts", null, "anything");
     expect(result.duplicate).toBe(false);
+  });
+
+  it("flags a paraphrased question via pg_trgm rpc as duplicate (no hash match, similarity match)", async () => {
+    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string }>();
+    const seen = new Set<string>();
+    // Seed the bank the normal way, then set up an rpc mock that returns
+    // its id for any query targeting that exam.
+    const seedSb = makeFakeSupabase(bank, seen);
+    await checkAndRecordQuestion(seedSb, "user-1", "ielts", "algebra", "Solve for x: 3x + 5 = 20");
+    const seededId = Array.from(bank.values())[0]?.id;
+    expect(seededId).toBeDefined();
+
+    const sb = makeFakeSupabase(bank, seen, ({ p_exam_taxonomy }) =>
+      p_exam_taxonomy === "ielts" ? seededId ?? null : null,
+    );
+    const result = await checkAndRecordQuestion(sb, "user-2", "ielts", "algebra", "Find x when 3x + 5 = 20");
+    expect(result.duplicate).toBe(true);
+    // The paraphrase branch marks the ORIGINAL row as seen, not a new row —
+    // bank size must NOT grow when a near-dup is caught.
+    expect(bank.size).toBe(1);
+    expect(seen.has(`user-2::${seededId}`)).toBe(true);
+  });
+
+  it("does not flag a genuinely different question even when rpc runs", async () => {
+    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string }>();
+    const seen = new Set<string>();
+    const seedSb = makeFakeSupabase(bank, seen);
+    await checkAndRecordQuestion(seedSb, "user-1", "ielts", "algebra", "Solve for x: 3x + 5 = 20");
+
+    // rpc returns null → similarity below threshold → treated as new question
+    const sb = makeFakeSupabase(bank, seen, () => null);
+    const result = await checkAndRecordQuestion(sb, "user-2", "ielts", "geography", "What is the capital of France?");
+    expect(result.duplicate).toBe(false);
+    expect(bank.size).toBe(2);
+  });
+
+  it("degrades to not-a-duplicate when the rpc function isn't deployed yet (PGRST202)", async () => {
+    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string }>();
+    const seen = new Set<string>();
+    // makeFakeSupabase's rpc without rpcMatch returns [] for match_similar_question
+    // — simulate the harsher "function not found" via a custom sb where rpc errors.
+    const baseSb = makeFakeSupabase(bank, seen) as unknown as {
+      from: unknown;
+      rpc: (fn: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+    };
+    baseSb.rpc = async () => ({ data: null, error: { code: "PGRST202" } });
+    const sb = baseSb as unknown as Parameters<typeof checkAndRecordQuestion>[0];
+    const result = await checkAndRecordQuestion(sb, "user-1", "ielts", "algebra", "brand new question");
+    expect(result.duplicate).toBe(false);
+    // Insert path still ran despite the rpc error — the new question was banked.
+    expect(bank.size).toBe(1);
   });
 });

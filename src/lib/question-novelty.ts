@@ -1,23 +1,30 @@
 /**
- * Novelty engine, phase one (audit/Phase 3 §3.1 in docs/phase-3-plan.md):
- * exact/near-exact dedup via a normalized hash, not the embeddings +
- * pgvector cosine-similarity pipeline the original mega-prompt spec
- * describes — Anthropic has no embeddings endpoint (a spec error), and
- * adding OpenAI as a second AI vendor for one feature isn't an autonomous
- * call. See Decision Log #39.
+ * Novelty engine — two-stage dedup:
  *
- * This catches the actual failure mode observed today: every question
- * generator in AIChat.jsx relies entirely on in-prompt instructions like
- * "no duplicate concepts" — a single LLM call trusting itself, with zero
- * memory of anything served in a PREVIOUS session. A shared, hash-keyed
- * table gives that memory back without an embeddings dependency.
+ * 1. Exact / normalized-text repeat via SHA-256 of normalizeQuestionText
+ *    (catches punctuation/case/whitespace variants of the same string).
+ * 2. Paraphrased repeat via Postgres pg_trgm similarity, called as an
+ *    RPC (supabase/16_question_similarity.sql). Catches word-order
+ *    changes, small phrasings, synonym swaps within shared substrings
+ *    — the "same question worded slightly differently" case that hash
+ *    alone silently permits.
+ *
+ * Both stages degrade to `{duplicate: false}` on any Supabase error —
+ * table missing (PGRST205), function missing (PGRST202), network hiccup —
+ * so a novelty-engine outage never blocks question generation, only loses
+ * the dedup benefit.
  *
  * Split the same way as sync-reconcile.ts / data-sync.ts: pure, testable
- * logic here; the Supabase round-trip is the thin glue in checkAndRecordQuestion.
+ * logic up top; the Supabase round-trips are the thin glue below.
  */
 
 const TABLE_BANK = "ai_question_bank";
 const TABLE_SEEN = "user_seen_questions";
+const RPC_MATCH_SIMILAR = "match_similar_question";
+// Trigger similarity threshold for pg_trgm. Duplicates 16_question_similarity
+// .sql's default — kept in sync deliberately so calling code sees one number,
+// but passed explicitly so the DB default drift can't silently affect us.
+export const SIMILARITY_THRESHOLD = 0.7;
 
 /**
  * Strips whitespace/punctuation/case differences so two questions that are
@@ -67,6 +74,7 @@ interface SupabaseLike {
       opts?: { onConflict?: string; ignoreDuplicates?: boolean },
     ) => Promise<{ error: unknown }>;
   };
+  rpc: (fn: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
 }
 
 /**
@@ -105,6 +113,28 @@ export async function checkAndRecordQuestion(
         { onConflict: "user_id,question_id", ignoreDuplicates: true },
       );
       return { duplicate: true };
+    }
+
+    // Stage 2 — no exact hash hit, try pg_trgm similarity for a paraphrased
+    // repeat. rpc missing (function not deployed yet) or any error: skip
+    // silently, fall through to insert. Matched row goes into user_seen the
+    // same way an exact hit would.
+    if (typeof sb.rpc === "function") {
+      const sim = await sb.rpc(RPC_MATCH_SIMILAR, {
+        p_exam_taxonomy: examTaxonomy,
+        p_text: questionText,
+        p_threshold: SIMILARITY_THRESHOLD,
+      });
+      if (!sim.error && Array.isArray(sim.data) && sim.data.length > 0) {
+        const nearRow = sim.data[0] as { id: string };
+        if (nearRow && nearRow.id) {
+          await sb.from(TABLE_SEEN).upsert(
+            { user_id: userId, question_id: nearRow.id },
+            { onConflict: "user_id,question_id", ignoreDuplicates: true },
+          );
+          return { duplicate: true };
+        }
+      }
     }
 
     const inserted = await sb
