@@ -171,7 +171,9 @@ describe("QuickOnboarding", () => {
     // both read back from the schedule the commit actually produced.
     expect(screen.getByText(/study sessions/)).toBeTruthy();
     expect(screen.getByText(/hours total/)).toBeTruthy();
-    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(2);
+    await waitFor(() => {
+      expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(2);
+    });
     fireEvent.click(screen.getByText(/Start studying/).closest("button") as HTMLButtonElement);
     expect(onFinish).toHaveBeenCalledWith([{ id: "e_new" }]);
     expect(upgradeCalls).toHaveLength(0);

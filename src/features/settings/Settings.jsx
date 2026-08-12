@@ -52,6 +52,7 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   const [notifyWeeklyDigest, setNotifyWeeklyDigest] = React.useState(profile.notifyWeeklyDigest);
   const [notifyStreakDanger, setNotifyStreakDanger] = React.useState(profile.notifyStreakDanger);
   const [notifyMistakeReview, setNotifyMistakeReview] = React.useState(profile.notifyMistakeReview);
+  const [soundsEnabled, setSoundsEnabled] = React.useState(profile.soundsEnabled === true);
   // Study-plan budget inputs — feed schedule-store.jsx's allocateBudget
   // (Phase 3). Editing any of these here goes through the same saveProfile()
   // path as the wizard, which already diffs BUDGET_FIELDS and calls
@@ -107,6 +108,7 @@ function Settings({ t, lang, onLangChange, onLogout }) {
     window.saveProfile({
       fullName, timezone: tz.id, reminderEnabled, reminderHour,
       notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
+      soundsEnabled,
       email: emailValid ? trimmedEmail : profile.email,
       weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, planIntensity,
     });
@@ -339,6 +341,42 @@ function Settings({ t, lang, onLangChange, onLogout }) {
               "Änderungen hier berechnen Ihren gesamten Lernplan neu."
             )}
           </p>
+        </Section>
+
+        <Section title={t.settings_sounds || "Sounds"}>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={soundsEnabled}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setSoundsEnabled(on);
+                if (on) window.previewSound && window.previewSound("level");
+              }}
+              style={{ width: 16, height: 16, marginTop: 2, accentColor: "var(--indigo-600)", cursor: "pointer", flexShrink: 0 }}
+            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>{t.settings_sounds_on}</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.4 }}>{t.settings_sounds_note}</span>
+            </div>
+          </label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {(window.SOUND_NAMES || []).map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => window.previewSound && window.previewSound(name)}
+                style={{
+                  border: "1px solid var(--border-default)", background: "var(--surface-muted)",
+                  color: "var(--text-body)", borderRadius: "var(--radius-full)",
+                  padding: "6px 12px", fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)",
+                  cursor: "pointer",
+                }}
+              >
+                {t.settings_sounds_preview} {name}
+              </button>
+            ))}
+          </div>
         </Section>
 
         <Section title={t.settings_language}>

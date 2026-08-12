@@ -1,17 +1,10 @@
 // AI Exam Coach — top navigation + language switcher
 // FintechX redesign: sticky translucent bar, geometric logo mark,
 // ink-pill active state, no emoji in the link row.
+import { BrandMark } from "../brand/BrandMark";
 
 function NavLogoMark({ size = 26 }) {
-  // Rounded ink square with an emerald progress arc — "coached to ready".
-  return (
-    <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">
-      <rect width="26" height="26" rx="8" fill="var(--ink-900)" />
-      <path d="M13 6.5 a6.5 6.5 0 1 1 -6.2 8.5" fill="none"
-        stroke="var(--emerald-500)" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="13" cy="13" r="2.4" fill="var(--white)" />
-    </svg>
-  );
+  return <BrandMark size={size} framed />;
 }
 window.NavLogoMark = NavLogoMark;
 
