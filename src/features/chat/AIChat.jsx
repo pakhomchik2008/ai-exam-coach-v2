@@ -7,6 +7,7 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+import { tokenizeMath, renderMathSegment, escapeHtml as _escapeHtmlMath } from "../../lib/math-render";
 import { specFor } from "../../lib/exam-specs";
 import { ExamRecap } from "../study/ExamRecap.jsx";
 
@@ -113,17 +114,25 @@ function CoachIcon({ size = 32 }) {
     React.createElement("rect", { x: "8.5", y: "15", width: "3", height: "1.2", rx: "0.6", fill: "var(--white)", opacity: "0.55" })));
 }
 
+// Markdown-lite + KaTeX. Math ($inline$ / $$block$$) is rendered by KaTeX to
+// safe HTML BEFORE any escaping happens on the prose around it — otherwise
+// the "<" in <span class="katex"> would get double-escaped. Prose segments
+// are escaped, then bold/italic/code/newline substitutions run on the
+// escaped text (order matters: escaping first lets these regexes never see
+// user-injected HTML in the first place).
 const _md = (text) => {
   if (!text) return "";
-  let t = text
-    .replace(/<br\s*\/?>/gi, "\n");
-  t = t
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
-    .replace(/`([^`\n]+?)`/g, "<code style='background:var(--slate-100);padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
-    .replace(/\n/g, "<br/>");
-  return t;
+  const normalized = String(text).replace(/<br\s*\/?>(\r?\n)?/gi, "\n");
+  const segs = tokenizeMath(normalized);
+  return segs.map((s) => {
+    if (s.kind !== "text") return renderMathSegment(s);
+    let t = _escapeHtmlMath(s.value)
+      .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
+      .replace(/`([^`\n]+?)`/g, "<code style='background:var(--slate-100);padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
+      .replace(/\n/g, "<br/>");
+    return t;
+  }).join("");
 };
 
 const _isMath = (text) => /[=°²³√×÷±∑∫πΔ∞≠≤≥∈∩∪]/.test(text) || /\d\s*[\+\-\*\/]\s*\d/.test(text);
@@ -2140,7 +2149,205 @@ function prefetchLesson(topic, tcode) {
   } catch {}
 }
 
+// ─── Learn mode: pure theory reader (Phase 3.7a follow-up) ────────────────────
+//
+// mode="learn" no longer produces the mixed quiz-script LessonEngine used to
+// render — the student asked for pure, high-quality theory. This builder
+// generates a single structured page: TL;DR → key concepts → worked
+// examples → common pitfalls → cheat sheet. Formulas come back as LaTeX
+// (`$…$` / `$$…$$`) so the KaTeX-aware `_md` renders them as real math.
+//
+// Cached the same way as generateLessonPlan (localStorage-backed via
+// getCachedLesson / setCachedLesson) — a warm reopen of the same topic is
+// instant and doesn't burn a fresh AI call.
+
+const THEORY_MODE_TAG = "theory";
+
+async function generateTheoryReader({ topic, resolved, tcode, force }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
+  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
+  const cacheKey = lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: _lessonExam?.explainLang, ui: tcode });
+  if (!force) {
+    const cached = getCachedLesson(cacheKey);
+    if (cached) return cached;
+    if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
+  }
+  const run = (async () => {
+    const complete = window.brainComplete || ((a) => window.claude.complete(a));
+    const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+    const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
+    const system = `You are the best exam-prep teacher in the world. Write ONE excellent, self-contained theory page for the topic "${topic}". No questions, no drills — just pure, clear teaching a student can read once and remember.
+
+OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
+
+STRUCTURE — every field is required:
+{
+  "title": "One clear title, matching the topic",
+  "tldr": "2-3 sentences summarising the whole idea in plain language a beginner can grasp",
+  "concepts": [
+    {"heading": "Concept name", "body": "2-4 short paragraphs explaining it. Use analogies and concrete examples. **Bold** key terms."}
+  ],
+  "examples": [
+    {"prompt": "A worked example problem", "steps": ["Step 1: …", "Step 2: …", "…"], "answer": "The final answer"}
+  ],
+  "pitfalls": ["Common mistake 1 (short, one sentence)", "Common mistake 2", "…"],
+  "cheatsheet": ["Key formula or rule 1", "Key formula or rule 2", "…"]
+}
+
+RULES:
+- 3-5 concepts, ordered from easiest to hardest.
+- 2-3 worked examples that cover different situations.
+- 3-6 pitfalls; 4-8 cheat-sheet lines.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+- Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
+- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
+    const raw = await Promise.race([
+      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride }),
+      timeout,
+    ]);
+    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    if (!parsed || !parsed.title || !Array.isArray(parsed.concepts)) throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
+    saveCachedLesson(cacheKey, parsed);
+    _lessonInFlight.delete(cacheKey);
+    return parsed;
+  })();
+  _lessonInFlight.set(cacheKey, run);
+  run.catch(() => _lessonInFlight.delete(cacheKey));
+  return run;
+}
+
+function LearnTheoryReader({ topic, onExit, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [plan, setPlan] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+  const [retry, setRetry] = React.useState(0);
+  const [markedRead, setMarkedRead] = React.useState(false);
+  // Once-per-open XP grant so re-scrolling to the "Got it" button doesn't
+  // multiply the reward. Same shape as LessonEngine's xpCommittedRef.
+  const grantedRef = React.useRef(false);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(null); setPlan(null);
+    (async () => {
+      try {
+        const parsed = await generateTheoryReader({ topic, resolved, tcode: t?.code, force: retry > 0 });
+        if (cancelled) return;
+        setPlan(parsed); setLoading(false);
+      } catch (e) {
+        if (cancelled) return;
+        console.error("Theory generation failed:", e);
+        setError(e.message || L("Failed to load", "Не вдалося завантажити", "Не удалось загрузить", "Échec du chargement", "Fehler beim Laden"));
+        setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [topic, retry]);
+
+  const markAsRead = () => {
+    if (grantedRef.current || markedRead) return;
+    grantedRef.current = true;
+    setMarkedRead(true);
+    if (window.addXp) window.addXp(50);
+    // Positive review signal on the resolved topic so retention rises — a
+    // student who read the theory has definitely engaged with the concept.
+    if (resolved && window.recordReview) {
+      window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: true });
+    }
+    _sfx.correct();
+  };
+
+  const wrap = (children) => React.createElement("div", {
+    style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px 80px", fontFamily: "var(--font-sans)", color: "var(--text-body)" },
+  }, children);
+  const header = React.createElement("div", { key: "hdr", style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 18 } },
+    React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
+    React.createElement("span", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600 } },
+      L("Theory", "Теорія", "Теория", "Théorie", "Theorie")),
+  );
+
+  if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
+    L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"))]);
+  if (error) return wrap([header,
+    React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
+    React.createElement("button", { key: "r", onClick: () => setRetry((n) => n + 1), style: { marginTop: 10, padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontFamily: "var(--font-sans)" } },
+      L("Retry", "Ще раз", "Ещё раз", "Réessayer", "Erneut versuchen")),
+  ]);
+  if (!plan) return wrap([header]);
+
+  const html = (s) => ({ __html: _md(s || "") });
+  const kSect = { marginTop: 32 };
+  const kSectLabel = { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", fontWeight: 700, marginBottom: 10 };
+  const kBodyProse = { fontSize: 16, lineHeight: 1.75, color: "var(--text-body)" };
+
+  return wrap([
+    header,
+    React.createElement("h1", { key: "title", style: { margin: "0 0 12px", fontSize: 28, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2, letterSpacing: "-0.01em" } }, plan.title),
+    plan.tldr && React.createElement("div", { key: "tldr", style: { marginTop: 8, padding: "16px 18px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 15, lineHeight: 1.6, color: "var(--text-strong)" } },
+      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, "TL;DR"),
+      React.createElement("div", { dangerouslySetInnerHTML: html(plan.tldr) }),
+    ),
+    // Concepts — the main body. Each concept renders as its own heading +
+    // multi-paragraph explanation. KaTeX-rendered math inline via _md.
+    Array.isArray(plan.concepts) && plan.concepts.length > 0 && React.createElement("div", { key: "concepts", style: kSect },
+      React.createElement("div", { style: kSectLabel }, L("Core concepts", "Ключові концепції", "Ключевые концепции", "Concepts clés", "Kernkonzepte")),
+      ...plan.concepts.map((c, i) => React.createElement("section", { key: i, style: { marginTop: i === 0 ? 4 : 24 } },
+        React.createElement("h2", { style: { margin: "0 0 10px", fontSize: 20, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, c.heading),
+        React.createElement("div", { style: kBodyProse, dangerouslySetInnerHTML: html(c.body) }),
+      )),
+    ),
+    Array.isArray(plan.examples) && plan.examples.length > 0 && React.createElement("div", { key: "ex", style: kSect },
+      React.createElement("div", { style: kSectLabel }, L("Worked examples", "Розв'язані приклади", "Разобранные примеры", "Exemples résolus", "Beispiele")),
+      ...plan.examples.map((ex, i) => React.createElement("div", { key: i, style: { marginTop: i === 0 ? 4 : 20, padding: "16px 18px", background: "var(--surface-muted)", borderRadius: 12 } },
+        React.createElement("div", { style: { fontSize: 15, fontWeight: 600, color: "var(--text-strong)", marginBottom: 10 }, dangerouslySetInnerHTML: html(ex.prompt) }),
+        Array.isArray(ex.steps) && React.createElement("ol", { style: { paddingLeft: 22, margin: "0 0 10px", color: "var(--text-body)", fontSize: 15, lineHeight: 1.7 } },
+          ...ex.steps.map((s, j) => React.createElement("li", { key: j, style: { marginBottom: 6 }, dangerouslySetInnerHTML: html(s) })),
+        ),
+        ex.answer && React.createElement("div", { style: { fontSize: 15, fontWeight: 700, color: "var(--indigo-700)", paddingTop: 8, borderTop: "1px solid var(--border-subtle)" } },
+          React.createElement("span", { style: { color: "var(--text-faint)", fontWeight: 500 } }, L("Answer: ", "Відповідь: ", "Ответ: ", "Réponse : ", "Antwort: ")),
+          React.createElement("span", { dangerouslySetInnerHTML: html(ex.answer) }),
+        ),
+      )),
+    ),
+    Array.isArray(plan.pitfalls) && plan.pitfalls.length > 0 && React.createElement("div", { key: "pit", style: kSect },
+      React.createElement("div", { style: kSectLabel }, L("Common mistakes", "Типові помилки", "Типичные ошибки", "Erreurs fréquentes", "Häufige Fehler")),
+      React.createElement("ul", { style: { paddingLeft: 22, margin: 0, fontSize: 15, lineHeight: 1.75, color: "var(--text-body)" } },
+        ...plan.pitfalls.map((p, i) => React.createElement("li", { key: i, style: { marginBottom: 6 }, dangerouslySetInnerHTML: html(p) })),
+      ),
+    ),
+    Array.isArray(plan.cheatsheet) && plan.cheatsheet.length > 0 && React.createElement("div", { key: "cs", style: kSect },
+      React.createElement("div", { style: kSectLabel }, L("Cheat sheet", "Шпаргалка", "Шпаргалка", "Aide-mémoire", "Spickzettel")),
+      React.createElement("div", { style: { padding: "16px 18px", background: "var(--surface-card)", border: "1px dashed var(--border-default)", borderRadius: 12 } },
+        React.createElement("ul", { style: { paddingLeft: 22, margin: 0, fontSize: 15, lineHeight: 1.85, color: "var(--text-strong)" } },
+          ...plan.cheatsheet.map((c, i) => React.createElement("li", { key: i, style: { marginBottom: 4 }, dangerouslySetInnerHTML: html(c) })),
+        ),
+      ),
+    ),
+    React.createElement("div", { key: "cta", style: { marginTop: 40, display: "flex", justifyContent: "center" } },
+      markedRead
+        ? React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, color: "var(--emerald-600)", fontWeight: 600, fontSize: 15 } },
+            React.createElement("span", { style: { fontSize: 22 } }, "✓"),
+            L("Marked as read · +50 XP", "Позначено · +50 XP", "Отмечено · +50 XP", "Marqué comme lu · +50 XP", "Als gelesen markiert · +50 XP"),
+          )
+        : React.createElement("button", {
+            onClick: markAsRead,
+            style: { padding: "14px 32px", borderRadius: 999, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
+          },
+            L("Got it · +50 XP", "Зрозумів · +50 XP", "Понял · +50 XP", "Compris · +50 XP", "Verstanden · +50 XP"),
+          ),
+    ),
+  ]);
+}
+
 function LessonEngine({ topic, mode, onExit, t }) {
+  // Learn mode is now the pure-theory reader — no quiz script. Practice and
+  // review still use the old mixed-step LessonEngine body below.
+  if (mode === "learn") {
+    return React.createElement(LearnTheoryReader, { topic, onExit, t });
+  }
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
@@ -2950,7 +3157,14 @@ function ChatMode({ onExit, initialQuery, t }) {
       // disagree with the live one inside the same prompt.
       const reply = await complete({
         system: `You are a brilliant, warm personal tutor.${profileCtx ? ` Student profile: ${profileCtx}.` : ""}
-Answer clearly and concisely. Use **bold** for key terms. Keep responses under 100 words. Do NOT output JSON — just write natural text.
+Answer clearly. Use **bold** for key terms. Keep it under 150 words unless the student explicitly asks for depth. Do NOT output JSON — just natural text.
+
+FORMATTING:
+- Write MATH using LaTeX: inline as $x^2 + 1$, display as $$\\frac{a}{b}$$. NEVER use ^, ², or unicode superscripts — the client renders LaTeX to real formulas.
+- Use short paragraphs (2-3 sentences each). Blank line between paragraphs.
+- Bullet lists start with "- " on their own line.
+- Number multi-step solutions as "1. ", "2. ", etc.
+
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
         messages: historyRef.current,
@@ -3049,13 +3263,16 @@ If no actions fit, omit the ACTIONS line entirely.`,
           React.createElement("span", { style: { fontSize: 13, fontWeight: 500, color: "var(--text-body)" } }, a.text[t?.code] || a.text.en))))));
 
   // ── Chat messages — rendered below dashboard ──
-  const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 12 } },
+  const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 14 } },
     ...messages.map((m) =>
       React.createElement(React.Fragment, { key: m.id },
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
           m.role === "ai" && React.createElement(CoachIcon, { size: 28 }),
           React.createElement("div", {
-            style: { maxWidth: "80%", background: m.role === "user" ? "var(--indigo-600)" : "var(--surface-card)", color: m.role === "user" ? "var(--white)" : "var(--text-body)", border: m.role === "user" ? "none" : "1px solid var(--border-subtle)", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: m.role === "user" ? 4 : 16, borderTopLeftRadius: m.role === "ai" ? 4 : 16, fontSize: 13, lineHeight: 1.65 },
+            className: m.role === "ai" ? "aicoach-msg" : undefined,
+            style: m.role === "user"
+              ? { maxWidth: "80%", background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6 }
+              : { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
             dangerouslySetInnerHTML: { __html: _md(m.text) }
           })),
         // Action buttons after AI message
