@@ -7,6 +7,10 @@
  */
 import "./bootstrap";
 import "./styles/styles.css";
+// KaTeX styles — required for the math rendering used in the Learn-mode
+// theory reader (src/features/chat/AIChat.jsx). Fonts are self-hosted from
+// katex/dist/fonts, resolved by Vite; no CDN dependency.
+import "katex/dist/katex.min.css";
 
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
