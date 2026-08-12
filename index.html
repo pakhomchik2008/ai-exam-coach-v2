@@ -8,6 +8,10 @@
   src="https://js-de.sentry-cdn.com/f944c5545143a5d01254af4c96e734d3.min.js"
   crossorigin="anonymous"
 ></script>
+<!-- OneSignal Web Push SDK (Phase 3 §3.5 follow-up). Loaded unconditionally —
+     src/lib/push.ts checks VITE_ONESIGNAL_APP_ID before using it, so this is
+     a harmless no-op fetch when push isn't configured (e.g. local dev). -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AI Exam Coach — Web App</title>
