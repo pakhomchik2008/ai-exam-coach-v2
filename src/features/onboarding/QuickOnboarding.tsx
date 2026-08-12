@@ -251,10 +251,13 @@ function choiceClass(on: boolean): string {
 }
 
 function CountUp({ to }: { to: number }) {
-  const [n, setN] = React.useState(0);
+  const reduce = React.useMemo(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
+  const [n, setN] = React.useState(reduce ? to : 0);
   React.useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) { setN(to); return undefined; }
+    if (reduce) return undefined;
     const start = performance.now();
     const dur = 640;
     let raf = 0;
@@ -265,7 +268,7 @@ function CountUp({ to }: { to: number }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [to]);
+  }, [to, reduce]);
   return <>{n}</>;
 }
 
@@ -329,8 +332,6 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   const [created, setCreated] = React.useState<CreatedExam[] | null>(null);
   const [previewReady, setPreviewReady] = React.useState(false);
   const [dir, setDir] = React.useState(1);
-  const [ctaBurst, setCtaBurst] = React.useState(false);
-  const prevCan = React.useRef(false);
   // Captured once: reading the clock during render makes the same state
   // produce different output on a re-render.
   const [mountedAt] = React.useState(() => Date.now());
@@ -378,15 +379,6 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
       default: return true;
     }
   })();
-
-  React.useEffect(() => {
-    const was = prevCan.current;
-    prevCan.current = canContinue;
-    if (!canContinue || was) return undefined;
-    setCtaBurst(true);
-    const id = setTimeout(() => setCtaBurst(false), 340);
-    return () => clearTimeout(id);
-  }, [canContinue]);
 
   // Writes the exam + profile, then moves to the preview. Runs when the
   // student reaches the account step — NOT when they finish it — so the plan
@@ -854,7 +846,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 </button>
               </>
             ) : (
-              <PrimaryButton burst={ctaBurst} disabled={!canContinue} onClick={goNext}>{tr("next")} →</PrimaryButton>
+              <PrimaryButton key={canContinue ? "go" : "wait"} burst={canContinue} disabled={!canContinue} onClick={goNext}>{tr("next")} →</PrimaryButton>
             )}
           </div>
         )}
