@@ -88,7 +88,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
 
           {/* Language picker */}
           <div style={{ position: "relative", marginLeft: "var(--space-2)" }}>
-            <button onClick={() => setLangOpen(o => !o)} style={{
+            <button className="ux-press" onClick={() => setLangOpen(o => !o)} style={{
               border: "1px solid var(--border-default)", cursor: "pointer", borderRadius: "var(--radius-full)",
               padding: "5px 11px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
               background: "var(--surface-card)", color: "var(--text-body)", display: "flex", alignItems: "center", gap: "4px",
@@ -96,7 +96,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
               <span>{t.flag}</span><span style={{ fontSize: "10px", color: "var(--text-faint)" }}>▾</span>
             </button>
             {langOpen && (
-              <div style={{
+              <div className="ux-pop" style={{
                 position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
                 background: "var(--surface-nav)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
                 border: "1px solid var(--border-default)",

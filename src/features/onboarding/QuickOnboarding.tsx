@@ -246,10 +246,33 @@ function selectable(on: boolean): React.CSSProperties {
   };
 }
 
-function PrimaryButton({ disabled, onClick, children }: { disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
+function choiceClass(on: boolean): string {
+  return "onb-choice" + (on ? " is-on" : "");
+}
+
+function CountUp({ to }: { to: number }) {
+  const [n, setN] = React.useState(0);
+  React.useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setN(to); return undefined; }
+    const start = performance.now();
+    const dur = 640;
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - start) / dur);
+      setN(Math.round(to * (1 - (1 - p) ** 3)));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [to]);
+  return <>{n}</>;
+}
+
+function PrimaryButton({ disabled, onClick, children, burst }: { disabled?: boolean; onClick: () => void; children: React.ReactNode; burst?: boolean }) {
   return (
     <button
-      type="button" disabled={disabled} onClick={onClick}
+      type="button" className={"ux-press" + (burst ? " onb-cta-ready" : "")} disabled={disabled} onClick={onClick}
       style={{
         width: "100%", minHeight: 52, borderRadius: "var(--radius-full)", border: "none",
         background: disabled ? "var(--slate-300)" : "var(--ink-900)", color: "var(--white)",
@@ -305,6 +328,9 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   const [emailPending, setEmailPending] = React.useState(false);
   const [created, setCreated] = React.useState<CreatedExam[] | null>(null);
   const [previewReady, setPreviewReady] = React.useState(false);
+  const [dir, setDir] = React.useState(1);
+  const [ctaBurst, setCtaBurst] = React.useState(false);
+  const prevCan = React.useRef(false);
   // Captured once: reading the clock during render makes the same state
   // produce different output on a re-render.
   const [mountedAt] = React.useState(() => Date.now());
@@ -352,6 +378,15 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
       default: return true;
     }
   })();
+
+  React.useEffect(() => {
+    const was = prevCan.current;
+    prevCan.current = canContinue;
+    if (!canContinue || was) return undefined;
+    setCtaBurst(true);
+    const id = setTimeout(() => setCtaBurst(false), 340);
+    return () => clearTimeout(id);
+  }, [canContinue]);
 
   // Writes the exam + profile, then moves to the preview. Runs when the
   // student reaches the account step — NOT when they finish it — so the plan
@@ -427,12 +462,17 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   };
 
   const goNext = () => {
+    setDir(1);
     if (stepIdx === 3) commit(); // entering the account step
     setStepIdx((i) => Math.min(STEP_COUNT, i + 1));
   };
-  const goBack = () => setStepIdx((i) => Math.max(0, i - 1));
+  const goBack = () => {
+    setDir(-1);
+    setStepIdx((i) => Math.max(0, i - 1));
+  };
 
   const toPreview = () => {
+    setDir(1);
     commit();
     setStepIdx(STEP_COUNT);
   };
@@ -477,7 +517,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   }, [created, examDate, mountedAt]);
 
   const heading = (title: string, sub: string) => (
-    <div style={{ marginBottom: "var(--space-6)" }}>
+    <div className="onb-heading" style={{ marginBottom: "var(--space-6)" }}>
       <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", lineHeight: 1.2 }}>{title}</h1>
       <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.5 }}>{sub}</p>
     </div>
@@ -485,7 +525,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-8) var(--space-4)" }}>
-      <div style={{ width: "100%", maxWidth: 480 }}>
+      <div className="onb-shell" style={{ width: "100%", maxWidth: 480 }}>
         {/* Progress — a plain counter and a bar. A student mid-signup wants to
             know how much is left, which a step count answers and a decorative
             stepper does not. */}
@@ -501,21 +541,24 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 </button>
               )}
             </div>
-            <div style={{ height: 4, borderRadius: 2, background: "var(--border-subtle)", overflow: "hidden" }}>
+            <div className="onb-bar">
               {/* scaleX rather than an animated width — a width transition
                   relayouts the bar on every frame of every step change. */}
-              <div style={{ height: "100%", width: "100%", background: "var(--indigo-500)", transformOrigin: "left", transform: `scaleX(${(stepIdx + 1) / STEP_COUNT})`, transition: "transform var(--dur-normal) var(--ease-out)" }} />
+              <div className="onb-bar-fill" style={{ transform: `scaleX(${(stepIdx + 1) / STEP_COUNT})` }} />
             </div>
           </div>
         )}
+
+        <div className="onb-stage">
+        <div key={stepIdx} className={dir > 0 ? "onb-step onb-step--fwd" : "onb-step onb-step--back"}>
 
         {/* ── 1. exam ───────────────────────────────────────────────────── */}
         {stepIdx === 0 && (
           <div>
             {heading(tr("q_exam"), isSectionExam ? tr("q_exam_sub_sections") : tr("q_exam_sub"))}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
+            <div className={"onb-stagger onb-choices" + (qualId ? " has-pick" : "")} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
               {examTypes.map((e) => (
-                <button key={e.id} type="button" onClick={() => { setQualId(e.id); setTarget(null); }} style={{ ...selectable(qualId === e.id), padding: "var(--space-3)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                <button key={e.id} type="button" className={choiceClass(qualId === e.id)} onClick={() => { setQualId(e.id); setTarget(null); }} style={{ ...selectable(qualId === e.id), padding: "var(--space-3)", display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                   <span style={{ fontSize: 20 }}>{e.emoji}</span>
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)" }}>{e.label}</span>
@@ -537,12 +580,12 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>
                   {tr("sections_label")}
                 </p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
+                <div className="onb-stagger" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-2)" }}>
                   {availableSections!.map((sec) => {
                     const on = activeSections.includes(sec);
                     return (
                       <button
-                        key={sec} type="button" aria-pressed={on}
+                        key={sec} type="button" aria-pressed={on} className={choiceClass(on)}
                         onClick={() => setSections((cur) => ({
                           ...cur,
                           [qualId]: on ? activeSections.filter((s) => s !== sec) : [...activeSections, sec],
@@ -609,11 +652,11 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
               onChange={(ev) => setExamDate(ev.target.value)}
               style={{ width: "100%", minHeight: 52, padding: "0 var(--space-4)", borderRadius: "var(--radius-lg)", border: "1.5px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-strong)", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", boxSizing: "border-box", marginBottom: "var(--space-3)" }}
             />
-            <div style={{ display: "flex", gap: "var(--space-2)" }}>
+            <div className="onb-choices has-pick" style={{ display: "flex", gap: "var(--space-2)" }}>
               {[[30, "in_1m"], [90, "in_3m"], [180, "in_6m"]].map(([days, key]) => {
                 const iso = addDaysISO(days as number);
                 return (
-                  <button key={key as string} type="button" onClick={() => setExamDate(iso)} style={{ ...selectable(examDate === iso), flex: 1, minHeight: 44, textAlign: "center", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", padding: "0 var(--space-2)" }}>
+                  <button key={key as string} type="button" className={choiceClass(examDate === iso)} onClick={() => setExamDate(iso)} style={{ ...selectable(examDate === iso), flex: 1, minHeight: 44, textAlign: "center", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", padding: "0 var(--space-2)" }}>
                     {tr(key as string)}
                   </button>
                 );
@@ -627,9 +670,9 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
           <div>
             {heading(tr("q_target"), tr("q_target_sub"))}
             {qual.grade.kind === "scale" ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+              <div className="onb-choices has-pick" style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
                 {qual.grade.options.map((opt) => (
-                  <button key={opt} type="button" onClick={() => setTarget(opt)} style={{ ...selectable(effectiveTarget === opt), minWidth: 56, minHeight: 52, textAlign: "center", fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-mono)" }}>
+                  <button key={opt} type="button" className={choiceClass(effectiveTarget === opt)} onClick={() => setTarget(opt)} style={{ ...selectable(effectiveTarget === opt), minWidth: 56, minHeight: 52, textAlign: "center", fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-mono)" }}>
                     {opt}
                   </button>
                 ))}
@@ -637,7 +680,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
             ) : (
               <div>
                 <p style={{ textAlign: "center", margin: "0 0 var(--space-3)" }}>
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-6xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", lineHeight: 1 }}>
+                  <span key={String(effectiveTarget)} className="onb-num" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-6xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", lineHeight: 1 }}>
                     {String(effectiveTarget)}
                   </span>
                   {qual.grade.suffix && <span style={{ fontSize: "var(--text-lg)", color: "var(--text-muted)" }}>{qual.grade.suffix}</span>}
@@ -661,12 +704,12 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
           <div>
             {heading(tr("q_hours"), tr("q_hours_sub"))}
             <div style={{ textAlign: "center", marginBottom: "var(--space-3)" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-6xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", lineHeight: 1 }}>{hoursPerDay}</span>
+              <span key={hoursPerDay} className="onb-num" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-6xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", lineHeight: 1 }}>{hoursPerDay}</span>
               <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{tr("per_day")}</p>
             </div>
-            <div style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-6)" }}>
+            <div className="onb-choices has-pick" style={{ display: "flex", gap: "var(--space-2)", marginBottom: "var(--space-6)" }}>
               {[1, 2, 3, 4, 6].map((h) => (
-                <button key={h} type="button" onClick={() => setHoursPerDay(h)} style={{ ...selectable(hoursPerDay === h), flex: 1, minHeight: 48, textAlign: "center", fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)" }}>
+                <button key={h} type="button" className={choiceClass(hoursPerDay === h)} onClick={() => setHoursPerDay(h)} style={{ ...selectable(hoursPerDay === h), flex: 1, minHeight: 48, textAlign: "center", fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)" }}>
                   {h}h
                 </button>
               ))}
@@ -680,7 +723,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 const on = studyDays.includes(d);
                 return (
                   <button
-                    key={d} type="button"
+                    key={d} type="button" className={choiceClass(on)}
                     onClick={() => setStudyDays((cur) => on ? cur.filter((x) => x !== d) : [...cur, d])}
                     aria-pressed={on}
                     style={{ ...selectable(on), flex: 1, minHeight: 44, textAlign: "center", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", padding: "0 6px" }}
@@ -712,7 +755,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 const on = studyPeriods.includes(p.key);
                 return (
                   <button
-                    key={p.key} type="button" aria-pressed={on}
+                    key={p.key} type="button" aria-pressed={on} className={choiceClass(on)}
                     onClick={() => setStudyPeriods((cur) => on
                       ? (cur.length > 1 ? cur.filter((x) => x !== p.key) : cur) // must keep at least one
                       : [...cur, p.key])}
@@ -744,7 +787,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
               ))}
             </div>
             {authError && (
-              <p role="alert" style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--red-700)" }}>{authError}</p>
+              <p role="alert" className="onb-shake" style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--red-700)" }}>{authError}</p>
             )}
           </div>
         )}
@@ -763,18 +806,18 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 </div>
               </div>
             ) : (
-              <div style={{ animation: "fadeUp 0.4s ease-out" }}>
-                <p style={{ fontSize: 44, margin: "0 0 var(--space-3)" }}>✨</p>
-                <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{tr("ready")}</h1>
+              <div>
+                <p className="onb-ready-mark" style={{ fontSize: 44, margin: "0 0 var(--space-3)" }}>✨</p>
+                <h1 className="onb-heading" style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{tr("ready")}</h1>
                 {planStats && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)", margin: "var(--space-6) 0" }}>
+                  <div className="onb-ready-stats" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "var(--space-2)", margin: "var(--space-6) 0" }}>
                     {[
                       { val: planStats.sessions, label: tr("plan_sessions") },
                       { val: planStats.weeks, label: tr("plan_weeks") },
                       { val: planStats.hours, label: tr("plan_hours") },
                     ].map((s, i) => (
                       <div key={i} style={{ background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-lg)", padding: "var(--space-3) var(--space-2)" }}>
-                        <p style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-mono)", color: "var(--indigo-600)" }}>{s.val}</p>
+                        <p style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-mono)", color: "var(--indigo-600)", fontVariantNumeric: "tabular-nums" }}><CountUp to={s.val} /></p>
                         <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.label}</p>
                       </div>
                     ))}
@@ -783,11 +826,14 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 {emailPending && (
                   <p style={{ margin: "0 0 var(--space-4)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{tr("email_pending")}</p>
                 )}
-                <PrimaryButton onClick={() => onFinish(created ?? [])}>{tr("start")} →</PrimaryButton>
+                <PrimaryButton burst onClick={() => onFinish(created ?? [])}>{tr("start")} →</PrimaryButton>
               </div>
             )}
           </div>
         )}
+
+        </div>
+        </div>
 
         {/* ── footer ────────────────────────────────────────────────────── */}
         {stepIdx < STEP_COUNT && (
@@ -808,7 +854,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
                 </button>
               </>
             ) : (
-              <PrimaryButton disabled={!canContinue} onClick={goNext}>{tr("next")} →</PrimaryButton>
+              <PrimaryButton burst={ctaBurst} disabled={!canContinue} onClick={goNext}>{tr("next")} →</PrimaryButton>
             )}
           </div>
         )}

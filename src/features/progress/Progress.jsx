@@ -56,7 +56,7 @@ function Progress({ t }) {
           <span style={{ color: "var(--text-body)" }}>{weakest.name} at {weakest.readiness}%</span>
         </div>
       )}
-      <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 1fr 2fr" }}>
+      <div className="ux-stagger" style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 1fr 2fr" }}>
         <Card style={{ textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.progress_streak}</p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--text-5xl)", fontWeight: "var(--weight-bold)", color: "var(--action-primary)" }}>{window.computeStreak ? window.computeStreak() : 0}</p>

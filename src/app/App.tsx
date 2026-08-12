@@ -201,12 +201,10 @@ export function App() {
           padding: "var(--space-8) var(--space-4)",
         }}
       >
-        {/* A keyed Fragment rather than a wrapper element: changing a key at
-            this position is what makes React discard the subtree and re-run
-            every useState initializer inside it (which is how the legacy
-            screens read localStorage), and a Fragment does that without adding
-            a DOM node that would change the layout. */}
-        <React.Fragment key={remountKeyFor(tab, dataVersion)}>{content}</React.Fragment>
+        {/* Keyed wrapper: changing the key discards the subtree so legacy
+            screens re-read localStorage. ux-page is a short fade+rise on tab
+            switch; dataVersion only bumps on other-tab storage events. */}
+        <div className="ux-page" key={remountKeyFor(tab, dataVersion)}>{content}</div>
       </main>
 
       {/* Active study session — app-level overlay + floating mini-timer.

@@ -103,8 +103,8 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
   };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", fontFamily: "var(--font-sans)" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 600, maxHeight: "94vh", display: "flex", flexDirection: "column", background: "var(--surface-page)", borderTopLeftRadius: "var(--radius-2xl)", borderTopRightRadius: "var(--radius-2xl)", borderTop: `5px solid ${course.color}`, boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
+    <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", fontFamily: "var(--font-sans)" }}>
+      <div className="ux-sheet" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 600, maxHeight: "94vh", display: "flex", flexDirection: "column", background: "var(--surface-page)", borderTopLeftRadius: "var(--radius-2xl)", borderTopRightRadius: "var(--radius-2xl)", borderTop: `5px solid ${course.color}`, boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-3)", padding: "var(--space-5) var(--space-5) var(--space-4)", background: "var(--surface-card)", borderBottom: "1px solid var(--border-subtle)" }}>

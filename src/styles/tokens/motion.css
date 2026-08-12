@@ -1,0 +1,128 @@
+/* Shared motion — Linear-style ease, short durations, transform+opacity only.
+   fadeUp is referenced across the app but was never defined; that was a silent
+   no-op. Defining it here is the single highest-leverage feel change. */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ux-page {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ux-backdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ux-sheet {
+  from { opacity: 0.7; transform: translateY(18%); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ux-modal {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ux-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes ux-medal {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes ux-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.7); }
+}
+
+@keyframes ux-bar {
+  from { transform: scaleX(0); }
+}
+
+.ux-page {
+  animation: ux-page 220ms var(--ease-out) both;
+}
+
+.ux-overlay {
+  animation: ux-backdrop 220ms var(--ease-out) both;
+}
+.ux-overlay > .ux-sheet {
+  animation: ux-sheet 320ms var(--ease-out) both;
+}
+.ux-overlay > .ux-modal {
+  animation: ux-modal 240ms var(--ease-out) both;
+}
+
+.ux-pop {
+  animation: ux-pop 180ms var(--ease-out) both;
+  transform-origin: top right;
+}
+
+.ux-live {
+  animation: ux-live 2.4s var(--ease-out) infinite;
+}
+
+.ux-medal {
+  display: inline-block;
+  animation: ux-medal 480ms var(--ease-out) both;
+}
+
+.ux-bar-fill {
+  transform-origin: left center;
+  animation: ux-bar 600ms var(--ease-out) both;
+}
+
+.ux-stagger > * {
+  animation: fadeUp 280ms var(--ease-out) both;
+}
+.ux-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.ux-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.ux-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.ux-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.ux-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.ux-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.ux-stagger > *:nth-child(7) { animation-delay: 240ms; }
+.ux-stagger > *:nth-child(8) { animation-delay: 280ms; }
+
+.ux-press {
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.ux-press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ux-row {
+  transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.ux-row:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ux-card {
+    transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  }
+  .ux-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .ux-row:hover {
+    border-color: var(--border-strong, var(--indigo-200));
+    transform: translateY(-1px);
+  }
+  .ux-press:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ux-live { animation: none; }
+}

@@ -136,7 +136,7 @@ function FloatingTimer({ active, t }) {
   const mm = String(Math.floor(secs / 60)).padStart(2, "0");
   const ss = String(secs % 60).padStart(2, "0");
   return (
-    <button onClick={() => setSessionMinimized(false)}
+    <button className="ux-press" onClick={() => setSessionMinimized(false)}
       title={L("Return to your study session", "Повернутися до сесії", "Вернуться к сессии", "Revenir à la séance", "Zur Sitzung zurückkehren")}
       style={{
         position: "fixed", bottom: 24, right: 24, zIndex: 300,
