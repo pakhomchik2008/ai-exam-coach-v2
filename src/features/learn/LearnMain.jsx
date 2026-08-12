@@ -11,16 +11,29 @@
 // nothing until 3.7b starts adding the other exercise types.
 
 import { getTree, availableTaxonomies } from "./tree/index";
-import { isBossNode, lessonNodes, localize, totalNodeCount, withBossNodes } from "./tree/schema";
-import { canOpenNode, unmetPrerequisites } from "./tree/locks";
-import { UnitSkillTree } from "./tree/SkillTree";
+import { localize, totalNodeCount } from "./tree/schema";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+
+// ─── shared: node status color/label ──────────────────────────────────────────
+const MASTERY_STYLE = {
+  locked:     { color: "var(--slate-400)", label: "🔒" },
+  unlocked:   { color: "var(--slate-500)", label: "○"  },
+  bronze:     { color: "#b0752c",          label: "🥉" },
+  silver:     { color: "#8892a8",          label: "🥈" },
+  gold:       { color: "#d4a017",          label: "🥇" },
+  legendary:  { color: "#7b3ff2",          label: "👑" },
+};
 
 // Same normalization pattern QuickCheckEngine uses on fill-in answers —
 // case-insensitive, whitespace-collapsed. `math.js` equivalence is deferred
 // to Phase 3.7b; string match catches the majority of fill-ins here.
 function normalizeAnswer(s) {
   return (s || "").toString().toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 // Best-effort dedup pass for the 3-question Prove batch. Same shape as
@@ -56,8 +69,7 @@ async function dedupePairs(questions, examTaxonomy, regenerate) {
 
 function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const isBoss = isBossNode(node);
-  const [phase, setPhase] = React.useState((isBoss || skipToProve) ? "prove" : "teach"); // teach | drill | prove | done
+  const [phase, setPhase] = React.useState(skipToProve ? "prove" : "teach"); // teach | drill | prove | done
   const [teach, setTeach] = React.useState(null);
   const [teachError, setTeachError] = React.useState(null);
   const [drillQs, setDrillQs] = React.useState(null);
@@ -120,31 +132,23 @@ RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. E
       .catch((e) => setDrillError(e.message || "Failed to load"));
   }, [phase, drillQs, drillError, nodeTitle, tree.examTaxonomy, node.complexity]);
 
-  // Prove: 3 exam-style Qs (8 for a unit boss), dedup-checked, on a timer.
+  // Prove: 3 exam-style Qs, dedup-checked, on a timer.
   React.useEffect(() => {
     if (phase !== "prove" || proveQs || proveError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
-    const qCount = isBoss ? 8 : 3;
-    const lessonTitles = lessonNodes(unit).map((n) => localize(n.title, lang)).join("; ");
-    const system = isBoss
-      ? `Generate exactly ${qCount} mixed real-exam-style MCQ questions covering this unit: ${unitTitle} (${tree.examTaxonomy.toUpperCase()}).
-Topics in the unit: ${lessonTitles}.
-OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
-FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"..."}]}
-RULES: spread coverage across the listed topics (at least one question per topic if possible); exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${langDir}`
-      : `Generate exactly ${qCount} real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
+    const system = `Generate exactly 3 real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"${nodeTitle}"}]}
 RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${langDir}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
     const generate = () => Promise.race([
-      complete({ system, messages: [{ role: "user", content: isBoss ? `Unit boss exam: ${unitTitle}` : `Test me on: ${nodeTitle}` }] }),
+      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }] }),
       timeout,
     ]).then((raw) => {
       const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
       if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error("Invalid prove response");
-      return p.questions.slice(0, qCount);
+      return p.questions.slice(0, 3);
     });
     (async () => {
       try {
@@ -153,7 +157,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
         setProveQs(deduped);
       } catch (e) { setProveError(e.message || "Failed to load"); }
     })();
-  }, [phase, proveQs, proveError, nodeTitle, unitTitle, tree.examTaxonomy, isBoss, lang, unit]);
+  }, [phase, proveQs, proveError, nodeTitle, tree.examTaxonomy]);
 
   // Prove timer runs down live; hitting 0 auto-submits whatever we've got.
   React.useEffect(() => {
@@ -215,14 +219,25 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
 
   function finishProve(results) {
     const correct = results.filter((r) => r.correct).length;
-    const totalQ = proveQs ? proveQs.length : (isBoss ? 8 : 3);
-    // Lessons: ≥2/3 → bronze. Boss: ≥70% → bronze (unit cleared).
-    const passMark = Math.ceil(totalQ * (isBoss ? 0.7 : 2 / 3));
+    const totalQ = proveQs ? proveQs.length : 3;
+    const passMark = Math.ceil(totalQ * 2 / 3);
     const mastery = correct >= passMark ? "bronze" : "unlocked";
     if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, node.id, mastery);
     setFinalMastery({ mastery, correct, total: totalQ });
     setPhase("done");
   }
+
+  function leave(result) {
+    onExit(result || null);
+  }
+
+  // Pass: medal pops, then return to the list. Fail: stay until they tap.
+  React.useEffect(() => {
+    if (phase !== "done" || !finalMastery || finalMastery.mastery !== "bronze") return;
+    if (prefersReducedMotion()) return;
+    const id = setTimeout(() => leave({ nodeId: node.id, unlocked: true }), 1600);
+    return () => clearTimeout(id);
+  }, [phase, finalMastery]);
 
   // ─── Render helpers ───────────────────────────────────────────────────────
   const wrap = (content) => React.createElement("div", {
@@ -230,7 +245,13 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
   }, content);
   const header = React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
     React.createElement("button", {
-      onClick: onExit,
+      type: "button",
+      onClick: () => leave(
+        phase === "done" && finalMastery && finalMastery.mastery === "bronze"
+          ? { nodeId: node.id, unlocked: true }
+          : null
+      ),
+      "aria-label": L("Back", "Назад", "Назад", "Retour", "Zurück"),
       style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 },
     }, "←"),
     React.createElement("div", null,
@@ -341,24 +362,40 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
   // ── Phase: Done ──
   if (phase === "done" && finalMastery) {
     const passed = finalMastery.mastery === "bronze";
-    const passTitle = isBoss
-      ? (passed
-        ? L("Unit cleared!", "Юніт складено!", "Юнит сдан!", "Unité réussie !", "Einheit geschafft!")
-        : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Presque !", "Fast!"))
-      : (passed
-        ? L("Bronze mastery!", "Бронзова майстерність!", "Бронзовое мастерство!", "Bronze !", "Bronze!")
-        : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Presque !", "Fast!"));
+    const medal = MASTERY_STYLE[finalMastery.mastery] || MASTERY_STYLE.unlocked;
     return wrap([
       header,
-      React.createElement("div", { key: "res", style: { textAlign: "center", padding: "24px 0" } },
-        React.createElement("div", { style: { fontSize: 48, marginBottom: 8 } }, passed ? (isBoss ? "◆" : "🥉") : "·"),
-        React.createElement("h3", { style: { margin: 0, fontSize: 22, color: "var(--text-strong)" } }, passTitle),
-        React.createElement("p", { style: { color: "var(--text-muted)", marginTop: 8 } }, `${finalMastery.correct} / ${finalMastery.total}`),
+      React.createElement("div", { key: "res", style: { textAlign: "center", padding: "28px 0 8px" } },
+        React.createElement("div", {
+          className: passed ? "learn-done-medal" : undefined,
+          style: { fontSize: 44, lineHeight: 1, color: medal.color },
+          "aria-hidden": "true",
+        }, medal.label),
+        React.createElement("h3", {
+          className: "learn-done-copy",
+          style: { margin: "12px 0 0", fontSize: 22, color: "var(--text-strong)" },
+        },
+          passed ? L("Bronze mastery", "Бронзова майстерність", "Бронзовое мастерство", "Maîtrise bronze", "Bronze-Meisterschaft")
+                 : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Pas encore", "Noch nicht"),
+        ),
+        React.createElement("p", {
+          className: "learn-done-copy",
+          style: { color: "var(--text-muted)", marginTop: 8, fontVariantNumeric: "tabular-nums" },
+        }, `${finalMastery.correct} / ${finalMastery.total}`),
+        passed && React.createElement("span", {
+          className: "learn-done-check",
+          "aria-hidden": "true",
+        }, "✓"),
       ),
       React.createElement("button", {
-        key: "back", onClick: onExit,
-        style: { marginTop: 12, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" },
-      }, L("Back to tree", "До дерева", "К дереву", "Retour à l'arbre", "Zurück")),
+        key: "back",
+        type: "button",
+        className: "learn-btn learn-btn--primary",
+        onClick: () => leave(passed ? { nodeId: node.id, unlocked: true } : null),
+        style: { marginTop: 16 },
+      }, passed
+        ? L("Continue", "Далі", "Далее", "Continuer", "Weiter")
+        : L("Back to list", "До списку", "К списку", "Retour à la liste", "Zurück zur Liste")),
     ]);
   }
 
@@ -384,15 +421,82 @@ function LearnMain({ t }) {
   const taxonomy = (currentQual && availableTax.includes(currentQual)) ? currentQual : availableTax[0];
   const tree = getTree(taxonomy);
 
+  const learnState = window.getLearn ? window.getLearn() : {};
+  const nodeState = (tree && learnState[tree.examTaxonomy]) || {};
+  // Ignore leftover `-boss` keys from 3.7e so the header stays lesson-only.
+  const mastered = Object.entries(nodeState)
+    .filter(([id, n]) => ["bronze", "silver", "gold", "legendary"].includes(n.mastery) && !id.endsWith("-boss"))
+    .length;
+  const total = tree ? totalNodeCount(tree) : 0;
+
   const [openNode, setOpenNode] = React.useState(null); // { unit, node }
   const [running, setRunning] = React.useState(null);   // { unit, node }
+  const [justUnlocked, setJustUnlocked] = React.useState(null);
+  const [shownMastered, setShownMastered] = React.useState(mastered);
   // Learn store change → re-render (mastery pill updates immediately after
   // a Prove finish). Same subscribe pattern brain-store / profile-store use.
   const [, setTick] = React.useState(0);
+  const enterOnceRef = React.useRef(true);
+  const shownRef = React.useRef(mastered);
+  const startBtnRef = React.useRef(null);
+
   React.useEffect(() => {
     const unsub = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
     return () => unsub && unsub();
   }, []);
+
+  React.useEffect(() => { enterOnceRef.current = false; }, []);
+
+  React.useEffect(() => {
+    if (running) return;
+    const from = shownRef.current;
+    if (from === mastered) return;
+    if (prefersReducedMotion() || mastered < from) {
+      shownRef.current = mastered;
+      setShownMastered(mastered);
+      return;
+    }
+    const t0 = performance.now();
+    const dur = 400;
+    let raf;
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = 1 - (1 - p) ** 3;
+      setShownMastered(Math.round(from + (mastered - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else shownRef.current = mastered;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [mastered, running]);
+
+  React.useEffect(() => {
+    if (!openNode) return;
+    const onKey = (e) => { if (e.key === "Escape") setOpenNode(null); };
+    window.addEventListener("keydown", onKey);
+    if (startBtnRef.current) startBtnRef.current.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openNode]);
+
+  React.useEffect(() => {
+    if (!justUnlocked) return;
+    const id = setTimeout(() => setJustUnlocked(null), 520);
+    return () => clearTimeout(id);
+  }, [justUnlocked]);
+
+  function masteryAria(m) {
+    if (m === "bronze") return L("Bronze", "Бронза", "Бронза", "Bronze", "Bronze");
+    if (m === "silver") return L("Silver", "Срібло", "Серебро", "Argent", "Silber");
+    if (m === "gold") return L("Gold", "Золото", "Золото", "Or", "Gold");
+    if (m === "legendary") return L("Legendary", "Легендарний", "Легендарный", "Légendaire", "Legendär");
+    return L("Not started", "Ще не почато", "Ещё не начато", "Pas commencé", "Noch nicht begonnen");
+  }
+
+  function exitRunner(result) {
+    setRunning(null);
+    setOpenNode(null);
+    if (result && result.unlocked && result.nodeId) setJustUnlocked(result.nodeId);
+  }
 
   if (!tree) {
     return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)" } },
@@ -400,75 +504,105 @@ function LearnMain({ t }) {
     );
   }
 
-  const displayTree = withBossNodes(tree);
-
   if (running) {
     return React.createElement(NodeRunner, {
-      tree: displayTree, unit: running.unit, node: running.node, lang, t,
+      tree, unit: running.unit, node: running.node, lang, t,
       skipToProve: !!running.skipToProve,
-      onExit: () => { setRunning(null); setOpenNode(null); },
+      onExit: exitRunner,
     });
   }
 
-  const learnState = window.getLearn ? window.getLearn() : {};
-  const nodeState = learnState[tree.examTaxonomy] || {};
-  const mastered = Object.entries(nodeState)
-    .filter(([id, n]) => ["bronze", "silver", "gold", "legendary"].includes(n.mastery) && !id.endsWith("-boss"))
-    .length;
-  const total = totalNodeCount(tree);
-  const openLocked = openNode && !canOpenNode(displayTree, nodeState, openNode.node.id);
-  const openUnmet = openLocked ? unmetPrerequisites(displayTree, nodeState, openNode.node.id) : [];
-  const openIsBoss = openNode && isBossNode(openNode.node);
+  const pct = total > 0 ? mastered / total : 0;
+  const shouldEnter = enterOnceRef.current;
+  const examLabel = tree.examTaxonomy.toUpperCase();
+  const progressLabel = L(
+    `${shownMastered} of ${total} topics mastered · ${examLabel}`,
+    `${shownMastered} із ${total} тем засвоєно · ${examLabel}`,
+    `${shownMastered} из ${total} тем освоено · ${examLabel}`,
+    `${shownMastered} sur ${total} sujets · ${examLabel}`,
+    `${shownMastered} von ${total} · ${examLabel}`,
+  );
 
-  return React.createElement("div", { style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" } },
+  return React.createElement("div", {
+    className: "learn-main" + (shouldEnter ? " learn-main--enter" : ""),
+    style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
+  },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
       React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
-      React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13 } },
-        L(`${mastered} of ${total} topics mastered · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} із ${total} тем засвоєно · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} из ${total} тем освоено · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} sur ${total} sujets · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} von ${total} · ${tree.examTaxonomy.toUpperCase()}`)),
+      React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
+      React.createElement("div", {
+        className: "learn-progress",
+        role: "progressbar",
+        "aria-valuemin": 0,
+        "aria-valuemax": total,
+        "aria-valuenow": mastered,
+        "aria-label": progressLabel,
+        style: { "--learn-pct": String(pct) },
+      }, React.createElement("div", { className: "learn-progress-fill" })),
     ),
-    ...displayTree.units.map((unit) => React.createElement(UnitSkillTree, {
+    ...tree.units.map((unit, ui) => React.createElement("div", {
       key: unit.id,
-      unit,
-      tree: displayTree,
-      progress: nodeState,
-      lang,
-      onSelect: (node) => setOpenNode({ unit, node }),
-    })),
+      className: "learn-unit",
+      style: { marginBottom: 28, "--learn-i": String(ui) },
+    },
+      React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" } }, localize(unit.title, lang)),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+        ...unit.nodes.map((node) => {
+          const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
+          const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
+          const unlockedNow = justUnlocked === node.id;
+          return React.createElement("button", {
+            key: node.id,
+            type: "button",
+            className: "learn-node",
+            onClick: () => setOpenNode({ unit, node }),
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" },
+          },
+            React.createElement("span", {
+              className: "learn-medal" + (unlockedNow ? " learn-medal--pop" : ""),
+              style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" },
+              "aria-label": masteryAria(st.mastery),
+            }, style.label),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
+              React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
+            ),
+          );
+        }),
+      ),
+    )),
     openNode && React.createElement("div", {
       key: "sheet",
+      className: "learn-sheet-backdrop",
       onClick: () => setOpenNode(null),
       style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" },
     }, React.createElement("div", {
+      className: "learn-sheet-panel",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "learn-sheet-title",
       onClick: (e) => e.stopPropagation(),
-      style: { background: "var(--surface-card)", padding: 20, borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
+      style: { background: "var(--surface-card)", padding: "12px 20px calc(28px + env(safe-area-inset-bottom, 0px))", borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
     },
-      React.createElement("h3", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, lang)),
-      React.createElement("p", { style: { margin: "4px 0 12px", fontSize: 12, color: "var(--text-muted)" } },
-        openIsBoss
-          ? L(`${localize(openNode.unit.title, lang)} · 8 questions · 10 min`,
-            `${localize(openNode.unit.title, lang)} · 8 питань · 10 хв`,
-            `${localize(openNode.unit.title, lang)} · 8 вопросов · 10 мин`,
-            `${localize(openNode.unit.title, lang)} · 8 questions · 10 min`,
-            `${localize(openNode.unit.title, lang)} · 8 Fragen · 10 Min`)
-          : `${localize(openNode.unit.title, lang)} · ~${openNode.node.estimatedMinutes} min`),
-      openLocked && React.createElement("div", { key: "lock", style: { marginBottom: 12, padding: 12, background: "var(--surface-muted)", borderRadius: 10 } },
-        React.createElement("p", { style: { margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "var(--text-strong)" } },
-          L("Complete these first", "Спочатку пройдіть", "Сначала пройдите", "À terminer d'abord", "Zuerst abschließen")),
-        ...openUnmet.map((n) => React.createElement("p", { key: n.id, style: { margin: "0 0 4px", fontSize: 13, color: "var(--text-body)" } }, "— ", localize(n.title, lang))),
-      ),
-      !openLocked && React.createElement("button", {
+      React.createElement("div", {
+        "aria-hidden": "true",
+        style: { width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" },
+      }),
+      React.createElement("h3", { id: "learn-sheet-title", style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, lang)),
+      React.createElement("p", { style: { margin: "4px 0 16px", fontSize: 12, color: "var(--text-muted)" } },
+        `${localize(openNode.unit.title, lang)} · complexity ${openNode.node.complexity}/5 · ~${openNode.node.estimatedMinutes} min`),
+      React.createElement("button", {
+        ref: startBtnRef,
+        type: "button",
+        className: "learn-btn learn-btn--primary",
         onClick: () => setRunning(openNode),
-        style: { width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 8 },
-      }, openIsBoss
-        ? L("Start boss", "Почати бос", "Начать босс", "Lancer le boss", "Boss starten")
-        : L("Start", "Почати", "Начать", "Commencer", "Starten")),
-      !openLocked && !openIsBoss && React.createElement("button", {
+      }, L("Start", "Почати", "Начать", "Commencer", "Starten")),
+      React.createElement("p", { style: { margin: "14px 0 2px", fontSize: 12, color: "var(--text-faint)", textAlign: "center" } },
+        L("Already know this?", "Вже знаєш тему?", "Уже знаешь тему?", "Tu connais déjà ?", "Kennst du das schon?")),
+      React.createElement("button", {
+        type: "button",
+        className: "learn-btn learn-btn--ghost",
         onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
-        style: { width: "100%", padding: "12px", borderRadius: 12, background: "transparent", color: "var(--text-body)", border: "1px solid var(--border-default)", cursor: "pointer" },
       }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
     )),
   );

@@ -52,10 +52,12 @@ function DayDetail({ day, dayIndex, onClose, onStart, t }) {
 
   return (
     <div
+      className="ux-overlay"
       onClick={onClose}
       style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", fontFamily: "var(--font-sans)" }}
     >
       <div
+        className="ux-sheet"
         onClick={(e) => e.stopPropagation()}
         style={{ width: "100%", maxWidth: 480, background: "var(--surface-page)", borderTopLeftRadius: "var(--radius-2xl)", borderTopRightRadius: "var(--radius-2xl)", borderTop: "4px solid var(--indigo-500)", boxShadow: "var(--shadow-lg)", overflow: "hidden" }}
       >

@@ -546,15 +546,12 @@ function AIPlan({ examIds, onStart, t }) {
 
         {/* ── CTA ─────────────────────────────────────────────── */}
         <div style={{ textAlign: "center", animation: "fadeUp 0.6s ease 0.5s both" }}>
-          <button onClick={onStart} style={{
+          <button className="ux-press" onClick={onStart} style={{
             border: "none", borderRadius: "var(--radius-2xl)", padding: "18px 48px",
             background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))",
             color: "var(--white)", fontSize: 18, fontWeight: 700, cursor: "pointer",
             fontFamily: "var(--font-sans)", boxShadow: "0 8px 30px rgba(34,124,99,0.35)",
-            transition: "transform 0.15s ease, box-shadow 0.15s ease",
           }}
-          onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(34,124,99,0.45)"; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(34,124,99,0.35)"; }}
           >
             ✨ {L("Start My AI Plan","Розпочати мій AI план","Начать мой AI план","Démarrer mon plan IA","Meinen KI-Plan starten")} →
           </button>
