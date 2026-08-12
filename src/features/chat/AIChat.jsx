@@ -708,13 +708,25 @@ RULES:
 - "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 40000));
-        const raw = await Promise.race([
+        // The novelty pass needs to regenerate JUST the questions batch on a
+        // dup, without a new sessionTitle each retry — so parseFullBatch keeps
+        // the whole {questions, sessionTitle} envelope for the first call, and
+        // `regenerate` returns only the inner questions array on retry.
+        const complete1 = () => Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext }),
           timeout,
-        ]);
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        ]).then((raw) => window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
+        const parsed = await complete1();
         if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-        setQuestions(parsed);
+        // taxonomy = resolved.examId is what ai_question_bank partitions by;
+        // falls back to a stable per-topic key when the topic isn't brain-
+        // resolvable so unresolved topics still dedupe against themselves.
+        const examTaxonomy = (resolved && resolved.examId) || `quickcheck:${topic}`;
+        const dedupedQuestions = await dedupeAgainstQuestionBank(
+          parsed.questions, examTaxonomy,
+          () => complete1().then((p2) => (Array.isArray(p2 && p2.questions) ? p2.questions : [])),
+        );
+        setQuestions({ ...parsed, questions: dedupedQuestions });
         setLoading(false);
       } catch (e) {
         console.error("Quick Check generation failed:", e);
@@ -992,13 +1004,23 @@ RULES:
 - Spread questions across the given topics evenly`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
-        const raw = await Promise.race([
+        const generate = () => Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }] }),
           timeout,
-        ]);
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-        setQuestions(parsed.questions.slice(0, totalQ));
+        ]).then((raw) => {
+          const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+          if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return p.questions;
+        });
+        const rawQuestions = await generate();
+        // Speed Round can span topics from MULTIPLE exams (aiTopics picks
+        // weakest across the whole brain). taxonomy uses the first exam's
+        // qualification as a stable partition, or a generic fallback so
+        // dedupe still works for a pool without a resolvable exam.
+        const firstExam = examViews[0];
+        const examTaxonomy = _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === firstExam?.id) : null) || "speedround";
+        const dedupedQuestions = await dedupeAgainstQuestionBank(rawQuestions, examTaxonomy, generate);
+        setQuestions(dedupedQuestions.slice(0, totalQ));
         setPhase("session");
       } catch (e) {
         setError(e.message || L("Failed to generate questions", "Не вдалося згенерувати питання", "Не удалось сгенерировать вопросы", "Échec de la génération des questions", "Fragen konnten nicht generiert werden"));
@@ -1746,8 +1768,15 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
         };
         const chunks = await Promise.all(chunkTopics.map(makeChunk));
         // Merge, validate shape, cap at target count.
-        const all = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
-        if (all.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
+        const rawAll = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
+        if (rawAll.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
+        // Novelty pass across the whole assembled paper. Retry regenerates
+        // one extra chunk covering all topics — cheaper than another
+        // full-paper generation, and dedupeAgainstQuestionBank only pulls the
+        // replacements it actually needs. taxonomy = the exam's qualification
+        // (nmt/sat/…), the same key ai_question_bank partitions by.
+        const examTaxonomyLocal = examQual || (selectedExam && selectedExam.id) || "examsim";
+        const all = await dedupeAgainstQuestionBank(rawAll, examTaxonomyLocal, () => makeChunk(topics));
         // An official-spec paper keeps its full named time budget even if a
         // chunk failure shortened the actual question count — the point of
         // "official format" is the clock matching the real thing, not
