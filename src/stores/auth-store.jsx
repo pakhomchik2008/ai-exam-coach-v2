@@ -23,7 +23,7 @@ const PERSONAL_DATA_KEYS = [
   "mistakes_v1", "mistake_review_log_v1", "active_session_v1", "exam_attempts_v1",
   "brain_mastery_v1", "brain_kb_v1", "brain_memory_v1", "brain_xp_v1",
   "brain_difficulty_v1", "brain_lessoncache_v1", "study_result_v1",
-  "tier_seen_v1", ACCOUNTS_KEY,
+  "tier_seen_v1", "learn_progress_v1", ACCOUNTS_KEY,
 ];
 // Note on "tier_seen_v1": tier-theme.jsx's subscribeBrain callback reacts to
 // the SIGNED_OUT StorageEvent dispatched below and immediately rewrites this

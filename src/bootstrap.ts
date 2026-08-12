@@ -46,6 +46,7 @@ import "./stores/mistakes-store.jsx"; // MUST precede brain-store (audit §4.3 #
 import "./stores/session-store.jsx";
 import "./stores/progress-metrics.jsx";
 import "./stores/brain-store.jsx";
+import "./stores/learn-store.jsx"; // Phase 3.7 learn progress; independent of other stores
 
 // ── Tier 2: theming + AI layer
 import "./lib/tier-theme.jsx"; // MUST follow brain-store (audit §4.3 #7)
@@ -80,6 +81,7 @@ import "./features/study/SessionRecap.jsx";
 import "./features/onboarding/AIPlan.jsx";
 import "./features/progress/BurnoutAlert.jsx";
 import "./features/study/StudyHub.jsx";
+import "./features/learn/LearnMain.jsx";
 import "./features/progress/MistakeJournal.jsx";
 import "./features/progress/Progress.jsx";
 import "./features/calendar/Schedule.jsx";
@@ -131,6 +133,7 @@ export const REQUIRED_GLOBALS = [
   "Dashboard",
   "AIChat",
   "StudyHub",
+  "LearnMain",
   "MistakeJournal",
   "CalendarHub",
   "Exams",
