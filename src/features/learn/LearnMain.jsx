@@ -11,10 +11,18 @@
 // nothing until 3.7b starts adding the other exercise types.
 
 import { getTree, availableTaxonomies } from "./tree/index";
-import { isBossNode, lessonNodes, localize, totalNodeCount, withBossNodes } from "./tree/schema";
-import { canOpenNode, unmetPrerequisites } from "./tree/locks";
-import { UnitSkillTree } from "./tree/SkillTree";
+import { localize, totalNodeCount } from "./tree/schema";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+
+// ─── shared: node status color/label ──────────────────────────────────────────
+const MASTERY_STYLE = {
+  locked:     { color: "var(--slate-400)", label: "🔒" },
+  unlocked:   { color: "var(--slate-500)", label: "○"  },
+  bronze:     { color: "#b0752c",          label: "🥉" },
+  silver:     { color: "#8892a8",          label: "🥈" },
+  gold:       { color: "#d4a017",          label: "🥇" },
+  legendary:  { color: "#7b3ff2",          label: "👑" },
+};
 
 // Same normalization pattern QuickCheckEngine uses on fill-in answers —
 // case-insensitive, whitespace-collapsed. `math.js` equivalence is deferred
@@ -56,8 +64,7 @@ async function dedupePairs(questions, examTaxonomy, regenerate) {
 
 function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const isBoss = isBossNode(node);
-  const [phase, setPhase] = React.useState((isBoss || skipToProve) ? "prove" : "teach"); // teach | drill | prove | done
+  const [phase, setPhase] = React.useState(skipToProve ? "prove" : "teach"); // teach | drill | prove | done
   const [teach, setTeach] = React.useState(null);
   const [teachError, setTeachError] = React.useState(null);
   const [drillQs, setDrillQs] = React.useState(null);
@@ -120,31 +127,23 @@ RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. E
       .catch((e) => setDrillError(e.message || "Failed to load"));
   }, [phase, drillQs, drillError, nodeTitle, tree.examTaxonomy, node.complexity]);
 
-  // Prove: 3 exam-style Qs (8 for a unit boss), dedup-checked, on a timer.
+  // Prove: 3 exam-style Qs, dedup-checked, on a timer.
   React.useEffect(() => {
     if (phase !== "prove" || proveQs || proveError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
-    const qCount = isBoss ? 8 : 3;
-    const lessonTitles = lessonNodes(unit).map((n) => localize(n.title, lang)).join("; ");
-    const system = isBoss
-      ? `Generate exactly ${qCount} mixed real-exam-style MCQ questions covering this unit: ${unitTitle} (${tree.examTaxonomy.toUpperCase()}).
-Topics in the unit: ${lessonTitles}.
-OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
-FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"..."}]}
-RULES: spread coverage across the listed topics (at least one question per topic if possible); exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${langDir}`
-      : `Generate exactly ${qCount} real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
+    const system = `Generate exactly 3 real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"${nodeTitle}"}]}
 RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${langDir}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
     const generate = () => Promise.race([
-      complete({ system, messages: [{ role: "user", content: isBoss ? `Unit boss exam: ${unitTitle}` : `Test me on: ${nodeTitle}` }] }),
+      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }] }),
       timeout,
     ]).then((raw) => {
       const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
       if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error("Invalid prove response");
-      return p.questions.slice(0, qCount);
+      return p.questions.slice(0, 3);
     });
     (async () => {
       try {
@@ -153,7 +152,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
         setProveQs(deduped);
       } catch (e) { setProveError(e.message || "Failed to load"); }
     })();
-  }, [phase, proveQs, proveError, nodeTitle, unitTitle, tree.examTaxonomy, isBoss, lang, unit]);
+  }, [phase, proveQs, proveError, nodeTitle, tree.examTaxonomy]);
 
   // Prove timer runs down live; hitting 0 auto-submits whatever we've got.
   React.useEffect(() => {
@@ -215,9 +214,8 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
 
   function finishProve(results) {
     const correct = results.filter((r) => r.correct).length;
-    const totalQ = proveQs ? proveQs.length : (isBoss ? 8 : 3);
-    // Lessons: ≥2/3 → bronze. Boss: ≥70% → bronze (unit cleared).
-    const passMark = Math.ceil(totalQ * (isBoss ? 0.7 : 2 / 3));
+    const totalQ = proveQs ? proveQs.length : 3;
+    const passMark = Math.ceil(totalQ * 2 / 3);
     const mastery = correct >= passMark ? "bronze" : "unlocked";
     if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, node.id, mastery);
     setFinalMastery({ mastery, correct, total: totalQ });
@@ -341,18 +339,14 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
   // ── Phase: Done ──
   if (phase === "done" && finalMastery) {
     const passed = finalMastery.mastery === "bronze";
-    const passTitle = isBoss
-      ? (passed
-        ? L("Unit cleared!", "Юніт складено!", "Юнит сдан!", "Unité réussie !", "Einheit geschafft!")
-        : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Presque !", "Fast!"))
-      : (passed
-        ? L("Bronze mastery!", "Бронзова майстерність!", "Бронзовое мастерство!", "Bronze !", "Bronze!")
-        : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Presque !", "Fast!"));
     return wrap([
       header,
       React.createElement("div", { key: "res", style: { textAlign: "center", padding: "24px 0" } },
-        React.createElement("div", { style: { fontSize: 48, marginBottom: 8 } }, passed ? (isBoss ? "◆" : "🥉") : "·"),
-        React.createElement("h3", { style: { margin: 0, fontSize: 22, color: "var(--text-strong)" } }, passTitle),
+        React.createElement("div", { style: { fontSize: 48, marginBottom: 8 } }, passed ? "🥉" : "💪"),
+        React.createElement("h3", { style: { margin: 0, fontSize: 22, color: "var(--text-strong)" } },
+          passed ? L("Bronze mastery!", "Бронзова майстерність!", "Бронзовое мастерство!", "Bronze !", "Bronze!")
+                 : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Presque !", "Fast!"),
+        ),
         React.createElement("p", { style: { color: "var(--text-muted)", marginTop: 8 } }, `${finalMastery.correct} / ${finalMastery.total}`),
       ),
       React.createElement("button", {
@@ -400,11 +394,9 @@ function LearnMain({ t }) {
     );
   }
 
-  const displayTree = withBossNodes(tree);
-
   if (running) {
     return React.createElement(NodeRunner, {
-      tree: displayTree, unit: running.unit, node: running.node, lang, t,
+      tree, unit: running.unit, node: running.node, lang, t,
       skipToProve: !!running.skipToProve,
       onExit: () => { setRunning(null); setOpenNode(null); },
     });
@@ -412,13 +404,11 @@ function LearnMain({ t }) {
 
   const learnState = window.getLearn ? window.getLearn() : {};
   const nodeState = learnState[tree.examTaxonomy] || {};
+  // Ignore leftover `-boss` keys from 3.7e so the header stays lesson-only.
   const mastered = Object.entries(nodeState)
     .filter(([id, n]) => ["bronze", "silver", "gold", "legendary"].includes(n.mastery) && !id.endsWith("-boss"))
     .length;
   const total = totalNodeCount(tree);
-  const openLocked = openNode && !canOpenNode(displayTree, nodeState, openNode.node.id);
-  const openUnmet = openLocked ? unmetPrerequisites(displayTree, nodeState, openNode.node.id) : [];
-  const openIsBoss = openNode && isBossNode(openNode.node);
 
   return React.createElement("div", { style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" } },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
@@ -430,14 +420,25 @@ function LearnMain({ t }) {
           `${mastered} sur ${total} sujets · ${tree.examTaxonomy.toUpperCase()}`,
           `${mastered} von ${total} · ${tree.examTaxonomy.toUpperCase()}`)),
     ),
-    ...displayTree.units.map((unit) => React.createElement(UnitSkillTree, {
-      key: unit.id,
-      unit,
-      tree: displayTree,
-      progress: nodeState,
-      lang,
-      onSelect: (node) => setOpenNode({ unit, node }),
-    })),
+    ...tree.units.map((unit) => React.createElement("div", { key: unit.id, style: { marginBottom: 28 } },
+      React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" } }, localize(unit.title, lang)),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+        ...unit.nodes.map((node) => {
+          const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
+          const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
+          return React.createElement("button", {
+            key: node.id, onClick: () => setOpenNode({ unit, node }),
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" },
+          },
+            React.createElement("span", { style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" } }, style.label),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
+              React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
+            ),
+          );
+        }),
+      ),
+    )),
     openNode && React.createElement("div", {
       key: "sheet",
       onClick: () => setOpenNode(null),
@@ -447,26 +448,13 @@ function LearnMain({ t }) {
       style: { background: "var(--surface-card)", padding: 20, borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
     },
       React.createElement("h3", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, lang)),
-      React.createElement("p", { style: { margin: "4px 0 12px", fontSize: 12, color: "var(--text-muted)" } },
-        openIsBoss
-          ? L(`${localize(openNode.unit.title, lang)} · 8 questions · 10 min`,
-            `${localize(openNode.unit.title, lang)} · 8 питань · 10 хв`,
-            `${localize(openNode.unit.title, lang)} · 8 вопросов · 10 мин`,
-            `${localize(openNode.unit.title, lang)} · 8 questions · 10 min`,
-            `${localize(openNode.unit.title, lang)} · 8 Fragen · 10 Min`)
-          : `${localize(openNode.unit.title, lang)} · ~${openNode.node.estimatedMinutes} min`),
-      openLocked && React.createElement("div", { key: "lock", style: { marginBottom: 12, padding: 12, background: "var(--surface-muted)", borderRadius: 10 } },
-        React.createElement("p", { style: { margin: "0 0 8px", fontSize: 13, fontWeight: 600, color: "var(--text-strong)" } },
-          L("Complete these first", "Спочатку пройдіть", "Сначала пройдите", "À terminer d'abord", "Zuerst abschließen")),
-        ...openUnmet.map((n) => React.createElement("p", { key: n.id, style: { margin: "0 0 4px", fontSize: 13, color: "var(--text-body)" } }, "— ", localize(n.title, lang))),
-      ),
-      !openLocked && React.createElement("button", {
+      React.createElement("p", { style: { margin: "4px 0 16px", fontSize: 12, color: "var(--text-muted)" } },
+        `${localize(openNode.unit.title, lang)} · complexity ${openNode.node.complexity}/5 · ~${openNode.node.estimatedMinutes} min`),
+      React.createElement("button", {
         onClick: () => setRunning(openNode),
         style: { width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 8 },
-      }, openIsBoss
-        ? L("Start boss", "Почати бос", "Начать босс", "Lancer le boss", "Boss starten")
-        : L("Start", "Почати", "Начать", "Commencer", "Starten")),
-      !openLocked && !openIsBoss && React.createElement("button", {
+      }, L("Start", "Почати", "Начать", "Commencer", "Starten")),
+      React.createElement("button", {
         onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
         style: { width: "100%", padding: "12px", borderRadius: 12, background: "transparent", color: "var(--text-body)", border: "1px solid var(--border-default)", cursor: "pointer" },
       }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
