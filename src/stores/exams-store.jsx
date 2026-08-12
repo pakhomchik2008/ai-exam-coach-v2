@@ -89,6 +89,14 @@ function migrateExam(raw, index) {
     // Lesson explanation language override ("en" or null=interface lang) — set
     // for English-medium exams in the wizard; read by AIChat's LessonEngine.
     explainLang: e.explainLang === "en" ? "en" : null,
+    // Which qualification (nmt/sat/gcse/...) this exam sits under. Course-backed
+    // exams carry it on the Course's curriculumRef instead; this field is the
+    // direct route for exams created without a course. It was previously read
+    // by _examQualId and by AIChat's mock-exam specs but never whitelisted
+    // here, so saveExams() silently dropped it on every write — meaning
+    // official exam formats and real score scales only ever resolved for
+    // course-backed exams.
+    qualificationId: typeof e.qualificationId === "string" && e.qualificationId ? e.qualificationId : null,
     kind: ["exam", "midterm", "final", "resit", "mock", "certification"].includes(e.kind) ? e.kind : "exam",
     // Per-exam lesson length in minutes, chosen per subject in the wizard.
     // null = "use the profile default" (legacy exams, and any created before
@@ -361,6 +369,16 @@ function commitExamWizard({ examDrafts, profilePatch }) {
     explainLang: d.explainLang,
     kind: d.kind,
     sessionLengthMin: d.sessionLengthMin, // per-subject lesson length from the wizard
+    // Which qualification the wizard picked. Without this the field migrateExam
+    // now preserves would never be populated in the first place for an exam
+    // created without a course — see migrateExam's note.
+    qualificationId: d.qualificationId,
+    // Wizard drafts can now arrive with real topics pre-populated (language
+    // exams in QuickOnboarding — sections are the topics). Passing them
+    // through means migrateExam accepts them as-is; without this, saveExams
+    // would drop them and the schedule would use "Topic review N" placeholders.
+    topics: d.topics,
+    topicsStatus: d.topicsStatus,
   }, exams.length + i));
 
   saveExams([...exams, ...newExams]); // triggers reconcileSchedule automatically
@@ -419,7 +437,7 @@ Object.assign(window, {
   EXAMS_KEY, getExams, getExamsSnapshot, saveExams, subscribeExams,
   daysAway, fmtDateKey, sessionsNeeded, requiredPct, migrateExam,
   deriveCourse, deriveCourses, commitExamWizard, computePriority,
-  examDisplayName,
+  examDisplayName, examQualificationId: _examQualId,
 });
 
 // Module marker: these files carry no import/export of their own (they still

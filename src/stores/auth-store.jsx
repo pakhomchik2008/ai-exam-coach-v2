@@ -20,7 +20,7 @@ const SESSION_KEY  = "auth_session_v1";
 // device settings, not this student's content.
 const PERSONAL_DATA_KEYS = [
   "exams_list_v2", "courses_v1", "study_schedule_v1", "user_profile_v1",
-  "mistakes_v1", "mistake_review_log_v1", "active_session_v1",
+  "mistakes_v1", "mistake_review_log_v1", "active_session_v1", "exam_attempts_v1",
   "brain_mastery_v1", "brain_kb_v1", "brain_memory_v1", "brain_xp_v1",
   "brain_difficulty_v1", "brain_lessoncache_v1", "study_result_v1",
   "tier_seen_v1", ACCOUNTS_KEY,
@@ -214,6 +214,61 @@ async function startDemo() {
   return local;
 }
 
+// Converts the CURRENT anonymous session into a real account, in place.
+//
+// Not the same as signUp(): signUp() creates a NEW user with a NEW id, which
+// would orphan everything the anonymous user already has server-side (their
+// `user_data` sync rows, their `user_seen_questions` history) and reset their
+// AI quota row. updateUser() keeps the same auth.users row, so a visitor who
+// built a whole study plan before signing up keeps it — which is the entire
+// point of letting onboarding run before the account exists.
+//
+// Falls back to signUp() when there is no anonymous session to upgrade (a
+// visitor who arrived with anonymous sign-ins disabled, or with no session at
+// all), so the caller has one function to call either way.
+//
+// Note on email confirmation: if the project requires it, the address is not
+// live until the student clicks the link, but the session — and therefore
+// their data — keeps working the whole time. That is reported back as
+// `emailPending: true` rather than thrown, because nothing actually failed.
+async function upgradeAnonymousAccount({ name, email, password }) {
+  const { data: { user } } = await _supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+  if (!user || !user.is_anonymous) {
+    return { session: await signUp({ name, email, password }), emailPending: false };
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  // Password first: it is applied immediately and is what makes the account
+  // recoverable. If the email step then needs confirmation, the student still
+  // has a real credential rather than a half-made account.
+  const pw = await _supabase.auth.updateUser({ password, data: { full_name: name.trim() } });
+  if (pw.error) {
+    const err = new Error(pw.error.message);
+    err.code = "SIGNUP_ERROR";
+    throw err;
+  }
+
+  const em = await _supabase.auth.updateUser({ email: cleanEmail });
+  if (em.error) {
+    const err = new Error(em.error.message);
+    err.code = "SIGNUP_ERROR";
+    throw err;
+  }
+
+  // `email_confirmed_at` stays null until the link is clicked; new_email holds
+  // the pending address in that case.
+  const updated = em.data?.user || null;
+  const emailPending = !!updated && !updated.email;
+  const session = setSession({
+    id: (updated && updated.id) || user.id,
+    email: (updated && updated.email) || cleanEmail,
+    name: name.trim() || cleanEmail.split("@")[0],
+    mode: "account",
+  });
+  window.saveProfile && window.saveProfile({ fullName: session.name, email: cleanEmail });
+  return { session, emailPending };
+}
+
 // ─── server-call credentials ──────────────────────────────────────────────────
 // /api/complete and /api/fetch-url both require a live access token (api/_guard.js).
 // getSession() refreshes an expired token before returning it.
@@ -243,7 +298,7 @@ Object.assign(window, {
   ACCOUNTS_KEY, SESSION_KEY, _supabase, PERSONAL_DATA_KEYS,
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
-  signUp, logIn, startDemo, signInWithOAuth,
+  signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount,
   getAccessToken, apiHeaders,
 });
 

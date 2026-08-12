@@ -153,6 +153,23 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const totalHours = Math.round(totalPending * 0.75 * 10) / 10;
   const streak = window.computeStreak ? window.computeStreak() : 0;
 
+  // §3g weekly plan rollover: when the last pending session is inside the next
+  // ~3 days AND at least one exam is still active, offer to extend for another
+  // week. Uses fmtDateKey string compare rather than Date arithmetic — same
+  // timezone-safe pattern the rest of the app uses.
+  const [rolloverDismissed, setRolloverDismissed] = React.useState(false);
+  const anyActive = window.getExams
+    ? window.getExams().some((e) => new Date(e.examDate) > new Date())
+    : false;
+  const pendingDates = schedule.sessions.filter((s) => s.status === "pending").map((s) => s.date).sort();
+  const lastPending = pendingDates[pendingDates.length - 1] || null;
+  const rolloverKey = (() => { const d = new Date(); d.setDate(d.getDate() + 3); return window.fmtDateKey(d); })();
+  const needsRollover = anyActive && !rolloverDismissed && (!lastPending || lastPending <= rolloverKey);
+  const extendPlan = () => {
+    if (window.replanAllSchedules) window.replanAllSchedules();
+    setRolloverDismissed(true);
+  };
+
   const H2 = ({ children, size }) => (
     <h2 style={{ margin: 0, fontSize: size || "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)" }}>{children}</h2>
   );
@@ -315,6 +332,48 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
           </div>
         )}
       </section>
+
+      {/* End-of-week rollover — offered when pending sessions no longer reach
+          past the next ~3 days. One tap regenerates the same weekly plan for
+          the next 7 days; "no thanks" dismisses this session (returns next
+          render). Deliberately not auto-refilled: the student agreed to a
+          weekly plan, not a rolling one, and silently topping it up would
+          undermine that. */}
+      {needsRollover && (
+        <div style={{ borderRadius: "var(--radius-xl)", background: "var(--indigo-50)", border: "1px solid var(--indigo-200)", padding: "var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 auto", minWidth: 220 }}>
+            <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--indigo-700)" }}>
+              {L("This week's plan is running out.", "Тижневий план добігає кінця.", "Недельный план заканчивается.", "Le plan de la semaine s'achève.", "Der Wochenplan geht zu Ende.")}
+            </p>
+            <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--indigo-600)" }}>
+              {L("Keep the same plan for another 7 days? You can still edit any session.", "Продовжити той самий план ще на 7 днів? Ви можете редагувати будь-яку сесію.", "Продлить тот же план ещё на 7 дней? Любую сессию можно изменить.", "Reprendre le même plan pour 7 jours ? Les séances restent modifiables.", "Denselben Plan noch 7 Tage weiterführen? Sitzungen bleiben editierbar.")}
+            </p>
+          </div>
+          <button type="button" onClick={() => setRolloverDismissed(true)} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-full)", padding: "8px 14px", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            {L("Not now", "Не зараз", "Не сейчас", "Plus tard", "Später")}
+          </button>
+          <button type="button" onClick={extendPlan} style={{ border: "none", background: "var(--indigo-600)", color: "var(--white)", borderRadius: "var(--radius-full)", padding: "8px 16px", fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            {L("Extend for another week", "Продовжити ще на тиждень", "Продлить ещё на неделю", "Prolonger d'une semaine", "Um eine Woche verlängern")} →
+          </button>
+        </div>
+      )}
+
+      {/* Add-another-exam CTA — visible on every dashboard render once at
+          least one exam exists, so a multi-subject student doesn't have to
+          hunt for "+ Add" under the Exams tab. Deliberately quiet: a small
+          right-aligned ghost button, not a full card, so it doesn't compete
+          with the plan card above. */}
+      {(window.getExams && window.getExams().length > 0) && (
+        <div style={{ display: "flex", justifyContent: "flex-end", margin: "-var(--space-3) 0 var(--space-3)" }}>
+          <button
+            type="button"
+            onClick={() => onGoToExams && onGoToExams()}
+            style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-full)", padding: "8px 14px", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
+          >
+            + {L("Add another exam", "Додати ще один іспит", "Добавить ещё один экзамен", "Ajouter un autre examen", "Weitere Prüfung hinzufügen")}
+          </button>
+        </div>
+      )}
 
       {/* ── Stats row ─────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-3)" }}>

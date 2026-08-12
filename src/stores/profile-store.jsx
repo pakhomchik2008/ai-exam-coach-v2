@@ -32,6 +32,22 @@ function migrateProfile(raw) {
     // How many distinct days/week those hours should be spread across —
     // without this the scheduler can't tell "9h in 2 sessions" from "9h in 6".
     daysPerWeek: isFiniteNumber(p.daysPerWeek) && p.daysPerWeek >= 1 && p.daysPerWeek <= 7 ? Math.round(p.daysPerWeek) : 5,
+    // Which specific weekdays this student can study on — replaces the old
+    // implicit "first N days in mon→sun order" rule the scheduler used to
+    // apply (Phase 3, live-caught bug: `daysPerWeek: 2` literally meant Mon
+    // and Tue, and the person who could only do Sat/Sun ended up with an
+    // empty calendar). null = "not set yet, use the sensible default (Mon-
+    // Fri, plus Sat if daysPerWeek > 5)", so anyone on the old profile keeps
+    // working without a migration write.
+    studyDays: Array.isArray(p.studyDays) && p.studyDays.every((d) => WEEK_DAYS.includes(d)) ? p.studyDays.filter((d) => WEEK_DAYS.includes(d)) : null,
+    // How many hours THIS student can realistically do in one day. What the
+    // 5-step onboarding asks the student directly (hours/day feels natural
+    // in a way hours/week doesn't). Used by the scheduler as the daily cap
+    // — a day gets at most `hoursPerDay ÷ sessionLengthMin` sessions, so a
+    // student who said "2h a day, 45-min sessions" never sees 6 back-to-
+    // back slots piled onto one day. Null = derive from weeklyHours ÷
+    // daysPerWeek, so old profiles still work.
+    hoursPerDay: isFiniteNumber(p.hoursPerDay) && p.hoursPerDay > 0 ? Math.min(16, p.hoursPerDay) : null,
     // Preferred single-session length, minutes — replaces the hardcoded 45min
     // assumption baked into Dashboard/CourseDetail/TodaysMission/AIPlan.
     sessionLengthMin: isFiniteNumber(p.sessionLengthMin) && p.sessionLengthMin >= 15 && p.sessionLengthMin <= 180 ? Math.round(p.sessionLengthMin) : 45,
@@ -81,7 +97,7 @@ function getProfile() {
 // Fields that feed schedule-store.jsx's allocateBudget — changing any of
 // these invalidates every active exam's session plan, unlike materials/prefs/
 // lang/etc, which are cosmetic to the scheduler.
-const BUDGET_FIELDS = ["weeklyHours", "daysPerWeek", "sessionLengthMin", "blackoutSlots", "planIntensity"];
+const BUDGET_FIELDS = ["weeklyHours", "daysPerWeek", "sessionLengthMin", "blackoutSlots", "planIntensity", "studyDays", "hoursPerDay"];
 
 function _budgetFieldsChanged(before, after) {
   return BUDGET_FIELDS.some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]));

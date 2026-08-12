@@ -113,4 +113,15 @@ describe("migrateExam", () => {
   it("rejects an unknown topicsStatus", () => {
     expect(s.migrateExam({ id: "x", topicsStatus: "banana" })["topicsStatus"]).toBe("idle");
   });
+
+  // Was silently dropped before Phase 3 §3c, which meant an exam created
+  // without a course could never resolve its official format or score scale.
+  it("preserves qualificationId so non-course exams keep their exam type", () => {
+    expect(s.migrateExam({ id: "x", qualificationId: "nmt" })["qualificationId"]).toBe("nmt");
+  });
+
+  it("normalises a missing or non-string qualificationId to null", () => {
+    expect(s.migrateExam({ id: "x" })["qualificationId"]).toBeNull();
+    expect(s.migrateExam({ id: "x", qualificationId: 7 })["qualificationId"]).toBeNull();
+  });
 });
