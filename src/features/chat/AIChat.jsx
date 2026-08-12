@@ -3208,11 +3208,13 @@ function LessonEngine({ topic, mode, onExit, t }) {
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // First-time Learn coachmark — dismissible, never reappears once seen
     showLearnTooltip && React.createElement("div", {
+      className: "ux-overlay",
       style: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 },
       onClick: dismissLearnTooltip,
     },
       React.createElement("div", {
-        style: { background: "var(--surface-card)", borderRadius: 20, padding: "28px 26px", maxWidth: 360, boxShadow: "0 24px 60px rgba(0,0,0,0.3)", animation: "fadeUp 0.3s ease-out" },
+        className: "ux-modal",
+        style: { background: "var(--surface-card)", borderRadius: 20, padding: "28px 26px", maxWidth: 360, boxShadow: "0 24px 60px rgba(0,0,0,0.3)" },
         onClick: (e) => e.stopPropagation(),
       },
         React.createElement("span", { style: { fontSize: 36 } }, "🧠"),

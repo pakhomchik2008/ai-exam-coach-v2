@@ -375,8 +375,8 @@ function AiProposalModal({ proposal, courseById, onAccept, onReject, t }) {
   }, []);
 
   return (
-    <div onClick={onReject} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 420, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-lg)" }}>
+    <div className="ux-overlay" onClick={onReject} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+      <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 420, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-lg)" }}>
         <h3 style={{ margin: "0 0 4px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{title}</h3>
         <p style={{ margin: "0 0 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{summary}</p>
 
@@ -665,8 +665,8 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate, 
   const label = { display: "block", fontSize: 11, color: "var(--text-faint)", marginBottom: 4 };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "var(--shadow-lg)" }}>
+    <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+      <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "var(--shadow-lg)" }}>
         <h3 style={{ margin: "0 0 12px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>
           {recurring ? L("Add recurring session","Додати регулярну сесію","Добавить регулярную сессию","Ajouter une séance récurrente","Wiederkehrende Einheit hinzufügen") : type === "personal" ? L("Add personal event","Додати особисту подію","Добавить личное событие","Ajouter un événement perso","Privaten Termin hinzufügen") : L("Add study session","Додати навчальну сесію","Добавить учебную сессию","Ajouter une séance d'étude","Lerneinheit hinzufügen")}
         </h3>

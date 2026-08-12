@@ -474,7 +474,7 @@ function MJQueueCard({ t, label, items, accent, completionPct, onStartReview }) 
 
 function MJChip({ active, onClick, children }) {
   return (
-    <button onClick={onClick} style={{
+    <button className="ux-press" onClick={onClick} style={{
       border: active ? "1.5px solid var(--indigo-500)" : "1px solid var(--border-default)",
       background: active ? "var(--indigo-50)" : "var(--surface-card)",
       color: active ? "var(--indigo-700)" : "var(--text-muted)",
@@ -519,7 +519,7 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
   const dateLocale = (t && t.code) === "uk" ? "uk-UA" : (t && t.code) === "ru" ? "ru-RU" : (t && t.code) === "fr" ? "fr-FR" : (t && t.code) === "de" ? "de-DE" : "en-GB";
 
   return (
-    <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", overflow: "hidden", transition: "box-shadow 0.15s ease, transform 0.1s ease", boxShadow: open ? "var(--shadow-md)" : "var(--shadow-sm)" }}>
+    <div className="ux-card" style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", overflow: "hidden", boxShadow: open ? "var(--shadow-md)" : "var(--shadow-sm)" }}>
       <div style={{ padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", background: "var(--indigo-50)", borderRadius: "var(--radius-full)", padding: "2px 10px" }}>{m.topic}</span>

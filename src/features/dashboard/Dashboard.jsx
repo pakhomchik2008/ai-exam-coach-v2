@@ -282,15 +282,12 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
               )}
             </div>
 
-            <button onClick={startRecommended} style={{
+            <button className="ux-press" onClick={startRecommended} style={{
               width: "100%", padding: "15px", borderRadius: "var(--radius-full)", border: "none",
               background: "var(--ink-900)", color: "var(--white)",
               fontSize: "var(--text-base)", fontWeight: "var(--weight-semibold)", cursor: "pointer",
               fontFamily: "var(--font-sans)", boxShadow: "var(--shadow-md)",
-              transition: "transform 0.15s ease, box-shadow 0.15s ease",
             }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}
             >
               {L("Start now","Почати зараз","Начать сейчас","Commencer","Jetzt starten")} →
             </button>
@@ -318,10 +315,10 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {todaySessions.filter(s => s.id !== (focusSession && focusSession.id)).map(s => (
-                <div key={s.id} onClick={() => startMission(s)} style={{
+                <div key={s.id} className="ux-row" onClick={() => startMission(s)} style={{
                   display: "flex", alignItems: "center", gap: "var(--space-2)", padding: "8px 12px",
                   borderRadius: "var(--radius-lg)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)",
-                  cursor: "pointer", transition: "background 0.15s ease",
+                  cursor: "pointer",
                 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
                   <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", flex: 1 }}>{s.topic} · {s.subject}</span>
@@ -376,7 +373,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       )}
 
       {/* ── Stats row ─────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-3)" }}>
+      <div className="ux-stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "var(--space-3)" }}>
         {[
           anyCourseStarted
             ? { value: overallGrade, label: L("Predicted","Прогноз","Прогноз","Prévu","Prognose"), sub: `${overallProb}% ${L("probability","ймовірність","вероятность","probabilité","Wahrscheinl.")}`, color: overallProb >= 60 ? "var(--emerald-600)" : overallProb >= 40 ? "var(--amber-600)" : "var(--red-500)" }
@@ -385,7 +382,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
           { value: `${totalHours}h`, label: L("Remaining","Залишилось","Осталось","Restant","Verbleibend"), sub: `${totalPending} ${L("sessions","сесій","сессий","séances","Sitzungen")}`, color: "var(--text-strong)" },
           { value: `${streak}🔥`, label: L("Streak","Серія","Серия","Série","Serie"), sub: streak > 0 ? L("days","днів","дней","jours","Tage") : L("start today!","почніть!","начните!","commencez !","jetzt starten!"), color: streak > 0 ? "var(--amber-600)" : "var(--text-faint)" },
         ].map((stat, i) => (
-          <div key={i} style={{ textAlign: "center", padding: "var(--space-4) var(--space-3)", borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)" }}>
+          <div key={i} className="ux-card" style={{ textAlign: "center", padding: "var(--space-4) var(--space-3)", borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)" }}>
             <div style={{ fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: stat.color, fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)" }}>{stat.value}</div>
             <div style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", marginTop: 4 }}>{stat.label}</div>
             <div style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", marginTop: 1 }}>{stat.sub}</div>
