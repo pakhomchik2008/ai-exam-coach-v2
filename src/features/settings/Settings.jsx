@@ -67,6 +67,22 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [showReminderInfo, setShowReminderInfo] = React.useState(false);
+  // "unsupported" | "default" | "granted" | "denied" — real browser
+  // permission state, not a profile boolean (see src/lib/push.ts).
+  const [pushStatus, setPushStatus] = React.useState("unsupported");
+
+  React.useEffect(() => {
+    if (!window.isPushSupported || !window.isPushSupported()) return;
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push((OneSignal) => {
+      setPushStatus(OneSignal.Notifications.permission ? "granted" : "default");
+    });
+  }, []);
+
+  async function enablePush() {
+    const result = await window.requestPushPermission();
+    setPushStatus(result);
+  }
 
   const ZONES = window.TIMEZONES || [];
 
@@ -223,6 +239,28 @@ function Settings({ t, lang, onLangChange, onLogout }) {
               </div>
             </label>
           ))}
+
+          {window.isPushSupported && window.isPushSupported() && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-default)" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)" }}>
+                  {L(lang, "Browser push notifications", "Push-сповіщення в браузері", "Push-уведомления в браузере", "Notifications push du navigateur", "Browser-Push-Benachrichtigungen")}
+                </span>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
+                  {pushStatus === "granted"
+                    ? L(lang, "Enabled on this browser.", "Увімкнено в цьому браузері.", "Включено в этом браузере.", "Activé sur ce navigateur.", "Auf diesem Browser aktiviert.")
+                    : pushStatus === "denied"
+                      ? L(lang, "Blocked in browser settings — re-enable there to use this.", "Заблоковано в налаштуваннях браузера.", "Заблокировано в настройках браузера.", "Bloqué dans les paramètres du navigateur.", "In den Browser-Einstellungen blockiert.")
+                      : L(lang, "Same triggers as email, delivered as a browser notification.", "Ті самі тригери, що й пошта, але як сповіщення браузера.", "Те же триггеры, что и почта, но как уведомление браузера.", "Mêmes déclencheurs que l'e-mail, en notification navigateur.", "Gleiche Auslöser wie E-Mail, als Browser-Benachrichtigung.")}
+                </span>
+              </div>
+              {pushStatus !== "granted" && pushStatus !== "denied" && (
+                <Button variant="secondary" size="sm" onClick={enablePush}>
+                  {L(lang, "Enable", "Увімкнути", "Включить", "Activer", "Aktivieren")}
+                </Button>
+              )}
+            </div>
+          )}
         </Section>
 
         <Section title={L(lang, "Study intensity","Режим навчання","Режим учёбы","Intensité d'étude","Lernintensität")}>
