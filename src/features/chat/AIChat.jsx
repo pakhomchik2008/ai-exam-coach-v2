@@ -6,6 +6,64 @@
 import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
+import { checkAndRecordQuestion } from "../../lib/question-novelty";
+import { specFor } from "../../lib/exam-specs";
+import { ExamRecap } from "../study/ExamRecap.jsx";
+
+/**
+ * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
+ * key that picks both the mock-exam spec (exam-specs.ts) and the reporting
+ * scale (scales.ts).
+ *
+ * Delegates to exams-store's `examQualificationId` so there is one definition
+ * of "which qualification is this", not a copy per feature.
+ */
+function _qualificationOf(exam) {
+  if (!exam) return null;
+  return (window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId) || null;
+}
+
+// Novelty engine (Phase 3 §3a) — proof point wired into Practice Engine only,
+// the highest-traffic generator. Checks each generated question against the
+// shared ai_question_bank; if any come back as exact/near-exact duplicates of
+// something already banked, generates ONE replacement batch and swaps in
+// whichever of those aren't ALSO duplicates. Never blocks or fails the round:
+// a table that isn't applied yet (or any Supabase hiccup) degrades to
+// checkAndRecordQuestion's built-in `{duplicate:false}` no-op, and a
+// duplicate that survives the one retry is served anyway — a repeated
+// question beats a broken practice round.
+async function dedupeAgainstQuestionBank(questions, examTaxonomy, regenerate) {
+  const sb = window._supabase;
+  const userId = window.getSession && window.getSession()?.id;
+  if (!sb || !userId || !examTaxonomy) return questions;
+
+  const checks = await Promise.all(
+    questions.map((q) => checkAndRecordQuestion(sb, userId, examTaxonomy, q.topic || null, q.question)),
+  );
+  const dupIdxs = checks.map((r, i) => (r.duplicate ? i : -1)).filter((i) => i >= 0);
+  if (dupIdxs.length === 0) return questions;
+
+  let replacement = null;
+  try {
+    replacement = await regenerate();
+  } catch {
+    return questions; // one retry only — serve the original batch as-is on any failure
+  }
+  if (!Array.isArray(replacement) || replacement.length === 0) return questions;
+
+  const replacementChecks = await Promise.all(
+    replacement.map((q) => checkAndRecordQuestion(sb, userId, examTaxonomy, q.topic || null, q.question)),
+  );
+  const freshReplacements = replacement.filter((_, i) => !replacementChecks[i].duplicate);
+
+  const next = questions.slice();
+  let r = 0;
+  for (const idx of dupIdxs) {
+    if (r >= freshReplacements.length) break;
+    next[idx] = freshReplacements[r++];
+  }
+  return next;
+}
 //
 // The AI generates a structured lesson plan upfront. The UI renders each step
 // as its own full-screen phase — not chat bubbles. Progress is always visible.
@@ -173,6 +231,17 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
               setCpResults((r) => [...r, correct]);
               onResult(correct);
               if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct });
+              // The end-of-lesson checkpoint is the highest-signal moment in a
+              // lesson, and until now a wrong answer here moved mastery but
+              // was never journalled — so the one question the student most
+              // needed to revisit was the one the review queue never saw.
+              if (!correct && resolved && window.logMistake) {
+                window.logMistake({
+                  topic: resolved.topicName, question: q.question,
+                  options: q.options, correctIndex: q.correct, selectedIndex: i, explanation: q.explanation,
+                  examId: resolved.examId, topicIdx: resolved.topicIdx,
+                });
+              }
             },
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
@@ -664,6 +733,15 @@ RULES:
     setResults((r) => [...r, { correct: isCorrect, topic: q.topic || topic }]);
     isCorrect ? _sfx.correct() : _sfx.wrong();
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
+    // Quick Check used to record the review but never the mistake, so a wrong
+    // answer here lowered mastery yet left nothing in the journal to retry.
+    if (!isCorrect && resolved && window.logMistake) {
+      window.logMistake({
+        topic: resolved.topicName || q.topic || topic, question: q.question,
+        options: q.options, correctIndex: q.correct, selectedIndex: optIdx, explanation: q.explanation,
+        examId: resolved.examId, topicIdx: resolved.topicIdx,
+      });
+    }
   };
 
   const answerFill = () => {
@@ -1176,23 +1254,44 @@ RULES:
 
 // ─── PRACTICE ENGINE (Exam simulation) ───────────────────────────────────────
 
-function PracticeEngine({ examViews, onExit, t }) {
+function PracticeEngine({ examViews, onExit, seed, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | session | summary
   // examId scopes the drill to one subject; null means "across everything".
   // `length` is chosen explicitly rather than derived from difficulty — a
   // student who wants 5 quick questions should not have to pick "Easy" to get
   // a shorter set. `timed` adds an optional countdown (audit #5).
-  const [config, setConfig] = React.useState({ difficulty: "adaptive", examId: null, topics: [], length: 10, timed: false });
+  const [config, setConfig] = React.useState({
+    difficulty: "adaptive", length: 10, timed: false,
+    // A recap's "Drill weak topics" CTA arrives as `seed` — it preselects the
+    // subject and topics but deliberately still lands on the setup screen, so
+    // the student sees (and can change) what is about to be generated instead
+    // of an AI call firing from one tap.
+    // With a single subject the picker below is hidden, so leaving examId null
+    // meant that student's drills were never attributed to their exam — no
+    // score on the real exam scale and no attempt history in the recap. One
+    // exam is unambiguous: attribute to it.
+    examId: (seed && seed.examId) || (examViews.length === 1 ? examViews[0].id : null),
+    topics: (seed && seed.topics) || [],
+  });
   const [remainingSec, setRemainingSec] = React.useState(null);
+  const [startedAt, setStartedAt] = React.useState(null);
+  // XP used to be awarded inline in the summary's render body, so every
+  // re-render of that screen granted it again. The recap below re-renders
+  // several times (attempt recorded, AI comment resolved), which would have
+  // turned that into runaway XP.
+  const xpAwardedRef = React.useRef(false);
   const [questions, setQuestions] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [qIdx, setQIdx] = React.useState(0);
   const [selected, setSelected] = React.useState(null);
-  const [confidence, setConfidence] = React.useState(null);
-  const [showWhy, setShowWhy] = React.useState(false);
-  const [whyInput, setWhyInput] = React.useState("");
+  // Confidence is inferred from time-to-answer, not asked. The old two-tap
+  // "select A/B/C/D, then pick Guessing/Okay/Easy, then Submit" flow was the
+  // #1 friction in Practice; time-to-first-select is a real signal, doesn't
+  // interrupt, and keeps the brain-store input the review path already reads.
+  // Kept as state so re-renders don't reset the reference clock.
+  const [questionShownAt, setQuestionShownAt] = React.useState(() => Date.now());
   const [revealed, setRevealed] = React.useState(false);
   const [results, setResults] = React.useState([]);
   const [patternAlert, setPatternAlert] = React.useState(null);
@@ -1238,6 +1337,7 @@ function PracticeEngine({ examViews, onExit, t }) {
     const startPractice = async () => {
       // ~1 minute per question is the pace a timed drill should feel like.
       setRemainingSec(config.timed ? config.length * 60 : null);
+      setStartedAt(Date.now());
       setPhase("session"); setLoading(true); setError(null);
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
@@ -1262,13 +1362,20 @@ RULES:
 - No duplicate concepts`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
-        const raw = await Promise.race([
+        const generate = () => Promise.race([
           complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }] }),
           timeout,
-        ]);
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-        setQuestions(parsed.questions);
+        ]).then((r) => {
+          const p = window.parseJSON ? window.parseJSON(r) : JSON.parse(r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1));
+          if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return p.questions;
+        });
+
+        const rawQuestions = await generate();
+        const exam = config.examId && window.getExams ? window.getExams().find((e) => e.id === config.examId) : null;
+        const examTaxonomy = (exam && exam.qualificationId) || config.examId;
+        const questions = await dedupeAgainstQuestionBank(rawQuestions, examTaxonomy, generate);
+        setQuestions(questions);
         setLoading(false);
       } catch (e) {
         console.error("Practice generation failed:", e);
@@ -1371,7 +1478,10 @@ RULES:
     const correct = results.filter((r) => r.correct).length;
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
     const xpEarned = correct * 20 + 50;
-    if (window.addXp && total > 0) window.addXp(xpEarned);
+    if (window.addXp && total > 0 && !xpAwardedRef.current) {
+      xpAwardedRef.current = true;
+      window.addXp(xpEarned);
+    }
     const byTopic = {};
     results.forEach((r) => {
       const tp = r.topic || L("Unknown", "Невідомо", "Неизвестно", "Inconnu", "Unbekannt");
@@ -1380,27 +1490,32 @@ RULES:
       if (r.correct) byTopic[tp].correct++;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
+    const drillExam = config.examId && window.getExams ? window.getExams().find((e) => e.id === config.examId) : null;
 
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 24px", animation: "fadeUp 0.5s ease-out", gap: 4 } },
-      React.createElement("span", { style: { fontSize: 56, marginBottom: 8 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : "💪"),
-      React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, L("Practice Complete!", "Тренування завершено!", "Тренировка завершена!", "Entraînement terminé !", "Übung abgeschlossen!")),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, L(`${correct}/${total} correct · ${pct}%`, `${correct}/${total} правильно · ${pct}%`, `${correct}/${total} правильно · ${pct}%`, `${correct}/${total} correct · ${pct}%`, `${correct}/${total} richtig · ${pct}%`)),
-
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, width: "100%", maxWidth: 340, marginBottom: 20 } },
-        ...[
-          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 70 ? "var(--emerald-700)" : "var(--red-700)" },
-          { val: `${total}`, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen"), color: "var(--indigo-600)" },
-          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
-        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "12px 8px" } },
-          React.createElement("p", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: s.color } }, s.val),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
-
-      weakTopics.length > 0 && React.createElement("div", { style: { width: "100%", maxWidth: 340, background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 16 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase" } }, L("🎯 Pattern detected — focus on:", "🎯 Виявлено закономірність — зверніть увагу на:", "🎯 Обнаружена закономерность — обратите внимание на:", "🎯 Schéma détecté — concentrez-vous sur :", "🎯 Muster erkannt — konzentriere dich auf:")),
-        ...weakTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `• ${tp}`))),
-
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 } },
-        _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false)));
+    return React.createElement(ExamRecap, {
+      mode: "practice",
+      examId: config.examId,
+      examName: drillExam ? drillExam.name : L("Practice drill", "Тренування", "Тренировка", "Entraînement", "Übung"),
+      taxonomy: _qualificationOf(drillExam),
+      correct, total, weakTopics,
+      sessionStartedAt: startedAt,
+      headline: L("Practice Complete!", "Тренування завершено!", "Тренировка завершена!", "Entraînement terminé !", "Übung abgeschlossen!"),
+      stats: [
+        { val: `${total}`, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen"), color: "var(--indigo-600)" },
+        { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
+      ],
+      // Re-seeding the drill it is already inside: reset to setup with the weak
+      // topics preselected rather than routing through the parent.
+      onDrillWeak: (topics) => {
+        setConfig((c) => ({ ...c, topics }));
+        setQuestions(null); setResults([]); setQIdx(0); setSelected(null); setQuestionShownAt(Date.now());
+        setRevealed(false); setPatternAlert(null); setRemainingSec(null);
+        xpAwardedRef.current = false;
+        setPhase("setup");
+      },
+      onExit,
+      t,
+    });
   }
 
   // ── Question view ──
@@ -1409,30 +1524,43 @@ RULES:
   const totalQ = questions.length;
   const pctDone = Math.round(((qIdx + 1) / totalQ) * 100);
 
-  const submitAnswer = () => {
-    if (selected === null || confidence === null) return;
-    const isCorrect = selected === q.correct;
+  // Single argument, not a read from state: the click handler passes the option
+  // index straight in, so we don't have to wait a render for setSelected to
+  // land before submitting — kept the "tap answer = submit" flow feeling
+  // instant, which was the whole point of dropping the confidence step.
+  const submitAnswer = (optIdx) => {
+    if (selected !== null) return; // second tap on the same question is a no-op
+    setSelected(optIdx);
+    // Under 4s = confident, under 12s = normal, longer = probably guessed.
+    // Thresholds match what students report anecdotally and what StudyHub's
+    // pacing already assumes (60-90s per Q on paper, faster on multiple
+    // choice). Feeds recordReview via the same key the old chip used.
+    const elapsedSec = (Date.now() - questionShownAt) / 1000;
+    const confidence = elapsedSec < 4 ? "easy" : elapsedSec < 12 ? "okay" : "guessing";
+    const isCorrect = optIdx === q.correct;
     const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     }
     if (!isCorrect && resolved && window.logMistake) {
-      window.logMistake({ topic: resolved?.topicName || q.topic, question: q.question, examId: resolved?.examId, topicIdx: resolved?.topicIdx });
+      window.logMistake({
+        topic: resolved?.topicName || q.topic, question: q.question,
+        options: q.options, correctIndex: q.correct, selectedIndex: optIdx, explanation: q.explanation,
+        examId: resolved?.examId, topicIdx: resolved?.topicIdx,
+      });
     }
-    setResults((r) => [...r, { correct: isCorrect, topic: q.topic, confidence, selected }]);
-    if (!isCorrect) { setShowWhy(true); } else { setRevealed(true); }
+    setResults((r) => [...r, { correct: isCorrect, topic: q.topic, confidence, selected: optIdx }]);
+    // No "why did you choose" prompt any more — tapping the wrong answer
+    // reveals the explanation immediately. Students were skipping the textarea
+    // anyway, and the extra tap made a five-question drill feel like ten.
+    setRevealed(true);
   };
 
   const advance = () => {
-    setSelected(null); setConfidence(null); setRevealed(false); setShowWhy(false); setWhyInput(""); setPatternAlert(null);
+    setSelected(null); setRevealed(false); setPatternAlert(null);
+    setQuestionShownAt(Date.now()); // reset the timer for the next question
     if (qIdx + 1 >= totalQ) { setPhase("summary"); } else { setQIdx(qIdx + 1); }
   };
-
-  const CONF_OPTS = [
-    { key: "guessing", emoji: "🤔", label: L("Guessing", "Здогадка", "Догадка", "Je devine", "Rate mal") },
-    { key: "okay", emoji: "🤨", label: L("Okay", "Нормально", "Нормально", "Correct", "Okay") },
-    { key: "easy", emoji: "😎", label: L("Easy", "Легко", "Легко", "Facile", "Einfach") },
-  ];
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Progress header
@@ -1456,7 +1584,7 @@ RULES:
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
       // Pattern alert
-      patternAlert && !revealed && !showWhy && React.createElement("div", {
+      patternAlert && !revealed && React.createElement("div", {
         style: { marginBottom: 16, padding: "12px 16px", background: "var(--red-50)", border: "1px solid var(--red-400)", borderRadius: 12, animation: "fadeUp 0.3s" }
       },
         React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 700, color: "var(--red-700)" } }, L("🎯 Pattern detected", "🎯 Виявлено закономірність", "🎯 Обнаружена закономерность", "🎯 Schéma détecté", "🎯 Muster erkannt")),
@@ -1473,45 +1601,19 @@ RULES:
             const isCorrect = i === q.correct;
             const isSel = i === selected;
             let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)", lbg = "var(--slate-100)", lcol = "var(--slate-400)";
-            if (revealed || showWhy) {
+            if (revealed) {
               if (isCorrect) { bg = "var(--emerald-50)"; bc = "var(--emerald-500)"; col = "var(--emerald-700)"; lbg = "var(--emerald-500)"; lcol = "var(--white)"; }
               else if (isSel) { bg = "var(--red-50)"; bc = "var(--red-500)"; col = "var(--red-700)"; lbg = "var(--red-500)"; lcol = "var(--white)"; }
               else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
-            } else if (isSel) { bg = "var(--indigo-50)"; bc = "var(--indigo-500)"; col = "var(--indigo-700)"; lbg = "var(--indigo-500)"; lcol = "var(--white)"; }
+            }
             return React.createElement("button", {
-              key: i, disabled: revealed || showWhy,
-              onClick: () => setSelected(i),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: (revealed || showWhy) ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+              key: i, disabled: revealed,
+              onClick: () => submitAnswer(i),
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
           })),
-
-        // Confidence selector (before submitting)
-        selected !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 16 } },
-          React.createElement("p", { style: { fontSize: 12, fontWeight: 600, color: "var(--text-muted)", margin: "0 0 8px" } }, L("How confident are you?", "Наскільки ви впевнені?", "Насколько вы уверены?", "Quel est votre degré de confiance ?", "Wie sicher bist du dir?")),
-          React.createElement("div", { style: { display: "flex", gap: 8 } },
-            ...CONF_OPTS.map((c) => React.createElement("button", {
-              key: c.key, onClick: () => setConfidence(c.key),
-              style: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 8px", background: confidence === c.key ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${confidence === c.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: confidence === c.key ? "var(--indigo-700)" : "var(--text-muted)" }
-            }, React.createElement("span", null, c.emoji), c.label)))),
-
-        // Submit button
-        selected !== null && confidence !== null && !revealed && !showWhy && React.createElement("div", { style: { marginTop: 12 } },
-          _btn(L("Submit →", "Надіслати →", "Отправить →", "Envoyer →", "Absenden →"), submitAnswer, true, false)),
-
-        // "Why did you choose?" (wrong answer)
-        showWhy && React.createElement("div", { style: { marginTop: 16, animation: "fadeUp 0.3s" } },
-          React.createElement("div", { style: { padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, marginBottom: 12 } },
-            React.createElement("p", { style: { margin: 0, fontSize: 14, fontWeight: 600, color: "var(--amber-700)" } }, L(`Why did you choose ${["A", "B", "C", "D"][selected]}?`, `Чому ви обрали ${["A", "B", "C", "D"][selected]}?`, `Почему вы выбрали ${["A", "B", "C", "D"][selected]}?`, `Pourquoi avez-vous choisi ${["A", "B", "C", "D"][selected]} ?`, `Warum hast du ${["A", "B", "C", "D"][selected]} gewählt?`)),
-            React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "var(--amber-700)" } }, L("Explain your reasoning — this helps you learn from mistakes.", "Поясніть свою логіку — це допоможе вчитися на помилках.", "Объясните свою логику — это поможет учиться на ошибках.", "Expliquez votre raisonnement — cela vous aide à apprendre de vos erreurs.", "Erkläre deine Überlegung — das hilft dir, aus Fehlern zu lernen."))),
-          React.createElement("textarea", {
-            value: whyInput, onChange: (e) => setWhyInput(e.target.value), autoFocus: true,
-            placeholder: L("I thought this because...", "Я так вважав, тому що...", "Я так думал, потому что...", "J'ai pensé cela parce que...", "Ich dachte das, weil..."), rows: 2,
-            style: { width: "100%", border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", fontSize: 13, fontFamily: "var(--font-sans)", color: "var(--text-body)", background: "var(--surface-page)", resize: "none", outline: "none", boxSizing: "border-box" }
-          }),
-          React.createElement("div", { style: { marginTop: 8 } },
-            _btn(whyInput.trim() ? L("See explanation →", "Переглянути пояснення →", "Посмотреть объяснение →", "Voir l'explication →", "Erklärung ansehen →") : L("Skip →", "Пропустити →", "Пропустить →", "Passer →", "Überspringen →"), () => { setShowWhy(false); setRevealed(true); }, true, false))),
 
         // Explanation (after reveal)
         revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
@@ -1531,19 +1633,7 @@ RULES:
 // a real paper runs, and a style/difficulty note that steers the generator
 // toward that exam's actual character. Falls back to a topic-count heuristic
 // for anything not listed. Extend by adding a key — no code change needed.
-const EXAM_MOCK_SPECS = {
-  nmt:    { count: 20, note: "НМТ style: single-best-answer and matching items, moderate-to-hard, curriculum-faithful to the Ukrainian program." },
-  sat:    { count: 22, note: "Digital SAT style: concise multiple-choice, evidence and reasoning focus, adaptive difficulty." },
-  act:    { count: 20, note: "ACT style: fast-paced four-option multiple-choice." },
-  ap:     { count: 16, note: "AP style: college-level multiple-choice, application-heavy." },
-  ib:     { count: 18, note: "IB style: multiple-choice using command terms, HL-level rigour." },
-  gcse:   { count: 18, note: "GCSE style: graduated difficulty from foundation to higher tier." },
-  alevel: { count: 18, note: "A-Level style: demanding multi-step multiple-choice." },
-  matura: { count: 18, note: "Matura style: exam-board multiple-choice." },
-  abitur: { count: 16, note: "Abitur style: analytical multiple-choice." },
-};
-
-function ExamSimEngine({ examViews, onExit, t }) {
+function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("setup"); // setup | loading | session | summary
   const [examId, setExamId] = React.useState(examViews[0]?.id || null);
@@ -1555,21 +1645,23 @@ function ExamSimEngine({ examViews, onExit, t }) {
   const [timeLimitSec, setTimeLimitSec] = React.useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = React.useState(false);
   const [autoSubmitted, setAutoSubmitted] = React.useState(false);
+  const [startedAt, setStartedAt] = React.useState(null);
   const finishedRef = React.useRef(false);
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
   const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
-  // Resolve the exam's qualification (nmt/sat/...) via its Course's curriculumRef
-  // to pick the official mock spec; fall back to a topic-count heuristic.
-  const examQual = React.useMemo(() => {
-    const ex = window.getExams ? window.getExams().find((e) => e.id === examId) : null;
-    const course = ex && ex.courseId && window.getCourse ? window.getCourse(ex.courseId) : null;
-    return (course && course.curriculumRef && course.curriculumRef.qualificationId) || null;
-  }, [examId]);
-  const mockSpec = EXAM_MOCK_SPECS[examQual] || null;
-  const questionCount = mockSpec ? mockSpec.count : Math.max(12, Math.min(24, examTopics.length > 0 ? examTopics.length * 2 : 16));
-  const styleNote = mockSpec ? mockSpec.note : "at genuine exam difficulty for this subject";
-  const estMinutes = Math.round(questionCount * 1.5);
+  // Resolve the exam's qualification (nmt/sat/...) — course-backed exams carry
+  // it on the Course's curriculumRef, legacy exams directly — to pick the
+  // named spec (src/lib/exam-specs.ts); specFor() falls back to a
+  // topic-count heuristic for anything unlisted.
+  const examQual = React.useMemo(
+    () => _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null),
+    [examId]
+  );
+  const spec = React.useMemo(() => specFor(examQual, examTopics.length), [examQual, examTopics.length]);
+  const questionCount = spec.questionCount;
+  const styleNote = spec.note;
+  const estMinutes = spec.durationMin;
 
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -1588,7 +1680,11 @@ function ExamSimEngine({ examViews, onExit, t }) {
         window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
       }
       if (!isCorrect && resolved && window.logMistake) {
-        window.logMistake({ topic: resolved?.topicName || q.topic, question: q.question, examId: resolved?.examId, topicIdx: resolved?.topicIdx });
+        window.logMistake({
+          topic: resolved?.topicName || q.topic, question: q.question,
+          options: q.options, correctIndex: q.correct, selectedIndex: sel, explanation: q.explanation,
+          examId: resolved?.examId, topicIdx: resolved?.topicIdx,
+        });
       }
     });
     const pct = Math.round((correctCount / questions.length) * 100);
@@ -1616,6 +1712,7 @@ function ExamSimEngine({ examViews, onExit, t }) {
     const startExam = async () => {
       if (!selectedExam) return;
       setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
+      setStartedAt(Date.now());
       // Generate in PARALLEL CHUNKS of ~6 questions each, not one giant call.
       // A single 20-24 question request with explanations regularly blew past
       // the 60s budget or returned truncated/invalid JSON on the fast model —
@@ -1651,7 +1748,13 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
         // Merge, validate shape, cap at target count.
         const all = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
         if (all.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
-        const secs = Math.round(all.length * 1.5) * 60;
+        // An official-spec paper keeps its full named time budget even if a
+        // chunk failure shortened the actual question count — the point of
+        // "official format" is the clock matching the real thing, not
+        // shrinking alongside a generation hiccup. An unlisted qualification
+        // has no such budget to protect, so it stays proportional to what
+        // was actually generated.
+        const secs = spec.official ? spec.durationMin * 60 : Math.round(all.length * 1.5) * 60;
         setQuestions(all);
         setAnswers(new Array(all.length).fill(null));
         setIdx(0);
@@ -1683,6 +1786,14 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
           React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: examId === e.id ? "var(--indigo-700)" : "var(--text-strong)" } }, e.name),
           React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, L(`${(e.topics || []).length || "?"} topics`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} sujets`, `${(e.topics || []).length || "?"} Themen`))))),
 
+      // Real vs Practice made visible (Phase 3 §3b): only a named spec can
+      // honestly claim to mirror an exam's official shape — everything else
+      // is a generic mock, and the copy says so rather than implying more
+      // precision than the fallback heuristic actually has.
+      selectedExam && spec.official && React.createElement("div", {
+        style: { display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "var(--emerald-50)", border: "1px solid var(--emerald-100)", borderRadius: 999, marginBottom: 12, fontSize: 11, fontWeight: 700, color: "var(--emerald-700)" }
+      }, "✓ ", L(`Official ${examQual?.toUpperCase()} format`, `Офіційний формат ${examQual?.toUpperCase()}`, `Официальный формат ${examQual?.toUpperCase()}`, `Format officiel ${examQual?.toUpperCase()}`, `Offizielles ${examQual?.toUpperCase()}-Format`)),
+
       selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
         ...[
           { val: questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
@@ -1712,7 +1823,9 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
     const correctCount = questions.filter((q, i) => answers[i] === q.correct).length;
     const pct = Math.round((correctCount / total) * 100);
     const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0); // display only — actually awarded once in finishExam()
-    const predictedGrade = window.gradeFromReadiness ? window.gradeFromReadiness(pct) : null;
+    // The old "Predicted grade: B" badge is gone: ExamRecap reports the score
+    // on the exam's real scale instead. Letter grades were audit #10 — none of
+    // the exams this app targets reports one (see src/lib/scales.ts).
     const timeUsed = timeLimitSec - timeLeft;
 
     const byTopic = {};
@@ -1724,44 +1837,35 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
 
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", padding: "0 20px 24px", overflowY: "auto" } },
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "28px 4px 20px", animation: "fadeUp 0.5s ease-out" } },
-        React.createElement("span", { style: { fontSize: 52, marginBottom: 6 } }, pct >= 80 ? "🏆" : pct >= 60 ? "✨" : pct >= 40 ? "💪" : "📖"),
-        React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px" } }, autoSubmitted ? L("Time's up!", "Час вийшов!", "Время вышло!", "Temps écoulé !", "Zeit ist um!") : L("Exam Submitted", "Іспит здано", "Экзамен сдан", "Examen soumis", "Prüfung eingereicht")),
-        React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, L(`${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} правильно · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} правильно · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} correct · ${pct}% · ${selectedExam?.name}`, `${correctCount}/${total} richtig · ${pct}% · ${selectedExam?.name}`)),
-        predictedGrade && React.createElement("div", { style: { marginTop: 10 } }, _badge("var(--indigo-100)", "var(--indigo-700)", L(`Predicted grade: ${predictedGrade}`, `Прогнозована оцінка: ${predictedGrade}`, `Прогнозируемая оценка: ${predictedGrade}`, `Note prévue : ${predictedGrade}`, `Voraussichtliche Note: ${predictedGrade}`)))),
-
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 20 } },
-        ...[
-          { val: `${pct}%`, label: L("Score", "Результат", "Результат", "Score", "Ergebnis"), color: pct >= 70 ? "var(--emerald-700)" : "var(--red-700)" },
-          { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
-          { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
-          { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
-        ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 4px" } },
-          React.createElement("p", { style: { margin: 0, fontSize: 16, fontWeight: 700, color: s.color } }, s.val),
-          React.createElement("p", { style: { margin: "2px 0 0", fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
-
-      weakTopics.length > 0 && React.createElement("div", { style: { background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", marginBottom: 20 } },
-        React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: "var(--amber-700)", textTransform: "uppercase" } }, L("Focus on:", "Зверніть увагу на:", "Обратите внимание на:", "Concentrez-vous sur :", "Konzentriere dich auf:")),
-        ...weakTopics.map((tp, i) => React.createElement("p", { key: i, style: { margin: "3px 0", fontSize: 13, color: "var(--amber-700)" } }, `• ${tp}`))),
-
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" } }, L("Full review", "Повний огляд", "Полный обзор", "Revue complète", "Vollständige Übersicht")),
-      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 } },
-        ...questions.map((q, i) => {
-          const sel = answers[i];
-          const answered = sel !== null && sel !== undefined;
-          const isCorrect = answered && sel === q.correct;
-          return React.createElement("div", { key: i, style: { background: "var(--surface-card)", border: `1px solid ${answered ? (isCorrect ? "var(--emerald-100)" : "var(--red-200)") : "var(--border-subtle)"}`, borderRadius: 12, padding: "12px 14px" } },
-            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 } },
-              React.createElement("p", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.5 } }, `${i + 1}. ${q.question}`),
-              React.createElement("span", { style: { fontSize: 15, flexShrink: 0 } }, !answered ? "⬜" : isCorrect ? "✅" : "❌")),
-            React.createElement("p", { style: { margin: "0 0 2px", fontSize: 12, color: "var(--text-muted)" } },
-              answered ? L(`Your answer: ${(q.options || [])[sel]}`, `Ваша відповідь: ${(q.options || [])[sel]}`, `Ваш ответ: ${(q.options || [])[sel]}`, `Votre réponse : ${(q.options || [])[sel]}`, `Deine Antwort: ${(q.options || [])[sel]}`) : L("Not answered", "Немає відповіді", "Нет ответа", "Sans réponse", "Nicht beantwortet")),
-            !isCorrect && React.createElement("p", { style: { margin: "0 0 6px", fontSize: 12, color: "var(--emerald-700)", fontWeight: 600 } }, L(`Correct: ${(q.options || [])[q.correct]}`, `Правильно: ${(q.options || [])[q.correct]}`, `Правильно: ${(q.options || [])[q.correct]}`, `Correct : ${(q.options || [])[q.correct]}`, `Richtig: ${(q.options || [])[q.correct]}`)),
-            React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 } }, q.explanation));
-        })),
-
-      _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
+    return React.createElement(ExamRecap, {
+      mode: "real",
+      examId,
+      examName: selectedExam?.name || "",
+      taxonomy: examQual,
+      correct: correctCount,
+      total,
+      weakTopics,
+      sessionStartedAt: startedAt,
+      headline: autoSubmitted
+        ? L("Time's up!", "Час вийшов!", "Время вышло!", "Temps écoulé !", "Zeit ist um!")
+        : L("Exam Submitted", "Іспит здано", "Экзамен сдан", "Examen soumis", "Prüfung eingereicht"),
+      stats: [
+        { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
+        { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
+        { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
+      ],
+      // The per-question breakdown stays — it is the most-used part of a mock
+      // recap and has no equivalent anywhere else in the app.
+      review: questions.map((q, i) => ({
+        question: q.question, options: q.options, correct: q.correct,
+        selected: answers[i], explanation: q.explanation,
+      })),
+      // Routes out to the Practice engine via the parent (a mock exam cannot
+      // re-run itself as a drill), pre-filtered to what was just missed.
+      onDrillWeak: onDrillTopics ? (topics) => onDrillTopics(examId, topics) : null,
+      onExit,
+      t,
+    });
   }
 
   // ── Session (question) view ──
@@ -2140,7 +2244,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
     isCorrect ? _sfx.correct() : _sfx.wrong();
   };
 
-  const answerMcq = (idx, correct, explanation) => {
+  const answerMcq = (idx, correct, explanation, question, options) => {
     if (selected !== null) return;
     const isCorrect = idx === correct;
     setSelected(idx);
@@ -2149,9 +2253,16 @@ function LessonEngine({ topic, mode, onExit, t }) {
     registerAnswer(isCorrect, isCorrect ? 20 : 5);
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     if (!isCorrect && resolved && window.logMistake) {
-      const s = plan.steps[step];
-      const q = s.type === "checkpoint" ? "checkpoint" : (s.question || "");
-      window.logMistake({ topic: resolved.topicName, question: q, examId: resolved.examId, topicIdx: resolved.topicIdx });
+      // Question and options come in as arguments rather than being re-read
+      // from `plan.steps[step]` — the old lookup also carried a dead
+      // `type === "checkpoint"` branch (checkpoints render LessonCheckpoint,
+      // which never reaches here) and logged the literal string "checkpoint"
+      // as the question.
+      window.logMistake({
+        topic: resolved.topicName, question: question || "",
+        options, correctIndex: correct, selectedIndex: idx, explanation,
+        examId: resolved.examId, topicIdx: resolved.topicIdx,
+      });
     }
   };
 
@@ -2313,7 +2424,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
             else { col = "var(--slate-300)"; bc = "var(--slate-100)"; }
           }
           return React.createElement("button", {
-            key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation),
+            key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation, question, options),
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
@@ -3053,6 +3164,11 @@ If no actions fit, omit the ACTIONS line entirely.`,
 function AIChat({ t, initialQuery, onConsumeQuery }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [mode, setMode] = React.useState(null);
+  // Set by a recap's "Drill weak topics" CTA before switching to Practice, so
+  // the drill opens pre-filtered to the topics the student just lost marks on.
+  // Lives here rather than inside PracticeEngine because the mock-exam recap
+  // (a different engine) is what usually sets it.
+  const [practiceSeed, setPracticeSeed] = React.useState(null);
   const [topic, setTopic] = React.useState(null);
   const [topicPicker, setTopicPicker] = React.useState(false);
   const [expandedFolders, setExpandedFolders] = React.useState({}); // examId -> bool, "show all N" toggle in the topic picker
@@ -3088,7 +3204,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
     }
   }, [initialQuery]);
 
-  const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); setReviewTopic(null); };
+  const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); setReviewTopic(null); setPracticeSeed(null); };
+  const drillTopics = (examId, topics) => { setPracticeSeed({ examId, topics }); setMode("practice"); };
   // Finishing one review returns to the QUEUE (not the lobby) so "clear the
   // stack" is one continuous flow — the queue re-derives from the brain, so
   // the topic just reviewed drops out or shows its new retention.
@@ -3176,7 +3293,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
   // Practice mode — full exam simulator with confidence + why
   if (mode === "practice") {
-    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby, t });
+    return React.createElement(PracticeEngine, { examViews, onExit: exitToLobby, seed: practiceSeed, t });
   }
 
   // Speed Round mode
@@ -3186,7 +3303,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
 
   // Exam Simulation — full timed mock exam covering ALL topics of one subject
   if (mode === "exam_sim") {
-    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby, t });
+    return React.createElement(ExamSimEngine, { examViews, onExit: exitToLobby, onDrillTopics: drillTopics, t });
   }
 
   // Topic picker for Learn mode — grouped into ONE FOLDER PER SUBJECT so a
