@@ -14,6 +14,12 @@
 //                               works immediately but is rate-limited (100/day)
 //                               and lands in spam more often than a verified
 //                               domain. Swap once a real domain is verified.
+//   ONESIGNAL_APP_ID           onesignal.com app → Keys & IDs. Public-ish
+//                               (also lives client-side as VITE_ONESIGNAL_APP_ID).
+//   ONESIGNAL_REST_API_KEY     onesignal.com app → Keys & IDs. SECRET.
+//                               Both optional — push is a best-effort second
+//                               channel on top of email, never blocks it. If
+//                               unset, sendPush() no-ops silently.
 //   SUPABASE_SERVICE_ROLE_KEY  Settings → API → service_role. SECRET. (already set for /api/complete)
 //   CRON_SECRET                Vercel Project Settings → Cron Jobs auto-sets
 //                               this and sends it as `Authorization: Bearer …`
@@ -147,6 +153,31 @@ async function sendEmail(resendKey, to, subject, html) {
   return resp.ok;
 }
 
+// Best-effort second channel — src/lib/push.ts tags each browser's OneSignal
+// subscription with the Supabase user id as `external_id` on sign-in, so no
+// subscription-storage table exists on our side; targeting by id alone sends
+// to 0 recipients (a harmless no-op) for a user who never granted push.
+// NEVER throws or gates email delivery — a push failure must not lose the
+// email send that already succeeded.
+async function sendPush(appId, restKey, userId, title, message) {
+  if (!appId || !restKey) return;
+  try {
+    await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Basic ${restKey}` },
+      body: JSON.stringify({
+        app_id: appId,
+        include_aliases: { external_id: [userId] },
+        target_channel: "push",
+        headings: { en: title },
+        contents: { en: message },
+      }),
+    });
+  } catch {
+    // best-effort — a push failure must not block the email send above
+  }
+}
+
 // ─── per-trigger email copy ─────────────────────────────────────────────────
 // English only for v1 — every trigger is a plain-text-shaped nudge and the
 // profile's `lang` field exists to extend this later; not blocking launch on
@@ -195,6 +226,8 @@ export default async function handler(req, res) {
   }
 
   const resendKey = process.env.RESEND_API_KEY;
+  const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
+  const oneSignalRestKey = process.env.ONESIGNAL_REST_API_KEY;
   const headers = serviceHeaders();
   if (!resendKey || !headers) {
     res.status(500).json({ error: "RESEND_API_KEY or SUPABASE_SERVICE_ROLE_KEY is not set." });
@@ -230,6 +263,10 @@ export default async function handler(req, res) {
       if (await alreadySent(headers, userId, triggerKey, dedupeKey)) { results.skipped++; return; }
       const { subject, html } = buildEmail();
       const ok = await sendEmail(resendKey, email, subject, html + footer(profile.lang));
+      // Push reuses the email copy (strip tags, cap length) rather than a
+      // second set of per-trigger copy — one content source, two channels.
+      const plain = html.replace(/<[^>]+>/g, "").trim().slice(0, 150);
+      await sendPush(oneSignalAppId, oneSignalRestKey, userId, subject, plain);
       if (ok) { await markSent(headers, userId, triggerKey, dedupeKey); results.sent++; }
       else results.errors++;
     }

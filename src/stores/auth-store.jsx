@@ -92,11 +92,16 @@ _supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_IN" && session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
     void startDataSync(_supabase, session.user.id);
+    // Tags this browser's OneSignal push subscription with the Supabase user
+    // id (external_id) so api/notifications-cron.js can target it by id —
+    // see src/lib/push.ts's header.
+    if (window.identifyPushUser) window.identifyPushUser(session.user.id);
   } else if (event === "SIGNED_OUT") {
     _cachedSession = null;
     try { localStorage.removeItem(SESSION_KEY); } catch {}
     window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
     stopDataSync(_supabase);
+    if (window.logoutPushUser) window.logoutPushUser();
   }
 });
 
