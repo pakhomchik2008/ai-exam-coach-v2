@@ -10,3 +10,4 @@
 @import "tokens/motion.css";  /* fadeUp + shared overlay / press / stagger */
 @import "learn.css";          /* Learn list / sheet / medal motion */
 @import "onboarding.css";     /* first-run slit unveil, pick snap, plan ready */
+@import "landing.css";        /* marketing first-paint: word cascade, card rise */
