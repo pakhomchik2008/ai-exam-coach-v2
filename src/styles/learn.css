@@ -1,0 +1,154 @@
+/* Learn medal list — restrained motion. Tokens from spacing.css. */
+
+@keyframes learn-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes learn-bar-in {
+  from { transform: scaleX(0); }
+}
+@keyframes learn-sheet-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes learn-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* One-shot unlock. Slight overshoot, then settle. Never loop. */
+@keyframes learn-medal-pop {
+  0%   { transform: scale(0.88); opacity: 0.55; }
+  58%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.learn-main--enter .learn-unit {
+  animation: learn-rise var(--dur-normal) var(--ease-out) both;
+  animation-delay: calc(var(--learn-i, 0) * 28ms);
+}
+.learn-main--enter .learn-progress-fill {
+  animation: learn-bar-in var(--dur-slow) var(--ease-out) both;
+}
+
+.learn-progress {
+  height: 3px;
+  margin-top: 12px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  overflow: hidden;
+}
+.learn-progress-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: var(--emerald-500);
+  transform: scaleX(var(--learn-pct, 0));
+  transform-origin: left center;
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.learn-node {
+  min-height: 48px;
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.learn-node:active {
+  transform: scale(0.98);
+}
+@media (hover: hover) and (pointer: fine) {
+  .learn-node:hover {
+    background: var(--surface-muted);
+    border-color: var(--border-strong);
+  }
+}
+
+.learn-medal {
+  display: inline-block;
+  line-height: 1;
+}
+.learn-medal--pop {
+  animation: learn-medal-pop 420ms var(--ease-out) both;
+}
+
+.learn-sheet-backdrop {
+  animation: learn-backdrop-in var(--dur-normal) var(--ease-out);
+}
+.learn-sheet-panel {
+  animation: learn-sheet-up var(--dur-normal) var(--ease-out);
+}
+
+.learn-btn {
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) ease, opacity var(--dur-fast) ease;
+}
+.learn-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.learn-btn--primary {
+  width: 100%;
+  min-height: 48px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--indigo-600);
+  color: var(--white);
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+}
+.learn-btn--ghost {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  font-weight: 500;
+  font-size: 13px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .learn-btn--ghost:hover {
+    color: var(--text-body);
+    background: var(--surface-muted);
+  }
+}
+
+.learn-done-medal {
+  animation: learn-medal-pop 420ms var(--ease-out) both;
+}
+.learn-done-copy {
+  animation: learn-rise 280ms var(--ease-out) both;
+  animation-delay: 90ms;
+}
+.learn-done-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 10px;
+  border-radius: var(--radius-full);
+  background: var(--emerald-500);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  animation: learn-rise 240ms var(--ease-out) both;
+  animation-delay: 220ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .learn-main--enter .learn-unit,
+  .learn-main--enter .learn-progress-fill,
+  .learn-sheet-backdrop,
+  .learn-sheet-panel,
+  .learn-medal--pop,
+  .learn-done-medal,
+  .learn-done-copy,
+  .learn-done-check {
+    animation: none;
+  }
+  .learn-node:active,
+  .learn-btn:active:not(:disabled) {
+    transform: none;
+  }
+}

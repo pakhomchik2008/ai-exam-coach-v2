@@ -31,6 +31,11 @@ function normalizeAnswer(s) {
   return (s || "").toString().toLowerCase().trim().replace(/\s+/g, " ");
 }
 
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 // Best-effort dedup pass for the 3-question Prove batch. Same shape as
 // AIChat.jsx's dedupeAgainstQuestionBank — kept small enough here (only
 // Prove needs it in Learn; Teach and Drill are one-off content) that a
@@ -222,13 +227,31 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
     setPhase("done");
   }
 
+  function leave(result) {
+    onExit(result || null);
+  }
+
+  // Pass: medal pops, then return to the list. Fail: stay until they tap.
+  React.useEffect(() => {
+    if (phase !== "done" || !finalMastery || finalMastery.mastery !== "bronze") return;
+    if (prefersReducedMotion()) return;
+    const id = setTimeout(() => leave({ nodeId: node.id, unlocked: true }), 1600);
+    return () => clearTimeout(id);
+  }, [phase, finalMastery]);
+
   // ─── Render helpers ───────────────────────────────────────────────────────
   const wrap = (content) => React.createElement("div", {
     style: { padding: "20px", maxWidth: 720, margin: "0 auto", fontFamily: "var(--font-sans)" },
   }, content);
   const header = React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
     React.createElement("button", {
-      onClick: onExit,
+      type: "button",
+      onClick: () => leave(
+        phase === "done" && finalMastery && finalMastery.mastery === "bronze"
+          ? { nodeId: node.id, unlocked: true }
+          : null
+      ),
+      "aria-label": L("Back", "Назад", "Назад", "Retour", "Zurück"),
       style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 },
     }, "←"),
     React.createElement("div", null,
@@ -339,20 +362,40 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
   // ── Phase: Done ──
   if (phase === "done" && finalMastery) {
     const passed = finalMastery.mastery === "bronze";
+    const medal = MASTERY_STYLE[finalMastery.mastery] || MASTERY_STYLE.unlocked;
     return wrap([
       header,
-      React.createElement("div", { key: "res", style: { textAlign: "center", padding: "24px 0" } },
-        React.createElement("div", { style: { fontSize: 48, marginBottom: 8 } }, passed ? "🥉" : "💪"),
-        React.createElement("h3", { style: { margin: 0, fontSize: 22, color: "var(--text-strong)" } },
-          passed ? L("Bronze mastery!", "Бронзова майстерність!", "Бронзовое мастерство!", "Bronze !", "Bronze!")
-                 : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Presque !", "Fast!"),
+      React.createElement("div", { key: "res", style: { textAlign: "center", padding: "28px 0 8px" } },
+        React.createElement("div", {
+          className: passed ? "learn-done-medal" : undefined,
+          style: { fontSize: 44, lineHeight: 1, color: medal.color },
+          "aria-hidden": "true",
+        }, medal.label),
+        React.createElement("h3", {
+          className: "learn-done-copy",
+          style: { margin: "12px 0 0", fontSize: 22, color: "var(--text-strong)" },
+        },
+          passed ? L("Bronze mastery", "Бронзова майстерність", "Бронзовое мастерство", "Maîtrise bronze", "Bronze-Meisterschaft")
+                 : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Pas encore", "Noch nicht"),
         ),
-        React.createElement("p", { style: { color: "var(--text-muted)", marginTop: 8 } }, `${finalMastery.correct} / ${finalMastery.total}`),
+        React.createElement("p", {
+          className: "learn-done-copy",
+          style: { color: "var(--text-muted)", marginTop: 8, fontVariantNumeric: "tabular-nums" },
+        }, `${finalMastery.correct} / ${finalMastery.total}`),
+        passed && React.createElement("span", {
+          className: "learn-done-check",
+          "aria-hidden": "true",
+        }, "✓"),
       ),
       React.createElement("button", {
-        key: "back", onClick: onExit,
-        style: { marginTop: 12, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" },
-      }, L("Back to tree", "До дерева", "К дереву", "Retour à l'arbre", "Zurück")),
+        key: "back",
+        type: "button",
+        className: "learn-btn learn-btn--primary",
+        onClick: () => leave(passed ? { nodeId: node.id, unlocked: true } : null),
+        style: { marginTop: 16 },
+      }, passed
+        ? L("Continue", "Далі", "Далее", "Continuer", "Weiter")
+        : L("Back to list", "До списку", "К списку", "Retour à la liste", "Zurück zur Liste")),
     ]);
   }
 
@@ -378,15 +421,82 @@ function LearnMain({ t }) {
   const taxonomy = (currentQual && availableTax.includes(currentQual)) ? currentQual : availableTax[0];
   const tree = getTree(taxonomy);
 
+  const learnState = window.getLearn ? window.getLearn() : {};
+  const nodeState = (tree && learnState[tree.examTaxonomy]) || {};
+  // Ignore leftover `-boss` keys from 3.7e so the header stays lesson-only.
+  const mastered = Object.entries(nodeState)
+    .filter(([id, n]) => ["bronze", "silver", "gold", "legendary"].includes(n.mastery) && !id.endsWith("-boss"))
+    .length;
+  const total = tree ? totalNodeCount(tree) : 0;
+
   const [openNode, setOpenNode] = React.useState(null); // { unit, node }
   const [running, setRunning] = React.useState(null);   // { unit, node }
+  const [justUnlocked, setJustUnlocked] = React.useState(null);
+  const [shownMastered, setShownMastered] = React.useState(mastered);
   // Learn store change → re-render (mastery pill updates immediately after
   // a Prove finish). Same subscribe pattern brain-store / profile-store use.
   const [, setTick] = React.useState(0);
+  const enterOnceRef = React.useRef(true);
+  const shownRef = React.useRef(mastered);
+  const startBtnRef = React.useRef(null);
+
   React.useEffect(() => {
     const unsub = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
     return () => unsub && unsub();
   }, []);
+
+  React.useEffect(() => { enterOnceRef.current = false; }, []);
+
+  React.useEffect(() => {
+    if (running) return;
+    const from = shownRef.current;
+    if (from === mastered) return;
+    if (prefersReducedMotion() || mastered < from) {
+      shownRef.current = mastered;
+      setShownMastered(mastered);
+      return;
+    }
+    const t0 = performance.now();
+    const dur = 400;
+    let raf;
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / dur);
+      const eased = 1 - (1 - p) ** 3;
+      setShownMastered(Math.round(from + (mastered - from) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else shownRef.current = mastered;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [mastered, running]);
+
+  React.useEffect(() => {
+    if (!openNode) return;
+    const onKey = (e) => { if (e.key === "Escape") setOpenNode(null); };
+    window.addEventListener("keydown", onKey);
+    if (startBtnRef.current) startBtnRef.current.focus();
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openNode]);
+
+  React.useEffect(() => {
+    if (!justUnlocked) return;
+    const id = setTimeout(() => setJustUnlocked(null), 520);
+    return () => clearTimeout(id);
+  }, [justUnlocked]);
+
+  function masteryAria(m) {
+    if (m === "bronze") return L("Bronze", "Бронза", "Бронза", "Bronze", "Bronze");
+    if (m === "silver") return L("Silver", "Срібло", "Серебро", "Argent", "Silber");
+    if (m === "gold") return L("Gold", "Золото", "Золото", "Or", "Gold");
+    if (m === "legendary") return L("Legendary", "Легендарний", "Легендарный", "Légendaire", "Legendär");
+    return L("Not started", "Ще не почато", "Ещё не начато", "Pas commencé", "Noch nicht begonnen");
+  }
+
+  function exitRunner(result) {
+    setRunning(null);
+    setOpenNode(null);
+    if (result && result.unlocked && result.nodeId) setJustUnlocked(result.nodeId);
+  }
 
   if (!tree) {
     return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)" } },
@@ -398,39 +508,61 @@ function LearnMain({ t }) {
     return React.createElement(NodeRunner, {
       tree, unit: running.unit, node: running.node, lang, t,
       skipToProve: !!running.skipToProve,
-      onExit: () => { setRunning(null); setOpenNode(null); },
+      onExit: exitRunner,
     });
   }
 
-  const learnState = window.getLearn ? window.getLearn() : {};
-  const nodeState = learnState[tree.examTaxonomy] || {};
-  // Ignore leftover `-boss` keys from 3.7e so the header stays lesson-only.
-  const mastered = Object.entries(nodeState)
-    .filter(([id, n]) => ["bronze", "silver", "gold", "legendary"].includes(n.mastery) && !id.endsWith("-boss"))
-    .length;
-  const total = totalNodeCount(tree);
+  const pct = total > 0 ? mastered / total : 0;
+  const shouldEnter = enterOnceRef.current;
+  const examLabel = tree.examTaxonomy.toUpperCase();
+  const progressLabel = L(
+    `${shownMastered} of ${total} topics mastered · ${examLabel}`,
+    `${shownMastered} із ${total} тем засвоєно · ${examLabel}`,
+    `${shownMastered} из ${total} тем освоено · ${examLabel}`,
+    `${shownMastered} sur ${total} sujets · ${examLabel}`,
+    `${shownMastered} von ${total} · ${examLabel}`,
+  );
 
-  return React.createElement("div", { style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" } },
+  return React.createElement("div", {
+    className: "learn-main" + (shouldEnter ? " learn-main--enter" : ""),
+    style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
+  },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
       React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
-      React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13 } },
-        L(`${mastered} of ${total} topics mastered · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} із ${total} тем засвоєно · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} из ${total} тем освоено · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} sur ${total} sujets · ${tree.examTaxonomy.toUpperCase()}`,
-          `${mastered} von ${total} · ${tree.examTaxonomy.toUpperCase()}`)),
+      React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
+      React.createElement("div", {
+        className: "learn-progress",
+        role: "progressbar",
+        "aria-valuemin": 0,
+        "aria-valuemax": total,
+        "aria-valuenow": mastered,
+        "aria-label": progressLabel,
+        style: { "--learn-pct": String(pct) },
+      }, React.createElement("div", { className: "learn-progress-fill" })),
     ),
-    ...tree.units.map((unit) => React.createElement("div", { key: unit.id, style: { marginBottom: 28 } },
+    ...tree.units.map((unit, ui) => React.createElement("div", {
+      key: unit.id,
+      className: "learn-unit",
+      style: { marginBottom: 28, "--learn-i": String(ui) },
+    },
       React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" } }, localize(unit.title, lang)),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...unit.nodes.map((node) => {
           const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
+          const unlockedNow = justUnlocked === node.id;
           return React.createElement("button", {
-            key: node.id, onClick: () => setOpenNode({ unit, node }),
+            key: node.id,
+            type: "button",
+            className: "learn-node",
+            onClick: () => setOpenNode({ unit, node }),
             style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" },
           },
-            React.createElement("span", { style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" } }, style.label),
+            React.createElement("span", {
+              className: "learn-medal" + (unlockedNow ? " learn-medal--pop" : ""),
+              style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" },
+              "aria-label": masteryAria(st.mastery),
+            }, style.label),
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
               React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
@@ -441,22 +573,36 @@ function LearnMain({ t }) {
     )),
     openNode && React.createElement("div", {
       key: "sheet",
+      className: "learn-sheet-backdrop",
       onClick: () => setOpenNode(null),
       style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" },
     }, React.createElement("div", {
+      className: "learn-sheet-panel",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "learn-sheet-title",
       onClick: (e) => e.stopPropagation(),
-      style: { background: "var(--surface-card)", padding: 20, borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
+      style: { background: "var(--surface-card)", padding: "12px 20px calc(28px + env(safe-area-inset-bottom, 0px))", borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
     },
-      React.createElement("h3", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, lang)),
+      React.createElement("div", {
+        "aria-hidden": "true",
+        style: { width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" },
+      }),
+      React.createElement("h3", { id: "learn-sheet-title", style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, lang)),
       React.createElement("p", { style: { margin: "4px 0 16px", fontSize: 12, color: "var(--text-muted)" } },
         `${localize(openNode.unit.title, lang)} · complexity ${openNode.node.complexity}/5 · ~${openNode.node.estimatedMinutes} min`),
       React.createElement("button", {
+        ref: startBtnRef,
+        type: "button",
+        className: "learn-btn learn-btn--primary",
         onClick: () => setRunning(openNode),
-        style: { width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", marginBottom: 8 },
       }, L("Start", "Почати", "Начать", "Commencer", "Starten")),
+      React.createElement("p", { style: { margin: "14px 0 2px", fontSize: 12, color: "var(--text-faint)", textAlign: "center" } },
+        L("Already know this?", "Вже знаєш тему?", "Уже знаешь тему?", "Tu connais déjà ?", "Kennst du das schon?")),
       React.createElement("button", {
+        type: "button",
+        className: "learn-btn learn-btn--ghost",
         onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
-        style: { width: "100%", padding: "12px", borderRadius: 12, background: "transparent", color: "var(--text-body)", border: "1px solid var(--border-default)", cursor: "pointer" },
       }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
     )),
   );
