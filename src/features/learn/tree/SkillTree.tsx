@@ -12,8 +12,8 @@ import {
   TREE_GUTTER,
   TREE_R,
   type NodeProgressMap,
-} from "./tree/locks";
-import { isBossNode, localize, type LearnNode, type LearnTree, type LearnUnit } from "./tree/schema";
+} from "./locks";
+import { isBossNode, localize, type LearnNode, type LearnTree, type LearnUnit } from "./schema";
 
 const GLYPH: Record<string, { fill: string; stroke: string }> = {
   locked:    { fill: "transparent", stroke: "var(--slate-400)" },
@@ -24,9 +24,9 @@ const GLYPH: Record<string, { fill: string; stroke: string }> = {
   legendary: { fill: "#7b3ff2", stroke: "#7b3ff2" },
 };
 
-function glyphFor(mastery: string | undefined, open: boolean) {
-  if (!open && !isMastered(mastery)) return GLYPH.locked;
-  return GLYPH[mastery || "unlocked"] || GLYPH.unlocked;
+function glyphFor(mastery: string | undefined, open: boolean): { fill: string; stroke: string } {
+  if (!open && !isMastered(mastery)) return GLYPH.locked as { fill: string; stroke: string };
+  return (GLYPH[mastery || "unlocked"] || GLYPH.unlocked) as { fill: string; stroke: string };
 }
 
 export function UnitSkillTree({
