@@ -65,6 +65,8 @@ dead and crawlers have a page.
 | 49 | Demo is a CSS product theater, not a muted `<video>` | We don't have a 30s capture. A fake video poster is worse than an honest live mock |
 | 50 | Sounds default off | Spec. Also autoplay policies. Preview buttons in Settings so the kit is audible without hunting |
 | 51 | Legal pages are stubs with a Phase-6 banner | Footer must not 404. Counsel-grade policy is a later pass |
+| 52 | No Framer Motion for the split-scroll | New dependency for one effect. CSS custom property + scroll listener. Reduced-motion skips the track |
+| 53 | First paint is centered type + exam marquee. Predictor and Learn mock arrive on scroll | Headline is strong enough alone. Geometry wallpaper fought it |
 
 ## Reversibility
 
@@ -81,4 +83,5 @@ dead and crawlers have a page.
 | Sound files 404 → console noise | `playSound` swallows play() rejection |
 | Google font for Mono blocks first paint | `display=swap`, wordmark falls back to `ui-monospace` |
 | Lighthouse < 92 from grain/blur | Grain is SVG filter, no WebGL, `prefers-reduced-motion` kills draw animation |
+| Split-scroll leaves a 175vh empty track on mobile | Narrow + reduced-motion collapse the track and stack the three surfaces |
 | Auth form lost in the redesign | Same `AuthForm` component, same window auth API |

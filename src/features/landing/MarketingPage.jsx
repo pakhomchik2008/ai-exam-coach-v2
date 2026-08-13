@@ -1,11 +1,59 @@
 /**
  * Phase 4 marketing page — eight sections, teal-drench hero, no fake quotes.
- * Auth stays in Landing.jsx; this file is the logged-out story.
+ * First paint is centered type + exam marquee. Scroll splits copy / Learn
+ * mock / predictor. Auth stays in Landing.jsx.
  */
 import React from "react";
 import { BrandMark } from "../../brand/BrandMark";
+import { ExamMarquee } from "./ExamMarquee";
+import { LearnScreen } from "./LearnScreen";
+import { OrbitField } from "./OrbitField";
 import { PredictorChart } from "./PredictorChart";
 import { ProductTheater } from "./ProductTheater";
+
+const CTA_DAYS = [
+  ["1", "land_cta_d1"],
+  ["3", "land_cta_d3"],
+  ["7", "land_cta_d7"],
+  ["47", "land_cta_d47"],
+];
+
+function useSplitProgress() {
+  const ref = React.useRef(null);
+  const [progress, setProgress] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const narrow = window.matchMedia("(max-width: 860px)");
+
+    function measure() {
+      if (reduce.matches || narrow.matches) {
+        setProgress(1);
+        return;
+      }
+      const total = el.offsetHeight - window.innerHeight;
+      const scrolled = -el.getBoundingClientRect().top;
+      setProgress(Math.min(1, Math.max(0, scrolled / Math.max(1, total))));
+    }
+
+    measure();
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    reduce.addEventListener("change", measure);
+    narrow.addEventListener("change", measure);
+    return () => {
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+      reduce.removeEventListener("change", measure);
+      narrow.removeEventListener("change", measure);
+    };
+  }, []);
+
+  return [ref, progress];
+}
 
 const FAQ_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -20,6 +68,7 @@ const FEATURES = [
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const [annual, setAnnual] = React.useState(true);
+  const [heroRef, split] = useSplitProgress();
   const langs = Object.values(window.LANGS || {});
   const headline = t.land_hero_title || "";
 
@@ -64,35 +113,49 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         </div>
       </header>
 
-      <section className="land-hero" id="top">
-        <div className="land-hero-grid" aria-hidden="true" />
-        <svg className="land-hero-graph" viewBox="0 0 1200 640" aria-hidden="true">
-          <polyline
-            className="land-hero-line"
-            points="40,560 180,500 320,520 520,340 760,280 1040,80 1160,40"
-            fill="none"
-            stroke="rgba(245,245,244,0.22)"
-            strokeWidth="18"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <rect x="1144" y="16" width="36" height="36" rx="4" transform="rotate(45 1162 34)" fill="#F3D062" />
-        </svg>
-        <div className="land-hero-copy">
-          <h1 className="land-headline" id="content">
-            {headline.split(" ").map((word, i) => (
-              <span key={`${word}-${i}`} style={{ animationDelay: `${90 + i * 80}ms` }}>{word}</span>
-            ))}
-          </h1>
-          <p className="land-sub">{t.land_hero_sub}</p>
-          <div className="land-cta">
-            <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_cta_trial}</button>
-            <button type="button" className="land-btn land-btn-ghost" onClick={tap(onLogin)}>{t.land_cta_login}</button>
+      <section
+        className={`land-hero${split > 0.12 ? " is-split" : ""}`}
+        id="top"
+        ref={heroRef}
+        style={{ "--split": split }}
+      >
+        <div className="land-hero-sticky">
+          <div className="land-hero-stage">
+            <div className="land-hero-copy">
+              <h1 className="land-headline" id="content">
+                {headline.split(" ").map((word, i) => (
+                  <span key={`${word}-${i}`} style={{ animationDelay: `${90 + i * 80}ms` }}>{word}</span>
+                ))}
+              </h1>
+              <p className="land-sub">{t.land_hero_sub}</p>
+              <div className="land-cta">
+                <div className="land-cta-primary">
+                  <ol className="land-cta-tl">
+                    {CTA_DAYS.map(([day, key]) => (
+                      <li key={day}>
+                        <b>{t.land_cta_day} {day}</b>
+                        <span>{t[key]}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>
+                    {t.land_cta_trial}
+                  </button>
+                </div>
+                <button type="button" className="land-btn land-btn-ghost" onClick={tap(onLogin)}>{t.land_cta_login}</button>
+              </div>
+              <button type="button" className="land-demo-link" onClick={tap(onDemo)}>{t.land_cta_demo}</button>
+            </div>
+            <div className="land-hero-shot">
+              <LearnScreen lang={lang} />
+            </div>
+            <div className="land-hero-chart">
+              <OrbitField>
+                <PredictorChart nowLabel={t.land_hero_now} predLabel={t.land_hero_pred} />
+              </OrbitField>
+            </div>
           </div>
-          <button type="button" className="land-demo-link" onClick={tap(onDemo)}>{t.land_cta_demo}</button>
-        </div>
-        <div className="land-hero-chart">
-          <PredictorChart nowLabel={t.land_hero_now} predLabel={t.land_hero_pred} />
+          <ExamMarquee label={t.land_marquee} />
         </div>
       </section>
 

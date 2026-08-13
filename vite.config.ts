@@ -13,6 +13,17 @@ export default defineConfig({
       "/api": {
         target: "http://127.0.0.1:8745",
         changeOrigin: true,
+        // Without this, a down :8745 becomes an empty 500 and the UI shows
+        // the useless "proxy error" string from claude-proxy.ts.
+        configure(proxy) {
+          proxy.on("error", (_err, _req, res) => {
+            if (!res || !("writeHead" in res) || res.headersSent) return;
+            res.writeHead(503, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({
+              error: "Local API is not running. Second terminal: npm run dev:api",
+            }));
+          });
+        },
       },
     },
   },
