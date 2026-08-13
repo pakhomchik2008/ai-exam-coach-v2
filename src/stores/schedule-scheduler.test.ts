@@ -14,6 +14,7 @@ interface Session {
   examId: string;
   date: string;
   startTime: string;
+  status?: string;
   manual?: boolean;
 }
 
@@ -139,6 +140,57 @@ describe("hoursPerDay cap", () => {
     // Cap of 3 rather than exact 2: the scheduler rounds and shares dates
     // across exams — the real point is "not 10", not a precise ceiling.
     expect(max).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("even time-of-day spread", () => {
+  it("does not stack five subjects on one clock time when availability is unset", () => {
+    store.saveProfile({
+      studyDays: ["mon", "tue", "wed", "thu", "fri"],
+      hoursPerDay: 6,
+      daysPerWeek: 5,
+      weeklyHours: 20,
+      sessionLengthMin: 45,
+      blackoutSlots: [],
+    });
+    const exams = originalExams.slice();
+    for (let i = 0; i < 5; i++) {
+      exams.push({
+        id: `${EXAM_ID}_${i}`,
+        name: `Subject ${i}`,
+        color: "#6366F1",
+        examDate: futureDateISO(40),
+        examBoard: "Custom",
+        topicCount: 4,
+        completionPct: 0,
+        confidencePct: 50,
+        targetGrade: "A",
+        topics: ["A", "B", "C", "D"],
+        sessionLengthMin: 45,
+      });
+    }
+    store.saveExams(exams);
+
+    const pending = store.getSchedule().sessions.filter((s) =>
+      String(s.examId).startsWith(EXAM_ID) && s.status !== "completed");
+    const byDate: Record<string, string[]> = {};
+    for (const s of pending) {
+      (byDate[s.date] = byDate[s.date] || []).push(s.startTime);
+    }
+    const stacked = Object.values(byDate).filter((times) => times.length >= 3);
+    expect(stacked.length).toBeGreaterThan(0);
+    for (const times of stacked) {
+      const unique = new Set(times);
+      expect(unique.size).toBe(times.length);
+      const mins = times.map((t) => {
+        const parts = t.split(":").map(Number);
+        return (parts[0] || 0) * 60 + (parts[1] || 0);
+      }).sort((a, b) => a - b);
+      expect(mins[mins.length - 1]! - mins[0]!).toBeGreaterThan(3 * 60);
+      expect(mins[0]!).toBeLessThan(12 * 60);
+    }
+
+    pending.forEach((s) => store.deleteSession(s.id));
   });
 });
 
