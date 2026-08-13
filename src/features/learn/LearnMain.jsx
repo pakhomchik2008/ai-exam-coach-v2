@@ -11,7 +11,9 @@
 // nothing until 3.7b starts adding the other exercise types.
 
 import { treeForExam } from "./tree/resolve";
-import { localize, totalNodeCount } from "./tree/schema";
+import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
+import { freeTopicLimit, topicIsLocked } from "./premium";
+import { ProSheet } from "./ProSheet.jsx";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
 
@@ -434,6 +436,7 @@ function LearnMain({ t }) {
   const total = tree ? totalNodeCount(tree) : 0;
 
   const [openNode, setOpenNode] = React.useState(null); // { unit, node }
+  const [proSheet, setProSheet] = React.useState(false);
   const [running, setRunning] = React.useState(null);   // { unit, node }
   const [justUnlocked, setJustUnlocked] = React.useState(null);
   const [shownMastered, setShownMastered] = React.useState(mastered);
@@ -555,6 +558,11 @@ function LearnMain({ t }) {
   const pct = total > 0 ? mastered / total : 0;
   const shouldEnter = enterOnceRef.current;
   const examLabel = selected.label || tree.examTaxonomy.toUpperCase();
+  const lessonFlat = flattenLessonNodes(tree);
+  const lessonTotal = lessonFlat.length;
+  const freeCount = freeTopicLimit(lessonTotal);
+  const proCount = Math.max(0, lessonTotal - freeCount);
+  const indexById = new Map(lessonFlat.map((row) => [row.node.id, row.index]));
   const progressLabel = L(
     `${shownMastered} of ${total} topics mastered · ${examLabel}`,
     `${shownMastered} із ${total} тем засвоєно · ${examLabel}`,
@@ -590,6 +598,8 @@ function LearnMain({ t }) {
       ),
       React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
       React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
+      proCount > 0 && React.createElement("p", { style: { margin: "4px 0 0", color: "var(--text-faint)", fontSize: 12 } },
+        L(`${freeCount} free · ${proCount} Pro`, `${freeCount} безкоштовно · ${proCount} Pro`, `${freeCount} бесплатно · ${proCount} Pro`, `${freeCount} gratuits · ${proCount} Pro`, `${freeCount} gratis · ${proCount} Pro`)),
       React.createElement("div", {
         className: "learn-progress",
         role: "progressbar",
@@ -611,22 +621,25 @@ function LearnMain({ t }) {
           const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
           const unlockedNow = justUnlocked === node.id;
+          const idx = indexById.has(node.id) ? indexById.get(node.id) : -1;
+          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal);
           return React.createElement("button", {
             key: node.id,
             type: "button",
             className: "learn-node",
-            onClick: () => setOpenNode({ unit, node }),
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" },
+            onClick: () => (locked ? setProSheet(true) : setOpenNode({ unit, node })),
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", opacity: locked ? 0.72 : 1 },
           },
             React.createElement("span", {
               className: "learn-medal" + (unlockedNow ? " learn-medal--pop" : ""),
-              style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" },
-              "aria-label": masteryAria(st.mastery),
-            }, style.label),
+              style: { fontSize: 20, color: locked ? "var(--text-faint)" : style.color, minWidth: 24, textAlign: "center" },
+              "aria-label": locked ? "Pro" : masteryAria(st.mastery),
+            }, locked ? "🔒" : style.label),
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
               React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
             ),
+            locked && React.createElement("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999 } }, "Pro"),
           );
         }),
       ),
@@ -665,6 +678,7 @@ function LearnMain({ t }) {
         onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
       }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
     )),
+    proSheet && React.createElement(ProSheet, { key: "pro", freeCount, lockedCount: proCount, onClose: () => setProSheet(false), t }),
   );
 }
 

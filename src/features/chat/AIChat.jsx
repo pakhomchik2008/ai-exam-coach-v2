@@ -22,6 +22,10 @@ import { SocraticDialog } from "../learn/SocraticDialog.jsx";
 import { FadingDialog } from "../learn/FadingDialog.jsx";
 import { FeynmanDialog } from "../learn/FeynmanDialog.jsx";
 import { recommendLearnMethod } from "../learn/recommend";
+import { treeForExam } from "../learn/tree/resolve";
+import { flattenLessonNodes, localize } from "../learn/tree/schema";
+import { freeTopicLimit, topicIsLocked } from "../learn/premium";
+import { ProSheet } from "../learn/ProSheet.jsx";
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -3965,6 +3969,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const [expandedFolders, setExpandedFolders] = React.useState({}); // examId -> bool, "show all N" toggle in the topic picker
   const [customTopicFor, setCustomTopicFor] = React.useState(null);  // examId whose "add your own topic" input is open
   const [customTopicText, setCustomTopicText] = React.useState("");
+  const [proGate, setProGate] = React.useState(null); // { freeCount, lockedCount } | null
   const [reviewTopic, setReviewTopic] = React.useState(null);
   // Captured copy of a plain-string initialQuery, decoupled from the prop
   // itself. onConsumeQuery() nulls the PARENT's chatQuery in the same effect
@@ -4139,7 +4144,29 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       prefetchLesson(name, t?.code);
       setTopic(name); setTopicPicker(false); setMode("learn");
     };
-    const folders = examViews.filter((e) => (e.topics || []).length > 0);
+    const rawExams = window.getExams ? window.getExams() : [];
+    const folders = examViews.filter((e) => {
+      const exam = rawExams.find((x) => x.id === e.id);
+      return treeForExam(exam) || (e.topics || []).length > 0;
+    });
+    const treeRowsFor = (examView) => {
+      const exam = rawExams.find((x) => x.id === examView.id);
+      const tree = treeForExam(exam);
+      if (!tree) return null;
+      const flat = flattenLessonNodes(tree);
+      const nodeState = ((window.getLearn && window.getLearn()) || {})[tree.examTaxonomy] || {};
+      return flat.map((row) => {
+        const mastery = nodeState[row.node.id] && nodeState[row.node.id].mastery;
+        return {
+          name: localize(row.node.title, t?.code || "en"),
+          unitTitle: localize(row.unit.title, t?.code || "en"),
+          studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
+          premium: topicIsLocked(row.index, flat.length),
+          index: row.index,
+          total: flat.length,
+        };
+      });
+    };
 
     return ce("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       ce("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
@@ -4152,11 +4179,13 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         L("Add an exam first to build your topic list.", "Спершу додайте іспит, щоб з'явилися теми.", "Сначала добавьте экзамен, чтобы появились темы.", "Ajoutez d'abord un examen pour créer votre liste de sujets.", "Füge zuerst eine Prüfung hinzu, um deine Themenliste zu erstellen.")),
 
       ...folders.map((e, fi) => {
-        const rows = (e.topics || []).map((tp) => ({ tp, name: tp.topicName || tp.name, studied: !!tp.lastSeen, ret: tp.lastSeen ? tp.retention : null }));
+        const treeRows = treeRowsFor(e);
+        const rows = treeRows || (e.topics || []).map((tp) => ({ tp, name: tp.topicName || tp.name, studied: !!tp.lastSeen, premium: false, unitTitle: null }));
         const doneCount = rows.filter((r) => r.studied).length;
-        // Unstudied first (what to do next), studied sink to the bottom.
-        const ordered = [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
+        const ordered = treeRows ? rows : [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
         const pct = Math.round((doneCount / Math.max(1, rows.length)) * 100);
+        const freeN = treeRows ? freeTopicLimit(rows.length) : rows.length;
+        const proN = treeRows ? rows.length - freeN : 0;
         return ce("section", { key: e.id || fi, style: { marginBottom: 18, borderRadius: 18, border: "1px solid var(--border-subtle)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" } },
           // Folder header
           ce("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)" } },
@@ -4166,24 +4195,29 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
               ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
                 ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
-          // Topic rows — collapsed to ~5 with a "show all N" toggle for long lists
+          treeRows && proN > 0 && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
+            L(`${freeN} free · ${proN} Pro`, `${freeN} безкоштовно · ${proN} Pro`, `${freeN} бесплатно · ${proN} Pro`, `${freeN} gratuits · ${proN} Pro`, `${freeN} gratis · ${proN} Pro`)),
+          // Tree lists stay open so Pro topics are visible. Coarse exam.topics still collapse.
           (() => {
-            const COLLAPSE_N = 5;
+            const COLLAPSE_N = treeRows ? rows.length : 5;
             const expanded = !!expandedFolders[e.id];
             const visible = expanded || rows.length <= COLLAPSE_N ? ordered : ordered.slice(0, COLLAPSE_N);
-            const hidden = rows.length - visible.length;
             return ce("div", { style: { display: "flex", flexDirection: "column" } },
               ...visible.map((r, ri) => ce("button", {
-                key: ri, onClick: () => { setTopic(r.name); setTopicPicker(false); setMode("learn"); },
-                // Warm the lesson cache on intent (hover/focus) so the click that
-                // follows opens instantly instead of waiting on generation.
-                onMouseEnter: () => prefetchLesson(r.name, t?.code),
-                onFocus: () => prefetchLesson(r.name, t?.code),
-                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
+                key: ri,
+                onClick: () => {
+                  if (r.premium) { setProGate({ freeCount: freeN, lockedCount: proN }); return; }
+                  setTopic(r.name); setTopicPicker(false); setMode("learn");
+                },
+                onMouseEnter: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
+                onFocus: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
+                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left", opacity: r.premium ? 0.72 : 1 }
               },
                 ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
-                statusPill(r.tp))),
-              (rows.length > COLLAPSE_N) && ce("button", {
+                r.premium
+                  ? ce("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "Pro")
+                  : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" } }, "✓") : null)))),
+              (!treeRows && rows.length > COLLAPSE_N) && ce("button", {
                 onClick: () => setExpandedFolders((m) => ({ ...m, [e.id]: !expanded })),
                 style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }
               },
@@ -4207,7 +4241,9 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
                     style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 600, color: "var(--text-muted)" } },
                     L("+ Add your own topic", "+ Додати свою тему", "+ Добавить свою тему", "+ Ajouter votre sujet", "+ Eigenes Thema")));
           })());
-      }));
+      }),
+      proGate && ce(ProSheet, { freeCount: proGate.freeCount, lockedCount: proGate.lockedCount, onClose: () => setProGate(null), t }),
+    );
   }
 
   // ─── LOBBY ─────────────────────────────────────────────────────────────────
