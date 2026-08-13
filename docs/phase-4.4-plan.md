@@ -1,22 +1,34 @@
-# Phase 4.4 — Motion & Visual Energy (test slice)
+# Phase 4.4 — Motion & Visual Energy
 
-Branch: `phase-4.4/motion-energy`, cut from `main`.
+Branch: `phase-4.4/motion-energy`.
 
-Full spec is the trading-terminal / cyberpunk-arcade brief. This PR is
-the lab: tokens + landing energy + dashboard ticker. No Framer / GSAP /
-Lenis / react-countup until Hlib likes the vibe on a real screen.
+Vibe: trading-terminal / cyberpunk-arcade. Tokens + libraries + every
+section in the 4.4 brief.
 
 ## Ships
 
-- `src/styles/motion.ts` — snap / springy / smooth / swift + durations
-- `src/styles/energy.css` — scanlines, CRT dip, ambient glow, ticker
-- Landing: ticker, slot-tick scores, breathing confidence band, pulse
-  on the forecast, mouse-tied glow
-- Dashboard: live ticker (streak, forecast, weak nodes, days-to-exam)
-- `prefers-reduced-motion` kills loops, glow, CRT; numbers snap to final
+- Motion tokens (`src/styles/motion.ts`) + energy CSS
+- Libraries: Framer Motion 11, GSAP 3 (recap only), Lenis (landing +
+  Progress), Auto-Animate (mastery table). No Lottie / Rive / Three /
+  Anime / react-countup — SlotTick stays.
+- Dashboard fire: predictor draw-in, mission ring, streak flame, XP bar,
+  rank badge, tilt cards, ambient glow, live tape
+- Learn: UnitSkillTree cinematic paths, locked shake, mastery pop, boss pulse
+- Practice / Exam Sim: drain timer, question flip, correct/wrong, segments
+- Chat: typing wave, stream line, send pop, streaming tint
+- Progress: radar, heatmap, waterfall, candlestick, stacked area, sankey,
+  sparklines
+- Calendar: 40ms elastic follow, drop ripple, snap guide, today pulse,
+  empty-slot ghost
+- Session Recap: 4s GSAP cinema
+- View Transitions on tab change
+- Motion lab at `#motion-lab` (Storybook stand-in)
+- `prefers-reduced-motion` → 120ms fade, no loops / shake / particles
 
-## Deferred
+## Deferred (honest)
 
-Framer Motion, GSAP recap cinema, skill-tree constellation, practice
-drain timer, chat trails, radar/heatmap, calendar physics, Storybook,
-Playwright, Lenis. Next PR if this slice reads as fire, not carnival.
+- Playwright reduced-motion E2E — Playwright still not in the repo
+  (CLAUDE.md). Covered by vitest + CSS reduce rules instead.
+- Native Storybook toolchain — Motion lab is the 20-piece gallery
+- Pull-to-refresh + long-press radial burst (micro, last on the list)
+- iPhone 12 screencast + Lighthouse 88 proof — Hlib on a real device

@@ -69,6 +69,8 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
   const [createSpec, setCreateSpec] = React.useState(null); // { date, startTime, type, recurring }
   const [fabOpen, setFabOpen] = React.useState(false);
   const [aiProposal, setAiProposal] = React.useState(null);
+  const [ripple, setRipple] = React.useState(null);
+  const [ghost, setGhost] = React.useState(null);
 
   // ── sidebar filters (visual only — never changes what's stored) ─────────
   const [hiddenExamIds, setHiddenExamIds] = React.useState(() => new Set());
@@ -149,7 +151,7 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
         setPreview({ id: drag.id, date, startTime: calHHMM(clamped), durationMin: drag.durationMin });
       }
     }
-    function onUp() {
+    function onUp(e) {
       setDrag((d) => {
         setPreview((p) => {
           if (p && window.updateSession) window.updateSession(p.id, { date: p.date, startTime: p.startTime, durationMin: p.durationMin });
@@ -157,6 +159,12 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
         });
         return null;
       });
+      if (gridRef.current && e) {
+        const r = gridRef.current.getBoundingClientRect();
+        setRipple({ x: e.clientX - r.left, y: e.clientY - r.top });
+        window.setTimeout(() => setRipple(null), 400);
+      }
+      try { window.navigator?.vibrate?.(18); } catch { /* desktop */ }
       setRefreshKey((k) => k + 1);
     }
     document.addEventListener("mousemove", onMove);
@@ -292,7 +300,23 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
                 const daySessions = sessionsByDate[key] || [];
                 return (
                   <div key={key} ref={dayIdx === 0 ? gridRef : null} onClick={(e) => onGridClick(e, dayIdx)}
+                    className={key === todayKey ? "energy-today" : undefined}
+                    onMouseMove={(e) => {
+                      if (drag) return;
+                      const mins = yToMinutes(e.clientY);
+                      setGhost({ dayIdx, top: ((mins - CAL_HOUR_START * 60) / 60) * CAL_HOUR_PX });
+                    }}
+                    onMouseLeave={() => setGhost(null)}
                     style={{ position: "relative", height: gridHeight, borderLeft: "1px solid var(--border-subtle)", cursor: "crosshair", background: key === todayKey ? "var(--indigo-50)" : "transparent" }}>
+                    {ghost && ghost.dayIdx === dayIdx && !drag && (
+                      <div className="energy-cal-ghost" style={{ position: "absolute", top: ghost.top, left: 3, right: 3, height: 36, borderRadius: 6, pointerEvents: "none" }} />
+                    )}
+                    {ripple && dayIdx === 0 && (
+                      <i className="energy-ripple" style={{ left: ripple.x, top: ripple.y }} />
+                    )}
+                    {drag && drag.mode === "resize" && preview && preview.date === key && (
+                      <div className="energy-snap-guide" style={{ top: ((calMinutesOf(preview.startTime) + preview.durationMin - CAL_HOUR_START * 60) / 60) * CAL_HOUR_PX }} />
+                    )}
                     {Array.from({ length: CAL_HOUR_END - CAL_HOUR_START }, (_, i) => (
                       <div key={i} style={{ position: "absolute", top: i * CAL_HOUR_PX, left: 0, right: 0, borderTop: "1px solid var(--border-subtle)", pointerEvents: "none" }} />
                     ))}
@@ -317,6 +341,7 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
                           cursor: completed ? "default" : "grab",
                           opacity: completed ? 0.6 : isDragging ? 0.85 : 1,
                           boxShadow: isDragging ? "var(--shadow-md)" : "none",
+                          transition: isDragging ? "top 40ms linear" : "none",
                           zIndex: isDragging ? 10 : 1,
                           fontFamily: "var(--font-sans)",
                         }}>
