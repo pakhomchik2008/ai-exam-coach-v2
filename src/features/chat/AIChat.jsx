@@ -18,6 +18,7 @@ import { dropIeltsSpeakingTopics, isIeltsListeningTopic, isIeltsQual, isIeltsSpe
 import { isIeltsReadingTopic, isIeltsWritingTopic } from "../../lib/ielts-paper";
 import { IeltsReading } from "../ielts/IeltsReading";
 import { IeltsWriting } from "../ielts/IeltsWriting";
+import { SocraticDialog } from "../learn/SocraticDialog.jsx";
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -2786,7 +2787,7 @@ function LearnFlashcards({ topic, onExit, t }) {
   ]);
 }
 
-// Picker — asked every time the student opens Learn mode. Two clear options,
+// Picker — asked every time the student opens Learn mode. Three options,
 // no persistence: the "right" method depends on the topic and the mood, not
 // on a permanent setting somewhere the student would forget to change.
 function LearnMethodPicker({ topic, onExit, onPick, t }) {
@@ -2825,6 +2826,17 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
             "6-10 cartes courtes, un concept chacune. Passe à ton rythme.",
             "6-10 kurze Karten, ein Konzept pro Karte. Blättere in deinem Tempo.")),
       ),
+      React.createElement("button", { onClick: () => onPick("socratic"), style: cardStyle },
+        React.createElement("div", { style: { fontSize: 28 } }, "💬"),
+        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
+          L("Explain with the coach", "Пояснити разом", "Объяснить вместе", "Expliquer ensemble", "Gemeinsam erklären")),
+        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
+          L("The coach asks. You find the idea. One hint if you stall.",
+            "Коуч питає. Ви самі виводите ідею. Одна підказка, якщо застрягли.",
+            "Коуч спрашивает. Вы сами выводите идею. Одна подсказка, если застряли.",
+            "Le coach questionne. Tu trouves l’idée. Un indice si tu bloques.",
+            "Der Coach fragt. Du findest die Idee. Ein Tipp, wenn du hängst.")),
+      ),
     ),
   ]);
 }
@@ -2844,6 +2856,9 @@ function LessonEngine({ topic, mode, onExit, t }) {
     }
     if (learnMethod === "flashcards") {
       return React.createElement(LearnFlashcards, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "socratic") {
+      return React.createElement(SocraticDialog, { topic: activeTopic, onExit, t });
     }
     return React.createElement(LearnTheoryReader, { topic: activeTopic, onExit, t, onOpenTopic: setActiveTopic });
   }
