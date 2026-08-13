@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { BrandLockup, BrandMark } from "../../brand/BrandMark";
+import { EnergyTicker } from "../../components/EnergyTicker";
 import { ExamMarquee } from "./ExamMarquee";
 import { FeatureReel } from "./FeatureReel";
 import { LearnScreen } from "./LearnScreen";
@@ -83,8 +84,29 @@ function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const [annual, setAnnual] = React.useState(true);
   const [heroRef, split] = useSplitProgress();
+  const landRef = React.useRef(null);
   const langs = Object.values(window.LANGS || {});
   const headline = t.land_hero_title || "";
+  const ticks = [
+    { id: "forecast", label: t.land_tick_forecast },
+    { id: "trial", label: t.land_tick_trial },
+    { id: "exams", label: t.land_tick_exams },
+    { id: "price", label: t.land_tick_price },
+  ];
+
+  function onGlow(e) {
+    const el = landRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--glow-x", `${((e.clientX - r.left) / r.width) * 100}%`);
+    el.style.setProperty("--glow-y", `${((e.clientY - r.top) / r.height) * 100}%`);
+  }
+
+  function onTick(id) {
+    if (id === "trial" || id === "price") onSignup();
+    else if (id === "exams") document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+    else document.getElementById("top")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   function tap(fn) {
     return () => {
@@ -94,7 +116,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
   }
 
   return (
-    <div className="land">
+    <div className="land energy" ref={landRef} onMouseMove={onGlow}>
       <a className="land-skip" href="#content">{t.land_skip}</a>
 
       <header className="land-nav">
@@ -126,6 +148,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           <button type="button" className="land-nav-login" onClick={tap(onLogin)}>{t.land_nav_login}</button>
         </div>
       </header>
+      <EnergyTicker items={ticks} label={t.land_tick_label} onPick={onTick} />
 
       <section
         className={`land-hero${split > 0.12 ? " is-split" : ""}`}
@@ -148,6 +171,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           </svg>
           <div className="land-hero-stage">
             <div className="land-hero-copy">
+              <p className="land-kicker">{t.land_kicker}</p>
               <h1 className="land-headline" id="content">
                 {headline.split(" ").map((word, i) => (
                   <span key={`${word}-${i}`} style={{ animationDelay: `${90 + i * 80}ms` }}>{word}</span>
