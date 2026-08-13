@@ -6,9 +6,8 @@
 // a tree stay out of the picker instead of silently opening NMT Math.
 //
 // Fold everything (main list, node preview sheet, Teach, Drill, Prove) into
-// one component here rather than fanning out to 4 small files. MVP has 3
-// short linear phases; splitting them costs prop drilling and gains
-// nothing until 3.7b starts adding the other exercise types.
+// one component here rather than fanning out to 4 small files. 3.7b scoring
+// lives in drill-exercises.ts; the boards stay here so one runner owns phase.
 
 import { treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
@@ -17,6 +16,16 @@ import { ProSheet } from "./ProSheet.jsx";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
 import { renderCoachMarkdown } from "../../lib/math-render";
+import { languageNameFor } from "../../lib/paper-language";
+import {
+  buildDrillSystem,
+  buildExplainSystem,
+  normalizeAnswer,
+  normalizeDrillQuestions,
+  parseExplainGrade,
+  scoreDrill,
+  shuffled,
+} from "./drill-exercises";
 
 function mdHtml(text) {
   return { __html: renderCoachMarkdown(text) };
@@ -32,11 +41,33 @@ const MASTERY_STYLE = {
   legendary:  { color: "#7b3ff2",          label: "👑" },
 };
 
-// Same normalization pattern QuickCheckEngine uses on fill-in answers —
-// case-insensitive, whitespace-collapsed. `math.js` equivalence is deferred
-// to Phase 3.7b; string match catches the majority of fill-ins here.
-function normalizeAnswer(s) {
-  return (s || "").toString().toLowerCase().trim().replace(/\s+/g, " ");
+function emptyDraft() {
+  return {
+    matchLeft: null,
+    matchPairs: {},
+    matchRights: [],
+    order: [],
+    slots: [],
+    bank: [],
+    selectedBank: null,
+    explain: "",
+  };
+}
+
+function draftForQuestion(q) {
+  const d = emptyDraft();
+  if (!q) return d;
+  if (q.type === "match") d.matchRights = shuffled(q.pairs.map((p) => p.right));
+  if (q.type === "order") d.order = shuffled(q.items);
+  if (q.type === "drag_drop") {
+    d.slots = q.answers.map(() => null);
+    d.bank = shuffled(q.bank);
+  }
+  return d;
+}
+
+function splitDragStem(question) {
+  return String(question || "").split(/_{3,}/);
 }
 
 function prefersReducedMotion() {
@@ -85,7 +116,11 @@ function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   const [drillIdx, setDrillIdx] = React.useState(0);
   const [drillSelected, setDrillSelected] = React.useState(null);
   const [drillFillInput, setDrillFillInput] = React.useState("");
+  const [drillDraft, setDrillDraft] = React.useState(emptyDraft);
   const [drillRevealed, setDrillRevealed] = React.useState(false);
+  const [drillGrading, setDrillGrading] = React.useState(false);
+  const [drillGrade, setDrillGrade] = React.useState(null);
+  const [drillGradeError, setDrillGradeError] = React.useState(null);
   const [drillResults, setDrillResults] = React.useState([]);
   const [proveQs, setProveQs] = React.useState(null);
   const [proveError, setProveError] = React.useState(null);
@@ -117,23 +152,20 @@ RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX 
       .catch((e) => setTeachError(e.message || "Failed to load"));
   }, [phase, teach, teachError, nodeTitle, unitTitle, tree.examTaxonomy]);
 
-  // Drill: 5 mixed MCQ / fill-in on the same node.
+  // Drill: 5 mixed types. Normalize drops junk so a bad match/order
+  // item does not blank the whole set.
   React.useEffect(() => {
     if (phase !== "drill" || drillQs || drillError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const system = `Generate exactly 5 practice questions for the concept "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()} exam prep).
-OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
-FORMAT: {"questions":[
-  {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence"},
-  {"type":"fill","question":"Complete: ...","answer":"expected answer","accept":["variant 1","variant 2"],"explanation":"1 sentence"}
-]}
-RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. Every fill answer is a short word/number/formula the learner can type.`;
+    const system = buildDrillSystem(nodeTitle, tree.examTaxonomy, node.complexity);
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
     Promise.race([complete({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
       .then((raw) => {
         const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error("Invalid drill response");
-        setDrillQs(p.questions.slice(0, 5));
+        const qs = normalizeDrillQuestions(p && p.questions).slice(0, 5);
+        if (!qs.length) throw new Error("Invalid drill response");
+        setDrillQs(qs);
+        setDrillDraft(draftForQuestion(qs[0]));
       })
       .catch((e) => setDrillError(e.message || "Failed to load"));
   }, [phase, drillQs, drillError, nodeTitle, tree.examTaxonomy, node.complexity]);
@@ -181,23 +213,60 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
   }, [phase, proveQs, proveTimeLeft]);
 
   function submitDrillAnswer(input) {
-    if (drillRevealed) return;
+    if (drillRevealed || drillGrading) return;
     const q = drillQs[drillIdx];
-    let isCorrect = false;
-    if (q.type === "mcq") isCorrect = input === q.correct;
-    else if (q.type === "fill") {
-      const user = normalizeAnswer(input);
-      const accepts = [q.answer, ...(q.accept || [])].map(normalizeAnswer);
-      isCorrect = accepts.some((a) => a && a === user);
-    }
+    if (q.type === "explain") return;
+    const isCorrect = scoreDrill(q, input);
     setDrillSelected(input);
     setDrillRevealed(true);
     setDrillResults((r) => [...r, { correct: isCorrect }]);
   }
+
+  async function submitExplain() {
+    if (drillRevealed || drillGrading) return;
+    const q = drillQs[drillIdx];
+    const text = (drillDraft.explain || "").trim();
+    if (!text) return;
+    setDrillGrading(true);
+    const complete = window.brainComplete || ((a) => window.claude.complete(a));
+    const lang = languageNameFor(tree.examTaxonomy)
+      || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[t?.code] || "English");
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 45000));
+    try {
+      const raw = await Promise.race([
+        complete({
+          system: buildExplainSystem(nodeTitle, q.rubric || [], lang),
+          messages: [{ role: "user", content: text }],
+          paperQual: tree.examTaxonomy,
+        }),
+        timeout,
+      ]);
+      const parsed = window.parseJSON ? window.parseJSON(raw) : raw;
+      const grade = parseExplainGrade(parsed ?? raw);
+      setDrillGrade(grade);
+      setDrillRevealed(true);
+      setDrillResults((r) => [...r, { correct: grade.pass }]);
+    } catch (e) {
+      setDrillGradeError(e.message || "Failed to grade");
+    } finally {
+      setDrillGrading(false);
+    }
+  }
+
   function nextDrill() {
-    setDrillSelected(null); setDrillRevealed(false); setDrillFillInput("");
-    if (drillIdx + 1 >= drillQs.length) setPhase("prove");
-    else setDrillIdx((i) => i + 1);
+    if (drillIdx + 1 >= drillQs.length) {
+      setPhase("prove");
+      return;
+    }
+    const next = drillIdx + 1;
+    setDrillIdx(next);
+    setDrillSelected(null);
+    setDrillRevealed(false);
+    setDrillFillInput("");
+    setDrillGrade(null);
+    setDrillGradeError(null);
+    setDrillGrading(false);
+    setDrillDraft(draftForQuestion(drillQs[next]));
   }
 
   function submitProveAnswer(optIdx) {
@@ -296,25 +365,86 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     ]);
   }
 
+  function pairMatch(left, right) {
+    setDrillDraft((d) => {
+      const next = { ...d.matchPairs };
+      for (const [k, v] of Object.entries(next)) {
+        if (v === right) delete next[k];
+      }
+      next[left] = right;
+      return { ...d, matchLeft: null, matchPairs: next };
+    });
+  }
+  function unpairMatch(left) {
+    setDrillDraft((d) => {
+      const next = { ...d.matchPairs };
+      delete next[left];
+      return { ...d, matchPairs: next, matchLeft: null };
+    });
+  }
+  function moveOrder(i, dir) {
+    setDrillDraft((d) => {
+      const order = d.order.slice();
+      const j = i + dir;
+      if (j < 0 || j >= order.length) return d;
+      const tmp = order[i];
+      order[i] = order[j];
+      order[j] = tmp;
+      return { ...d, order };
+    });
+  }
+  function placeSlot(i) {
+    setDrillDraft((d) => {
+      const token = d.selectedBank;
+      const slots = d.slots.slice();
+      const bank = d.bank.slice();
+      if (slots[i]) {
+        bank.push(slots[i]);
+        slots[i] = null;
+      }
+      if (token) {
+        slots[i] = token;
+        const idx = bank.indexOf(token);
+        if (idx >= 0) bank.splice(idx, 1);
+      }
+      return { ...d, slots, bank, selectedBank: null };
+    });
+  }
+
+  const chip = (tone, extra) => ({
+    textAlign: "left",
+    padding: "10px 12px",
+    borderRadius: 10,
+    fontSize: 14,
+    fontFamily: "var(--font-sans)",
+    background: tone === "ok" ? "var(--emerald-50)" : tone === "bad" ? "var(--red-50)" : tone === "on" ? "var(--indigo-50)" : "var(--surface-card)",
+    border: `1.5px solid ${tone === "ok" ? "var(--emerald-500)" : tone === "bad" ? "var(--red-500)" : tone === "on" ? "var(--indigo-500)" : "var(--border-default)"}`,
+    cursor: drillRevealed ? "default" : "pointer",
+    ...extra,
+  });
+
   // ── Phase: Drill ──
   if (phase === "drill") {
     if (drillError) return wrap([header, React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, drillError)]);
     if (!drillQs) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } }, L("Loading exercises…", "Завантажуємо…", "Загружаем…", "Chargement…", "Lade…"))]);
     const q = drillQs[drillIdx];
+    const usedRights = new Set(Object.values(drillDraft.matchPairs));
+    const matchReady = q.type === "match" && Object.keys(drillDraft.matchPairs).length === q.pairs.length;
+    const dropReady = q.type === "drag_drop" && drillDraft.slots.length === q.answers.length && drillDraft.slots.every(Boolean);
+    const checkLabel = L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen");
+    const stemParts = q.type === "drag_drop" ? splitDragStem(q.question) : null;
     return wrap([
       header,
       React.createElement("div", { key: "prog", style: { fontSize: 12, color: "var(--text-faint)", marginBottom: 10 } }, `${drillIdx + 1} / ${drillQs.length}`),
-      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
+      q.type !== "drag_drop" && React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       q.type === "mcq" && React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
           const wasChosen = drillSelected === i;
           const showCorrect = drillRevealed && i === q.correct;
           const showWrong = drillRevealed && wasChosen && i !== q.correct;
-          const bg = showCorrect ? "var(--emerald-50)" : showWrong ? "var(--red-50)" : "var(--surface-card)";
-          const border = showCorrect ? "var(--emerald-500)" : showWrong ? "var(--red-500)" : "var(--border-default)";
           return React.createElement("button", {
             key: i, onClick: () => submitDrillAnswer(i), disabled: drillRevealed,
-            style: { textAlign: "left", padding: "12px 14px", background: bg, border: `1.5px solid ${border}`, borderRadius: 10, fontSize: 14, cursor: drillRevealed ? "default" : "pointer", fontFamily: "var(--font-sans)" },
+            style: chip(showCorrect ? "ok" : showWrong ? "bad" : "off"),
             dangerouslySetInnerHTML: mdHtml(opt),
           });
         }),
@@ -329,14 +459,131 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
           style: { width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border-default)", fontSize: 15, fontFamily: "var(--font-sans)", boxSizing: "border-box" },
         }),
         !drillRevealed && React.createElement("button", {
+          className: "learn-btn learn-btn--primary",
           onClick: () => submitDrillAnswer(drillFillInput),
-          style: { marginTop: 8, padding: "10px 16px", borderRadius: 10, background: "var(--indigo-600)", color: "#fff", border: "none", cursor: "pointer" },
-        }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen")),
+          style: { marginTop: 8 },
+        }, checkLabel),
       ),
-      drillRevealed && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(q.explanation) }),
+      q.type === "match" && React.createElement("div", { key: "match", className: "learn-match" },
+        React.createElement("div", { className: "learn-match-col" },
+          ...q.pairs.map((pair) => {
+            const chosen = drillDraft.matchPairs[pair.left];
+            const tone = drillRevealed
+              ? (chosen && normalizeAnswer(chosen) === normalizeAnswer(pair.right) ? "ok" : "bad")
+              : (drillDraft.matchLeft === pair.left || chosen ? "on" : "off");
+            return React.createElement("button", {
+              key: pair.left,
+              type: "button",
+              disabled: drillRevealed,
+              onClick: () => (chosen ? unpairMatch(pair.left) : setDrillDraft((d) => ({ ...d, matchLeft: pair.left }))),
+              style: chip(tone),
+              dangerouslySetInnerHTML: mdHtml(chosen ? `${pair.left} → ${chosen}` : pair.left),
+            });
+          }),
+        ),
+        React.createElement("div", { className: "learn-match-col" },
+          ...drillDraft.matchRights.map((right) => React.createElement("button", {
+            key: right,
+            type: "button",
+            disabled: drillRevealed || usedRights.has(right),
+            onClick: () => drillDraft.matchLeft && pairMatch(drillDraft.matchLeft, right),
+            style: chip(usedRights.has(right) ? "on" : "off", { opacity: usedRights.has(right) ? 0.55 : 1 }),
+            dangerouslySetInnerHTML: mdHtml(right),
+          })),
+        ),
+        !drillRevealed && React.createElement("button", {
+          className: "learn-btn learn-btn--primary",
+          disabled: !matchReady,
+          onClick: () => matchReady && submitDrillAnswer(drillDraft.matchPairs),
+        }, checkLabel),
+      ),
+      q.type === "order" && React.createElement("div", { key: "order", style: { display: "flex", flexDirection: "column", gap: 8 } },
+        ...drillDraft.order.map((item, i) => {
+          const tone = drillRevealed ? (normalizeAnswer(item) === normalizeAnswer(q.items[i]) ? "ok" : "bad") : "off";
+          return React.createElement("div", { key: item + i, style: { display: "flex", gap: 8, alignItems: "stretch" } },
+            React.createElement("div", { style: { ...chip(tone, { flex: 1, cursor: "default" }) }, dangerouslySetInnerHTML: mdHtml(`${i + 1}. ${item}`) }),
+            !drillRevealed && React.createElement("button", {
+              type: "button", "aria-label": "Up", disabled: i === 0,
+              onClick: () => moveOrder(i, -1),
+              style: chip("off", { minWidth: 40, textAlign: "center", opacity: i === 0 ? 0.4 : 1 }),
+            }, "↑"),
+            !drillRevealed && React.createElement("button", {
+              type: "button", "aria-label": "Down", disabled: i === drillDraft.order.length - 1,
+              onClick: () => moveOrder(i, 1),
+              style: chip("off", { minWidth: 40, textAlign: "center", opacity: i === drillDraft.order.length - 1 ? 0.4 : 1 }),
+            }, "↓"),
+          );
+        }),
+        !drillRevealed && React.createElement("button", {
+          className: "learn-btn learn-btn--primary",
+          onClick: () => submitDrillAnswer(drillDraft.order),
+        }, checkLabel),
+      ),
+      q.type === "drag_drop" && React.createElement("div", { key: "drop" },
+        React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.7 } },
+          ...(stemParts || [q.question]).flatMap((part, i) => {
+            const nodes = [React.createElement("span", { key: `t${i}`, dangerouslySetInnerHTML: mdHtml(part) })];
+            if (i < q.answers.length) {
+              const filled = drillDraft.slots[i];
+              const tone = drillRevealed
+                ? (normalizeAnswer(filled) === normalizeAnswer(q.answers[i]) ? "ok" : "bad")
+                : (filled ? "on" : "off");
+              nodes.push(React.createElement("button", {
+                key: `s${i}`,
+                type: "button",
+                disabled: drillRevealed,
+                onClick: () => placeSlot(i),
+                style: chip(tone, { display: "inline-block", minWidth: 72, margin: "0 4px", padding: "4px 10px" }),
+              }, filled || "___"));
+            }
+            return nodes;
+          }),
+        ),
+        !drillRevealed && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 } },
+          ...drillDraft.bank.map((token) => React.createElement("button", {
+            key: token,
+            type: "button",
+            onClick: () => setDrillDraft((d) => ({ ...d, selectedBank: d.selectedBank === token ? null : token })),
+            style: chip(drillDraft.selectedBank === token ? "on" : "off"),
+            dangerouslySetInnerHTML: mdHtml(token),
+          })),
+        ),
+        !drillRevealed && React.createElement("button", {
+          className: "learn-btn learn-btn--primary",
+          disabled: !dropReady,
+          onClick: () => dropReady && submitDrillAnswer(drillDraft.slots),
+          style: { marginTop: 12 },
+        }, checkLabel),
+      ),
+      q.type === "explain" && React.createElement("div", { key: "explain", style: { marginTop: 8 } },
+        React.createElement("textarea", {
+          value: drillDraft.explain,
+          onChange: (e) => setDrillDraft((d) => ({ ...d, explain: e.target.value })),
+          disabled: drillRevealed || drillGrading,
+          rows: 5,
+          placeholder: L("Explain in your own words", "Поясни своїми словами", "Объясни своими словами", "Explique avec tes mots", "Erkläre in eigenen Worten"),
+          style: { width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--border-default)", fontSize: 15, fontFamily: "var(--font-sans)", boxSizing: "border-box", resize: "vertical" },
+        }),
+        !drillRevealed && React.createElement("button", {
+          className: "learn-btn learn-btn--primary",
+          disabled: drillGrading || !(drillDraft.explain || "").trim(),
+          onClick: submitExplain,
+          style: { marginTop: 8 },
+        }, drillGrading
+          ? L("Grading…", "Оцінюємо…", "Оцениваем…", "Correction…", "Bewerte…")
+          : checkLabel),
+        drillGradeError && React.createElement("p", { style: { color: "var(--red-600)", fontSize: 13 } }, drillGradeError),
+        drillGrade && React.createElement("div", {
+          style: { marginTop: 12, padding: 12, background: drillGrade.pass ? "var(--emerald-50)" : "var(--red-50)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" },
+          dangerouslySetInnerHTML: mdHtml(`**${drillGrade.score}/10** — ${drillGrade.feedback}`),
+        }),
+      ),
+      drillRevealed && q.explanation && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(q.explanation) }),
       drillRevealed && React.createElement("button", {
-        key: "next", onClick: nextDrill,
-        style: { marginTop: 16, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" },
+        key: "next",
+        className: "learn-btn learn-btn--primary",
+        onClick: nextDrill,
+        style: { marginTop: 16 },
       }, drillIdx + 1 >= drillQs.length ? L("To Prove →", "До перевірки →", "К проверке →", "Vers le test →", "Zum Test →") : L("Next →", "Далі →", "Далее →", "Suivant →", "Weiter →")),
     ]);
   }
