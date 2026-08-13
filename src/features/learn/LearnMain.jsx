@@ -811,7 +811,6 @@ function LearnMain({ t }) {
         onExit: () => exitRunner(null),
         onPassed: () => {
           if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, running.node.id, "bronze");
-          exitRunner({ nodeId: running.node.id, unlocked: true });
         },
       });
     }

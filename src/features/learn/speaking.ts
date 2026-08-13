@@ -75,26 +75,35 @@ export function parseSpeakingCue(raw: unknown): SpeakingCue {
   };
 }
 
+function hasScoreField(row: Record<string, unknown>): boolean {
+  return ["fluency", "lexical", "vocabulary", "grammar", "pronunciation", "overall"]
+    .some((key) => row[key] != null && row[key] !== "");
+}
+
+export function fallbackSpeakingBand(feedback: string): SpeakingBand {
+  const text = asString(feedback) || "Too little speech to award a higher band. Say what, why, and one example.";
+  return {
+    fluency: 4, lexical: 4, grammar: 4, pronunciation: 4, overall: 4,
+    feedback: text,
+    gaps: ["Answer was too short or the grader did not return bands"],
+  };
+}
+
 export function parseSpeakingBand(raw: unknown): SpeakingBand {
   const row = typeof raw === "string" ? tryParseJsonObject(raw) : asRecord(raw);
-  if (row) {
-    const feedback = asString(row.feedback) || asString(row.comment);
+  if (row && hasScoreField(row)) {
     const fluency = clampBand(row.fluency);
     const lexical = clampBand(row.lexical ?? row.vocabulary);
     const grammar = clampBand(row.grammar);
     const pronunciation = clampBand(row.pronunciation);
-    const overall = clampBand(row.overall ?? ((fluency + lexical + grammar + pronunciation) / 4));
-    if (feedback) {
-      return {
-        fluency, lexical, grammar, pronunciation, overall, feedback,
-        gaps: asStringList(row.gaps),
-      };
-    }
-  }
-  if (typeof raw === "string" && raw.trim()) {
+    const overall = clampBand(
+      row.overall ?? ((fluency + lexical + grammar + pronunciation) / 4),
+    );
+    const feedback = asString(row.feedback) || asString(row.comment)
+      || `Band ${overall}. Add one concrete example next time.`;
     return {
-      fluency: 0, lexical: 0, grammar: 0, pronunciation: 0, overall: 0,
-      feedback: raw.trim(), gaps: [],
+      fluency, lexical, grammar, pronunciation, overall, feedback,
+      gaps: asStringList(row.gaps),
     };
   }
   throw new Error("invalid speaking grade");
@@ -110,14 +119,19 @@ Rules:
 }
 
 export function buildSpeakingGradeSystem(topic: string, exam: string): string {
-  return `You are an ${exam.toUpperCase()} Speaking examiner. Grade this answer on "${topic}".
-OUTPUT ONLY valid JSON — no markdown fences:
-{"fluency":0-9,"lexical":0-9,"grammar":0-9,"pronunciation":0-9,"overall":0-9,"gaps":["one miss"],"feedback":"6-10 sentences"}
+  return `You are ONLY an ${exam.toUpperCase()} Speaking examiner. Grade the transcript on "${topic}".
+OUTPUT ONLY valid JSON — no markdown, no chat, no other exams, no study-plan talk:
+{"fluency":5.5,"lexical":6.0,"grammar":5.5,"pronunciation":6.0,"overall":6.0,"gaps":["one miss"],"feedback":"6-10 sentences"}
 Rules:
-- Bands in half-steps (5.5, 6.0). overall is the mean, half-step.
-- pronunciation is INFERRED from the transcript (hesitation markers, fragment). Say that in feedback.
-- Quote a phrase they used. Name one upgrade for the next attempt.
-- Math as LaTeX $...$. In JSON write every backslash twice.`;
+- ALWAYS fill every band and ALWAYS write feedback. Even 3 words or silence get honest low bands (3.0–4.5) plus feedback saying what was missing.
+- Bands in half-steps. overall is the mean, half-step.
+- pronunciation is INFERRED from the transcript. Say that in feedback.
+- Quote a phrase they used if any. Name one upgrade.
+- Never ask what exam they want. Never mention NMT or a weekly plan.`;
+}
+
+export function buildSpeakingGradeUser(transcript: string, cueTitle: string): string {
+  return `CUE: ${cueTitle}\nTRANSCRIPT:\n${transcript.trim() || "(silence)"}`;
 }
 
 export function isSpeakingTreeNode(nodeId: string | null | undefined): boolean {
