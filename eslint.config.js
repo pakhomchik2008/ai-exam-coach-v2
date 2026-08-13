@@ -60,7 +60,7 @@ const legacyGlobals = Object.fromEntries(
 );
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**", "src/lib/_ds_bundle.js", "coverage/**"] },
+  { ignores: ["dist/**", "node_modules/**", "src/lib/_ds_bundle.js", "coverage/**", "e2e/**", "playwright-report/**", "test-results/**"] },
 
   // ── Converted TypeScript ───────────────────────────────────────────────────
   {

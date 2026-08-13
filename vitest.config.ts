@@ -12,6 +12,7 @@ export default defineConfig({
     // shared jsdom would let them clobber each other's fixtures, so each test
     // file gets its own environment.
     isolate: true,
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
