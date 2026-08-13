@@ -47,7 +47,7 @@ async function completeJson(system: string, user: string, ms = 45000): Promise<u
   const complete = (window as unknown as { brainComplete: (a: unknown) => Promise<string> }).brainComplete;
   const to = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
   const raw = await Promise.race([
-    complete({ system, messages: [{ role: "user", content: user }] }),
+    complete({ system, messages: [{ role: "user", content: user }], paperQual: "ielts" }),
     to,
   ]);
   return parseJson(raw);

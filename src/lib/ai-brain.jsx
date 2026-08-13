@@ -118,6 +118,8 @@ function buildLearnerContext(opts = {}) {
   return lines.join("\n");
 }
 
+import { paperLanguageDirective } from "./paper-language";
+
 // ─── central completion ───────────────────────────────────────────────────────
 
 // Language names the AI is told to answer in when the student's UI isn't
@@ -141,7 +143,7 @@ function aiLangDirective(override) {
   return `Respond in ${AI_LANG_NAMES[langCode] || langCode}, not English — the student's app is set to that language.`;
 }
 
-async function brainComplete({ system, messages, prompt, includeContext = true, topicContext, langOverride } = {}) {
+async function brainComplete({ system, messages, prompt, includeContext = true, topicContext, langOverride, paperQual } = {}) {
   if (!window.claude) throw new Error("AI is not available");
   const ctx = includeContext ? buildLearnerContext({ topicContext }) : "";
   // `system` (the caller's static task instructions) goes FIRST and carries
@@ -154,7 +156,10 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   // silently not cache (verify via response.usage.cache_read_input_tokens).
   // It engages more reliably for students with several active exams (larger
   // ctx) and once a Sonnet-based tier ships (lower minimum: 1024 tokens).
-  const dynamic = [aiLangDirective(langOverride), ctx].filter(Boolean).join("\n\n");
+  // paperQual wins over the UI language: an НМТ paper stays Ukrainian even
+  // when the app is in English, and IELTS stays English when the app is not.
+  const langBit = paperQual ? paperLanguageDirective(paperQual) : aiLangDirective(langOverride);
+  const dynamic = [langBit, ctx].filter(Boolean).join("\n\n");
   const systemBlocks = [];
   if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });
   if (dynamic) systemBlocks.push({ type: "text", text: dynamic });
