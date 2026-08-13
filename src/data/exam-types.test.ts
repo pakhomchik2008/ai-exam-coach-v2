@@ -16,19 +16,21 @@ import "../bootstrap";
 interface ExamTypeEntry {
   id: string;
   label: string;
-  grade: { kind: string; options?: string[] };
+  grade: { kind: string; options?: string[]; min?: number; max?: number; step?: number };
 }
 
 type Api = {
   EXAM_TYPES: ExamTypeEntry[];
   examType: (id: unknown) => ExamTypeEntry;
   resolveExamType: (list: ExamTypeEntry[], id: unknown) => ExamTypeEntry;
+  isSectionBasedExam: (id: string) => boolean;
+  suggestedQualificationId: (lastExam: { name?: string; qualificationId?: string } | null, profile: { country?: string } | null) => string;
 };
 
 const api = window as unknown as Api;
 
 describe("examType — known ids", () => {
-  it.each(["gcse", "alevel", "sat", "nmt", "ib", "custom"])("resolves %s to itself", (id) => {
+  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "custom"])("resolves %s to itself", (id) => {
     expect(api.examType(id).id).toBe(id);
   });
 });
@@ -104,5 +106,35 @@ describe("resolveExamType — works against an arbitrary merged catalog", () => 
   it("falls back to the first entry when the list has no custom", () => {
     const noCustom = merged.filter((e) => e.id !== "custom");
     expect(api.resolveExamType(noCustom, "nope").id).toBe("ielts");
+  });
+});
+
+describe("language exams in the bundled catalog", () => {
+  it("IELTS is a 0–9 half-band score, not GCSE 3–9", () => {
+    const ielts = api.examType("ielts");
+    expect(ielts.grade.kind).toBe("score");
+    expect(ielts.grade.min).toBe(0);
+    expect(ielts.grade.max).toBe(9);
+    expect(ielts.grade.step).toBe(0.5);
+    expect(api.isSectionBasedExam("ielts")).toBe(true);
+  });
+
+  it("does not attach a UK board list to IELTS", () => {
+    const ielts = api.examType("ielts") as ExamTypeEntry & { boardOptions?: string[] };
+    expect(ielts.boardOptions).toBeUndefined();
+  });
+});
+
+describe("suggestedQualificationId", () => {
+  it("reads the last exam's qualification", () => {
+    expect(api.suggestedQualificationId({ qualificationId: "nmt", name: "Maths" }, {})).toBe("nmt");
+  });
+
+  it("infers NMT from the exam name when qualificationId is missing", () => {
+    expect(api.suggestedQualificationId({ name: "NMT Українська мова" }, { country: "gb" })).toBe("nmt");
+  });
+
+  it("does not default a named NMT exam to GCSE", () => {
+    expect(api.suggestedQualificationId({ name: "NMT Українська мова" }, {})).not.toBe("gcse");
   });
 });

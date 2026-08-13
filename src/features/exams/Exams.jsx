@@ -145,7 +145,9 @@ function Exams({ t, onPlanReady }) {
     const defaultDate = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); })();
     const todayISO = new Date().toISOString().slice(0, 10);
     const profile = React.useMemo(() => window.getProfile ? window.getProfile() : {}, []);
-    const suggestedQualId = (window.COUNTRY_TO_EXAM_TYPE && profile.country && window.COUNTRY_TO_EXAM_TYPE[profile.country]) || "gcse";
+    const suggestedQualId = window.suggestedQualificationId
+      ? window.suggestedQualificationId(lastExam, profile)
+      : ((window.COUNTRY_TO_EXAM_TYPE && profile.country && window.COUNTRY_TO_EXAM_TYPE[profile.country]) || "custom");
 
     // "Same course as X" attaches a second Exam (resit/mock/final...) to an
     // EXISTING courseId — no curriculum lookup, no new Course, shared mastery
@@ -153,8 +155,11 @@ function Exams({ t, onPlanReady }) {
     const [sameCourse, setSameCourse] = React.useState(false);
     const [qualificationId, setQualificationId] = React.useState(suggestedQualId);
     const qual = window.examType(qualificationId);
+    const sectionBased = window.isSectionBasedExam
+      ? window.isSectionBasedExam(qualificationId)
+      : !!(qual && qual.sectionBased);
 
-    const [name, setName] = React.useState("");
+    const [name, setName] = React.useState(sectionBased ? (qual.label || "") : "");
     const [examDate, setExamDate] = React.useState(defaultDate);
     const [examBoard, setExamBoard] = React.useState(qual.board || "");
     const [kind, setKind] = React.useState("exam");
@@ -172,7 +177,7 @@ function Exams({ t, onPlanReady }) {
     const [courseDraft, setCourseDraft] = React.useState(null);
     const [noTopicList, setNoTopicList] = React.useState(false);
     const [files, setFiles] = React.useState([]);
-    const [curriculumValid, setCurriculumValid] = React.useState(false);
+    const [curriculumValid, setCurriculumValid] = React.useState(sectionBased);
 
     React.useEffect(() => {
       if (sameCourse) {
@@ -181,16 +186,20 @@ function Exams({ t, onPlanReady }) {
         if (lastExam.sessionLengthMin) setSessionLengthMin(lastExam.sessionLengthMin);
         return;
       }
-      setName("");
+      setName(sectionBased ? (qual.label || "") : "");
       setExamBoard(qual.board || "");
       setCurrent(qual.grade.current);
       setTarget(qual.grade.target);
       setKind("exam");
+      if (sectionBased) {
+        setCurriculumValid(true);
+        setCourseDraft(null);
+      }
     }, [sameCourse, qualificationId]);
 
     const canSave = sameCourse
       ? name.trim() && examDate >= todayISO
-      : name.trim() && examDate >= todayISO && curriculumValid;
+      : name.trim() && examDate >= todayISO && (sectionBased || curriculumValid);
 
     React.useEffect(() => {
       const fn = (e) => { if (e.key === "Escape") onClose(); };
@@ -200,13 +209,27 @@ function Exams({ t, onPlanReady }) {
 
     function save() {
       let course = null;
-      if (!sameCourse && courseDraft && courseDraft.topics && courseDraft.topics.length && window.createCourse) {
+      if (!sameCourse && sectionBased && window.createCourse) {
+        const presets = (window.SUBJECT_PRESETS && window.SUBJECT_PRESETS[qualificationId]) || [];
+        const sections = qualificationId === "ielts"
+          ? presets.filter((s) => !/speaking/i.test(s))
+          : presets;
+        course = window.createCourse({
+          title: qual.label,
+          subject: qual.label,
+          curriculumRef: { qualificationId },
+          topics: sections.map((sec) => ({ name: sec, module: sec, difficulty: 5, importance: 7, subtopics: [] })),
+          knowledgeBase: { status: "empty", chapters: [], glossary: [], sourceFiles: [], extractedAt: null, updatedAt: null },
+          source: "official",
+          verifiedByUser: true,
+        });
+      } else if (!sameCourse && courseDraft && courseDraft.topics && courseDraft.topics.length && window.createCourse) {
         course = window.createCourse(courseDraft);
       }
       const courseId = sameCourse ? lastExam.courseId : (course ? course.id : null);
       const newExams = window.commitExamWizard({
         examDrafts: [{
-          name: name.trim(),
+          name: name.trim() || qual.label,
           color: null,
           examDate,
           examBoard: sameCourse ? lastExam.examBoard : examBoard,
@@ -218,6 +241,7 @@ function Exams({ t, onPlanReady }) {
           courseId,
           kind,
           sessionLengthMin,
+          qualificationId: sameCourse ? lastExam.qualificationId : qualificationId,
         }],
         profilePatch: null,
       });
@@ -296,7 +320,20 @@ function Exams({ t, onPlanReady }) {
             <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
           </div>
 
-          {!sameCourse && (
+          {!sameCourse && sectionBased && (
+            <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-subtle)", background: "var(--surface-muted)", padding: "var(--space-3)" }}>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+                {L(`${qual.label} — sections`, `${qual.label} — секції`, `${qual.label} — секции`, `${qual.label} — sections`, `${qual.label} — Bereiche`)}
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {((window.SUBJECT_PRESETS && window.SUBJECT_PRESETS[qualificationId]) || []).filter((s) => qualificationId !== "ielts" || !/speaking/i.test(s)).map((sec) => (
+                  <span key={sec} style={{ fontSize: "var(--text-xs)", padding: "4px 10px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", color: "var(--text-body)" }}>{sec}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!sameCourse && !sectionBased && (
             <window.CurriculumStep
               countryId={profile.country || null}
               qualificationId={qualificationId}
