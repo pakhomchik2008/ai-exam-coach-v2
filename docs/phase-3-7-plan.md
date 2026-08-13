@@ -12,7 +12,7 @@ or new infra first, defer what does.
 | Slice | What's in it | Blocked on | Doing now? |
 |---|---|---|---|
 | **3.7a — MVP skill tree** | Tree schema + JSON for 1 exam, tree UI (list), Teach + Drill(MCQ+fill) + Prove + Bronze mastery, learn_progress store, existing dedup pipeline | nothing | **yes** |
-| **3.7b — Full exercise mix** | match / order / drag_drop / explain (with Sonnet rubric) types | nothing beyond MVP shipping first | next |
+| **3.7b — Full exercise mix** | match / order / drag_drop / explain (with Sonnet rubric) types | nothing beyond MVP shipping first | **this PR** (`phase-3.7b/exercise-mix`) |
 | **3.7c — Hearts + streak polish** | 5 hearts, 30-min regen, freeze token, streak accounting | nothing | after 3.7b |
 | **3.7d — SM-2 spaced repetition** | Silver/Gold/Legendary transitions, "Review today (N)" | 3.7a mastery in production first | after 3.7c |
 | **3.7e — Boss levels + prereqs + SVG tree** | Unit-end mini exam, prerequisite locks, SVG lines between nodes | 3.7a-b live | after 3.7d |

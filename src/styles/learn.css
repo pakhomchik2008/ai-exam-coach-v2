@@ -95,6 +95,26 @@
   font-weight: 700;
   font-size: 15px;
 }
+.learn-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.learn-match {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+.learn-match .learn-btn {
+  grid-column: 1 / -1;
+}
+.learn-match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .learn-btn--ghost {
   width: 100%;
   min-height: 40px;
