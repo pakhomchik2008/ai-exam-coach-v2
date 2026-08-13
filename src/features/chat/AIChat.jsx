@@ -3540,6 +3540,7 @@ function ChatMode({ onExit, initialQuery, t }) {
   // unrelated exam). Now it asks first: {action, step:"exam"|"topic", examId}.
   const [pickerFlow, setPickerFlow] = React.useState(null);
   const [pickerSearch, setPickerSearch] = React.useState("");
+  const [copiedId, setCopiedId] = React.useState(null);
 
   const brain = React.useMemo(() => window.getBrain ? window.getBrain() : {}, []);
   const profile = brain.profile || {};
@@ -3696,9 +3697,11 @@ Answer clearly. Use **bold** for key terms. Keep it under 150 words unless the s
 
 FORMATTING:
 - Write MATH using LaTeX: inline as $x^2 + 1$, display as $$\\frac{a}{b}$$. NEVER use ^, ², or unicode superscripts — the client renders LaTeX to real formulas.
+- Section titles as ## Title on their own line. The client renders them — never leave raw hashes in a sentence.
 - Use short paragraphs (2-3 sentences each). Blank line between paragraphs.
 - Bullet lists start with "- " on their own line.
 - Number multi-step solutions as "1. ", "2. ", etc.
+- Tables as GitHub pipes when comparing cases. Fenced code only for actual code.
 
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
@@ -3797,8 +3800,22 @@ If no actions fit, omit the ACTIONS line entirely.`,
           React.createElement("span", { style: { fontSize: 18 } }, a.icon),
           React.createElement("span", { style: { fontSize: 13, fontWeight: 500, color: "var(--text-body)" } }, a.text[t?.code] || a.text.en))))));
 
+  function copyCoachText(text, id) {
+    if (!text || !navigator.clipboard) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1600);
+    }).catch(() => {});
+  }
+  function onCoachCopyClick(e) {
+    const btn = e.target.closest("[data-copy]");
+    if (!btn) return;
+    e.preventDefault();
+    copyCoachText(btn.getAttribute("data-copy") || "", btn);
+  }
+
   // ── Chat messages — rendered below dashboard ──
-  const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 14 } },
+  const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 14 }, onClick: onCoachCopyClick },
     ...messages.map((m) =>
       React.createElement(React.Fragment, { key: m.id },
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
@@ -3810,14 +3827,18 @@ If no actions fit, omit the ACTIONS line entirely.`,
               : { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
             dangerouslySetInnerHTML: { __html: _md(m.text) }
           })),
-        // Action buttons after AI message
-        m.role === "ai" && m.actions && Array.isArray(m.actions) && m.actions.length > 0 && React.createElement("div", {
-          style: { display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 38 }
+        m.role === "ai" && React.createElement("div", {
+          style: { display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 38, alignItems: "center" }
         },
-          ...m.actions.map((a, i) => React.createElement("button", {
+          React.createElement("button", {
+            type: "button",
+            onClick: () => copyCoachText(m.text, m.id),
+            style: { padding: "6px 12px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" },
+          }, copiedId === m.id ? L("Copied", "Скопійовано", "Скопировано", "Copié", "Kopiert") : L("Copy", "Копіювати", "Копировать", "Copier", "Kopieren")),
+          ...(Array.isArray(m.actions) ? m.actions.map((a, i) => React.createElement("button", {
             key: i, onClick: () => send(a.text),
             style: { display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "var(--surface-card)", border: "1px solid var(--indigo-500)", borderRadius: 20, fontSize: 12, fontWeight: 600, color: "var(--indigo-700)", cursor: "pointer", fontFamily: "var(--font-sans)" }
-          }, a.icon && React.createElement("span", null, a.icon), a.text))))),
+          }, a.icon && React.createElement("span", null, a.icon), a.text)) : [])))),
     typing && React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
       React.createElement(CoachIcon, { size: 28 }),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },

@@ -48,6 +48,7 @@ describe("renderCoachMarkdown", () => {
     const html = renderCoachMarkdown("say **hello** there");
     expect(html).toContain("<strong>hello</strong>");
     expect(html).not.toContain("**");
+    expect(html).not.toContain("<p");
   });
 
   it("bolds a formula wrapped in stars — the fading-step case", () => {
@@ -68,7 +69,44 @@ describe("renderCoachMarkdown", () => {
 
   it("strips leftover unpaired ** so students never see stars", () => {
     const html = renderCoachMarkdown("oops **broken");
-    expect(html).toBe("oops broken");
+    expect(html).toContain("oops broken");
+    expect(html).not.toContain("**");
+  });
+
+  it("renders ## headings instead of leaking hashes", () => {
+    const html = renderCoachMarkdown("## Похідна\n\nA rate of change.");
+    expect(html).toContain("<h3");
+    expect(html).toContain("Похідна");
+    expect(html).not.toContain("## ");
+  });
+
+  it("renders bullet and numbered lists", () => {
+    const html = renderCoachMarkdown("- one\n- two\n\n1. first\n2. second");
+    expect(html).toContain("<ul");
+    expect(html).toContain("<ol");
+    expect(html).toContain("<li>one</li>");
+    expect(html).toContain("<li>first</li>");
+  });
+
+  it("renders a GFM table", () => {
+    const html = renderCoachMarkdown("| x | y |\n| --- | --- |\n| 1 | 2 |");
+    expect(html).toContain("<table");
+    expect(html).toContain("<th>x</th>");
+    expect(html).toContain("<td>1</td>");
+  });
+
+  it("renders a blockquote after HTML-escaping >", () => {
+    const html = renderCoachMarkdown("> remember the chain rule");
+    expect(html).toContain("<blockquote");
+    expect(html).toContain("remember the chain rule");
+    expect(html).not.toContain("&gt; remember");
+  });
+
+  it("keeps fenced code as a pre block, not leaked backticks", () => {
+    const html = renderCoachMarkdown("```\nconst x = 1;\n```");
+    expect(html).toContain("<pre");
+    expect(html).toContain("const x = 1;");
+    expect(html).not.toContain("```");
   });
 
   it("still escapes HTML in prose", () => {
