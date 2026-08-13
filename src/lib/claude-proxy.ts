@@ -49,7 +49,7 @@ async function complete(arg: CompleteArg): Promise<string> {
           ? data.error
           : data.error
             ? JSON.stringify(data.error)
-            : "proxy error";
+            : "Local API is not running. Second terminal: npm run dev:api";
     const err: ProxyError = new Error(msg);
     err.status = res.status;
     throw err;

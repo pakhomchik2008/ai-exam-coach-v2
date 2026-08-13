@@ -9,4 +9,7 @@ interface ImportMetaEnv {
 interface Window {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OneSignal ships no types
   OneSignalDeferred?: Array<(oneSignal: any) => void>;
+  playSound?: (name: "tap" | "select" | "correct" | "wrong" | "complete" | "level") => void;
+  previewSound?: (name: "tap" | "select" | "correct" | "wrong" | "complete" | "level") => void;
+  SOUND_NAMES?: readonly string[];
 }

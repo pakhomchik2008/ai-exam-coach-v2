@@ -80,6 +80,8 @@ function migrateProfile(raw) {
     // per-trigger, matching what a footer link can realistically offer.
     notifUnsubscribed: typeof p.notifUnsubscribed === "boolean" ? p.notifUnsubscribed : false,
     hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
+    // Phase 4 sound kit. Spec default is off — existing profiles stay silent.
+    soundsEnabled: typeof p.soundsEnabled === "boolean" ? p.soundsEnabled : false,
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",
     currentYear: typeof p.currentYear === "string" ? p.currentYear : "",

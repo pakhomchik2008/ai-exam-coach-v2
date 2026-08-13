@@ -17,6 +17,7 @@ interface Profile {
   blackoutSlots: unknown[];
   materials: string[];
   prefs: string[];
+  soundsEnabled: boolean;
 }
 
 const migrateProfile = (window as unknown as { migrateProfile: (raw: unknown) => Profile })
@@ -76,6 +77,16 @@ describe("migrateProfile — weeklyHours", () => {
 
   it("keeps a sane positive value", () => {
     expect(migrateProfile({ weeklyHours: 20 }).weeklyHours).toBe(20);
+  });
+});
+
+describe("migrateProfile — soundsEnabled defaults off", () => {
+  it("is false on a blank profile", () => {
+    expect(migrateProfile(null).soundsEnabled).toBe(false);
+  });
+
+  it("preserves an explicit true", () => {
+    expect(migrateProfile({ soundsEnabled: true }).soundsEnabled).toBe(true);
   });
 });
 
