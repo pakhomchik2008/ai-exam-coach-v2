@@ -1,15 +1,14 @@
 /**
- * Phase 4 marketing page — eight sections, teal-drench hero, no fake quotes.
- * First paint is centered type + exam marquee. Scroll splits copy / Learn
- * mock / predictor. Auth stays in Landing.jsx.
+ * Phase 4 marketing page. Hero splits on scroll; the next track is a
+ * horizontal reel (chat / Learn / geometry / calendar). Auth stays in Landing.jsx.
  */
 import React from "react";
-import { BrandMark } from "../../brand/BrandMark";
+import { BrandLockup, BrandMark } from "../../brand/BrandMark";
 import { ExamMarquee } from "./ExamMarquee";
+import { FeatureReel } from "./FeatureReel";
 import { LearnScreen } from "./LearnScreen";
 import { OrbitField } from "./OrbitField";
 import { PredictorChart } from "./PredictorChart";
-import { ProductTheater } from "./ProductTheater";
 
 const CTA_DAYS = [
   ["1", "land_cta_d1"],
@@ -57,14 +56,29 @@ function useSplitProgress() {
 
 const FAQ_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-const FEATURES = [
-  ["predictor", "feat-predictor"],
-  ["novelty", "feat-novelty"],
-  ["plan", "feat-plan"],
-  ["exam", "feat-exam"],
-  ["sync", "feat-sync"],
-  ["streak", "feat-streak"],
-];
+function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
+  return (
+    <div className="land-cta">
+      {withTimeline ? (
+        <div className="land-cta-primary">
+          <ol className="land-cta-tl">
+            {CTA_DAYS.map(([day, key]) => (
+              <li key={day}>
+                <b>{t.land_cta_day} {day}</b>
+                <span>{t[key]}</span>
+              </li>
+            ))}
+          </ol>
+          <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_cta_trial}</button>
+        </div>
+      ) : (
+        <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_cta_trial}</button>
+      )}
+      <button type="button" className="land-btn land-btn-ghost" onClick={tap(onLogin)}>{t.land_cta_login}</button>
+      <button type="button" className="land-btn land-btn-demo" onClick={tap(onDemo)}>{t.land_cta_demo}</button>
+    </div>
+  );
+}
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const [annual, setAnnual] = React.useState(true);
@@ -120,6 +134,18 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         style={{ "--split": split }}
       >
         <div className="land-hero-sticky">
+          <svg className="land-hero-graph" viewBox="0 0 1200 640" aria-hidden="true">
+            <polyline
+              className="land-hero-line"
+              points="40,560 180,500 320,520 520,340 760,280 1040,80 1160,40"
+              fill="none"
+              stroke="rgba(245,245,244,0.16)"
+              strokeWidth="16"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <rect x="1144" y="16" width="32" height="32" rx="4" transform="rotate(45 1162 34)" fill="#F3D062" />
+          </svg>
           <div className="land-hero-stage">
             <div className="land-hero-copy">
               <h1 className="land-headline" id="content">
@@ -128,23 +154,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
                 ))}
               </h1>
               <p className="land-sub">{t.land_hero_sub}</p>
-              <div className="land-cta">
-                <div className="land-cta-primary">
-                  <ol className="land-cta-tl">
-                    {CTA_DAYS.map(([day, key]) => (
-                      <li key={day}>
-                        <b>{t.land_cta_day} {day}</b>
-                        <span>{t[key]}</span>
-                      </li>
-                    ))}
-                  </ol>
-                  <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>
-                    {t.land_cta_trial}
-                  </button>
-                </div>
-                <button type="button" className="land-btn land-btn-ghost" onClick={tap(onLogin)}>{t.land_cta_login}</button>
-              </div>
-              <button type="button" className="land-demo-link" onClick={tap(onDemo)}>{t.land_cta_demo}</button>
+              <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} withTimeline />
             </div>
             <div className="land-hero-shot">
               <LearnScreen lang={lang} />
@@ -159,38 +169,11 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         </div>
       </section>
 
-      <section className="land-demo" aria-labelledby="land-demo-title">
-        <div className="land-wrap">
-          <h2 id="land-demo-title">{t.land_demo_title}</h2>
-          <p className="land-lede">{t.land_demo_sub}</p>
-          <ProductTheater labels={{ predictor: t.land_demo_predictor, practice: t.land_demo_practice, chat: t.land_demo_chat }} />
-        </div>
-      </section>
-
-      <section className="land-features" id="features" aria-labelledby="land-feat-title">
-        <div className="land-wrap">
-          <h2 id="land-feat-title" className="visually-hidden">{t.land_nav_features}</h2>
-          <div className="land-feat-grid">
-            {FEATURES.map(([id, mod], i) => (
-              <article key={id} className={`land-feat land-${mod}`} style={{ "--i": i }}>
-                <h3>{t[`land_feat_${id}_title`]}</h3>
-                <p>{t[`land_feat_${id}_body`]}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="land-proof" aria-labelledby="land-proof-title">
-        <div className="land-wrap">
-          <h2 id="land-proof-title">{t.land_proof_title}</h2>
-          <p className="land-lede">{t.land_proof_body}</p>
-          <blockquote className="land-founder">
-            <p>{t.land_proof_founder}</p>
-          </blockquote>
-          <p className="land-exams">{t.land_proof_exams}</p>
-        </div>
-      </section>
+      <FeatureReel
+        t={t}
+        lang={lang}
+        actions={<CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} />}
+      />
 
       <section className="land-pricing" id="pricing" aria-labelledby="land-price-title">
         <div className="land-wrap">
@@ -228,12 +211,16 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           </div>
           <p className="land-price-note">{t.land_price_note}</p>
           <p className="land-price-note">{t.land_price_ua}</p>
+          <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} />
         </div>
       </section>
 
       <section className="land-faq" id="faq" aria-labelledby="land-faq-title">
         <div className="land-wrap land-faq-wrap">
-          <h2 id="land-faq-title">{t.land_faq_title}</h2>
+          <div>
+            <h2 id="land-faq-title">{t.land_faq_title}</h2>
+            <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} />
+          </div>
           <div className="land-faq-list">
             {FAQ_IDS.map((n) => (
               <details
@@ -255,10 +242,10 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
             <p>{t.land_about_p1}</p>
             <p>{t.land_about_p2}</p>
             <p>{t.land_about_p3}</p>
+            <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} />
           </div>
           <div className="land-about-panel" aria-hidden="true">
-            <BrandMark size={72} framed />
-            <span className="land-wordmark">{t.land_wordmark}</span>
+            <BrandLockup width={220} />
           </div>
         </div>
       </section>

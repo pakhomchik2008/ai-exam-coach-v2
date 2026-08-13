@@ -1,6 +1,7 @@
 /* Phase 4 landing — committed teal, night-desk, one signature draw. */
 
 .land {
+  --land-nav-h: 56px;
   --land-teal: #1B4D4A;
   --land-teal-deep: #102E2C;
   --land-ink: #0E0F10;
@@ -47,10 +48,11 @@
 }
 
 .land-wordmark {
-  font-family: var(--land-mono);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  font-size: 0.78rem;
+  text-transform: uppercase;
 }
 
 /* —— nav —— */
@@ -137,6 +139,21 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.land-hero-graph {
+  position: absolute;
+  right: -10%;
+  bottom: -8%;
+  width: 72%;
+  height: auto;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.9;
+}
+.land-hero-line {
+  stroke-dasharray: 1800;
+  stroke-dashoffset: 1800;
+  animation: land-draw 1600ms var(--land-ease) 200ms forwards;
 }
 .land-hero-stage {
   position: relative;
@@ -243,6 +260,11 @@
   background: var(--land-amber);
   color: var(--land-ink);
 }
+.land-btn-demo {
+  background: transparent;
+  color: var(--land-amber);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--land-amber) 55%, transparent);
+}
 .land-demo-link {
   display: inline-block;
   margin-top: 16px;
@@ -306,27 +328,56 @@
 /* —— chart + orbits —— */
 .land-orbit {
   position: relative;
-  padding: 36px 28px;
+  width: min(420px, 100%);
+  aspect-ratio: 10 / 7;
+  margin-inline: auto;
+  display: grid;
+  place-items: center;
+}
+.land-orbit-rings {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.land-orbit-rings ellipse {
+  fill: none;
+  stroke: rgba(245, 245, 244, 0.14);
+  stroke-width: 1;
+}
+.land-orbit-core {
+  position: relative;
+  z-index: 1;
+  width: min(280px, 72%);
 }
 .land-orb {
   position: absolute;
   left: 0;
   top: 0;
-  width: 20px;
-  height: 20px;
-  color: color-mix(in srgb, var(--land-wash) 70%, var(--land-amber));
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--land-teal-deep) 82%, black);
+  color: var(--land-amber);
+  box-shadow:
+    0 0 0 1px rgba(243, 208, 98, 0.32),
+    0 10px 22px rgba(8, 16, 15, 0.28);
   offset-path: ellipse(var(--rx) var(--ry) at 50% 50%);
   offset-distance: var(--start);
   offset-rotate: 0deg;
+  offset-anchor: center;
   animation:
     land-orbit var(--dur) linear infinite,
-    land-orb-fade calc(var(--dur) * 0.55) ease-in-out infinite;
+    land-orb-fade calc(var(--dur) * 0.5) ease-in-out infinite;
   pointer-events: none;
 }
 .land-orb svg {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 .land-chart {
   margin: 0;
@@ -479,6 +530,126 @@
 .land-learn-medal.is-bronze { background: #b0752c; }
 .land-learn-medal.is-unlocked { box-shadow: inset 0 0 0 1.4px #8892a8; }
 .land-learn-medal.is-locked { background: #C8C6C1; }
+
+/* —— horizontal feature reel —— */
+.land-reel {
+  --reel: 0;
+  min-height: 320vh;
+  background: var(--land-ink);
+  color: var(--land-wash);
+}
+.land-reel-sticky {
+  position: sticky;
+  top: var(--land-nav-h, 56px);
+  height: calc(100svh - var(--land-nav-h, 56px));
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 16px;
+  padding: 28px 0 20px;
+  overflow: hidden;
+}
+.land-reel-copy {
+  width: min(1120px, calc(100% - 40px));
+  margin-inline: auto;
+}
+.land-reel-copy .land-lede { margin-bottom: 16px; }
+.land-reel-copy h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  max-width: 22ch;
+}
+.land-reel-viewport {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+.land-reel-track {
+  display: flex;
+  gap: 22px;
+  height: 100%;
+  padding-inline: 8vw;
+  width: max-content;
+  transform: translate3d(calc(var(--reel) * -76vw), 0, 0);
+  will-change: transform;
+}
+.land-reel-panel {
+  flex: 0 0 min(720px, 72vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 22px 18px;
+  border-radius: 24px;
+  background: #161817;
+  overflow: hidden;
+}
+.land-reel-panel > p:not(.land-scene-kicker) {
+  margin: 0 0 8px;
+  max-width: 46ch;
+  color: color-mix(in srgb, var(--land-wash) 72%, transparent);
+  line-height: 1.45;
+}
+.land-reel-panel .land-learn {
+  max-width: 360px;
+}
+.land-reel-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: min(1120px, calc(100% - 40px));
+  margin-inline: auto;
+}
+.land-reel-dots button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  opacity: 0.45;
+}
+.land-reel-dots button.is-on {
+  opacity: 1;
+  background: color-mix(in srgb, var(--land-wash) 12%, transparent);
+}
+.land-reel-chat { margin-top: 8px; }
+.land-cal ol {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+.land-cal li {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 110px;
+  padding: 10px 8px;
+  border-radius: 14px;
+  background: #111312;
+  box-shadow: inset 0 0 0 1px rgba(245, 245, 244, 0.08);
+}
+.land-cal b {
+  font-family: var(--land-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.land-cal span {
+  margin-top: auto;
+  font-size: 0.85rem;
+  color: color-mix(in srgb, var(--land-wash) 70%, transparent);
+}
+.land-cal li.is-on { background: color-mix(in srgb, var(--land-teal) 55%, black); }
+.land-cal li.is-exam {
+  background: var(--land-amber);
+  color: var(--land-ink);
+}
+.land-cal li.is-exam span { color: inherit; }
 
 /* —— demo theater —— */
 .land-demo {
@@ -760,14 +931,24 @@
   line-height: 1.55;
   color: color-mix(in srgb, var(--land-wash) 82%, var(--land-teal));
 }
+.land-about .land-cta,
+.land-pricing .land-cta,
+.land-faq .land-cta {
+  margin-top: 22px;
+  justify-content: flex-start;
+}
 .land-about-panel {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 48px 24px;
-  background: var(--land-teal-deep);
+  justify-content: center;
+  padding: 0;
+  background: var(--land-teal);
   border-radius: 28px;
+  overflow: hidden;
+}
+.land-about-panel svg {
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
 }
 
 /* —— footer / legal —— */
@@ -831,7 +1012,7 @@
   to { offset-distance: calc(var(--start) + 100%); }
 }
 @keyframes land-orb-fade {
-  50% { opacity: 0.38; }
+  50% { opacity: 0.62; }
 }
 .land-auth {
   animation: land-auth 420ms var(--land-ease) both;
@@ -879,7 +1060,28 @@
     justify-content: center;
   }
   .land-cta { justify-content: center; }
-  .land-orb { display: none; }
+  .land-hero-graph { width: 140%; right: -28%; opacity: 0.55; }
+  .land-reel { min-height: 0; }
+  .land-reel-sticky {
+    position: relative;
+    top: auto;
+    height: auto;
+    padding: 48px 0 36px;
+  }
+  .land-reel-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    mask-image: none;
+  }
+  .land-reel-track {
+    transform: none;
+    padding-inline: 20px;
+  }
+  .land-reel-panel {
+    flex-basis: min(86vw, 420px);
+    scroll-snap-align: center;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -893,17 +1095,25 @@
     min-height: calc(100svh - 88px);
   }
   .land-headline span,
+  .land-hero-line,
   .land-chart-line,
   .land-chart-fill,
   .land-chart-diamond,
   .land-auth,
   .land-marquee-track,
-  .land-orb {
+  .land-orb,
+  .land-reel-track {
     animation: none;
     filter: none;
     opacity: 1;
     stroke-dashoffset: 0;
     transform: none;
+  }
+  .land-reel { min-height: 0; }
+  .land-reel-sticky {
+    position: relative;
+    top: auto;
+    height: auto;
   }
   .land-orb {
     offset-distance: var(--start);

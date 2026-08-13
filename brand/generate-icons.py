@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Rasterise the exam.coach mark into PNG + iOS AppIcon.appiconset.
+"""Rasterise the EXAM COACH mark into PNG + iOS AppIcon.appiconset.
 
 Why a stdlib PNG writer: we refuse a new dependency for one utility
-(see CLAUDE.md). The geometry matches brand/logo.svg exactly.
+(see CLAUDE.md). Geometry matches brand/logo.svg: open book, three
+rising bars, forecast arrow.
 """
 from __future__ import annotations
 
 import math
-import os
 import struct
 import zlib
 from pathlib import Path
@@ -18,20 +18,21 @@ BRAND_OUT = PUBLIC / "brand"
 APPICON = BRAND_OUT / "appicon" / "AppIcon.appiconset"
 
 TEAL = (0x1B, 0x4D, 0x4A, 0xFF)
-LINE = (0xF5, 0xF5, 0xF4, 0xFF)
-AMBER = (0xF3, 0xD0, 0x62, 0xFF)
+GOLD = (0xD4, 0xB3, 0x6A, 0xFF)
 CLEAR = (0, 0, 0, 0)
 
-# ViewBox 64 coordinates from brand/logo.svg
-POINTS = [(10, 48), (18, 40), (28, 42), (36, 28), (46, 24), (54, 14)]
-STROKE = 3.2
-DIAMOND_C = (54.3, 13.5)
-DIAMOND_HALF = 4.4  # diagonal of 6.2 square / √2 ≈ 4.38
+STROKE = 2.3
 CORNER_R = 14.0
 
-
-def lerp(a: float, b: float, t: float) -> float:
-    return a + (b - a) * t
+BOOK = [(9, 22), (32, 16), (55, 22), (55, 46), (32, 52), (9, 46), (9, 22)]
+SPINE = [(32, 16), (32, 52)]
+ARROW = [(15, 43), (22, 40), (28, 34), (35, 28), (42, 23), (51, 19)]
+HEAD = [(51, 19), (45.6, 17.4), (47.8, 23.2)]
+BARS = [
+    (19.2, 36.5, 5.6, 9.2),
+    (29.2, 30.2, 5.6, 15.5),
+    (39.2, 24.2, 5.6, 21.5),
+]
 
 
 def dist2(ax: float, ay: float, bx: float, by: float) -> float:
@@ -41,65 +42,74 @@ def dist2(ax: float, ay: float, bx: float, by: float) -> float:
 
 def dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
     vx, vy = bx - ax, by - ay
-    len2 = vx * vx + vy * vy
-    if len2 == 0:
+    length = vx * vx + vy * vy
+    if length == 0:
         return math.sqrt(dist2(px, py, ax, ay))
-    t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / len2))
+    t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / length))
     return math.sqrt(dist2(px, py, ax + t * vx, ay + t * vy))
+
+
+def near_poly(px: float, py: float, pts: list[tuple[float, float]], half: float) -> bool:
+    for i in range(len(pts) - 1):
+        if dist_to_segment(px, py, *pts[i], *pts[i + 1]) <= half:
+            return True
+    return False
 
 
 def inside_round_rect(x: float, y: float, size: float) -> bool:
     r = CORNER_R / 64.0 * size
-    # clamp point into the inner rectangle, then measure leftover
     ix = min(max(x, r), size - r)
     iy = min(max(y, r), size - r)
-    # if the clamped point is the pixel itself, we're in the body
     if abs(ix - x) < 1e-6 and abs(iy - y) < 1e-6:
         return True
     return dist2(x, y, ix, iy) <= r * r
 
 
-def inside_diamond(x: float, y: float, size: float) -> bool:
-    s = size / 64.0
-    cx, cy = DIAMOND_C[0] * s, DIAMOND_C[1] * s
-    h = DIAMOND_HALF * s
-    return abs(x - cx) + abs(y - cy) <= h
+def inside_rect(px: float, py: float, x: float, y: float, w: float, h: float) -> bool:
+    return x <= px <= x + w and y <= py <= y + h
 
 
-def near_polyline(x: float, y: float, size: float) -> bool:
-    s = size / 64.0
-    half = (STROKE / 2.0) * s
-    pts = [(p[0] * s, p[1] * s) for p in POINTS]
-    for i in range(len(pts) - 1):
-        if dist_to_segment(x, y, *pts[i], *pts[i + 1]) <= half:
+def inside_triangle(px: float, py: float, pts: list[tuple[float, float]]) -> bool:
+    (x1, y1), (x2, y2), (x3, y3) = pts
+    den = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+    if abs(den) < 1e-9:
+        return False
+    a = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / den
+    b = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / den
+    c = 1 - a - b
+    return a >= 0 and b >= 0 and c >= 0
+
+
+def paint(px: float, py: float) -> bool:
+    half = STROKE / 2.0
+    if near_poly(px, py, BOOK, half) or near_poly(px, py, SPINE, half) or near_poly(px, py, ARROW, half):
+        return True
+    if inside_triangle(px, py, HEAD):
+        return True
+    for x, y, w, h in BARS:
+        if inside_rect(px, py, x, y, w, h):
             return True
     return False
 
 
 def render(size: int, background: bool) -> list[list[tuple[int, int, int, int]]]:
     rows = []
+    scale = size / 64.0
     for y in range(size):
         row = []
-        cy = y + 0.5
+        cy = (y + 0.5) / scale
         for x in range(size):
-            cx = x + 0.5
+            cx = (x + 0.5) / scale
+            marked = paint(cx, cy)
             if background:
-                if not inside_round_rect(cx, cy, size):
+                if not inside_round_rect(x + 0.5, y + 0.5, size):
                     row.append(CLEAR)
-                    continue
-                if inside_diamond(cx, cy, size):
-                    row.append(AMBER)
-                elif near_polyline(cx, cy, size):
-                    row.append(LINE)
+                elif marked:
+                    row.append(GOLD)
                 else:
                     row.append(TEAL)
             else:
-                if inside_diamond(cx, cy, size):
-                    row.append(AMBER)
-                elif near_polyline(cx, cy, size):
-                    row.append(TEAL)
-                else:
-                    row.append(CLEAR)
+                row.append(GOLD if marked else CLEAR)
         rows.append(row)
     return rows
 
