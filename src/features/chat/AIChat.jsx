@@ -4191,7 +4191,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
           name: localize(row.node.title, t?.code || "en"),
           unitTitle: localize(row.unit.title, t?.code || "en"),
           studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
-          premium: topicIsLocked(row.index, flat.length),
+          premium: topicIsLocked(row.index, flat.length, row.node.id),
           index: row.index,
           total: flat.length,
         };

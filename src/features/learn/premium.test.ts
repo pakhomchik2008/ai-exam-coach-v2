@@ -13,4 +13,9 @@ describe("freeTopicLimit", () => {
     expect(topicIsLocked(23, 47)).toBe(true);
     expect(isPremiumIndex(5, 10)).toBe(true);
   });
+
+  it("never locks a Speaking node — the unit is last in the tree", () => {
+    expect(topicIsLocked(37, 38, "s-01")).toBe(false);
+    expect(topicIsLocked(20, 24, "tf-speak-02")).toBe(false);
+  });
 });

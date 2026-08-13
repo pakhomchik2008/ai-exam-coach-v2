@@ -889,7 +889,7 @@ function LearnMain({ t }) {
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
           const unlockedNow = justUnlocked === node.id;
           const idx = indexById.has(node.id) ? indexById.get(node.id) : -1;
-          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal);
+          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal, node.id);
           return React.createElement("button", {
             key: node.id,
             type: "button",
