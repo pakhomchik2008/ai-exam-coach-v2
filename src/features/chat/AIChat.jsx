@@ -4031,6 +4031,9 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   }, [initialQuery]);
 
   const exitToLobby = () => { setMode(null); setTopic(null); setTopicPicker(false); setReviewTopic(null); setPracticeSeed(null); };
+  // Learn back stays on the topic folders — lobby forces an extra tap
+  // through the mode cards just to pick the next section.
+  const exitToLearnTopics = () => { setTopic(null); setMode(null); setTopicPicker(true); };
   const drillTopics = (examId, topics) => { setPracticeSeed({ examId, topics }); setMode("practice"); };
   // Finishing one review returns to the QUEUE (not the lobby) so "clear the
   // stack" is one continuous flow — the queue re-derives from the brain, so
@@ -4038,7 +4041,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const exitToQueue = () => setReviewTopic(null);
 
   // Active mode screens
-  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLobby, t });
+  if (mode === "learn" && topic) return React.createElement(LessonEngine, { topic, mode: "learn", onExit: exitToLearnTopics, t });
   if (mode === "chat") return React.createElement(ChatMode, { onExit: exitToLobby, initialQuery: pendingChatQuery, t });
 
   // Review mode — Quick Check session from the queue
