@@ -71,6 +71,7 @@ export function SocraticDialog({ topic, onExit, t }) {
       mistakes: mistakeSnippet(topic),
       hintUsed: nextHint,
       surrendered: nextSurrender,
+      justSurrendered: flags.justSurrendered === true,
       turnCount: history.filter((m) => m.role === "user").length,
     });
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
@@ -119,7 +120,8 @@ export function SocraticDialog({ topic, onExit, t }) {
     try {
       const turn = await askCoach(trimmed, flags);
       setTurns((prev) => [...prev, { role: "coach", ...turn }]);
-      if (turn.kind === "done") setDone(true);
+      // Surrender must stay open for practice — ignore a premature "done".
+      if (turn.kind === "done" && !flags.justSurrendered) setDone(true);
     } catch (e) {
       setError(e.message || L("Failed to load", "Не вдалося завантажити", "Не удалось загрузить", "Échec du chargement", "Fehler beim Laden"));
     } finally {
@@ -138,12 +140,11 @@ export function SocraticDialog({ topic, onExit, t }) {
   }
 
   function surrender() {
-    if (surrendered || loading) return;
+    if (surrendered || loading || done) return;
     setSurrendered(true);
-    setDone(true);
     send(
-      "[SURRENDER] Explain fully now.",
-      { surrendered: true },
+      "[SURRENDER] Explain fully, then give two short practice problems. Do not end the dialogue.",
+      { surrendered: true, justSurrendered: true },
       L("I give up — show me", "Здаюсь, покажи", "Сдаюсь, покажи", "J’abandonne", "Zeig es mir"),
     );
   }
