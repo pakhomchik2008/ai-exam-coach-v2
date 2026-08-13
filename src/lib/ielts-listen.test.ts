@@ -26,12 +26,12 @@ describe("isIeltsSpeakingTopic", () => {
 });
 
 describe("dropIeltsSpeakingTopics", () => {
-  it("strips Speaking from an IELTS topic list", () => {
+  it("keeps Speaking now that Whisper is live", () => {
     const kept = dropIeltsSpeakingTopics(
       ["Listening", "Reading", "Writing", "Speaking"],
       (n) => n,
       "ielts",
     );
-    expect(kept).toEqual(["Listening", "Reading", "Writing"]);
+    expect(kept).toEqual(["Listening", "Reading", "Writing", "Speaking"]);
   });
 });

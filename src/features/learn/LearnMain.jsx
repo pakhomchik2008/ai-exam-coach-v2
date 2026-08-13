@@ -13,6 +13,8 @@ import { treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
 import { freeTopicLimit, topicIsLocked } from "./premium";
 import { ProSheet } from "./ProSheet.jsx";
+import { SpeakingDialog } from "./SpeakingDialog.jsx";
+import { isSpeakingTreeNode } from "./speaking";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
 import { renderCoachMarkdown } from "../../lib/math-render";
@@ -802,6 +804,16 @@ function LearnMain({ t }) {
   }
 
   if (running) {
+    if (isSpeakingTreeNode(running.node.id)) {
+      return React.createElement(SpeakingDialog, {
+        topic: localize(running.node.title, lang),
+        t,
+        onExit: () => exitRunner(null),
+        onPassed: () => {
+          if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, running.node.id, "bronze");
+        },
+      });
+    }
     return React.createElement(NodeRunner, {
       tree, unit: running.unit, node: running.node, lang, t,
       skipToProve: !!running.skipToProve,
@@ -876,7 +888,7 @@ function LearnMain({ t }) {
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
           const unlockedNow = justUnlocked === node.id;
           const idx = indexById.has(node.id) ? indexById.get(node.id) : -1;
-          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal);
+          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal, node.id);
           return React.createElement("button", {
             key: node.id,
             type: "button",

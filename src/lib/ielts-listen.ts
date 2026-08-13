@@ -1,7 +1,8 @@
 /**
  * IELTS Listening is an audio paper. Quick Check must not serve silent
- * reading items for that section. Speaking is out of scope (no mic / no
- * Whisper) — hide it so we don't pretend we can coach it.
+ * reading items for that section. Speaking used to be hidden (no mic).
+ * 3.7g un-hid it — dropIeltsSpeakingTopics is now a no-op so old callers
+ * keep compiling.
  */
 
 export function isIeltsQual(qualificationId: string | null | undefined): boolean {
@@ -29,6 +30,7 @@ export function dropIeltsSpeakingTopics<T>(
   nameOf: (item: T) => string,
   qualificationId?: string | null,
 ): T[] {
-  if (!isIeltsQual(qualificationId)) return items.slice();
-  return items.filter((item) => !isIeltsSpeakingTopic(nameOf(item), qualificationId));
+  void nameOf;
+  void qualificationId;
+  return items.slice();
 }
