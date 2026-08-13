@@ -416,8 +416,11 @@ function LearnMain({ t }) {
     tree: treeForExam(exam),
     label: window.examDisplayName ? window.examDisplayName(exam) : exam.name,
   })).filter((o) => o.tree);
+  // Never auto-enter a tree when the student has more than one exam — even
+  // if only one currently resolves. Otherwise Learn opens Chemistry and
+  // hides Mathematics with no way back.
   const [pickedId, setPickedId] = React.useState(() => (
-    options.length === 1 ? options[0].exam.id : null
+    exams.length === 1 && options.length === 1 ? options[0].exam.id : null
   ));
   const selected = options.find((o) => o.exam.id === pickedId) || null;
   const tree = selected ? selected.tree : null;
@@ -442,8 +445,9 @@ function LearnMain({ t }) {
   const startBtnRef = React.useRef(null);
 
   React.useEffect(() => {
-    const unsub = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
-    return () => unsub && unsub();
+    const unsubLearn = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
+    const unsubExams = window.subscribeExams && window.subscribeExams(() => setTick((n) => n + 1));
+    return () => { unsubLearn && unsubLearn(); unsubExams && unsubExams(); };
   }, []);
 
   React.useEffect(() => { enterOnceRef.current = false; }, []);
@@ -564,11 +568,26 @@ function LearnMain({ t }) {
     style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
   },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
-      options.length > 1 && React.createElement("button", {
-        type: "button",
-        onClick: () => { setRunning(null); setOpenNode(null); setPickedId(null); },
-        style: { border: "none", background: "transparent", padding: 0, marginBottom: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 600, color: "var(--indigo-600)" },
-      }, L("← All exams", "← Усі іспити", "← Все экзамены", "← Tous les examens", "← Alle Prüfungen")),
+      options.length > 1 && React.createElement("div", {
+        style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+      },
+        ...options.map((o) => {
+          const on = o.exam.id === pickedId;
+          return React.createElement("button", {
+            key: o.exam.id,
+            type: "button",
+            className: "ux-press",
+            onClick: () => { setOpenNode(null); setPickedId(o.exam.id); },
+            style: {
+              minHeight: 36, padding: "8px 14px", borderRadius: "var(--radius-full)",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)",
+              border: on ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+              background: on ? "var(--indigo-50)" : "var(--surface-card)",
+              color: on ? "var(--indigo-700)" : "var(--text-body)",
+            },
+          }, o.label);
+        }),
+      ),
       React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
       React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
       React.createElement("div", {
