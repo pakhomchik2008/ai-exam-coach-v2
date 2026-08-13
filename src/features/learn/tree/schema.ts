@@ -57,6 +57,19 @@ export function totalNodeCount(tree: LearnTree): number {
   return tree.units.reduce((sum, u) => sum + u.nodes.length, 0);
 }
 
+// Lesson-only flatten. Boss nodes stay out of the free/Pro split so a
+// synthetic unit boss never eats a free slot.
+export function flattenLessonNodes(tree: LearnTree): readonly { node: LearnNode; unit: LearnUnit; index: number }[] {
+  const out: { node: LearnNode; unit: LearnUnit; index: number }[] = [];
+  for (const unit of tree.units) {
+    for (const node of unit.nodes) {
+      if (isBossNode(node)) continue;
+      out.push({ node, unit, index: out.length });
+    }
+  }
+  return out;
+}
+
 // Localizes an I18nString against a language code, falling back to English
 // the same way every other i18n site in this app does (see AIChat.jsx's L()).
 export function localize(str: I18nString, lang: string): string {

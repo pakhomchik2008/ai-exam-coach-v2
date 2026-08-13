@@ -82,6 +82,9 @@ function migrateProfile(raw) {
     hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
     // Phase 4 sound kit. Spec default is off — existing profiles stay silent.
     soundsEnabled: typeof p.soundsEnabled === "boolean" ? p.soundsEnabled : false,
+    // Manual Pro flag until Stripe exists. Learn locks the second half of
+    // each tree unless this is true.
+    pro: p.pro === true,
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",
     currentYear: typeof p.currentYear === "string" ? p.currentYear : "",
