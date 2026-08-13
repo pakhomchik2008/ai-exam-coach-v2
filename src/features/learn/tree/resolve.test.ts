@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { alevelTreeSlug, nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
-import { getTree } from "./index";
+import { availableTaxonomies, getTree } from "./index";
 
 describe("nmtTreeSlug", () => {
   it("splits NMT language from NMT math", () => {
@@ -26,9 +26,29 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "IELTS", qualificationId: "ielts" })).toBe("ielts");
   });
 
-  it("does not fall through to math for SAT", () => {
-    expect(treeKeyForExam({ name: "SAT", qualificationId: "sat" })).toBeNull();
-    expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "sat" })).toBeNull();
+  it("opens the combined SAT tree instead of NMT math", () => {
+    expect(treeKeyForExam({ name: "SAT", qualificationId: "sat" })).toBe("sat");
+    expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "sat" })).toBe("sat");
+    expect(treeForExam({ name: "SAT", qualificationId: "sat" })?.examTaxonomy).toBe("sat");
+  });
+
+  it("opens section exams as one tree", () => {
+    expect(treeKeyForExam({ name: "ACT", qualificationId: "act" })).toBe("act");
+    expect(treeKeyForExam({ name: "TOEFL", qualificationId: "toefl" })).toBe("toefl");
+    expect(treeKeyForExam({ name: "Duolingo", qualificationId: "duolingo" })).toBe("duolingo");
+  });
+
+  it("splits GCSE / AP / Matura subjects", () => {
+    expect(treeKeyForExam({ name: "GCSE Mathematics", qualificationId: "gcse" })).toBe("gcse-math");
+    expect(treeKeyForExam({ name: "GCSE Combined Science", qualificationId: "gcse" })).toBe("gcse-sci");
+    expect(treeKeyForExam({ name: "AP Calculus BC", qualificationId: "ap" })).toBe("ap-calc-bc");
+    expect(treeKeyForExam({ name: "AP Calculus AB", qualificationId: "ap" })).toBe("ap-calc-ab");
+    expect(treeKeyForExam({ name: "Matura Matematyka", qualificationId: "matura" })).toBe("matura-math");
+    expect(treeKeyForExam({ name: "Abitur Deutsch", qualificationId: "abitur" })).toBe("abitur-de");
+  });
+
+  it("still finds SAT when the stored qualificationId is a stale GCSE", () => {
+    expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "gcse" })).toBe("sat");
   });
 
   it("still finds NMT language when the stored qualificationId is a stale GCSE", () => {
@@ -86,6 +106,23 @@ describe("treeForExam", () => {
     expect(math?.examTaxonomy).toBe("alevel-math");
     expect(chem?.examTaxonomy).toBe("alevel-chem");
     expect(math).not.toBe(chem);
+  });
+
+  it("does not register a bare subject-split qualification key", () => {
+    expect(getTree("gcse")).toBeNull();
+    expect(getTree("ap")).toBeNull();
+    expect(getTree("ib")).toBeNull();
+    expect(getTree("matura")).toBeNull();
+    expect(getTree("abitur")).toBeNull();
+  });
+
+  it("keeps node ids unique inside every registered tree", () => {
+    for (const key of availableTaxonomies()) {
+      const tree = getTree(key);
+      expect(tree, key).toBeTruthy();
+      const ids = tree!.units.flatMap((u) => u.nodes.map((n) => n.id));
+      expect(new Set(ids).size, key).toBe(ids.length);
+    }
   });
 
   it("keeps node ids unique inside each A-Level subject tree", () => {

@@ -1,11 +1,9 @@
 // Resolves which Learn tree an exam should open.
 //
-// Qualification id alone is not enough: two NMT sittings (Ukrainian language
-// + Mathematics) share `qualificationId: "nmt"`, and A-Level Maths / Chemistry
-// share `alevel`. The old LearnMain used `exams[0]` + `getTree("nmt")` — so
-// language students only ever saw the math tree. Subject is inferred from
-// the exam name (and aliases the curriculum seed already uses). Unknown
-// subjects return null rather than silently falling through to math.
+// Qualification id alone is not enough: NMT / A-Level / GCSE / AP share one
+// id across subjects. The exam *name* wins over a stale qualificationId
+// (old adds were silently tagged GCSE). Unknown subjects return null
+// rather than silently falling through to math.
 
 import { getTree } from "./index";
 import type { LearnTree } from "./schema";
@@ -17,9 +15,12 @@ export type ExamLike = {
   courseId?: string;
 };
 
-const NMT_SLUGS: { slug: string; re: RegExp }[] = [
-  // Literature before language — "українська література" contains "українськ".
-  // No `\b` on Cyrillic: JS word boundaries only know [A-Za-z0-9_].
+type SlugRow = { slug: string; re: RegExp };
+type Family =
+  | "nmt" | "alevel" | "gcse" | "sat" | "act" | "ap" | "ib"
+  | "matura" | "abitur" | "ielts" | "toefl" | "duolingo";
+
+const NMT_SLUGS: SlugRow[] = [
   { slug: "nmt-lit", re: /літератур|литератур|literature|укрліт/i },
   { slug: "nmt-ukr", re: /українськ|украинск|ukrainian|укр\s*мов|укрмов/i },
   { slug: "nmt", re: /матем|math/i },
@@ -34,11 +35,9 @@ const NMT_SLUGS: { slug: string; re: RegExp }[] = [
   { slug: "nmt-es", re: /іспанськ|испанск|spanish|español/i },
 ];
 
-const ALEVEL_SLUGS: { slug: string; re: RegExp }[] = [
-  // Further Maths before Maths — "Further Mathematics" contains "math".
+const ALEVEL_SLUGS: SlugRow[] = [
   { slug: "alevel-fm", re: /further\s*(math|mathematics)|further maths|вища матем|высшая матем|додатков/i },
   { slug: "alevel-math", re: /матем|math/i },
-  // Literature before English Language — "English Literature" contains "english".
   { slug: "alevel-lit", re: /літератур|литератур|literature/i },
   { slug: "alevel-eng", re: /англійськ|английск|english|англ/i },
   { slug: "alevel-hist", re: /істор|истор|history/i },
@@ -54,6 +53,104 @@ const ALEVEL_SLUGS: { slug: string; re: RegExp }[] = [
   { slug: "alevel-de", re: /німецьк|немецк|german|deutsch/i },
   { slug: "alevel-fr", re: /французьк|французск|french|français/i },
   { slug: "alevel-es", re: /іспанськ|испанск|spanish|español/i },
+];
+
+const GCSE_SLUGS: SlugRow[] = [
+  { slug: "gcse-sci", re: /combined\s*science|trilogy|double\s*science/i },
+  { slug: "gcse-lit", re: /literature|літератур|литератур/i },
+  { slug: "gcse-eng", re: /english|англійськ|английск/i },
+  { slug: "gcse-cs", re: /computer\s*science|computing|\bcs\b|інформатик/i },
+  { slug: "gcse-math", re: /матем|math/i },
+  { slug: "gcse-bio", re: /біолог|биолог|biology|\bbio\b/i },
+  { slug: "gcse-chem", re: /хім|хим|chem/i },
+  { slug: "gcse-phys", re: /фізик|физик|physics/i },
+  { slug: "gcse-hist", re: /істор|истор|history/i },
+  { slug: "gcse-geo", re: /географ|geography/i },
+  { slug: "gcse-de", re: /німецьк|немецк|german|deutsch/i },
+  { slug: "gcse-fr", re: /французьк|французск|french|français/i },
+  { slug: "gcse-es", re: /іспанськ|испанск|spanish|español/i },
+  { slug: "gcse-bus", re: /business|бізнес|бизнес/i },
+  { slug: "gcse-econ", re: /econom|економ|эконом/i },
+  { slug: "gcse-rs", re: /religious|релігі|религ|\brs\b/i },
+  { slug: "gcse-pe", re: /physical\s*education|\bpe\b|фізкульт|физкульт/i },
+  { slug: "gcse-soc", re: /sociolog|соціолог|социолог/i },
+  { slug: "gcse-psy", re: /psycholog|психолог/i },
+];
+
+const AP_SLUGS: SlugRow[] = [
+  { slug: "ap-calc-bc", re: /calculus\s*bc|calc\s*bc/i },
+  { slug: "ap-calc-ab", re: /calculus\s*ab|calc\s*ab|calculus|матем|math/i },
+  { slug: "ap-csp", re: /computer\s*science\s*principles|\bcsp\b/i },
+  { slug: "ap-csa", re: /computer\s*science|\bcs\s*a\b|apcsa|інформатик/i },
+  { slug: "ap-phys-c", re: /physics\s*c/i },
+  { slug: "ap-phys1", re: /physics|фізик|физик/i },
+  { slug: "ap-chem", re: /хім|хим|chem/i },
+  { slug: "ap-hug", re: /human\s*geo|\bhug\b|aphg/i },
+  { slug: "ap-env", re: /environmental|еколог/i },
+  { slug: "ap-stat", re: /statistic|статистик/i },
+  { slug: "ap-bio", re: /біолог|биолог|biology|\bbio\b/i },
+  { slug: "ap-wh", re: /world\s*history/i },
+  { slug: "ap-euh", re: /european\s*history/i },
+  { slug: "ap-ush", re: /us\s*history|u\.s\.\s*history|american\s*history/i },
+  { slug: "ap-lit", re: /literature|літератур|литератур/i },
+  { slug: "ap-lang", re: /english|англійськ|английск/i },
+  { slug: "ap-psy", re: /psycholog|психолог/i },
+  { slug: "ap-micro", re: /micro/i },
+  { slug: "ap-macro", re: /macro/i },
+  { slug: "ap-gov", re: /government|\bgov\b/i },
+  { slug: "ap-es", re: /spanish|іспанськ|испанск/i },
+  { slug: "ap-fr", re: /french|французьк|французск/i },
+];
+
+const IB_SLUGS: SlugRow[] = [
+  { slug: "ib-aa", re: /analysis|math\s*aa|\baa\b/i },
+  { slug: "ib-ai", re: /applications|math\s*ai|\bai\b/i },
+  { slug: "ib-ess", re: /environmental|ess\b/i },
+  { slug: "ib-cs", re: /computer\s*science|computing|\bcs\b|інформатик/i },
+  { slug: "ib-bus", re: /business|бізнес|бизнес/i },
+  { slug: "ib-eng", re: /english|англійськ|английск/i },
+  { slug: "ib-phys", re: /фізик|физик|physics/i },
+  { slug: "ib-chem", re: /хім|хим|chem/i },
+  { slug: "ib-bio", re: /біолог|биолог|biology|\bbio\b/i },
+  { slug: "ib-econ", re: /econom|економ|эконом/i },
+  { slug: "ib-hist", re: /істор|истор|history/i },
+  { slug: "ib-geo", re: /географ|geography/i },
+  { slug: "ib-psy", re: /psycholog|психолог/i },
+];
+
+const MATURA_SLUGS: SlugRow[] = [
+  { slug: "matura-pl", re: /polski|polish|польськ|польск/i },
+  { slug: "matura-math", re: /matematyk|матем|math/i },
+  { slug: "matura-eng", re: /angielsk|english|англійськ|английск/i },
+  { slug: "matura-wos", re: /\bwos\b|civics|społeczeń|wiedza o/i },
+  { slug: "matura-cs", re: /informatyk|computer\s*science|\bcs\b/i },
+  { slug: "matura-lang", re: /niemieck|rosyjsk|französ|spanish|włosk|italian|foreign|іноземн/i },
+  { slug: "matura-bio", re: /biolog|біолог|биолог|\bbio\b/i },
+  { slug: "matura-chem", re: /chemi|хім|хим|chem/i },
+  { slug: "matura-phys", re: /fizyk|фізик|физик|physics/i },
+  { slug: "matura-hist", re: /histor|істор|истор/i },
+  { slug: "matura-geo", re: /geograf|географ/i },
+  { slug: "matura-econ", re: /ekonom|econom|економ/i },
+];
+
+const ABITUR_SLUGS: SlugRow[] = [
+  { slug: "abitur-de", re: /deutsch|німецьк|немецк|\bgerman\b/i },
+  { slug: "abitur-math", re: /mathematik|матем|math/i },
+  { slug: "abitur-music", re: /musik|music|музик|музык/i },
+  { slug: "abitur-cs", re: /informatik|computer\s*science|\bcs\b/i },
+  { slug: "abitur-pol", re: /sozialkunde|wirtschaft|politics|government|economics|економ|політик/i },
+  { slug: "abitur-eng", re: /englisch|english|англійськ|английск/i },
+  { slug: "abitur-lang", re: /französisch|spanish|foreign|іноземн/i },
+  { slug: "abitur-bio", re: /biolog|біолог|биолог|\bbio\b/i },
+  { slug: "abitur-chem", re: /chemie|хім|хим|chem/i },
+  { slug: "abitur-phys", re: /physik|фізик|физик|physics/i },
+  { slug: "abitur-hist", re: /geschichte|істор|истор|history/i },
+  { slug: "abitur-geo", re: /geograph|географ|geography/i },
+];
+
+const FAMILIES: Family[] = [
+  "nmt", "alevel", "gcse", "sat", "act", "ap", "ib",
+  "matura", "abitur", "ielts", "toefl", "duolingo",
 ];
 
 function courseBlob(exam: ExamLike): string {
@@ -75,20 +172,40 @@ function subjectBlob(exam: ExamLike | null | undefined): string {
   ].filter(Boolean).join(" ");
 }
 
-export function nmtTreeSlug(exam: ExamLike | null | undefined): string | null {
+function firstSlug(exam: ExamLike | null | undefined, rows: SlugRow[]): string | null {
   const blob = subjectBlob(exam);
-  for (const row of NMT_SLUGS) {
+  for (const row of rows) {
     if (row.re.test(blob)) return row.slug;
   }
   return null;
 }
 
+export function nmtTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, NMT_SLUGS);
+}
+
 export function alevelTreeSlug(exam: ExamLike | null | undefined): string | null {
-  const blob = subjectBlob(exam);
-  for (const row of ALEVEL_SLUGS) {
-    if (row.re.test(blob)) return row.slug;
-  }
-  return null;
+  return firstSlug(exam, ALEVEL_SLUGS);
+}
+
+export function gcseTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, GCSE_SLUGS);
+}
+
+export function apTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, AP_SLUGS);
+}
+
+export function ibTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, IB_SLUGS);
+}
+
+export function maturaTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, MATURA_SLUGS);
+}
+
+export function abiturTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, ABITUR_SLUGS);
 }
 
 function qualificationOf(exam: ExamLike): string | null {
@@ -98,25 +215,58 @@ function qualificationOf(exam: ExamLike): string | null {
   return (fromWindow && fromWindow(exam)) || exam.qualificationId || null;
 }
 
-function looksLikeNmt(exam: ExamLike, qual: string | null): boolean {
-  if (qual === "nmt" || qual === "zno") return true;
-  return /nmt|нмт|зно/i.test(`${exam.name || ""} ${exam.subject || ""} ${courseBlob(exam)}`);
+function familyFromName(exam: ExamLike): Family | null {
+  const blob = subjectBlob(exam);
+  if (/nmt|нмт|зно/i.test(blob)) return "nmt";
+  if (/a[\s-]?level/i.test(blob)) return "alevel";
+  if (/gcse/i.test(blob)) return "gcse";
+  if (/\bsat\b/i.test(blob)) return "sat";
+  if (/\bact\b/i.test(blob)) return "act";
+  if (/toefl/i.test(blob)) return "toefl";
+  if (/duolingo|\bdet\b/i.test(blob)) return "duolingo";
+  if (/ielts/i.test(blob)) return "ielts";
+  if (/matura/i.test(blob)) return "matura";
+  if (/abitur/i.test(blob)) return "abitur";
+  if (/\bib\b|baccalaureate/i.test(blob)) return "ib";
+  if (/\bap\b/i.test(blob)) return "ap";
+  return null;
 }
 
-function looksLikeAlevel(exam: ExamLike, qual: string | null): boolean {
-  if (qual === "alevel") return true;
-  return /a[\s-]?level/i.test(`${exam.name || ""} ${exam.subject || ""} ${courseBlob(exam)}`);
+function familyFromQual(qual: string | null): Family | null {
+  if (!qual) return null;
+  if (qual === "zno") return "nmt";
+  return FAMILIES.includes(qual as Family) ? (qual as Family) : null;
+}
+
+function keyForFamily(family: Family, exam: ExamLike): string | null {
+  switch (family) {
+    case "nmt": return nmtTreeSlug(exam);
+    case "alevel": return alevelTreeSlug(exam);
+    case "gcse": return gcseTreeSlug(exam);
+    case "ap": return apTreeSlug(exam);
+    case "ib": return ibTreeSlug(exam);
+    case "matura": return maturaTreeSlug(exam);
+    case "abitur": return abiturTreeSlug(exam);
+    case "sat":
+    case "act":
+    case "ielts":
+    case "toefl":
+    case "duolingo":
+      return family;
+    default:
+      return null;
+  }
 }
 
 export function treeKeyForExam(exam: ExamLike | null | undefined): string | null {
   if (!exam) return null;
+  // Name wins over a stale qualificationId.
+  const fromName = familyFromName(exam);
+  if (fromName) return keyForFamily(fromName, exam);
   const qual = qualificationOf(exam);
-  // Name wins over a stale qualificationId (old adds were silently tagged
-  // GCSE/AQA). "NMT Українська мова" with qualificationId "gcse" is still NMT.
-  if (looksLikeNmt(exam, qual)) return nmtTreeSlug(exam);
-  if (looksLikeAlevel(exam, qual)) return alevelTreeSlug(exam);
+  const fromQual = familyFromQual(qual);
+  if (fromQual) return keyForFamily(fromQual, exam);
   if (qual && getTree(qual)) return qual;
-  if (!qual) return nmtTreeSlug(exam) || alevelTreeSlug(exam);
   return null;
 }
 
