@@ -42,10 +42,9 @@ function Exams({ t, onPlanReady }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{exam.name}</h3>
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)}</p>
-            <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-              {exam.examBoard}
-              {!past && priority >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● {L("High priority", "Високий пріоритет", "Высокий приоритет", "Priorité haute", "Hohe Priorität")}</span>}
-            </p>
+            {!past && priority >= 8 && (
+              <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● {L("High priority", "Високий пріоритет", "Высокий приоритет", "Priorité haute", "Hohe Priorität")}</p>
+            )}
           </div>
           <span style={{ flexShrink: 0, borderRadius: "var(--radius-full)", padding: "2px 8px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", background: past ? "var(--slate-100)" : soon ? "var(--amber-100)" : "var(--emerald-100)", color: past ? "var(--slate-500)" : soon ? "var(--amber-700)" : "var(--emerald-700)" }}>
             {past ? t.exams_past_label : `${days}${t.exams_days_away}`}
@@ -262,59 +261,57 @@ function Exams({ t, onPlanReady }) {
     ];
 
     return (
-      <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
-        <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)", maxHeight: "90vh", overflowY: "auto" }}>
-          <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
+      <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "16px", fontFamily: "var(--font-sans)" }}>
+        <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "calc(100vh - 32px)", margin: "auto 0", background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ flexShrink: 0, padding: "var(--space-4) var(--space-5) var(--space-3)", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
+              <button type="button" onClick={onClose} aria-label={t.exams_cancel} style={{ border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 22, lineHeight: 1, cursor: "pointer", padding: 4 }}>×</button>
+            </div>
 
-          {lastExam.courseId && (
-            <div style={{ display: "flex", gap: 6 }}>
-              <button type="button" onClick={() => setSameCourse(false)}
-                style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                  border: !sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
-                  background: !sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: !sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
-                {t.exams_new_subject}
-              </button>
-              <button type="button" onClick={() => setSameCourse(true)}
-                style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                  border: sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
-                  background: sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
-                {t.exams_same_course(lastExam.name)}
-              </button>
-            </div>
-          )}
-
-          {sameCourse ? (
-            <div>
-              <label style={labelStyle}>{t.exams_name}</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} autoFocus style={inputStyle} />
-            </div>
-          ) : (<>
-            <div>
-              <label style={labelStyle}>{t.exams_qualification}</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {window.EXAM_TYPES.map((e) => {
-                  const sel = qualificationId === e.id;
-                  return (
-                    <button key={e.id} type="button" onClick={() => setQualificationId(e.id)}
-                      style={{ padding: "6px 12px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                        border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
-                        background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
-                      {e.emoji} {e.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {qual.boardOptions && (
-              <div>
-                <label style={labelStyle}>{t.exams_board}</label>
-                <select value={examBoard} onChange={(e) => setExamBoard(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
-                  {qual.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
+            {lastExam.courseId && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <button type="button" onClick={() => setSameCourse(false)}
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                    border: !sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                    background: !sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: !sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
+                  {t.exams_new_subject}
+                </button>
+                <button type="button" onClick={() => setSameCourse(true)}
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                    border: sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                    background: sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
+                  {t.exams_same_course(lastExam.name)}
+                </button>
               </div>
             )}
-          </>)}
 
+            {sameCourse ? (
+              <div>
+                <label style={labelStyle}>{t.exams_name}</label>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} style={inputStyle} />
+              </div>
+            ) : (
+              <div>
+                <label style={labelStyle}>{t.exams_qualification}</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {window.EXAM_TYPES.map((e) => {
+                    const sel = qualificationId === e.id;
+                    return (
+                      <button key={e.id} type="button" onClick={() => setQualificationId(e.id)}
+                        style={{ padding: "8px 12px", borderRadius: "var(--radius-full)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                          border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                          background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
+                        {e.emoji} {e.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "var(--space-4) var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <div>
             <label style={labelStyle}>{t.exams_date}</label>
             <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
@@ -408,7 +405,8 @@ function Exams({ t, onPlanReady }) {
             </label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t.exams_notes_ph} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
           </div>
-          <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
+          </div>
+          <div style={{ flexShrink: 0, display: "flex", gap: "var(--space-2)", padding: "var(--space-3) var(--space-5) var(--space-4)", borderTop: "1px solid var(--border-subtle)" }}>
             <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
             <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
           </div>
@@ -490,7 +488,7 @@ function Exams({ t, onPlanReady }) {
             </>
           ) : (
             <>
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} {t.exams_topics}</p>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.topicCount} {t.exams_topics}</p>
               {(() => {
                 const priority = window.computePriority ? window.computePriority(exam) : 5;
                 return (

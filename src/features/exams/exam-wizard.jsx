@@ -663,15 +663,6 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     <input type="date" value={s.examDate} min={todayISO} onChange={(e) => setSubject(s.id, { examDate: e.target.value })}
                       style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
                   </div>
-                  {exam.boardOptions && (
-                  <div>
-                    <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_board}</label>
-                    <select value={s.examBoard} onChange={(e) => setSubject(s.id, { examBoard: e.target.value })}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", appearance: "auto" }}>
-                      {exam.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  </div>
-                  )}
                   {isSectionBased ? (
                     // Section-based exam: no subject to choose — show what's covered.
                     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-subtle)", background: "var(--surface-muted)", padding: "var(--space-4)" }}>
