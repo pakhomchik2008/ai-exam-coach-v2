@@ -157,6 +157,11 @@ Deployed to prod:
 - **Phase 3.7d**: Learn enrichments — AI SVG diagrams, YouTube search
   button, related concepts pills, voice narration
 
+In flight:
+- **Phase 4**: brand kit + sounds + marketing landing — see
+  `docs/phase-4-plan.md` and `docs/phase-4/`. Branch
+  `phase-4/brand-landing`.
+
 Not yet built (planned):
 - Semantic near-dup via pg_trgm — code shipped, SQL migration
   `supabase/16_question_similarity.sql` needs to be run

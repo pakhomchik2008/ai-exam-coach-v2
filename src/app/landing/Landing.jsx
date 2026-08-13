@@ -1,9 +1,9 @@
 // AI Exam Coach — Landing + authentication.
-// Three explicit paths in: Sign Up, Log In, Try Demo. Auth is local-only
-// (auth-store.jsx) — there's no backend, but it's wired up for real:
-// passwords are hashed (never stored in plaintext), wrong-password and
-// no-such-account are distinguished, and Try Demo skips account creation
-// entirely rather than faking one.
+// Phase 4: marketing page is the 8-section story; this file keeps the
+// three explicit paths in (Sign Up, Log In, Try Demo) plus legal stubs.
+// Auth is still the existing window.signUp / logIn / startDemo contract.
+import { MarketingPage } from "../../features/landing/MarketingPage";
+import { Legal } from "../legal/Legal";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LEN = 8;
 
@@ -192,29 +192,8 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
 }
 
 function Landing({ onContinue, t, lang, onLangChange }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const [view, setView] = React.useState("marketing"); // "marketing" | "signup" | "login"
-  const langs = Object.values(window.LANGS || {});
-  const features = [
-    { icon: "🎯", title: L("Confidence-Based Pacing", "Темп на основі впевненості", "Темп на основе уверенности", "Rythme basé sur la confiance", "Tempo basierend auf Selbstvertrauen"),
-      body: L("Rate how well you knew each topic after a session — your plan's pace and readiness scores adjust accordingly.",
-        "Оцініть, наскільки добре ви знали кожну тему після сесії — темп плану та показники готовності підлаштуються.",
-        "Оцените, насколько хорошо вы знали каждую тему после сессии — темп плана и показатели готовности подстроятся.",
-        "Évaluez votre maîtrise de chaque sujet après une séance — le rythme de votre plan et vos scores de préparation s'ajustent en conséquence.",
-        "Bewerte nach jeder Sitzung, wie gut du jedes Thema kanntest — das Tempo deines Plans und die Bereitschaftswerte passen sich entsprechend an.") },
-    { icon: "📅", title: L("Smart Scheduling", "Розумне планування", "Умное планирование", "Planification intelligente", "Intelligente Planung"),
-      body: L("Auto-generated daily plans that fit your available hours and preferences.",
-        "Автоматично згенеровані щоденні плани, що враховують ваш вільний час та вподобання.",
-        "Автоматически сгенерированные ежедневные планы, учитывающие ваше свободное время и предпочтения.",
-        "Des plans quotidiens générés automatiquement qui s'adaptent à vos disponibilités et préférences.",
-        "Automatisch generierte Tagespläne, die zu deiner verfügbaren Zeit und deinen Vorlieben passen.") },
-    { icon: "📊", title: L("Track Progress", "Відстеження прогресу", "Отслеживание прогресса", "Suivi de progression", "Fortschritt verfolgen"),
-      body: L("Visualise your real study streak, confidence per subject, and unlock achievements as you study.",
-        "Візуалізуйте свою реальну серію навчання, впевненість по предметах і відкривайте досягнення під час навчання.",
-        "Визуализируйте свою реальную серию обучения, уверенность по предметам и открывайте достижения во время учёбы.",
-        "Visualisez votre véritable série d'étude, votre confiance par matière, et débloquez des réussites en étudiant.",
-        "Visualisiere deine echte Lernsträhne, dein Selbstvertrauen pro Fach und schalte Erfolge frei, während du lernst.") },
-  ];
+  const [view, setView] = React.useState("marketing"); // "marketing" | "signup" | "login" | "legal"
+  const [legalPage, setLegalPage] = React.useState("privacy");
 
   // Awaited: window.startDemo() now signs in anonymously with Supabase, and the
   // demo user needs that JWT before the first AI call fires on the next screen.
@@ -223,16 +202,9 @@ function Landing({ onContinue, t, lang, onLangChange }) {
     onContinue();
   }
 
-  const langPicker = onLangChange && (
-    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: "var(--space-6)" }}>
-      {langs.map((l) => (
-        <button key={l.code} onClick={() => onLangChange(l.code)} title={l.label} aria-label={l.label}
-          style={{ border: lang === l.code ? "2px solid var(--indigo-500)" : "2px solid transparent", borderRadius: "var(--radius-full)", background: "transparent", cursor: "pointer", fontSize: "var(--text-lg)", minWidth: 40, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, lineHeight: 1 }}>
-          {l.flag}
-        </button>
-      ))}
-    </div>
-  );
+  if (view === "legal") {
+    return <Legal page={legalPage} t={t} onBack={() => setView("marketing")} />;
+  }
 
   if (view !== "marketing") {
     return (
@@ -249,80 +221,16 @@ function Landing({ onContinue, t, lang, onLangChange }) {
     );
   }
 
-  const pillBtn = (filled) => ({
-    border: filled ? "none" : "1px solid var(--border-strong)",
-    background: filled ? "var(--ink-900)" : "var(--surface-card)",
-    color: filled ? "var(--text-invert)" : "var(--text-strong)",
-    borderRadius: "var(--radius-full)", cursor: "pointer",
-    padding: "14px 30px", fontSize: "var(--text-base)",
-    fontWeight: "var(--weight-semibold)", fontFamily: "var(--font-sans)",
-    boxShadow: filled ? "var(--shadow-md)" : "var(--shadow-sm)",
-  });
-
-  const headline = L("Study smarter, not longer", "Навчайтесь розумніше, а не довше", "Учитесь умнее, а не дольше", "Étudiez plus intelligemment, pas plus longtemps", "Klüger lernen, nicht länger");
-
   return (
-    <div style={{ maxWidth: "58rem", margin: "0 auto", padding: "var(--space-10) var(--space-6) var(--space-12)" }}>
-      {/* Mini-nav: brand mark left, language picker right */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-16)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 9, fontFamily: "var(--font-display)", fontWeight: "var(--weight-bold)", fontSize: "var(--text-lg)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>
-          {window.NavLogoMark ? <window.NavLogoMark /> : null}
-          <span>AI Exam Coach</span>
-        </div>
-        {langPicker}
-      </div>
-
-      <div style={{ textAlign: "center" }}>
-        <div className="land-chip" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "7px 14px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-sm)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", letterSpacing: "var(--tracking-wide)", textTransform: "uppercase", color: "var(--indigo-600)", marginBottom: "var(--space-5)" }}>
-          <span className="land-ping" aria-hidden="true" />
-          AI Exam Coach
-        </div>
-        <h1 className="land-headline" style={{ margin: 0, fontSize: "clamp(2.4rem, 5.5vw, 3.6rem)", fontWeight: "var(--weight-bold)", letterSpacing: "var(--tracking-tight)", lineHeight: "var(--leading-tight)", color: "var(--text-strong)", fontFamily: "var(--font-display)" }}>
-          {headline.split(" ").map((word, i) => (
-            <span key={i} style={{ animationDelay: `${80 + i * 90}ms` }}>{word}</span>
-          ))}
-        </h1>
-        <p className="land-sub" style={{ margin: "var(--space-4) auto 0", maxWidth: "34rem", fontSize: "var(--text-lg)", lineHeight: "var(--leading-normal)", color: "var(--text-muted)" }}>
-          {L("Your AI coach builds a day-by-day study plan that adapts as you go. Add a course, set your exam date, and start revising.",
-            "Ваш AI-коуч створює щоденний план навчання, який підлаштовується на ходу. Додайте курс, встановіть дату іспиту й починайте повторення.",
-            "Ваш AI-коуч создаёт ежедневный план обучения, который подстраивается на ходу. Добавьте курс, установите дату экзамена и начните повторение.",
-            "Votre coach IA élabore un plan d'étude quotidien qui s'adapte au fil du temps. Ajoutez un cours, fixez votre date d'examen et commencez à réviser.",
-            "Dein KI-Coach erstellt einen Tag-für-Tag-Lernplan, der sich unterwegs anpasst. Füge einen Kurs hinzu, lege dein Prüfungsdatum fest und beginne mit dem Lernen.")}
-        </p>
-        <div className="land-cta" style={{ marginTop: "var(--space-8)", display: "flex", justifyContent: "center", gap: "var(--space-3)", flexWrap: "wrap" }}>
-          <button className="ux-press" style={pillBtn(true)} onClick={() => setView("signup")}>{L("Sign Up", "Реєстрація", "Регистрация", "Inscription", "Registrieren")} →</button>
-          <button className="ux-press" style={pillBtn(false)} onClick={() => setView("login")}>{L("Log In", "Увійти", "Войти", "Connexion", "Anmelden")}</button>
-        </div>
-        <button className="ux-press land-demo" onClick={startDemo} style={{ marginTop: "var(--space-5)", border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
-          {L("Try demo — no account needed →", "Спробувати демо — без акаунту →", "Попробовать демо — без аккаунта →", "Essayer la démo — sans compte →", "Demo ausprobieren — kein Konto nötig →")}
-        </button>
-      </div>
-
-      <div className="land-cards" style={{ marginTop: "var(--space-16)", display: "grid", gap: "var(--space-5)", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-        {features.map((f, i) => {
-          // Middle card gets the FintechX "dark insight card" treatment.
-          const dark = i === 1;
-          return (
-            <div key={f.title} style={{
-              borderRadius: "var(--radius-2xl)",
-              border: dark ? "1px solid var(--ink-700)" : "1px solid var(--border-default)",
-              background: dark ? "var(--surface-ink)" : "var(--surface-card)",
-              boxShadow: dark ? "var(--shadow-lg)" : "var(--shadow-sm)",
-              padding: "var(--space-6)", textAlign: "left",
-            }}>
-              <div aria-hidden="true" style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                width: 44, height: 44, borderRadius: 14, fontSize: "var(--text-xl)",
-                background: dark ? "var(--ink-700)" : "var(--indigo-50)", marginBottom: "var(--space-4)",
-              }}>{f.icon}</div>
-              <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", fontSize: "var(--text-lg)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: dark ? "var(--text-invert)" : "var(--text-strong)" }}>{f.title}</h3>
-              <p style={{ margin: "var(--space-2) 0 0", fontSize: "var(--text-sm)", lineHeight: "var(--leading-normal)", color: dark ? "var(--text-on-ink-muted)" : "var(--text-muted)" }}>{f.body}</p>
-            </div>
-          );
-        })}
-      </div>
-      <p style={{ marginTop: "var(--space-12)", textAlign: "center", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L("Free · Open Source · No ads", "Безкоштовно · Відкритий код · Без реклами", "Бесплатно · Открытый код · Без рекламы", "Gratuit · Open Source · Sans publicité", "Kostenlos · Open Source · Keine Werbung")}</p>
-    </div>
+    <MarketingPage
+      t={t}
+      lang={lang}
+      onLangChange={onLangChange}
+      onSignup={() => setView("signup")}
+      onLogin={() => setView("login")}
+      onDemo={startDemo}
+      onLegal={(page) => { setLegalPage(page); setView("legal"); }}
+    />
   );
 }
 window.Landing = Landing;
