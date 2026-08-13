@@ -46,16 +46,29 @@ describe("buildSocraticSystem", () => {
     expect(system).toMatch(/Never give the definition/);
   });
 
-  it("switches to full explain on surrender", () => {
-    const system = buildSocraticSystem({
+  it("explains then drills after surrender, and does not close the chat", () => {
+    const first = buildSocraticSystem({
       topic: "Logarithms",
       language: "uk",
       mistakes: "",
       hintUsed: true,
       surrendered: true,
+      justSurrendered: true,
       turnCount: 4,
     });
-    expect(system).toMatch(/surrendered/i);
-    expect(system).toMatch(/kind to done/);
+    expect(first).toMatch(/just surrendered/i);
+    expect(first).toMatch(/TWO short numbered practice/);
+    expect(first).toMatch(/NEVER set kind to done on this turn/);
+
+    const later = buildSocraticSystem({
+      topic: "Logarithms",
+      language: "uk",
+      mistakes: "",
+      hintUsed: true,
+      surrendered: true,
+      turnCount: 6,
+    });
+    expect(later).toMatch(/on practice/i);
+    expect(later).toMatch(/Do not close early/);
   });
 });

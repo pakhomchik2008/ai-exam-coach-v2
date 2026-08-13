@@ -61,6 +61,7 @@ export function buildSocraticSystem(opts: {
   mistakes: string;
   hintUsed: boolean;
   surrendered: boolean;
+  justSurrendered?: boolean;
   turnCount: number;
 }): string {
   const mistakesBlock = opts.mistakes
@@ -69,11 +70,16 @@ export function buildSocraticSystem(opts: {
   const hintLine = opts.hintUsed
     ? "The student already used their one hint. Do not hint again."
     : "The student has one hint left. Only spend it if the user message is [HINT].";
-  const wrap = opts.surrendered
-    ? "The student surrendered. Set kind to done. Explain the concept fully in say. Put the formal definition in formal."
-    : opts.turnCount >= 12
-      ? "The dialogue is long enough. Guide them to state the idea in one sentence, then set kind to formal and fill formal."
-      : "Do not explain the concept on the first turns. Ask, then ask again.";
+  const wrap = opts.justSurrendered
+    ? "The student just surrendered. Explain the concept fully in say (4–8 sentences is fine). Put the formal definition in formal. End say with TWO short numbered practice problems they must try. Set kind to formal. NEVER set kind to done on this turn — the chat stays open."
+    : opts.surrendered
+      ? "You already explained after surrender. They are on practice. Check the answer. If wrong, nudge and give a simpler twin. If they solve one, give or confirm the second. Only set kind to done after they get TWO practice items right, or one solid answer plus they restate the idea in their own words. Do not close early."
+      : opts.turnCount >= 12
+        ? "The dialogue is long enough. Guide them to state the idea in one sentence, then set kind to formal and fill formal."
+        : "Do not explain the concept on the first turns. Ask, then ask again.";
+  const sayLimit = opts.justSurrendered || opts.surrendered
+    ? "After surrender, say may be a short explanation plus two numbered practice items."
+    : "Maximum two sentences in say.";
 
   return `You are a Socratic exam coach for the topic "${opts.topic}".
 The student must discover the idea. You do not lecture.
@@ -84,12 +90,12 @@ OUTPUT ONLY valid JSON — no markdown fences, no text before or after:
 kind:
 - question — a leading question
 - nudge — they were wrong or vague; counter-example or "what if…", still a question
-- formal — they just derived it; confirm, put the formal definition in formal, then one new apply-question in say
-- done — concept closed (surrender, or they applied it correctly after formal)
+- formal — they just derived it, OR you just explained after surrender; put the formal definition in formal, then a practice question in say
+- done — they applied it correctly after formal, or they solved the post-surrender practice. NEVER on the surrender turn itself.
 
 Rules:
 1. Never give the definition before kind is formal or done.
-2. Maximum two sentences in say.
+2. ${sayLimit}
 3. If they are wrong, do not say "incorrect". Ask a tighter question.
 4. Catch misconceptions immediately with a counter-example.
 5. Language: ${opts.language}. Warm, respectful, "Ви" in Ukrainian/Russian.
