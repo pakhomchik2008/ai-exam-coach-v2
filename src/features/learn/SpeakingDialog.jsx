@@ -33,6 +33,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
   const [seconds, setSeconds] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState(null);
+  const [transcript, setTranscript] = React.useState("");
   const [band, setBand] = React.useState(null);
   const recRef = React.useRef(null);
   const chunksRef = React.useRef([]);
@@ -94,7 +95,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
       stopRecorder(false);
       return;
     }
-    setError(null); setBand(null);
+    setError(null); setBand(null); setTranscript("");
     const mime = pickRecorderMime();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
@@ -139,6 +140,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
     setBusy(true); setError(null);
     try {
       const text = await transcribeAudio(blob, "en");
+      setTranscript(text);
       let next;
       try {
         next = await gradeOnce(text, cue.title);
@@ -173,7 +175,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
   }
 
   async function newExercise() {
-    setBusy(true); setError(null); setBand(null); setCue(null); setCueError(null);
+    setBusy(true); setError(null); setBand(null); setTranscript(""); setCue(null); setCueError(null);
     try {
       const next = await loadCue();
       if (aliveRef.current) setCue(next);
@@ -200,6 +202,10 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
     return wrap([
       header,
       React.createElement("div", { key: "g", style: { padding: 16, borderRadius: 14, border: "1px solid var(--border-default)", background: "var(--surface-card)" } },
+        React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 6 } },
+          L("You said", "Ти сказав", "Ты сказал", "Tu as dit", "Du sagtest")),
+        React.createElement("div", { style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-strong)", marginBottom: 18 } },
+          transcript.trim() || L("(silence)", "(тиша)", "(тишина)", "(silence)", "(Stille)")),
         React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.08em", fontWeight: 600, marginBottom: 6 } },
           L("Band", "Бал", "Балл", "Note", "Note")),
         React.createElement("div", { style: { fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 14, color: "var(--text-strong)", fontFamily: "var(--font-mono)" } },
