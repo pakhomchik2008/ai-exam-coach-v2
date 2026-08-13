@@ -17,6 +17,7 @@
 //
 // Required Vercel environment variables:
 //   ANTHROPIC_API_KEY          (api/complete.js only)
+//   OPENAI_API_KEY             (api/transcribe.js only — Whisper)
 //   SUPABASE_SERVICE_ROLE_KEY  Settings → API → service_role. SECRET.
 //   SUPABASE_URL               optional, defaults to the project below
 //   SUPABASE_ANON_KEY          optional, defaults to the publishable key below

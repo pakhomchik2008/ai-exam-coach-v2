@@ -4,7 +4,7 @@
 // the same, only the passage/task genres differ, and Sonnet is prompted
 // per-node to pick the right register at Teach time.
 //
-// Node ids follow the section prefix (l-* / r-* / w-*) chosen for
+// Node ids follow the section prefix (l-* / r-* / w-* / s-*) chosen for
 // stability across a future migration to different taxonomies (IELTS
 // Academic / General). Titles are the standard band-descriptor skill
 // headings.
@@ -62,9 +62,20 @@ const IELTS: LearnTree = {
         { id: "w-10", title: { en: "Time management (20 + 40 min)", uk: "Тайм-менеджмент" }, complexity: 2, estimatedMinutes: 7, prerequisites: [] },
       ],
     },
-    // Speaking is omitted on purpose: we have no mic / Whisper path
-    // (Decision Log #39). Shipping a silent "talk about your hometown"
-    // drill would be worse than leaving the paper out.
+    {
+      id: "s",
+      title: { en: "Speaking", uk: "Говоріння", ru: "Говорение" },
+      nodes: [
+        { id: "s-01", title: { en: "Part 1: familiar topics", uk: "Part 1: знайомі теми" }, complexity: 2, estimatedMinutes: 8, prerequisites: [] },
+        { id: "s-02", title: { en: "Part 2: cue card", uk: "Part 2: картка" }, complexity: 3, estimatedMinutes: 10, prerequisites: ["s-01"] },
+        { id: "s-03", title: { en: "Part 2: structuring 2 minutes", uk: "Part 2: дві хвилини" }, complexity: 4, estimatedMinutes: 10, prerequisites: ["s-02"] },
+        { id: "s-04", title: { en: "Part 3: abstract follow-ups", uk: "Part 3: абстрактні питання" }, complexity: 4, estimatedMinutes: 11, prerequisites: ["s-02"] },
+        { id: "s-05", title: { en: "Fluency and hesitation", uk: "Плавність і паузи" }, complexity: 3, estimatedMinutes: 8, prerequisites: ["s-01"] },
+        { id: "s-06", title: { en: "Lexical resource, paraphrasing", uk: "Лексика й перефразування" }, complexity: 4, estimatedMinutes: 9, prerequisites: ["s-01"] },
+        { id: "s-07", title: { en: "Grammatical range", uk: "Граматичне розмаїття" }, complexity: 4, estimatedMinutes: 9, prerequisites: ["s-01"] },
+        { id: "s-08", title: { en: "Pronunciation and chunking", uk: "Вимова й члени речення" }, complexity: 3, estimatedMinutes: 8, prerequisites: ["s-01"] },
+      ],
+    },
   ],
 };
 
