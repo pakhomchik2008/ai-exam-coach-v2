@@ -131,8 +131,9 @@ const QUICK_ACTIONS = [
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
-function CoachIcon({ size = 32 }) {
+function CoachIcon({ size = 32, className }) {
   return React.createElement("div", {
+    className,
     style: { width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
   }, React.createElement("svg", { width: size * 0.54, height: size * 0.54, viewBox: "0 0 20 20", fill: "none" },
     React.createElement("path", { d: "M10 2C7.24 2 5 4.24 5 7c0 1.9 1.05 3.55 2.6 4.4L7.3 12h5.4l-.3-.6C14.05 10.55 15 8.9 15 7c0-2.76-2.24-5-5-5z", fill: "var(--white)", opacity: "0.95" }),
@@ -4177,22 +4178,23 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const xpData = window.xpLevel ? window.xpLevel() : null;
   const xpPct = xpData ? Math.round((xpData.into / xpData.need) * 100) : 0;
 
-  return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+  return React.createElement("div", { className: "coach-lobby", style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Hero
-    React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
-      React.createElement(CoachIcon, { size: 56 }),
+    React.createElement("div", { className: "coach-lobby-hero", style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
+      React.createElement(CoachIcon, { size: 56, className: "coach-lobby-icon" }),
       React.createElement("h1", { style: { margin: "16px 0 4px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, greeting),
       React.createElement("p", { style: { margin: 0, fontSize: 14, color: "var(--text-muted)" } }, L("Your AI Coach is ready.", "Ваш AI-коуч готовий.", "Ваш AI-коуч готов.", "Votre coach IA est prêt.", "Dein KI-Coach ist bereit.")),
-      xpData && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, margin: "14px auto 0", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 16px", maxWidth: 240 } },
+      xpData && React.createElement("div", { className: "coach-lobby-xp", style: { display: "flex", alignItems: "center", gap: 10, margin: "14px auto 0", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 16px", maxWidth: 240 } },
         React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "4px 8px", borderRadius: 8, letterSpacing: "0.04em", whiteSpace: "nowrap" } }, `LV ${xpData.level}`),
         window.xpTier && (() => { const _tier = window.xpTier(); return React.createElement("span", { className: _tier.theme ? "tier-glow" : "", style: { fontSize: 11, fontWeight: 700, color: "var(--text-strong)", background: "var(--surface-muted)", border: "1px solid var(--border-subtle)", padding: "4px 8px", borderRadius: 8, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 } }, _tier.emoji, window.tierTitle(_tier, t?.code)); })(),
         React.createElement("div", { style: { flex: 1 } },
           React.createElement("div", { style: { height: 6, background: "var(--border-subtle)", borderRadius: 3, overflow: "hidden" } },
-            React.createElement("div", { style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3 } })),
+            React.createElement("div", { className: "ux-bar-fill", style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3 } })),
           React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0", textAlign: "right" } }, `${xpData.into}/${xpData.need} XP`)))),
 
     // Urgent review nudge
     urgentReview && React.createElement("div", {
+      className: "ux-card ux-press",
       onClick: () => { setReviewTopic(urgentReview.topicName); setMode("review"); },
       style: { margin: "0 20px 16px", padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }
     },
@@ -4203,16 +4205,17 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       React.createElement("span", { style: { fontSize: 12, color: "var(--amber-700)", fontWeight: 600 } }, "→")),
 
     // Mode cards
-    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
+    React.createElement("div", { className: "ux-stagger", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
       ...COACH_MODES.map((m) => React.createElement("button", {
         key: m.id,
+        className: "ux-card ux-press coach-mode",
         onClick: () => {
           if (m.id === "learn") { setTopicPicker(true); }
           else { setMode(m.id); }
         },
-        style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "border-color 0.15s" }
+        style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)" }
       },
-        React.createElement("span", { style: { fontSize: 32 } }, m.emoji),
+        React.createElement("span", { className: "coach-mode-emoji", style: { fontSize: 32 } }, m.emoji),
         React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--text-strong)" } }, m.label[t?.code] || m.label.en),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc[t?.code] || m.desc.en)))));
 }
