@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildSpeakingCueSystem,
   buildSpeakingGradeSystem,
+  buildSpeakingGradeUser,
+  fallbackSpeakingBand,
   isSpeakingTreeNode,
   parseSpeakingBand,
   parseSpeakingCue,
@@ -36,10 +38,19 @@ describe("parseSpeakingBand", () => {
     expect(g.overall).toBe(6.5);
   });
 
-  it("salvages raw prose", () => {
-    const g = parseSpeakingBand("Too short for a band.");
-    expect(g.feedback).toMatch(/Too short/);
-    expect(g.overall).toBe(0);
+  it("fills feedback when the model omitted it", () => {
+    const g = parseSpeakingBand({ fluency: 6, lexical: 6, grammar: 6, pronunciation: 6, overall: 6 });
+    expect(g.feedback).toMatch(/Band 6/);
+  });
+
+  it("rejects coach-chat prose without bands", () => {
+    expect(() => parseSpeakingBand("NMT or IELTS? 10 hrs/week.")).toThrow(/invalid speaking grade/);
+  });
+
+  it("fallback still gives a band and feedback", () => {
+    const g = fallbackSpeakingBand("");
+    expect(g.overall).toBe(4);
+    expect(g.feedback.length).toBeGreaterThan(10);
   });
 });
 
@@ -53,5 +64,6 @@ describe("helpers", () => {
   it("asks for JSON cue and bands", () => {
     expect(buildSpeakingCueSystem("Hometown", "ielts")).toMatch(/Part 2/);
     expect(buildSpeakingGradeSystem("Hometown", "ielts")).toMatch(/INFERRED/);
+    expect(buildSpeakingGradeUser("I like chess.", "A hobby")).toMatch(/TRANSCRIPT/);
   });
 });
