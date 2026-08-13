@@ -89,10 +89,10 @@ const STEP_COUNT = 5;
 // one IELTS with two sections active, not two separate exams. The wizard's
 // section handling (buildSectionCourse) reads from CURRICULUM_SEED, but these
 // three qualifications have no seed rows yet, so the fallback lives here.
-// Order matches the real papers: Reading and Listening first (input skills),
-// Speaking and Writing last (output skills).
+// Order matches the real papers: Listening / Reading first (input),
+// Writing last. IELTS Speaking is omitted — no mic path yet.
 const LANGUAGE_SECTIONS: Record<string, string[]> = {
-  ielts: ["Listening", "Reading", "Writing", "Speaking"],
+  ielts: ["Listening", "Reading", "Writing"],
   toefl: ["Reading", "Listening", "Speaking", "Writing"],
   duolingo: ["Literacy", "Comprehension", "Conversation", "Production"],
 };

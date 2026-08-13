@@ -94,7 +94,9 @@ export function speak(chunks: string[], uiLang: string, onEnd: () => void): Spee
   }
   const synth = window.speechSynthesis;
   synth.cancel();
-  const locale = mapUiLangToLocale(uiLang);
+  // IELTS Listening passes a real BCP-47 tag ("en-GB") so the clip stays
+  // English even when the UI is uk/ru. Short ui codes still go through the map.
+  const locale = uiLang.includes("-") ? uiLang : mapUiLangToLocale(uiLang);
   const voice = chooseVoice(locale);
   let cancelled = false;
   const utterances = chunks.map((c) => {

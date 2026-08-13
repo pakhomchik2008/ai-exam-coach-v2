@@ -77,7 +77,9 @@ const PERSONAL_EVENT_ID = "__personal__";
 
 function migrateSchedule(raw) {
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.sessions)) return { version: 1, sessions: [] };
-  return { version: 1, sessions: raw.sessions.map(migrateSession).filter(Boolean) };
+  const sessions = raw.sessions.map(migrateSession).filter(Boolean);
+  stampSpreadTimes(sessions);
+  return { version: 1, sessions };
 }
 
 // ─── seeding ─────────────────────────────────────────────────────────────────
@@ -142,6 +144,7 @@ function seedSessionsForExam(exam, existingForExam, desiredCount) {
       durationMin: sessionLengthMin,
     });
   }
+  stampSpreadTimes(out);
   return out;
 }
 
@@ -211,14 +214,12 @@ const DAY_PERIOD_RANGES = { morning: [6 * 60, 12 * 60], afternoon: [12 * 60, 17 
 const SLOT_GAP_MIN = 15; // breathing room between back-to-back sessions
 
 function _freeIntervalsForWeekday(weekday, blackoutSlots) {
-  // A brand-new profile has an empty blackoutSlots array (nobody has ever
-  // opened the availability screen), and packing from a 06:00 base put every
-  // new user's first-ever session at 6am — unrealistic for someone in
-  // school/lectures most mornings. Once ANY preference is set, that's a real
-  // signal about how this student actually thinks about their day, so the
-  // full 06:00 base returns and their explicit choices are respected as-is.
+  // No availability set → the whole waking day. Packing into 15:00–22:00
+  // stacked every subject on top of each other (three lessons at one hour)
+  // for anyone with 5 exams who never opened the calendar. Once they mark
+  // blackouts, the 06:00–22:00 day minus those periods is the real window.
   const hasSetAvailability = (blackoutSlots || []).length > 0;
-  let intervals = [hasSetAvailability ? [6 * 60, 22 * 60] : [15 * 60, 22 * 60]];
+  let intervals = [hasSetAvailability ? [6 * 60, 22 * 60] : [8 * 60, 21 * 60]];
   (blackoutSlots || []).filter((s) => s.day === weekday && s.period !== "all").forEach((b) => {
     const range = DAY_PERIOD_RANGES[b.period];
     if (!range) return;
@@ -250,6 +251,50 @@ function _slotStartMinutes(intervals, slotIdx, sessionLengthMin) {
   }
   const last = intervals[intervals.length - 1] || [17 * 60, 17 * 60];
   return last[1] + SLOT_GAP_MIN + (slotIdx - cursor) * (sessionLengthMin + SLOT_GAP_MIN);
+}
+
+// Place session `slotIdx` of `totalSlots` evenly across free time, not
+// packed from the start. 3 lessons on one day → morning / mid / evening,
+// not 15:00 + 16:00 + 17:00.
+function _spreadStartMinutes(intervals, slotIdx, totalSlots, sessionLengthMin) {
+  const ranges = [];
+  for (const [s, e] of intervals) {
+    if (e - s >= sessionLengthMin) ranges.push([s, e - sessionLengthMin]);
+  }
+  if (!ranges.length) {
+    const last = intervals[intervals.length - 1] || [8 * 60, 21 * 60];
+    return last[1] + SLOT_GAP_MIN + slotIdx * (sessionLengthMin + SLOT_GAP_MIN);
+  }
+  const totalLen = ranges.reduce((acc, [a, b]) => acc + (b - a), 0) || 1;
+  const t = totalSlots <= 1 ? 0.35 : slotIdx / Math.max(1, totalSlots - 1);
+  let target = t * totalLen;
+  for (const [a, b] of ranges) {
+    const len = b - a;
+    if (target <= len) return Math.round(a + target);
+    target -= len;
+  }
+  return ranges[ranges.length - 1][1];
+}
+
+function stampSpreadTimes(sessions) {
+  const profile = (window.getProfile && window.getProfile()) || {};
+  const blackoutSlots = profile.blackoutSlots || [];
+  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const byDate = {};
+  for (const s of sessions) {
+    if (!s || s.status === "completed" || s.manual || s.type === "personal") continue;
+    (byDate[s.date] = byDate[s.date] || []).push(s);
+  }
+  for (const date of Object.keys(byDate)) {
+    const list = byDate[date].slice().sort((a, b) =>
+      String(a.examId).localeCompare(String(b.examId)) || String(a.id).localeCompare(String(b.id)));
+    const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
+    const intervals = _freeIntervalsForWeekday(weekday, blackoutSlots);
+    list.forEach((s, i) => {
+      const dur = s.durationMin || profile.sessionLengthMin || 45;
+      s.startTime = _minutesToHHMM(_spreadStartMinutes(intervals, i, list.length, dur));
+    });
+  }
 }
 
 function _minutesToHHMM(mins) {
@@ -312,15 +357,6 @@ function allocateBudget(exams, profile) {
     (blackoutSlots || []).filter((s) => s && s.period === "all").map((s) => s.day)
   );
   const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-  // Shared across every exam in this call so two exams landing sessions on
-  // the same real calendar date get different times instead of overlapping.
-  const weekdayIntervalsCache = {};
-  function intervalsForWeekday(weekday) {
-    if (!weekdayIntervalsCache[weekday]) weekdayIntervalsCache[weekday] = _freeIntervalsForWeekday(weekday, blackoutSlots);
-    return weekdayIntervalsCache[weekday];
-  }
-  const globalDateSlotCount = {};
 
   for (const exam of activeExams) {
     // Per-exam lesson length: each subject can set its own in the wizard, so a
@@ -465,16 +501,11 @@ function allocateBudget(exams, profile) {
       while (usedIds.has(id)) { id = makeSessionId(exam.id, topicIdx, n); n++; }
       usedIds.add(id);
 
-      const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
-      const slotIdx = globalDateSlotCount[date] || 0;
-      globalDateSlotCount[date] = slotIdx + 1;
-      const startTime = _minutesToHHMM(_slotStartMinutes(intervalsForWeekday(weekday), slotIdx, examSessionLen));
-
       sessions.push({
         id,
         examId: exam.id,
         date,
-        startTime,
+        startTime: null,
         topic: (exam.topics && exam.topics[topicIdx]) || `Topic review ${topicIdx + 1}`,
         status: "pending",
         completedAt: null,
@@ -486,6 +517,7 @@ function allocateBudget(exams, profile) {
     result.set(exam.id, { sessions, budgetWarning: finalWarning });
   }
 
+  stampSpreadTimes([...result.values()].flatMap((row) => row.sessions));
   return result;
 }
 
@@ -928,7 +960,6 @@ function proposeOptimizeWeek(weekStartKey, weekEndKey) {
   const exams = window.getExams();
   const profile = window.getProfile ? window.getProfile() : {};
   const examById = new Map(exams.map((e) => [e.id, e]));
-  const sessionLengthMin = profile.sessionLengthMin || 45;
 
   const candidates = schedule.sessions.filter((s) => !s.manual && s.type !== "personal" && s.status !== "completed" && s.date >= weekStartKey && s.date <= weekEndKey);
   if (!candidates.length) return { id: "optimize-week", title: "Optimize Week", summary: "No AI-planned sessions to rebalance this week.", moves: [], adds: [], removes: [] };
@@ -936,19 +967,15 @@ function proposeOptimizeWeek(weekStartKey, weekEndKey) {
   const dates = _weekWeekdayList(weekStartKey, profile.blackoutSlots, profile.daysPerWeek);
   if (!dates.length) return { id: "optimize-week", title: "Optimize Week", summary: "No available study days this week.", moves: [], adds: [], removes: [] };
 
-  const JS_DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
   const sorted = candidates.slice().sort((a, b) => a.examId.localeCompare(b.examId) || a.id.localeCompare(b.id));
-  const perDateCounters = {};
+  const proposed = sorted.map((s, i) => ({ ...s, date: dates[i % dates.length], startTime: null }));
+  stampSpreadTimes(proposed);
   const moves = [];
-  sorted.forEach((s, i) => {
-    const date = dates[i % dates.length];
-    const weekday = JS_DAY_NAMES[new Date(date + "T00:00:00").getDay()];
-    const slotIdx = perDateCounters[date] || 0;
-    perDateCounters[date] = slotIdx + 1;
-    const startTime = _minutesToHHMM(_slotStartMinutes(_freeIntervalsForWeekday(weekday, profile.blackoutSlots || []), slotIdx, s.durationMin || sessionLengthMin));
-    if (date !== s.date || startTime !== s.startTime) {
+  proposed.forEach((next, i) => {
+    const s = sorted[i];
+    if (next.date !== s.date || next.startTime !== s.startTime) {
       const exam = examById.get(s.examId);
-      moves.push({ sessionId: s.id, before: { date: s.date, startTime: s.startTime }, after: { date, startTime }, label: `Move "${s.topic}" (${exam?.name || ""}) to ${date} ${startTime}` });
+      moves.push({ sessionId: s.id, before: { date: s.date, startTime: s.startTime }, after: { date: next.date, startTime: next.startTime }, label: `Move "${s.topic}" (${exam?.name || ""}) to ${next.date} ${next.startTime}` });
     }
   });
   return { id: "optimize-week", title: "Optimize Week", summary: moves.length ? `${moves.length} session(s) rebalanced for better spacing` : "This week is already well-balanced.", moves, adds: [], removes: [] };

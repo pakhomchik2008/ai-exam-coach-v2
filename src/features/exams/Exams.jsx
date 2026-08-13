@@ -42,10 +42,9 @@ function Exams({ t, onPlanReady }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{exam.name}</h3>
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)}</p>
-            <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-              {exam.examBoard}
-              {!past && priority >= 8 && <span style={{ marginLeft: 6, color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● {L("High priority", "Високий пріоритет", "Высокий приоритет", "Priorité haute", "Hohe Priorität")}</span>}
-            </p>
+            {!past && priority >= 8 && (
+              <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● {L("High priority", "Високий пріоритет", "Высокий приоритет", "Priorité haute", "Hohe Priorität")}</p>
+            )}
           </div>
           <span style={{ flexShrink: 0, borderRadius: "var(--radius-full)", padding: "2px 8px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", background: past ? "var(--slate-100)" : soon ? "var(--amber-100)" : "var(--emerald-100)", color: past ? "var(--slate-500)" : soon ? "var(--amber-700)" : "var(--emerald-700)" }}>
             {past ? t.exams_past_label : `${days}${t.exams_days_away}`}
@@ -145,7 +144,9 @@ function Exams({ t, onPlanReady }) {
     const defaultDate = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); })();
     const todayISO = new Date().toISOString().slice(0, 10);
     const profile = React.useMemo(() => window.getProfile ? window.getProfile() : {}, []);
-    const suggestedQualId = (window.COUNTRY_TO_EXAM_TYPE && profile.country && window.COUNTRY_TO_EXAM_TYPE[profile.country]) || "gcse";
+    const suggestedQualId = window.suggestedQualificationId
+      ? window.suggestedQualificationId(lastExam, profile)
+      : ((window.COUNTRY_TO_EXAM_TYPE && profile.country && window.COUNTRY_TO_EXAM_TYPE[profile.country]) || "custom");
 
     // "Same course as X" attaches a second Exam (resit/mock/final...) to an
     // EXISTING courseId — no curriculum lookup, no new Course, shared mastery
@@ -153,8 +154,11 @@ function Exams({ t, onPlanReady }) {
     const [sameCourse, setSameCourse] = React.useState(false);
     const [qualificationId, setQualificationId] = React.useState(suggestedQualId);
     const qual = window.examType(qualificationId);
+    const sectionBased = window.isSectionBasedExam
+      ? window.isSectionBasedExam(qualificationId)
+      : !!(qual && qual.sectionBased);
 
-    const [name, setName] = React.useState("");
+    const [name, setName] = React.useState(sectionBased ? (qual.label || "") : "");
     const [examDate, setExamDate] = React.useState(defaultDate);
     const [examBoard, setExamBoard] = React.useState(qual.board || "");
     const [kind, setKind] = React.useState("exam");
@@ -172,7 +176,7 @@ function Exams({ t, onPlanReady }) {
     const [courseDraft, setCourseDraft] = React.useState(null);
     const [noTopicList, setNoTopicList] = React.useState(false);
     const [files, setFiles] = React.useState([]);
-    const [curriculumValid, setCurriculumValid] = React.useState(false);
+    const [curriculumValid, setCurriculumValid] = React.useState(sectionBased);
 
     React.useEffect(() => {
       if (sameCourse) {
@@ -181,32 +185,57 @@ function Exams({ t, onPlanReady }) {
         if (lastExam.sessionLengthMin) setSessionLengthMin(lastExam.sessionLengthMin);
         return;
       }
-      setName("");
+      setName(sectionBased ? (qual.label || "") : "");
       setExamBoard(qual.board || "");
       setCurrent(qual.grade.current);
       setTarget(qual.grade.target);
       setKind("exam");
+      if (sectionBased) {
+        setCurriculumValid(true);
+        setCourseDraft(null);
+      }
     }, [sameCourse, qualificationId]);
 
     const canSave = sameCourse
       ? name.trim() && examDate >= todayISO
-      : name.trim() && examDate >= todayISO && curriculumValid;
+      : name.trim() && examDate >= todayISO && (sectionBased || curriculumValid);
 
     React.useEffect(() => {
       const fn = (e) => { if (e.key === "Escape") onClose(); };
       document.addEventListener("keydown", fn);
-      return () => document.removeEventListener("keydown", fn);
+      // The sheet owns the whole viewport — letting the page behind it keep its
+      // own scrollbar means the wheel sometimes moves the list, not the form.
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", fn);
+        document.body.style.overflow = prevOverflow;
+      };
     }, []);
 
     function save() {
       let course = null;
-      if (!sameCourse && courseDraft && courseDraft.topics && courseDraft.topics.length && window.createCourse) {
+      if (!sameCourse && sectionBased && window.createCourse) {
+        const presets = (window.SUBJECT_PRESETS && window.SUBJECT_PRESETS[qualificationId]) || [];
+        const sections = qualificationId === "ielts"
+          ? presets.filter((s) => !/speaking/i.test(s))
+          : presets;
+        course = window.createCourse({
+          title: qual.label,
+          subject: qual.label,
+          curriculumRef: { qualificationId },
+          topics: sections.map((sec) => ({ name: sec, module: sec, difficulty: 5, importance: 7, subtopics: [] })),
+          knowledgeBase: { status: "empty", chapters: [], glossary: [], sourceFiles: [], extractedAt: null, updatedAt: null },
+          source: "official",
+          verifiedByUser: true,
+        });
+      } else if (!sameCourse && courseDraft && courseDraft.topics && courseDraft.topics.length && window.createCourse) {
         course = window.createCourse(courseDraft);
       }
       const courseId = sameCourse ? lastExam.courseId : (course ? course.id : null);
       const newExams = window.commitExamWizard({
         examDrafts: [{
-          name: name.trim(),
+          name: name.trim() || qual.label,
           color: null,
           examDate,
           examBoard: sameCourse ? lastExam.examBoard : examBoard,
@@ -218,6 +247,7 @@ function Exams({ t, onPlanReady }) {
           courseId,
           kind,
           sessionLengthMin,
+          qualificationId: sameCourse ? lastExam.qualificationId : qualificationId,
         }],
         profilePatch: null,
       });
@@ -232,16 +262,30 @@ function Exams({ t, onPlanReady }) {
 
     const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
     const labelStyle = { display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" };
+    // Full-screen sheet, so header / body / footer each need the same reading
+    // column or they drift apart on a wide monitor.
+    const columnStyle = { width: "100%", maxWidth: 560, margin: "0 auto", boxSizing: "border-box" };
     const KIND_OPTIONS = [
       { id: "exam", label: t.exams_kind_exam }, { id: "midterm", label: t.exams_kind_midterm }, { id: "final", label: t.exams_kind_final },
       { id: "resit", label: t.exams_kind_resit }, { id: "mock", label: t.exams_kind_mock }, { id: "certification", label: t.exams_kind_cert },
     ];
 
     return (
-      <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
-        <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)", maxHeight: "90vh", overflowY: "auto" }}>
-          <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
+      <div className="ux-overlay" role="dialog" aria-modal="true" aria-label={t.exams_add} style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", flexDirection: "column", background: "var(--surface-page)", fontFamily: "var(--font-sans)" }}>
+        {/* No slide-in class here on purpose: ux-sheet translates by 18%, and on
+            a surface that owns the whole viewport that pushes the footer buttons
+            off-screen for as long as the animation is mid-flight. */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-card)" }}>
+            <div style={{ ...columnStyle, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", padding: "var(--space-4) var(--space-5)" }}>
+              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
+              <button type="button" onClick={onClose} aria-label={t.exams_cancel} className="ux-press"
+                style={{ flexShrink: 0, border: "none", background: "var(--surface-muted)", width: 36, height: 36, borderRadius: "var(--radius-full)", color: "var(--text-muted)", fontSize: 18, lineHeight: 1, cursor: "pointer" }}>✕</button>
+            </div>
+          </div>
 
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <div style={{ ...columnStyle, padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {lastExam.courseId && (
             <div style={{ display: "flex", gap: 6 }}>
               <button type="button" onClick={() => setSameCourse(false)}
@@ -262,17 +306,17 @@ function Exams({ t, onPlanReady }) {
           {sameCourse ? (
             <div>
               <label style={labelStyle}>{t.exams_name}</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} autoFocus style={inputStyle} />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} style={inputStyle} />
             </div>
-          ) : (<>
+          ) : (
             <div>
               <label style={labelStyle}>{t.exams_qualification}</label>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {window.EXAM_TYPES.map((e) => {
                   const sel = qualificationId === e.id;
                   return (
-                    <button key={e.id} type="button" onClick={() => setQualificationId(e.id)}
-                      style={{ padding: "6px 12px", borderRadius: "var(--radius-full)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                    <button key={e.id} type="button" onClick={() => setQualificationId(e.id)} className="ux-press"
+                      style={{ minHeight: 44, padding: "10px 16px", borderRadius: "var(--radius-full)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
                         border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
                         background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
                       {e.emoji} {e.label}
@@ -281,22 +325,27 @@ function Exams({ t, onPlanReady }) {
                 })}
               </div>
             </div>
-            {qual.boardOptions && (
-              <div>
-                <label style={labelStyle}>{t.exams_board}</label>
-                <select value={examBoard} onChange={(e) => setExamBoard(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
-                  {qual.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-            )}
-          </>)}
+          )}
 
           <div>
             <label style={labelStyle}>{t.exams_date}</label>
             <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
           </div>
 
-          {!sameCourse && (
+          {!sameCourse && sectionBased && (
+            <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-subtle)", background: "var(--surface-muted)", padding: "var(--space-3)" }}>
+              <p style={{ margin: "0 0 8px", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+                {L(`${qual.label} — sections`, `${qual.label} — секції`, `${qual.label} — секции`, `${qual.label} — sections`, `${qual.label} — Bereiche`)}
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {((window.SUBJECT_PRESETS && window.SUBJECT_PRESETS[qualificationId]) || []).filter((s) => qualificationId !== "ielts" || !/speaking/i.test(s)).map((sec) => (
+                  <span key={sec} style={{ fontSize: "var(--text-xs)", padding: "4px 10px", borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", color: "var(--text-body)" }}>{sec}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!sameCourse && !sectionBased && (
             <window.CurriculumStep
               countryId={profile.country || null}
               qualificationId={qualificationId}
@@ -371,9 +420,14 @@ function Exams({ t, onPlanReady }) {
             </label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t.exams_notes_ph} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
           </div>
-          <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
-            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
+            </div>
+          </div>
+
+          <div style={{ flexShrink: 0, borderTop: "1px solid var(--border-subtle)", background: "var(--surface-card)" }}>
+            <div style={{ ...columnStyle, display: "flex", gap: "var(--space-2)", padding: "var(--space-3) var(--space-5)" }}>
+              <button onClick={onClose} className="ux-press" style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
+              <button onClick={save} disabled={!canSave} className="ux-press" style={{ flex: 2, minHeight: 44, borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -453,7 +507,7 @@ function Exams({ t, onPlanReady }) {
             </>
           ) : (
             <>
-              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.examBoard} · {exam.topicCount} {t.exams_topics}</p>
+              <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)} · {exam.topicCount} {t.exams_topics}</p>
               {(() => {
                 const priority = window.computePriority ? window.computePriority(exam) : 5;
                 return (

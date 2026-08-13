@@ -7,11 +7,25 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
-import { tokenizeMath, renderMathSegment, escapeHtml as _escapeHtmlMath } from "../../lib/math-render";
+import { renderCoachMarkdown } from "../../lib/math-render";
 import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
 import { ExamRecap } from "../study/ExamRecap.jsx";
+import { WaitPress } from "../../components/WaitPress";
+import { ListenClip } from "../../components/ListenClip";
+import { dropIeltsSpeakingTopics, isIeltsListeningTopic, isIeltsQual, isIeltsSpeakingTopic } from "../../lib/ielts-listen";
+import { isIeltsReadingTopic, isIeltsWritingTopic } from "../../lib/ielts-paper";
+import { IeltsReading } from "../ielts/IeltsReading";
+import { IeltsWriting } from "../ielts/IeltsWriting";
+import { SocraticDialog } from "../learn/SocraticDialog.jsx";
+import { FadingDialog } from "../learn/FadingDialog.jsx";
+import { FeynmanDialog } from "../learn/FeynmanDialog.jsx";
+import { recommendLearnMethod } from "../learn/recommend";
+import { treeForExam } from "../learn/tree/resolve";
+import { flattenLessonNodes, localize } from "../learn/tree/schema";
+import { freeTopicLimit, topicIsLocked } from "../learn/premium";
+import { ProSheet } from "../learn/ProSheet.jsx";
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -24,6 +38,24 @@ import { ExamRecap } from "../study/ExamRecap.jsx";
 function _qualificationOf(exam) {
   if (!exam) return null;
   return (window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId) || null;
+}
+
+/** Academic vs GT + which paper — asked every sitting, never stored. */
+function _ieltsSitPickers({ t, module, setModule, paper, setPaper, papers }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const chip = (on, label, onClick, key) => React.createElement("button", {
+    key, type: "button", onClick,
+    style: { padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 20, border: `1.5px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "var(--indigo-50)" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" },
+  }, label);
+  return [
+    React.createElement("p", { key: "ml", style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Module this sitting", "Модуль цього разу", "Модуль в этот раз", "Module cette fois", "Modul diesmal")),
+    React.createElement("div", { key: "mv", style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 } },
+      chip(module === "academic", "Academic", () => setModule("academic"), "ac"),
+      chip(module === "gt", "General Training", () => setModule("gt"), "gt")),
+    React.createElement("p", { key: "pl", style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Paper", "Секція", "Секция", "Épreuve", "Teil")),
+    React.createElement("div", { key: "pv", style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 } },
+      ...papers.map((p) => chip(paper === p.key, p.label, () => setPaper(p.key), p.key))),
+  ];
 }
 
 // Novelty engine (Phase 3 §3a) — proof point wired into Practice Engine only,
@@ -107,8 +139,9 @@ const QUICK_ACTIONS = [
 
 // ─── Shared ──────────────────────────────────────────────────────────────────
 
-function CoachIcon({ size = 32 }) {
+function CoachIcon({ size = 32, className }) {
   return React.createElement("div", {
+    className,
     style: { width: size, height: size, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }
   }, React.createElement("svg", { width: size * 0.54, height: size * 0.54, viewBox: "0 0 20 20", fill: "none" },
     React.createElement("path", { d: "M10 2C7.24 2 5 4.24 5 7c0 1.9 1.05 3.55 2.6 4.4L7.3 12h5.4l-.3-.6C14.05 10.55 15 8.9 15 7c0-2.76-2.24-5-5-5z", fill: "var(--white)", opacity: "0.95" }),
@@ -122,20 +155,7 @@ function CoachIcon({ size = 32 }) {
 // are escaped, then bold/italic/code/newline substitutions run on the
 // escaped text (order matters: escaping first lets these regexes never see
 // user-injected HTML in the first place).
-const _md = (text) => {
-  if (!text) return "";
-  const normalized = String(text).replace(/<br\s*\/?>(\r?\n)?/gi, "\n");
-  const segs = tokenizeMath(normalized);
-  return segs.map((s) => {
-    if (s.kind !== "text") return renderMathSegment(s);
-    let t = _escapeHtmlMath(s.value)
-      .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
-      .replace(/`([^`\n]+?)`/g, "<code style='background:var(--slate-100);padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
-      .replace(/\n/g, "<br/>");
-    return t;
-  }).join("");
-};
+const _md = (text) => renderCoachMarkdown(text);
 
 const _isMath = (text) => /[=°²³√×÷±∑∫πΔ∞≠≤≥∈∩∪]/.test(text) || /\d\s*[\+\-\*\/]\s*\d/.test(text);
 
@@ -257,11 +277,12 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
         })),
       cpRevealed && q.explanation && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${cpSelected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-      }, cpSelected === q.correct ? "✅ " : "💡 ", q.explanation)),
+        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${cpSelected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+        dangerouslySetInnerHTML: { __html: (cpSelected === q.correct ? "✅ " : "💡 ") + _md(q.explanation) },
+      })),
     cpRevealed && React.createElement("div", { style: { marginTop: 16 } },
       _btn(cpIdx + 1 < questions.length ? L("Next question →", "Наступне питання →", "Следующий вопрос →", "Question suivante →", "Nächste Frage →") : L("See results →", "Переглянути результати →", "Посмотреть результаты →", "Voir les résultats →", "Ergebnisse ansehen →"), () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
 }
@@ -442,13 +463,11 @@ RULES:
 
   // ─── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Building your study guide...", "Створюємо ваш навчальний посібник...", "Создаём ваше учебное пособие...", "Création de votre guide d'étude...", "Dein Lernleitfaden wird erstellt...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
-      React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)" } }, L("This takes a moment — lots of material to prepare", "Це займе трохи часу — потрібно підготувати багато матеріалу", "Это займёт немного времени — нужно подготовить много материала", "Cela prend un moment — beaucoup de matériel à préparer", "Das dauert einen Moment — viel Material wird vorbereitet")),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Building your study guide...", "Створюємо ваш навчальний посібник...", "Создаём ваше учебное пособие...", "Création de votre guide d'étude...", "Dein Lernleitfaden wird erstellt..."),
+      subtitle: `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`,
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -567,11 +586,12 @@ RULES:
                   style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
                 },
                   React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-                  React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+                  React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
               })),
             revealed && q.explanation && React.createElement("div", {
-              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-            }, selected === q.correct ? "✅ " : "💡 ", q.explanation)),
+              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+              dangerouslySetInnerHTML: { __html: (selected === q.correct ? "✅ " : "💡 ") + _md(q.explanation) },
+            })),
           revealed && React.createElement("div", { style: { marginTop: 16 } },
             _btn(quizIdx + 1 < quizzes.length ? L("Next question →", "Наступне питання →", "Следующий вопрос →", "Question suivante →", "Nächste Frage →") : secIdx + 1 < totalSections ? L("Next section →", "Наступний розділ →", "Следующий раздел →", "Section suivante →", "Nächster Abschnitt →") : L("See summary →", "Переглянути підсумок →", "Посмотреть итог →", "Voir le résumé →", "Zusammenfassung ansehen →"), nextAfterQuiz, true, false)))));
   }
@@ -673,6 +693,14 @@ function QuickCheckEngine({ topic, onExit, t }) {
   const recordedRef = React.useRef(false);
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const listenQual = React.useMemo(() => {
+    if (!resolved || !window.getExams) return null;
+    const exam = window.getExams().find((e) => e.id === resolved.examId);
+    return exam ? _qualificationOf(exam) : null;
+  }, [resolved]);
+  const listenMode = isIeltsListeningTopic(topic, listenQual);
+  const readMode = isIeltsReadingTopic(topic, listenQual);
+  const writeMode = isIeltsWritingTopic(topic, listenQual);
   // Adaptive difficulty: rises as this topic racks up perfect Quick Checks
   // (see recordQuickCheckResult in brain-store.jsx) — read once per topic so
   // it stays stable for the duration of this session.
@@ -696,11 +724,32 @@ function QuickCheckEngine({ topic, onExit, t }) {
     setLoading(true); setError(null); setQuestions(null); setIdx(0); setSelected(null); setRevealed(false); setResults([]); setDone(false); setFillInput(""); setLevelUp(false);
     recordedRef.current = false;
     startTime.current = Date.now();
+    if (readMode || writeMode) { setLoading(false); return; }
     (async () => {
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-        const system = `You are building a QUICK CHECK — 5 rapid retrieval questions for a student who has studied this topic before. This is NOT a flashcard deck. Each question has ONE correct answer and immediate feedback.
+        const system = listenMode
+          ? `You are building an IELTS LISTENING Quick Check. The student HEARS a short recording — they must not be able to answer by reading the question alone.
+
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
+
+EVERY item is type "listen":
+{"type":"listen","script":"60-120 words of spoken English (conversation or short monologue). Do not put the answer in the first sentence.","accent":"en-GB","question":"What the student is asked AFTER hearing the clip","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence.","topic":"sub-skill"}
+
+You may replace options+correct with fill-in: "answer":"library","accept":["library","the library"] (no options).
+
+FORMAT: {"questions":[...5 items...],"sessionTitle":"Short title"}
+
+RULES:
+- Exactly 5 listen items. No silent reading MCQ. No theory-about-listening questions.
+- script is the ONLY place the facts live. question + options must be unanswerable without the script.
+- Mix: form/note completion (fill), multiple choice, matching speakers, specific detail.
+- Scripts in English. Vary setting (booking, campus, lecture, everyday).
+- accent is one of en-GB, en-US, en-AU.
+- Difficulty: ${DIFFICULTY_MIXES[difficulty - 1]}
+- Explanations 1 sentence.`
+          : `You are building a QUICK CHECK — 5 rapid retrieval questions for a student who has studied this topic before. This is NOT a flashcard deck. Each question has ONE correct answer and immediate feedback.
 
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 
@@ -724,7 +773,7 @@ RULES:
         // the whole {questions, sessionTitle} envelope for the first call, and
         // `regenerate` returns only the inner questions array on retry.
         const complete1 = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext }),
+          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenQual }),
           timeout,
         ]).then((raw) => window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
         const parsed = await complete1();
@@ -745,7 +794,7 @@ RULES:
         setLoading(false);
       }
     })();
-  }, [topic]);
+  }, [topic, readMode, writeMode, listenMode]);
 
   const answerMcq = (optIdx) => {
     if (selected !== null) return;
@@ -789,13 +838,19 @@ RULES:
     }
   };
 
+  if (readMode) {
+    return React.createElement(IeltsReading, { mode: "quick", module: "academic", onExit, t });
+  }
+  if (writeMode) {
+    return React.createElement(IeltsWriting, { mode: "practice", module: "academic", onExit, t });
+  }
+
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Preparing Quick Check...", "Готуємо швидку перевірку...", "Готовим быструю проверку...", "Préparation de la vérification rapide...", "Schnelltest wird vorbereitet...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Preparing Quick Check...", "Готуємо швидку перевірку...", "Готовим быструю проверку...", "Préparation de la vérification rapide...", "Schnelltest wird vorbereitet..."),
+      subtitle: `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`,
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -862,10 +917,25 @@ RULES:
   const pct = Math.round(((idx + 1) / total) * 100);
 
   const renderQuestion = () => {
-    if (q.type === "fill") {
+    const isListen = q.type === "listen" || !!(listenMode && q.script);
+    const clip = isListen && q.script ? React.createElement(ListenClip, {
+      key: `clip-${idx}`,
+      script: q.script,
+      locale: q.accent || "en-GB",
+      playLabel: L("Play audio", "Увімкнути аудіо", "Включить аудио", "Écouter", "Audio abspielen"),
+      stopLabel: L("Stop", "Стоп", "Стоп", "Stop", "Stopp"),
+      replayLabel: L("Play again", "Ще раз", "Ещё раз", "Réécouter", "Nochmal"),
+      fallbackHint: L("Your browser can't play speech. Read the recording below.", "Браузер не вміє озвучувати. Прочитай запис нижче.", "Браузер не умеет озвучивать. Прочитай запись ниже.", "Le navigateur ne peut pas lire l'audio. Lis l'enregistrement.", "Browser kann nicht vorlesen. Lies die Aufnahme."),
+    }) : null;
+    const transcript = isListen && revealed && q.script
+      ? React.createElement("p", { style: { marginTop: 12, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.55, textAlign: "left" }, dangerouslySetInnerHTML: { __html: L("Recording: ", "Запис: ", "Запись: ", "Enregistrement : ", "Aufnahme: ") + _md(q.script) } })
+      : null;
+
+    if (q.type === "fill" || (isListen && !(q.options && q.options.length))) {
       return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-          React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--amber-50)", "var(--amber-700)", L("✍️ FILL IN", "✍️ ЗАПОВНІТЬ", "✍️ ЗАПОЛНИТЕ", "✍️ COMPLÉTEZ", "✍️ AUSFÜLLEN"))),
+          clip,
+          React.createElement("div", { style: { marginBottom: 14 } }, _badge(isListen ? "var(--indigo-50)" : "var(--amber-50)", isListen ? "var(--indigo-700)" : "var(--amber-700)", isListen ? L("🎧 LISTEN", "🎧 СЛУХАЙ", "🎧 СЛУШАЙ", "🎧 ÉCOUTE", "🎧 HÖR ZU") : L("✍️ FILL IN", "✍️ ЗАПОВНІТЬ", "✍️ ЗАПОЛНИТЕ", "✍️ COMPLÉTEZ", "✍️ AUSFÜLLEN"))),
           React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question).replace("___", "<u style='border-bottom:2px dashed var(--indigo-500);padding:0 8px;color:var(--indigo-500)'>___</u>") } }),
           !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
             React.createElement("input", {
@@ -879,15 +949,18 @@ RULES:
               style: { padding: "12px 20px", background: fillInput.trim() ? "var(--indigo-600)" : "var(--indigo-200)", color: "var(--white)", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
             }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen"))),
           revealed && React.createElement("div", {
-            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-          }, selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`))));
+            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+            dangerouslySetInnerHTML: { __html: _md(selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`)) },
+          }),
+          transcript));
     }
 
-    // MCQ
+    // MCQ (and listen-with-options)
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+        clip,
         React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-          _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
+          _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", isListen ? L("🎧 LISTEN", "🎧 СЛУХАЙ", "🎧 СЛУШАЙ", "🎧 ÉCOUTE", "🎧 HÖR ZU") : L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
           q.topic && _badge("var(--surface-muted)", "var(--text-muted)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
@@ -904,11 +977,13 @@ RULES:
               style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
           })),
         revealed && React.createElement("div", {
-          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-        }, selected === q.correct ? "✅ " : "💡 ", q.explanation)));
+          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+          dangerouslySetInnerHTML: { __html: (selected === q.correct ? "✅ " : "💡 ") + _md(q.explanation) },
+        }),
+        transcript));
   };
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
@@ -1016,7 +1091,7 @@ RULES:
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }] }),
+          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examViews[0]?.id) : null) }),
           timeout,
         ]).then((raw) => {
           const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -1166,14 +1241,11 @@ RULES:
 
   // ── Loading ──
   if (phase === "loading" && !error) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Preparing Speed Round...", "Готуємо швидкий раунд...", "Готовим быстрый раунд...", "Préparation du tour rapide...", "Speed-Runde wird vorbereitet...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, L(`${totalQ} questions × ${perQ} seconds each`, `${totalQ} питань × по ${perQ} секунд`, `${totalQ} вопросов × по ${perQ} секунд`, `${totalQ} questions × ${perQ} secondes chacune`, `${totalQ} Fragen × je ${perQ} Sekunden`)),
-      chosenTopics.length > 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", maxWidth: 340 } },
-        ...chosenTopics.map((n, i) => React.createElement("span", { key: i, style: { padding: "4px 10px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 11, color: "var(--indigo-700)", fontWeight: 600 } }, n))),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Preparing Speed Round...", "Готуємо швидкий раунд...", "Готовим быстрый раунд...", "Préparation du tour rapide...", "Speed-Runde wird vorbereitet..."),
+      subtitle: L(`${totalQ} questions × ${perQ} seconds each`, `${totalQ} питань × по ${perQ} секунд`, `${totalQ} вопросов × по ${perQ} секунд`, `${totalQ} questions × ${perQ} secondes chacune`, `${totalQ} Fragen × je ${perQ} Sekunden`),
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -1231,8 +1303,8 @@ RULES:
           ...results.filter((r) => !r.correct).map((r, i) => {
             const q = questions[r.qIdx];
             return q && React.createElement("div", { key: i, style: { background: "var(--red-50)", border: "1px solid var(--red-200)", borderRadius: 10, padding: "10px 14px", fontSize: 13 } },
-              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "var(--red-700)" } }, q.q),
-              React.createElement("p", { style: { margin: 0, color: "var(--red-700)", fontSize: 12 } }, `✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`));
+              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "var(--red-700)" }, dangerouslySetInnerHTML: { __html: _md(q.q) } }),
+              React.createElement("p", { style: { margin: 0, color: "var(--red-700)", fontSize: 12 }, dangerouslySetInnerHTML: { __html: _md(`✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`) } }));
           }))),
 
       _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
@@ -1266,7 +1338,7 @@ RULES:
     // Question card
     React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "20px" } },
       q.topic && React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, q.topic),
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 17, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.q),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 17, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.q) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...(q.options || []).map((opt, i) => {
           let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)";
@@ -1281,7 +1353,7 @@ RULES:
             style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "var(--emerald-500)" : selected === i ? "var(--red-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-            opt);
+            React.createElement("span", { dangerouslySetInnerHTML: { __html: _md(opt) } }));
         }))));
 }
 
@@ -1328,6 +1400,19 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
   const [revealed, setRevealed] = React.useState(false);
   const [results, setResults] = React.useState([]);
   const [patternAlert, setPatternAlert] = React.useState(null);
+  const [ieltsModule, setIeltsModule] = React.useState("academic");
+  const [ieltsPaper, setIeltsPaper] = React.useState("reading");
+  const [ieltsRun, setIeltsRun] = React.useState(null);
+
+  const practiceQual = React.useMemo(() => {
+    const exam = config.examId && window.getExams
+      ? window.getExams().find((e) => e.id === config.examId)
+      : (examViews.length === 1 && window.getExams
+        ? window.getExams().find((e) => e.id === examViews[0].id)
+        : null);
+    return _qualificationOf(exam);
+  }, [config.examId, examViews]);
+  const ieltsOn = isIeltsQual(practiceQual);
 
   const everyTopic = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName || t.name, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
   // Scoped to the chosen exam. Previously every exam's topics were flattened
@@ -1357,6 +1442,19 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
     }
   }, [results.length]);
 
+  if (ieltsRun?.paper === "reading") {
+    return React.createElement(IeltsReading, {
+      mode: "practice", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+  if (ieltsRun?.paper === "writing") {
+    return React.createElement(IeltsWriting, {
+      mode: "practice", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+
   // ── Setup screen ──
   if (phase === "setup") {
     const DIFFS = [
@@ -1366,8 +1464,13 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
       { key: "adaptive", label: L("Adaptive", "Адаптивний", "Адаптивный", "Adaptatif", "Adaptiv"), emoji: "🤖", desc: L("AI adjusts in real-time", "AI підлаштовується в реальному часі", "AI подстраивается в реальном времени", "L'IA s'ajuste en temps réel", "KI passt sich in Echtzeit an") },
     ];
     const selectedTopics = config.topics.length > 0 ? config.topics : allTopics.slice(0, 3).map((t) => t.name);
+    const showGeneric = !ieltsOn || ieltsPaper === "listening";
 
     const startPractice = async () => {
+      if (ieltsOn && (ieltsPaper === "reading" || ieltsPaper === "writing")) {
+        setIeltsRun({ paper: ieltsPaper, module: ieltsModule });
+        return;
+      }
       // ~1 minute per question is the pace a timed drill should feel like.
       setRemainingSec(config.timed ? config.length * 60 : null);
       setStartedAt(Date.now());
@@ -1396,7 +1499,7 @@ RULES:
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }] }),
+          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }], paperQual: practiceQual }),
           timeout,
         ]).then((r) => {
           const p = window.parseJSON ? window.parseJSON(r) : JSON.parse(r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1));
@@ -1422,8 +1525,21 @@ RULES:
         React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("🎯 Practice Exam", "🎯 Тренувальний іспит", "🎯 Тренировочный экзамен", "🎯 Examen d'entraînement", "🎯 Übungsprüfung"))),
 
       // Difficulty
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Difficulty", "Складність", "Сложность", "Difficulté", "Schwierigkeit")),
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 } },
+      ieltsOn && _ieltsSitPickers({
+        t, module: ieltsModule, setModule: setIeltsModule, paper: ieltsPaper, setPaper: setIeltsPaper,
+        papers: [
+          { key: "reading", label: L("Reading · 1 passage", "Reading · 1 текст", "Reading · 1 текст", "Reading · 1 texte", "Reading · 1 Text") },
+          { key: "writing", label: L("Writing · 1 task", "Writing · 1 завдання", "Writing · 1 задание", "Writing · 1 tâche", "Writing · 1 Aufgabe") },
+          { key: "listening", label: L("Listening", "Listening", "Listening", "Listening", "Listening") },
+        ],
+      }),
+      ieltsOn && (ieltsPaper === "reading" || ieltsPaper === "writing") && React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } },
+        ieltsPaper === "reading"
+          ? L("One passage + ~10 questions. True/False/Not Given, MCQ, fill. Like the real paper.", "Один текст + ~10 питань. True/False/Not Given, MCQ, пропуски. Як на справжньому папері.", "Один текст + ~10 вопросов. True/False/Not Given, MCQ, пропуски. Как на настоящем бланке.", "Un texte + ~10 questions. True/False/Not Given, QCM, trous. Comme l'épreuve réelle.", "Ein Text + ~10 Fragen. True/False/Not Given, MCQ, Lücken. Wie die echte Prüfung.")
+          : L("You get a prompt (chart or essay). You write. Examiner gives a band + why + what to fix.", "Тема (графік або есе). Ти пишеш. Екзаменатор ставить банд + чому + де підтягнути.", "Тема (график или эссе). Ты пишешь. Экзаменатор ставит балл + почему + где подтянуть.", "Un sujet (graphique ou essai). Tu écris. L'examinateur donne une bande + pourquoi + quoi corriger.", "Ein Prompt (Diagramm oder Essay). Du schreibst. Band + Begründung + Lücken.")),
+
+      showGeneric && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Difficulty", "Складність", "Сложность", "Difficulté", "Schwierigkeit")),
+      showGeneric && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 } },
         ...DIFFS.map((d) => React.createElement("button", {
           key: d.key, onClick: () => setConfig((c) => ({ ...c, difficulty: d.key })),
           style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: config.difficulty === d.key ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${config.difficulty === d.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
@@ -1447,9 +1563,8 @@ RULES:
           }, e.name);
         })),
 
-      // Length
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Questions", "Питань", "Вопросов", "Questions", "Fragen")),
-      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } },
+      showGeneric && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Questions", "Питань", "Вопросов", "Questions", "Fragen")),
+      showGeneric && React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } },
         ...[5, 10, 20, 50].map((n) => {
           const on = config.length === n;
           return React.createElement("button", {
@@ -1458,8 +1573,7 @@ RULES:
           }, n);
         })),
 
-      // Optional timer
-      React.createElement("button", {
+      showGeneric && React.createElement("button", {
         onClick: () => setConfig((c) => ({ ...c, timed: !c.timed })),
         "aria-pressed": config.timed,
         style: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 14px", marginBottom: 20, background: config.timed ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${config.timed ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
@@ -1470,9 +1584,8 @@ RULES:
           React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)" } }, config.timed ? L(`${config.length} min — about a minute a question`, `${config.length} хв — приблизно хвилина на питання`, `${config.length} мин — примерно минута на вопрос`, `${config.length} min — environ une minute par question`, `${config.length} Min — etwa eine Minute pro Frage`) : L("Off — take your time", "Вимкнено — не поспішайте", "Выключен — не спешите", "Désactivé — prenez votre temps", "Aus — lass dir Zeit"))),
         React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: config.timed ? "var(--indigo-600)" : "var(--text-faint)" } }, config.timed ? L("ON", "УВІМК", "ВКЛ", "ON", "AN") : L("OFF", "ВИМК", "ВЫКЛ", "OFF", "AUS"))),
 
-      // Topics
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Topics", "Теми", "Темы", "Sujets", "Themen")),
-      React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24, maxHeight: 180, overflowY: "auto" } },
+      showGeneric && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Topics", "Теми", "Темы", "Sujets", "Themen")),
+      showGeneric && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24, maxHeight: 180, overflowY: "auto" } },
         ...allTopics.map((tp) => {
           const on = selectedTopics.includes(tp.name);
           return React.createElement("button", {
@@ -1490,11 +1603,10 @@ RULES:
 
   // ── Loading ──
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Generating your exam...", "Створюємо ваш іспит...", "Создаём ваш экзамен...", "Génération de votre examen...", "Deine Prüfung wird erstellt...")),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Generating your exam...", "Створюємо ваш іспит...", "Создаём ваш экзамен...", "Génération de votre examen...", "Deine Prüfung wird erstellt..."),
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -1645,12 +1757,11 @@ RULES:
               style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
           })),
 
         // Explanation (after reveal)
-        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
-          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation)),
+        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: (results[results.length - 1]?.correct ? "✅ " : "💡 ") + _md(q.explanation) } })),
 
       // Continue button
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
@@ -1680,6 +1791,9 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const [autoSubmitted, setAutoSubmitted] = React.useState(false);
   const [startedAt, setStartedAt] = React.useState(null);
   const finishedRef = React.useRef(false);
+  const [ieltsModule, setIeltsModule] = React.useState("academic");
+  const [ieltsPaper, setIeltsPaper] = React.useState("reading");
+  const [ieltsRun, setIeltsRun] = React.useState(null);
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
   const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
@@ -1740,10 +1854,27 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
     return () => clearInterval(t);
   }, [phase]);
 
+  if (ieltsRun?.paper === "reading") {
+    return React.createElement(IeltsReading, {
+      mode: "exam", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+  if (ieltsRun?.paper === "writing") {
+    return React.createElement(IeltsWriting, {
+      mode: "exam", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+
   // ── Setup screen ──
   if (phase === "setup" || (phase === "loading" && error)) {
     const startExam = async () => {
       if (!selectedExam) return;
+      if (isIeltsQual(examQual)) {
+        setIeltsRun({ paper: ieltsPaper, module: ieltsModule });
+        return;
+      }
       setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
       setStartedAt(Date.now());
       // Generate in PARALLEL CHUNKS of ~6 questions each, not one giant call.
@@ -1763,14 +1894,13 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
           const ts = topics.filter((_, j) => j % numChunks === i);
           return ts.length ? ts : topics.slice(0, Math.min(3, topics.length));
         });
-        const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
         const makeChunk = (ts) => {
           const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
-RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.${langDir ? " " + langDir : ""}`;
+RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.`;
           const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }] }), to])
+          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: examQual }), to])
             .then((raw) => {
               const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
               return Array.isArray(p && p.questions) ? p.questions : [];
@@ -1826,6 +1956,14 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
           React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: examId === e.id ? "var(--indigo-700)" : "var(--text-strong)" } }, e.name),
           React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, L(`${(e.topics || []).length || "?"} topics`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} sujets`, `${(e.topics || []).length || "?"} Themen`))))),
 
+      isIeltsQual(examQual) && _ieltsSitPickers({
+        t, module: ieltsModule, setModule: setIeltsModule, paper: ieltsPaper, setPaper: setIeltsPaper,
+        papers: [
+          { key: "reading", label: L("Reading · 3 passages · 40q · 60m", "Reading · 3 тексти · 40п · 60хв", "Reading · 3 текста · 40в · 60мин", "Reading · 3 textes · 40q · 60m", "Reading · 3 Texte · 40F · 60m") },
+          { key: "writing", label: L("Writing · Task 1+2 · 60m", "Writing · Task 1+2 · 60хв", "Writing · Task 1+2 · 60мин", "Writing · Task 1+2 · 60m", "Writing · Task 1+2 · 60m") },
+        ],
+      }),
+
       // Real vs Practice made visible (Phase 3 §3b): only a named spec can
       // honestly claim to mirror an exam's official shape — everything else
       // is a generic mock, and the copy says so rather than implying more
@@ -1836,9 +1974,13 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
 
       selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
         ...[
-          { val: questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
-          { val: `~${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
-          { val: examTopics.length || L("All", "Усі", "Все", "Tous", "Alle"), label: L("Topics", "Теми", "Темы", "Sujets", "Themen") },
+          isIeltsQual(examQual) && ieltsPaper === "writing"
+            ? { val: "2", label: L("Tasks", "Завдання", "Задания", "Tâches", "Aufgaben") }
+            : { val: isIeltsQual(examQual) ? 40 : questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
+          { val: isIeltsQual(examQual) ? "60m" : `~${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
+          isIeltsQual(examQual)
+            ? { val: ieltsPaper === "writing" ? "T1+T2" : "3", label: ieltsPaper === "writing" ? L("Paper", "Папір", "Бумага", "Épreuve", "Teil") : L("Passages", "Тексти", "Тексты", "Textes", "Texte") }
+            : { val: examTopics.length || L("All", "Усі", "Все", "Tous", "Alle"), label: L("Topics", "Теми", "Темы", "Sujets", "Themen") },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center" } },
           React.createElement("p", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
@@ -1848,12 +1990,11 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
 
   // ── Loading ──
   if (phase === "loading") {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Assembling your mock exam...", "Складаємо ваш пробний іспит...", "Составляем ваш пробный экзамен...", "Préparation de votre examen blanc...", "Deine Testprüfung wird zusammengestellt...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, selectedExam?.name),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Assembling your mock exam...", "Складаємо ваш пробний іспит...", "Составляем ваш пробный экзамен...", "Préparation de votre examen blanc...", "Deine Testprüfung wird zusammengestellt..."),
+      subtitle: selectedExam?.name,
+      lang: t?.code,
+    });
   }
 
   // ── Summary ──
@@ -1955,7 +2096,7 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
               style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: isSel ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${isSel ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: isSel ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: isSel ? "var(--indigo-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: isSel ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
           })))),
 
     // Prev / Next navigation
@@ -2330,8 +2471,12 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     ),
   );
 
-  if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
-    L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"))]);
+  if (loading) return wrap([header, React.createElement(WaitPress, {
+    key: "l",
+    title: L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"),
+    lang: t?.code,
+    compact: true,
+  })]);
   if (error) return wrap([header,
     React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
     React.createElement("button", { key: "r", onClick: () => setRetry((n) => n + 1), style: { marginTop: 10, padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontFamily: "var(--font-sans)" } },
@@ -2576,8 +2721,12 @@ function LearnFlashcards({ topic, onExit, t }) {
       L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten")),
   );
 
-  if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
-    L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"))]);
+  if (loading) return wrap([header, React.createElement(WaitPress, {
+    key: "l",
+    title: L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"),
+    lang: t?.code,
+    compact: true,
+  })]);
   if (error) return wrap([header,
     React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
     React.createElement("button", { key: "r", onClick: () => setRetry((n) => n + 1), style: { marginTop: 10, padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontFamily: "var(--font-sans)" } },
@@ -2634,15 +2783,30 @@ function LearnFlashcards({ topic, onExit, t }) {
   ]);
 }
 
-// Picker — asked every time the student opens Learn mode. Two clear options,
+// Picker — asked every time the student opens Learn mode. Five methods,
 // no persistence: the "right" method depends on the topic and the mood, not
 // on a permanent setting somewhere the student would forget to change.
 function LearnMethodPicker({ topic, onExit, onPick, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const recommended = recommendLearnMethod({ firstVisit: true });
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },
   }, children);
-  const cardStyle = { flex: 1, padding: "24px 22px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms" };
+  const cardStyle = { flex: "1 1 240px", padding: "24px 22px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms" };
+  const card = (id, emoji, title, blurb) => {
+    const rec = recommended === id;
+    return React.createElement("button", {
+      key: id,
+      onClick: () => onPick(id),
+      style: { ...cardStyle, borderColor: rec ? "var(--indigo-400)" : "var(--border-default)" },
+    },
+      rec && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em" } },
+        L("Recommended", "Рекомендовано", "Рекомендуем", "Recommandé", "Empfohlen")),
+      React.createElement("div", { style: { fontSize: 28 } }, emoji),
+      React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } }, title),
+      React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } }, blurb),
+    );
+  };
   return wrap([
     React.createElement("div", { key: "hdr", style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 18 } },
       React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
@@ -2651,28 +2815,41 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
     ),
     React.createElement("h1", { key: "title", style: { margin: "0 0 24px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, topic),
     React.createElement("div", { key: "opts", style: { display: "flex", gap: 14, flexWrap: "wrap" } },
-      React.createElement("button", { onClick: () => onPick("theory"), style: cardStyle },
-        React.createElement("div", { style: { fontSize: 28 } }, "📖"),
-        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
-          L("Full theory page", "Повна теорія", "Полная теория", "Théorie complète", "Vollständige Theorie")),
-        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
-          L("Structured read — TL;DR, concepts, worked examples, common mistakes, cheat sheet.",
-            "Структурований конспект — TL;DR, концепції, приклади, помилки, шпаргалка.",
-            "Структурированный конспект — TL;DR, концепции, примеры, ошибки, шпаргалка.",
-            "Lecture structurée — TL;DR, concepts, exemples, erreurs, aide-mémoire.",
-            "Strukturierte Lektüre — TL;DR, Konzepte, Beispiele, Fehler, Spickzettel.")),
-      ),
-      React.createElement("button", { onClick: () => onPick("flashcards"), style: cardStyle },
-        React.createElement("div", { style: { fontSize: 28 } }, "🎴"),
-        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
-          L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten")),
-        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
-          L("6-10 bite-sized cards, one concept each. Swipe through at your pace.",
-            "6-10 коротких карток, по одному концепту. Гортайте у своєму темпі.",
-            "6-10 коротких карточек, по одному концепту. Листайте в своём темпе.",
-            "6-10 cartes courtes, un concept chacune. Passe à ton rythme.",
-            "6-10 kurze Karten, ein Konzept pro Karte. Blättere in deinem Tempo.")),
-      ),
+      card("theory", "📖",
+        L("Full theory page", "Повна теорія", "Полная теория", "Théorie complète", "Vollständige Theorie"),
+        L("Structured read — TL;DR, concepts, worked examples, common mistakes, cheat sheet.",
+          "Структурований конспект — TL;DR, концепції, приклади, помилки, шпаргалка.",
+          "Структурированный конспект — TL;DR, концепции, примеры, ошибки, шпаргалка.",
+          "Lecture structurée — TL;DR, concepts, exemples, erreurs, aide-mémoire.",
+          "Strukturierte Lektüre — TL;DR, Konzepte, Beispiele, Fehler, Spickzettel.")),
+      card("flashcards", "🎴",
+        L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten"),
+        L("6-10 bite-sized cards, one concept each. Swipe through at your pace.",
+          "6-10 коротких карток, по одному концепту. Гортайте у своєму темпі.",
+          "6-10 коротких карточек, по одному концепту. Листайте в своём темпе.",
+          "6-10 cartes courtes, un concept chacune. Passe à ton rythme.",
+          "6-10 kurze Karten, ein Konzept pro Karte. Blättere in deinem Tempo.")),
+      card("socratic", "💬",
+        L("Explain with the coach", "Пояснити разом", "Объяснить вместе", "Expliquer ensemble", "Gemeinsam erklären"),
+        L("The coach asks. You find the idea. One hint if you stall.",
+          "Коуч питає. Ви самі виводите ідею. Одна підказка, якщо застрягли.",
+          "Коуч спрашивает. Вы сами выводите идею. Одна подсказка, если застряли.",
+          "Le coach questionne. Tu trouves l’idée. Un indice si tu bloques.",
+          "Der Coach fragt. Du findest die Idee. Ein Tipp, wenn du hängst.")),
+      card("fading", "🪜",
+        L("Step by step", "Крок за кроком", "Шаг за шагом", "Étape par étape", "Schritt für Schritt"),
+        L("A worked example that hides one more step each level. You fill the gaps.",
+          "Розв’язок, де кожен рівень ховає ще один крок. Ви заповнюєте пропуски.",
+          "Решение, где каждый уровень прячет ещё один шаг. Вы заполняете пропуски.",
+          "Un exemple travaillé qui cache une étape de plus. Tu complètes.",
+          "Ein Beispiel, das pro Level einen Schritt mehr verbirgt.")),
+      card("feynman", "🎤",
+        L("Explain it back", "Поясни мені", "Объясни мне", "Explique-moi", "Erklär es"),
+        L("Teach a beginner in 60–90 seconds. Voice or text. The coach grades gaps.",
+          "Поясніть новачку за 60–90 секунд. Голос або текст. Коуч знайде прогалини.",
+          "Объясните новичку за 60–90 секунд. Голос или текст. Коуч найдёт пробелы.",
+          "Explique à un débutant en 60–90 s. Voix ou texte.",
+          "Erkläre einem Anfänger in 60–90 s. Stimme oder Text.")),
     ),
   ]);
 }
@@ -2692,6 +2869,15 @@ function LessonEngine({ topic, mode, onExit, t }) {
     }
     if (learnMethod === "flashcards") {
       return React.createElement(LearnFlashcards, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "socratic") {
+      return React.createElement(SocraticDialog, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "fading") {
+      return React.createElement(FadingDialog, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "feynman") {
+      return React.createElement(FeynmanDialog, { topic: activeTopic, onExit, t });
     }
     return React.createElement(LearnTheoryReader, { topic: activeTopic, onExit, t, onOpenTopic: setActiveTopic });
   }
@@ -2905,12 +3091,11 @@ function LessonEngine({ topic, mode, onExit, t }) {
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Building your lesson...", "Створюємо ваш урок...", "Создаём ваш урок...", "Création de votre leçon...", "Deine Lektion wird erstellt...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Building your lesson...", "Створюємо ваш урок...", "Создаём ваш урок...", "Création de votre leçon...", "Deine Lektion wird erstellt..."),
+      subtitle: `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`,
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -2996,7 +3181,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
           ? _badge("linear-gradient(135deg,var(--amber-500),var(--amber-600))", "var(--white)", L("🔥 HOOK QUESTION", "🔥 ВСТУПНЕ ПИТАННЯ", "🔥 ВВОДНЫЙ ВОПРОС", "🔥 QUESTION D'ACCROCHE", "🔥 EINSTIEGSFRAGE"))
           : _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
         diff && _badge(diff === "hard" ? "var(--red-50)" : diff === "easy" ? "var(--emerald-50)" : "var(--amber-50)", diff === "hard" ? "var(--red-700)" : diff === "easy" ? "var(--emerald-700)" : "var(--amber-700)", diff)),
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, question),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(question) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...options.map((opt, i) => {
           const isCor = i === correct, isSel = i === selected;
@@ -3011,11 +3196,12 @@ function LessonEngine({ topic, mode, onExit, t }) {
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
         })),
       revealed && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-      }, selected === correct ? "✅ " : "💡 ", explanation)),
+        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+        dangerouslySetInnerHTML: { __html: (selected === correct ? "✅ " : "💡 ") + _md(explanation) },
+      })),
     revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false)));
 
   const renderTf = (isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
@@ -3664,9 +3850,13 @@ If no actions fit, omit the ACTIONS line entirely.`,
 
     // step === "topic"
     const exam = examViews.find((e) => e.id === pickerFlow.examId);
-    const topics = ((exam && exam.topics) || []).map((tp) => ({
-      name: tp.topicName || tp.name, retention: tp.lastSeen ? Math.round(tp.retention * 100) : null, unseen: !tp.lastSeen,
-    })).sort((a, b) => (a.retention ?? -1) - (b.retention ?? -1));
+    const topics = dropIeltsSpeakingTopics(
+      ((exam && exam.topics) || []).map((tp) => ({
+        name: tp.topicName || tp.name, retention: tp.lastSeen ? Math.round(tp.retention * 100) : null, unseen: !tp.lastSeen,
+      })),
+      (tp) => tp.name,
+      exam && exam.qualificationId,
+    ).sort((a, b) => (a.retention ?? -1) - (b.retention ?? -1));
     const recommended = topics.filter((tp) => tp.unseen || (tp.retention != null && tp.retention < 60)).slice(0, 5);
     const q = pickerSearch.trim().toLowerCase();
     const searched = q ? topics.filter((tp) => tp.name.toLowerCase().includes(q)) : [];
@@ -3769,6 +3959,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const [expandedFolders, setExpandedFolders] = React.useState({}); // examId -> bool, "show all N" toggle in the topic picker
   const [customTopicFor, setCustomTopicFor] = React.useState(null);  // examId whose "add your own topic" input is open
   const [customTopicText, setCustomTopicText] = React.useState("");
+  const [proGate, setProGate] = React.useState(null); // { freeCount, lockedCount } | null
   const [reviewTopic, setReviewTopic] = React.useState(null);
   // Captured copy of a plain-string initialQuery, decoupled from the prop
   // itself. onConsumeQuery() nulls the PARENT's chatQuery in the same effect
@@ -3813,7 +4004,11 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   // Review mode — Quick Check session from the queue
   if (mode === "review" && reviewTopic) {
     const isQuick = reviewTopic === "__quick__";
-    const quickTopic = isQuick ? ((brain.dueReviews || [])[0]?.topicName || (brain.weakestTopics || [])[0]?.topicName || L("General review", "Загальний огляд", "Общий обзор", "Révision générale", "Allgemeine Wiederholung")) : null;
+    const notSpeaking = (t) => {
+      const ev = (brain.examViews || []).find((e) => e.id === t.examId || e.name === t.examName);
+      return !isIeltsSpeakingTopic(t.topicName, ev && ev.qualificationId);
+    };
+    const quickTopic = isQuick ? ((brain.dueReviews || []).find(notSpeaking)?.topicName || (brain.weakestTopics || []).find(notSpeaking)?.topicName || L("General review", "Загальний огляд", "Общий обзор", "Révision générale", "Allgemeine Wiederholung")) : null;
     return React.createElement(QuickCheckEngine, {
       topic: isQuick ? quickTopic : reviewTopic,
       onExit: exitToQueue,
@@ -3827,8 +4022,12 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   // queue updates the moment a finished review writes back to the brain.
   if (mode === "review") {
     const freshBrain = window.getBrain ? window.getBrain() : {};
-    const queue = freshBrain.dueReviews || [];
-    const weakFallback = (freshBrain.weakestTopics || []).filter((t) => t.lastSeen).slice(0, 4);
+    const hideSpeaking = (t) => {
+      const ev = (freshBrain.examViews || []).find((e) => e.id === t.examId || e.name === t.examName);
+      return !isIeltsSpeakingTopic(t.topicName, ev && ev.qualificationId);
+    };
+    const queue = (freshBrain.dueReviews || []).filter(hideSpeaking);
+    const weakFallback = (freshBrain.weakestTopics || []).filter((t) => t.lastSeen && hideSpeaking(t)).slice(0, 4);
     const daysAgo = (iso) => {
       if (!iso) return null;
       const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -3935,7 +4134,29 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       prefetchLesson(name, t?.code);
       setTopic(name); setTopicPicker(false); setMode("learn");
     };
-    const folders = examViews.filter((e) => (e.topics || []).length > 0);
+    const rawExams = window.getExams ? window.getExams() : [];
+    const folders = examViews.filter((e) => {
+      const exam = rawExams.find((x) => x.id === e.id);
+      return treeForExam(exam) || (e.topics || []).length > 0;
+    });
+    const treeRowsFor = (examView) => {
+      const exam = rawExams.find((x) => x.id === examView.id);
+      const tree = treeForExam(exam);
+      if (!tree) return null;
+      const flat = flattenLessonNodes(tree);
+      const nodeState = ((window.getLearn && window.getLearn()) || {})[tree.examTaxonomy] || {};
+      return flat.map((row) => {
+        const mastery = nodeState[row.node.id] && nodeState[row.node.id].mastery;
+        return {
+          name: localize(row.node.title, t?.code || "en"),
+          unitTitle: localize(row.unit.title, t?.code || "en"),
+          studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
+          premium: topicIsLocked(row.index, flat.length),
+          index: row.index,
+          total: flat.length,
+        };
+      });
+    };
 
     return ce("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       ce("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
@@ -3948,11 +4169,13 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         L("Add an exam first to build your topic list.", "Спершу додайте іспит, щоб з'явилися теми.", "Сначала добавьте экзамен, чтобы появились темы.", "Ajoutez d'abord un examen pour créer votre liste de sujets.", "Füge zuerst eine Prüfung hinzu, um deine Themenliste zu erstellen.")),
 
       ...folders.map((e, fi) => {
-        const rows = (e.topics || []).map((tp) => ({ tp, name: tp.topicName || tp.name, studied: !!tp.lastSeen, ret: tp.lastSeen ? tp.retention : null }));
+        const treeRows = treeRowsFor(e);
+        const rows = treeRows || (e.topics || []).map((tp) => ({ tp, name: tp.topicName || tp.name, studied: !!tp.lastSeen, premium: false, unitTitle: null }));
         const doneCount = rows.filter((r) => r.studied).length;
-        // Unstudied first (what to do next), studied sink to the bottom.
-        const ordered = [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
+        const ordered = treeRows ? rows : [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
         const pct = Math.round((doneCount / Math.max(1, rows.length)) * 100);
+        const freeN = treeRows ? freeTopicLimit(rows.length) : rows.length;
+        const proN = treeRows ? rows.length - freeN : 0;
         return ce("section", { key: e.id || fi, style: { marginBottom: 18, borderRadius: 18, border: "1px solid var(--border-subtle)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" } },
           // Folder header
           ce("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: "1px solid var(--border-subtle)" } },
@@ -3962,24 +4185,29 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
               ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
                 ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
-          // Topic rows — collapsed to ~5 with a "show all N" toggle for long lists
+          treeRows && proN > 0 && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
+            L(`${freeN} free · ${proN} Pro`, `${freeN} безкоштовно · ${proN} Pro`, `${freeN} бесплатно · ${proN} Pro`, `${freeN} gratuits · ${proN} Pro`, `${freeN} gratis · ${proN} Pro`)),
+          // Tree lists stay open so Pro topics are visible. Coarse exam.topics still collapse.
           (() => {
-            const COLLAPSE_N = 5;
+            const COLLAPSE_N = treeRows ? rows.length : 5;
             const expanded = !!expandedFolders[e.id];
             const visible = expanded || rows.length <= COLLAPSE_N ? ordered : ordered.slice(0, COLLAPSE_N);
-            const hidden = rows.length - visible.length;
             return ce("div", { style: { display: "flex", flexDirection: "column" } },
               ...visible.map((r, ri) => ce("button", {
-                key: ri, onClick: () => { setTopic(r.name); setTopicPicker(false); setMode("learn"); },
-                // Warm the lesson cache on intent (hover/focus) so the click that
-                // follows opens instantly instead of waiting on generation.
-                onMouseEnter: () => prefetchLesson(r.name, t?.code),
-                onFocus: () => prefetchLesson(r.name, t?.code),
-                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
+                key: ri,
+                onClick: () => {
+                  if (r.premium) { setProGate({ freeCount: freeN, lockedCount: proN }); return; }
+                  setTopic(r.name); setTopicPicker(false); setMode("learn");
+                },
+                onMouseEnter: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
+                onFocus: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
+                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left", opacity: r.premium ? 0.72 : 1 }
               },
                 ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
-                statusPill(r.tp))),
-              (rows.length > COLLAPSE_N) && ce("button", {
+                r.premium
+                  ? ce("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "Pro")
+                  : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" } }, "✓") : null)))),
+              (!treeRows && rows.length > COLLAPSE_N) && ce("button", {
                 onClick: () => setExpandedFolders((m) => ({ ...m, [e.id]: !expanded })),
                 style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }
               },
@@ -4003,7 +4231,9 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
                     style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 600, color: "var(--text-muted)" } },
                     L("+ Add your own topic", "+ Додати свою тему", "+ Добавить свою тему", "+ Ajouter votre sujet", "+ Eigenes Thema")));
           })());
-      }));
+      }),
+      proGate && ce(ProSheet, { freeCount: proGate.freeCount, lockedCount: proGate.lockedCount, onClose: () => setProGate(null), t }),
+    );
   }
 
   // ─── LOBBY ─────────────────────────────────────────────────────────────────
@@ -4014,22 +4244,23 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const xpData = window.xpLevel ? window.xpLevel() : null;
   const xpPct = xpData ? Math.round((xpData.into / xpData.need) * 100) : 0;
 
-  return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+  return React.createElement("div", { className: "coach-lobby", style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
     // Hero
-    React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
-      React.createElement(CoachIcon, { size: 56 }),
+    React.createElement("div", { className: "coach-lobby-hero", style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
+      React.createElement(CoachIcon, { size: 56, className: "coach-lobby-icon" }),
       React.createElement("h1", { style: { margin: "16px 0 4px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, greeting),
       React.createElement("p", { style: { margin: 0, fontSize: 14, color: "var(--text-muted)" } }, L("Your AI Coach is ready.", "Ваш AI-коуч готовий.", "Ваш AI-коуч готов.", "Votre coach IA est prêt.", "Dein KI-Coach ist bereit.")),
-      xpData && React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, margin: "14px auto 0", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 16px", maxWidth: 240 } },
+      xpData && React.createElement("div", { className: "coach-lobby-xp", style: { display: "flex", alignItems: "center", gap: 10, margin: "14px auto 0", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "10px 16px", maxWidth: 240 } },
         React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "4px 8px", borderRadius: 8, letterSpacing: "0.04em", whiteSpace: "nowrap" } }, `LV ${xpData.level}`),
         window.xpTier && (() => { const _tier = window.xpTier(); return React.createElement("span", { className: _tier.theme ? "tier-glow" : "", style: { fontSize: 11, fontWeight: 700, color: "var(--text-strong)", background: "var(--surface-muted)", border: "1px solid var(--border-subtle)", padding: "4px 8px", borderRadius: 8, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 } }, _tier.emoji, window.tierTitle(_tier, t?.code)); })(),
         React.createElement("div", { style: { flex: 1 } },
           React.createElement("div", { style: { height: 6, background: "var(--border-subtle)", borderRadius: 3, overflow: "hidden" } },
-            React.createElement("div", { style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3 } })),
+            React.createElement("div", { className: "ux-bar-fill", style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3 } })),
           React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0", textAlign: "right" } }, `${xpData.into}/${xpData.need} XP`)))),
 
     // Urgent review nudge
     urgentReview && React.createElement("div", {
+      className: "ux-card ux-press",
       onClick: () => { setReviewTopic(urgentReview.topicName); setMode("review"); },
       style: { margin: "0 20px 16px", padding: "12px 16px", background: "var(--amber-50)", border: "1px solid var(--amber-200)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }
     },
@@ -4040,16 +4271,17 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       React.createElement("span", { style: { fontSize: 12, color: "var(--amber-700)", fontWeight: 600 } }, "→")),
 
     // Mode cards
-    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
+    React.createElement("div", { className: "ux-stagger", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
       ...COACH_MODES.map((m) => React.createElement("button", {
         key: m.id,
+        className: "ux-card ux-press coach-mode",
         onClick: () => {
           if (m.id === "learn") { setTopicPicker(true); }
           else { setMode(m.id); }
         },
-        style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)", transition: "border-color 0.15s" }
+        style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)" }
       },
-        React.createElement("span", { style: { fontSize: 32 } }, m.emoji),
+        React.createElement("span", { className: "coach-mode-emoji", style: { fontSize: 32 } }, m.emoji),
         React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--text-strong)" } }, m.label[t?.code] || m.label.en),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc[t?.code] || m.desc.en)))));
 }

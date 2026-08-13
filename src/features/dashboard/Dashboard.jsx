@@ -122,8 +122,8 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const activeCourses = courses.filter((c) => c.daysAway >= 0);
   const hasCourses = activeCourses.length > 0;
   // All overall figures come straight from the brain's canonical aggregates —
-  // the predicted grade uses the same grade scale (gradeFromReadiness) as every
-  // per-course card, so the summary can never disagree with the detail.
+  // the predicted grade uses that exam's real scheme (IELTS band, НМТ 100–200),
+  // so the summary can never disagree with the detail.
   const overallProb = brain.overallProbability;
   const overallGrade = brain.overallPredictedGrade;
   // brain.overallProbability/overallPredictedGrade average in every active

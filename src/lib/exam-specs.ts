@@ -36,6 +36,7 @@ export const EXAM_SPECS: Record<string, ExamSpec> = {
   alevel: spec(18, "A-Level style: demanding multi-step multiple-choice."),
   matura: spec(18, "Matura style: exam-board multiple-choice."),
   abitur: spec(16, "Abitur style: analytical multiple-choice."),
+  ielts: spec(40, "IELTS Reading: 3 passages, 40 questions, 60 minutes. Writing and Listening use their own clocks."),
 };
 
 export interface ResolvedExamSpec extends ExamSpec {

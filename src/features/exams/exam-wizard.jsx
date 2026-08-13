@@ -204,7 +204,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   // DB-added exam (IELTS…) gets the right behaviour with no code change. The Sets
   // survive as the snapshot fallback: the bundled EXAM_TYPES objects carry no such
   // flag until a DB row is merged over them, so offline behaviour is unchanged.
-  const SECTION_BASED_FALLBACK = new Set(["sat", "act"]);
+  const SECTION_BASED_FALLBACK = new Set(["sat", "act", "ielts", "toefl", "duolingo"]);
   // English-medium exams: the real paper is sat in English, so the student may
   // want the AI to teach in English even if their app is in another language.
   const EN_MEDIUM_FALLBACK = new Set(["sat", "act", "ap", "alevel", "gcse", "ib"]);
@@ -215,12 +215,20 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   // Merged catalog (bundled seed + remote DB + AI cache) — a section-based exam
   // added as a pure DB row (IELTS…) has its sections ONLY in the remote catalog,
   // so reading window.CURRICULUM_SEED alone would build an empty course.
-  const sectionRowsFor = (qualId) => (window.curriculumRowsForQualification
-    ? window.curriculumRowsForQualification(qualId)
-    : (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId));
+  const sectionRowsFor = (qualId) => {
+    const rows = window.curriculumRowsForQualification
+      ? window.curriculumRowsForQualification(qualId)
+      : (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId);
+    // IELTS Speaking has no mic path — drop the section so the wizard
+    // cannot create a paper we cannot coach.
+    if (qualId === "ielts") {
+      return rows.filter((r) => !/(speaking|говоріння|говорение)/i.test(r.subject || ""));
+    }
+    return rows;
+  };
   const buildSectionCourse = (qualId) => {
     const rows = sectionRowsFor(qualId);
-    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, module: tp.module || "", difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] })));
+    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, module: tp.module || "", difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] }))).filter((tp) => qualId !== "ielts" || !/(speaking|говоріння|говорение|cue[- ]card)/i.test(`${tp.name} ${tp.module}`));
     const label = window.examType(qualId).label;
     return { title: label, subject: label, curriculumRef: { qualificationId: qualId }, topics, knowledgeBase: { status: "empty", chapters: [], glossary: [], sourceFiles: [], extractedAt: null, updatedAt: null }, source: "official", verifiedByUser: true };
   };
@@ -655,15 +663,6 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
                     <input type="date" value={s.examDate} min={todayISO} onChange={(e) => setSubject(s.id, { examDate: e.target.value })}
                       style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" }} />
                   </div>
-                  {exam.boardOptions && (
-                  <div>
-                    <label style={{ display: "block", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginBottom: 4 }}>{c.s2_board}</label>
-                    <select value={s.examBoard} onChange={(e) => setSubject(s.id, { examBoard: e.target.value })}
-                      style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-page)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none", appearance: "auto" }}>
-                      {exam.boardOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  </div>
-                  )}
                   {isSectionBased ? (
                     // Section-based exam: no subject to choose — show what's covered.
                     <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-subtle)", background: "var(--surface-muted)", padding: "var(--space-4)" }}>

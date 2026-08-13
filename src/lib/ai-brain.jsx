@@ -118,6 +118,8 @@ function buildLearnerContext(opts = {}) {
   return lines.join("\n");
 }
 
+import { coachLanguageDirective, inferCoachQual, paperLanguageDirective, paperLanguageFor } from "./paper-language";
+
 // ─── central completion ───────────────────────────────────────────────────────
 
 // Language names the AI is told to answer in when the student's UI isn't
@@ -141,7 +143,7 @@ function aiLangDirective(override) {
   return `Respond in ${AI_LANG_NAMES[langCode] || langCode}, not English — the student's app is set to that language.`;
 }
 
-async function brainComplete({ system, messages, prompt, includeContext = true, topicContext, langOverride } = {}) {
+async function brainComplete({ system, messages, prompt, includeContext = true, topicContext, langOverride, paperQual } = {}) {
   if (!window.claude) throw new Error("AI is not available");
   const ctx = includeContext ? buildLearnerContext({ topicContext }) : "";
   // `system` (the caller's static task instructions) goes FIRST and carries
@@ -154,7 +156,24 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   // silently not cache (verify via response.usage.cache_read_input_tokens).
   // It engages more reliably for students with several active exams (larger
   // ctx) and once a Sonnet-based tier ships (lower minimum: 1024 tokens).
-  const dynamic = [aiLangDirective(langOverride), ctx].filter(Boolean).join("\n\n");
+  // Exam language beats the UI. Learn trees pass `nmt-ukr` (not `nmt`);
+  // chat often passes neither paperQual nor a topic — then a sole NMT
+  // student still gets Ukrainian. Explicit paperQual keeps the paper
+  // wording; inferred quals use the coach wording.
+  const topicExamQual = topicContext && topicContext.examId && window.getExams
+    ? (() => {
+      const exam = window.getExams().find((e) => e.id === topicContext.examId);
+      return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+    })()
+    : null;
+  const studentQuals = window.getExams
+    ? window.getExams().map((e) => (window.examQualificationId && window.examQualificationId(e)) || e.qualificationId)
+    : [];
+  const inferred = inferCoachQual({ paperQual, topicExamQual, studentQuals });
+  const langBit = paperQual
+    ? paperLanguageDirective(paperQual)
+    : (inferred && paperLanguageFor(inferred) ? coachLanguageDirective(inferred) : aiLangDirective(langOverride));
+  const dynamic = [langBit, ctx].filter(Boolean).join("\n\n");
   const systemBlocks = [];
   if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });
   if (dynamic) systemBlocks.push({ type: "text", text: dynamic });

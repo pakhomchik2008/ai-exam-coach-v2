@@ -5,6 +5,7 @@
 import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
+import { renderCoachMarkdown } from "../../lib/math-render";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
@@ -471,7 +472,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       return React.createElement('div', { key: qi },
         React.createElement('div', { style: { marginBottom: '10px' } },
           React.createElement('span', { style: { background: 'var(--indigo-500)', color: 'var(--white)', fontSize: '10px', fontWeight: 800, padding: '3px 9px', borderRadius: '20px', letterSpacing: '0.06em', marginRight: '8px' } }, `Q${qi + 1}`),
-          React.createElement('span', { style: { fontWeight: 700, fontSize: '14px', color: 'var(--slate-900)', lineHeight: 1.5 } }, q.question)
+          React.createElement('span', { style: { fontWeight: 700, fontSize: '14px', color: 'var(--slate-900)', lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: renderCoachMarkdown(q.question) } })
         ),
         React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px' } }, ...(q.options || []).map((opt, oi) => {
           const isC = oi === q.correct, isS = oi === selected;
@@ -484,10 +485,10 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
               setState(s => ({ quizAnswers: { ...s.quizAnswers, [qi]: oi } }));
             }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: bg, border: `1.5px solid ${bc}`, borderRadius: '12px', color: col, fontSize: '13px', textAlign: 'left', cursor: answered ? 'default' : 'pointer', transition: 'all 0.15s', width: '100%' } },
             React.createElement('span', { style: { width: '24px', height: '24px', borderRadius: '7px', background: lb, color: lc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, transition: 'all 0.15s' } }, L[oi]),
-            React.createElement('span', { style: { lineHeight: 1.45, fontWeight: 500 } }, opt)
+            React.createElement('span', { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: renderCoachMarkdown(opt) } })
           );
         })),
-        answered && React.createElement('div', { style: { marginTop: '8px', padding: '10px 12px', background: selected === q.correct ? 'var(--emerald-50)' : 'var(--amber-50)', border: `1px solid ${selected === q.correct ? 'var(--emerald-100)' : 'var(--amber-200)'}`, borderRadius: '10px', fontSize: '12px', color: selected === q.correct ? 'var(--emerald-700)' : 'var(--amber-700)', lineHeight: 1.6 } }, (selected === q.correct ? '✅ ' : '💡 ') + q.explanation)
+        answered && React.createElement('div', { style: { marginTop: '8px', padding: '10px 12px', background: selected === q.correct ? 'var(--emerald-50)' : 'var(--amber-50)', border: `1px solid ${selected === q.correct ? 'var(--emerald-100)' : 'var(--amber-200)'}`, borderRadius: '10px', fontSize: '12px', color: selected === q.correct ? 'var(--emerald-700)' : 'var(--amber-700)', lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: (selected === q.correct ? '✅ ' : '💡 ') + renderCoachMarkdown(q.explanation) } })
       );
     }));
   };
@@ -517,12 +518,9 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   // <img src=x onerror=...> in a student's origin, where it can read the Supabase
   // access + refresh tokens out of localStorage.
   const renderChatText = (text) => {
-    const esc = String(text || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const html = esc
-      .replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')
+    const html = String(text || '')
       .split('\n\n').filter(Boolean)
-      .map(p => `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;">${p.replace(/\n/g, ' ')}</p>`)
+      .map(p => `<p style="margin:0 0 8px;font-size:14px;line-height:1.7;">${renderCoachMarkdown(p)}</p>`)
       .join('');
     return React.createElement('div', { dangerouslySetInnerHTML: { __html: html } });
   };

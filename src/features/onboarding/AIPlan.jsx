@@ -64,7 +64,11 @@ function AIPlan({ examIds, onStart, t }) {
     : "—";
 
   const overallProb = active.length > 0 ? Math.round(active.reduce((a, c) => a + c.gradeProbability, 0) / active.length) : 0;
-  const overallGrade = overallProb >= 80 ? "A" : overallProb >= 60 ? "B" : overallProb >= 40 ? "C" : "D";
+  const overallGrade = active.length === 1
+    ? active[0].predictedGrade
+    : (active.length > 0
+      ? active.reduce((a, b) => (b.gradeProbability < a.gradeProbability ? b : a), active[0]).predictedGrade
+      : "–");
   // No course has a single completed session yet — the forecast trio below
   // is a real formula output, but showing "D / 0% / High risk" for a plan
   // nobody has started is discouraging rather than informative. Same promise
