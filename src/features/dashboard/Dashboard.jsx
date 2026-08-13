@@ -1,16 +1,5 @@
 // AI Exam Coach — Dashboard: plan-centric design with "Today's AI Plan" hero,
 // adaptive scheduling, TodaysMission briefing, and projected outcomes.
-import { EnergyTicker } from "../../components/EnergyTicker";
-import {
-  AmbientGlow,
-  MissionRing,
-  PredictorHero,
-  RankBadge,
-  StreakFlame,
-  TiltCard,
-  XPBar,
-} from "../../components/energy/fire";
-
 function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
@@ -133,8 +122,8 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const activeCourses = courses.filter((c) => c.daysAway >= 0);
   const hasCourses = activeCourses.length > 0;
   // All overall figures come straight from the brain's canonical aggregates —
-  // the predicted grade uses the same grade scale (gradeFromReadiness) as every
-  // per-course card, so the summary can never disagree with the detail.
+  // the predicted grade uses that exam's real scheme (IELTS band, НМТ 100–200),
+  // so the summary can never disagree with the detail.
   const overallProb = brain.overallProbability;
   const overallGrade = brain.overallPredictedGrade;
   // brain.overallProbability/overallPredictedGrade average in every active
@@ -185,48 +174,8 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
     <h2 style={{ margin: 0, fontSize: size || "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)" }}>{children}</h2>
   );
 
-  const xp = window.xpLevel ? window.xpLevel() : { level: 1, into: 0, need: 100 };
-  const tier = window.xpTier ? window.xpTier() : { emoji: "🌱", title: { en: "Novice" } };
-  const tierName = (tier.title && (tier.title[t.code] || tier.title.en)) || "Novice";
-  const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
-  const todayDone = weekData[todayIdx]?.completed || 0;
-  const todayGoal = Math.max(1, weekData[todayIdx]?.scheduled || 1);
-  const missionPct = Math.round((todayDone / todayGoal) * 100);
-  const nowScore = anyCourseStarted ? Math.round(overallProb) : 0;
-  const predScore = anyCourseStarted ? Math.max(nowScore, Math.round(overallProb + 8)) : 50;
-
-  const tape = [
-    { id: "streak", label: L(`Streak ${streak}`, `Streak ${streak}`, `Streak ${streak}`, `Série ${streak}`, `Serie ${streak}`) },
-    { id: "forecast", label: anyCourseStarted
-      ? L(`Forecast ${overallGrade}`, `Прогноз ${overallGrade}`, `Прогноз ${overallGrade}`, `Prévu ${overallGrade}`, `Prognose ${overallGrade}`)
-      : L("Forecast — add an exam", "Прогноз — додай іспит", "Прогноз — добавь экзамен", "Pronostic — ajoute un examen", "Prognose — Prüfung hinzufügen") },
-    focus && focus.daysAway >= 0
-      ? { id: "exam", label: L(`${focus.name} in ${focus.daysAway} days`, `${focus.name} через ${focus.daysAway} днів`, `${focus.name} через ${focus.daysAway} дней`, `${focus.name} dans ${focus.daysAway} j`, `${focus.name} in ${focus.daysAway} Tagen`) }
-      : { id: "exam", label: L("No exam date yet", "Дати іспиту ще немає", "Даты экзамена ещё нет", "Pas encore de date", "Noch kein Datum") },
-    { id: "week", label: L(`${hoursStudied}h this week`, `${hoursStudied} год цього тижня`, `${hoursStudied} ч на этой неделе`, `${hoursStudied} h cette semaine`, `${hoursStudied} Std diese Woche`) },
-  ];
-
   return (
-    <div className="energy" style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
-      <EnergyTicker
-        items={tape}
-        label={L("Live tape", "Стрічка", "Лента", "Bandeau", "Ticker")}
-        onPick={(id) => {
-          if (id === "exam") onGoToExams && onGoToExams();
-          else if (id === "week") onGoToSchedule && onGoToSchedule();
-        }}
-      />
-
-      <div className="energy-fire-row">
-        <MissionRing
-          percent={missionPct}
-          label={L("Today", "Сьогодні", "Сегодня", "Aujourd'hui", "Heute")}
-          done={todayDone > 0 && todayDone >= todayGoal}
-        />
-        <StreakFlame days={streak} />
-        <XPBar into={xp.into} need={xp.need} level={xp.level} />
-        <RankBadge title={tierName} emoji={tier.emoji} />
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
 
       {/* ── Adaptive scheduling notification ─────────────── */}
       {adaptMsg && (
@@ -274,14 +223,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       })()}
 
       {/* ── Today's AI Plan — hero section ────────────────── */}
-      <AmbientGlow>
       <section style={{ borderRadius: "var(--radius-2xl)", background: "linear-gradient(160deg, var(--indigo-50), var(--surface-card) 70%)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", position: "relative", overflow: "hidden" }}>
-        <PredictorHero
-          nowLabel={L("Now", "Зараз", "Сейчас", "Maintenant", "Jetzt")}
-          predLabel={L("Forecast", "Прогноз", "Прогноз", "Pronostic", "Prognose")}
-          nowScore={nowScore}
-          predScore={predScore}
-        />
         <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", marginBottom: "var(--space-4)" }}>
           {window.CoachIcon ? <window.CoachIcon size={40} /> : null}
           <div style={{ flex: 1 }}>
@@ -387,7 +329,6 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
           </div>
         )}
       </section>
-      </AmbientGlow>
 
       {/* End-of-week rollover — offered when pending sessions no longer reach
           past the next ~3 days. One tap regenerates the same weekly plan for
@@ -441,13 +382,11 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
           { value: `${totalHours}h`, label: L("Remaining","Залишилось","Осталось","Restant","Verbleibend"), sub: `${totalPending} ${L("sessions","сесій","сессий","séances","Sitzungen")}`, color: "var(--text-strong)" },
           { value: `${streak}🔥`, label: L("Streak","Серія","Серия","Série","Serie"), sub: streak > 0 ? L("days","днів","дней","jours","Tage") : L("start today!","почніть!","начните!","commencez !","jetzt starten!"), color: streak > 0 ? "var(--amber-600)" : "var(--text-faint)" },
         ].map((stat, i) => (
-          <TiltCard key={i} back={<div style={{ fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{stat.sub}</div>}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: stat.color, fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)" }}>{stat.value}</div>
-              <div style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", marginTop: 4 }}>{stat.label}</div>
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", marginTop: 1 }}>{stat.sub}</div>
-            </div>
-          </TiltCard>
+          <div key={i} className="ux-card" style={{ textAlign: "center", padding: "var(--space-4) var(--space-3)", borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)" }}>
+            <div style={{ fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: stat.color, fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)" }}>{stat.value}</div>
+            <div style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", marginTop: 4 }}>{stat.label}</div>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", marginTop: 1 }}>{stat.sub}</div>
+          </div>
         ))}
       </div>
 
@@ -567,7 +506,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       )}
 
       {/* Toast */}
-      <div className="energy-toast" style={{
+      <div style={{
         position: "fixed", bottom: 28, right: 28, zIndex: 9999,
         background: "rgba(15, 23, 42, 0.82)", backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
         border: "1px solid rgba(255, 255, 255, 0.08)", color: "var(--white)",

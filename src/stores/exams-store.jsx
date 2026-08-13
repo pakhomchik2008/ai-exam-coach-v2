@@ -10,6 +10,8 @@
 // changes), and subscribeExams/_notify exist now so that hook is a pure
 // addition later, not a rewrite.
 
+import { predictedFromReadiness, schemeFromExam, stepDownPredicted } from "../lib/scales";
+
 const EXAMS_KEY = "exams_list_v2";
 const EXAM_SCHEMA_VERSION = 1;
 // Literal hexes required: VALID_COLOR_RE below rejects var() references.
@@ -178,13 +180,6 @@ function requiredPct(completionPct, daysLeft, totalDays) {
   return Math.round((elapsed / totalDays) * 100);
 }
 
-function letterBand(pct) {
-  if (pct >= 80) return "A";
-  if (pct >= 60) return "B";
-  if (pct >= 40) return "C";
-  return "D";
-}
-const LETTER_STEP_DOWN = { "A": "B", "B": "C", "C": "D", "D": "E" };
 function clamp(min, max, n) { return Math.max(min, Math.min(max, n)); }
 
 // Maps a raw stored exam into the fuller shape CourseCard/CourseDetail/
@@ -217,7 +212,11 @@ function deriveCourse(exam) {
   const started = completionPct > 0
     || (window.getSchedule ? window.getSchedule().sessions.some((s) => s.examId === exam.id && s.status === "completed") : false);
 
-  const predictedGrade = letterBand(gradeProbability);
+  const scheme = schemeFromExam({
+    qualificationId: _examQualId(exam),
+    gradingSystem: exam.gradingSystem,
+  });
+  const predictedGrade = predictedFromReadiness(gradeProbability, scheme);
   const targetGrade = exam.targetGrade || "A";
   const riskLevel = gradeProbability >= 60 ? "low" : gradeProbability >= 35 ? "medium" : "high";
   // An exam with daysLeft < 0 has already happened — that's "passed," not
@@ -259,7 +258,7 @@ function deriveCourse(exam) {
     recommendedSessions,
     weakTopics,
     forecastOnTrack: predictedGrade,
-    forecastMissed: LETTER_STEP_DOWN[predictedGrade] || predictedGrade,
+    forecastMissed: stepDownPredicted(predictedGrade, scheme),
     remainingWork: { sessions: recommendedSessions, papers: 0, hours: recommendedSessions * 0.75 },
   };
 }

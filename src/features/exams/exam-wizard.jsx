@@ -215,12 +215,20 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
   // Merged catalog (bundled seed + remote DB + AI cache) — a section-based exam
   // added as a pure DB row (IELTS…) has its sections ONLY in the remote catalog,
   // so reading window.CURRICULUM_SEED alone would build an empty course.
-  const sectionRowsFor = (qualId) => (window.curriculumRowsForQualification
-    ? window.curriculumRowsForQualification(qualId)
-    : (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId));
+  const sectionRowsFor = (qualId) => {
+    const rows = window.curriculumRowsForQualification
+      ? window.curriculumRowsForQualification(qualId)
+      : (window.CURRICULUM_SEED || []).filter((r) => r.qualificationId === qualId);
+    // IELTS Speaking has no mic path — drop the section so the wizard
+    // cannot create a paper we cannot coach.
+    if (qualId === "ielts") {
+      return rows.filter((r) => !/(speaking|говоріння|говорение)/i.test(r.subject || ""));
+    }
+    return rows;
+  };
   const buildSectionCourse = (qualId) => {
     const rows = sectionRowsFor(qualId);
-    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, module: tp.module || "", difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] })));
+    const topics = rows.flatMap((r) => (r.topics || []).map((tp) => ({ name: tp.name, module: tp.module || "", difficulty: tp.difficulty, importance: tp.importance, subtopics: tp.subtopics || [] }))).filter((tp) => qualId !== "ielts" || !/(speaking|говоріння|говорение|cue[- ]card)/i.test(`${tp.name} ${tp.module}`));
     const label = window.examType(qualId).label;
     return { title: label, subject: label, curriculumRef: { qualificationId: qualId }, topics, knowledgeBase: { status: "empty", chapters: [], glossary: [], sourceFiles: [], extractedAt: null, updatedAt: null }, source: "official", verifiedByUser: true };
   };

@@ -17,8 +17,6 @@ import {
 } from "./tweaks";
 import { remountKeyFor, isTrackedKey } from "./data-version";
 import { QuickOnboarding } from "../features/onboarding/QuickOnboarding";
-import { MotionLab } from "../features/motion/MotionLab";
-import { navigateWithViewTransition } from "../lib/motion-runtime";
 
 type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
@@ -76,15 +74,6 @@ export function App() {
     setLangState(code);
     saveProfile({ lang: code });
   };
-
-  const [motionLab, setMotionLab] = React.useState(() =>
-    typeof window !== "undefined" && window.location.hash === "#motion-lab",
-  );
-  React.useEffect(() => {
-    const onHash = () => setMotionLab(window.location.hash === "#motion-lab");
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
 
   const [chatQuery, setChatQuery] = React.useState<string | null>(null);
   const [planExamIds, setPlanExamIds] = React.useState<string[] | null>(null);
@@ -151,17 +140,6 @@ export function App() {
     setTab("dashboard");
   };
 
-  if (motionLab) {
-    return (
-      <MotionLab
-        onClose={() => {
-          window.location.hash = "";
-          setMotionLab(false);
-        }}
-      />
-    );
-  }
-
   if (route === "landing") {
     return <Landing onContinue={goAfterAuth} t={t} lang={lang} onLangChange={setLang} />;
   }
@@ -195,7 +173,7 @@ export function App() {
     <div>
       <AppNav
         current={tab}
-        onNavigate={(id: string) => navigateWithViewTransition(() => setTab(id))}
+        onNavigate={(id: string) => setTab(id)}
         // Bug (audit #29): this button used to call only setRoute("landing"),
         // never window.clearSession() — unlike Settings.jsx's own logout button,
         // which does call it. On a shared device (school computer), the header

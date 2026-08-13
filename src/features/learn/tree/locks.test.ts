@@ -185,9 +185,9 @@ describe("layoutUnit", () => {
 });
 
 describe("IELTS tree still grows bosses", () => {
-  it("adds 4 bosses (one per skill)", () => {
+  it("adds 3 bosses (Listening / Reading / Writing — no Speaking)", () => {
     const tree = withBossNodes(IELTS);
-    expect(tree.units.filter((u) => u.nodes.some(isBossNode))).toHaveLength(4);
+    expect(tree.units.filter((u) => u.nodes.some(isBossNode))).toHaveLength(3);
     expect(canOpenNode(tree, {}, "l-01")).toBe(true);
     expect(canOpenNode(tree, {}, "l-02")).toBe(false);
   });

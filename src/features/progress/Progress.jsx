@@ -1,16 +1,3 @@
-import { useAutoAnimate } from "@formkit/auto-animate/react";
-import {
-  Candlestick,
-  Heatmap,
-  RadarChart,
-  Sankey,
-  Sparkline,
-  StackedArea,
-  Waterfall,
-  buildHeatCells,
-} from "../../components/charts/energy-charts";
-import { startLenis } from "../../lib/motion-runtime";
-
 // AI Exam Coach — Progress screen: brain-driven, no legacy deriveCourses.
 function Progress({ t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
@@ -41,13 +28,6 @@ function Progress({ t }) {
   }, [brain]);
 
   // Build mastery table from the brain's per-topic data
-  const [tableRef] = useAutoAnimate();
-  React.useEffect(() => {
-    let stop = () => undefined;
-    startLenis().then((fn) => { stop = fn; });
-    return () => stop();
-  }, []);
-
   const masteryRows = React.useMemo(() => {
     const rows = [];
     for (const ev of examViews) {
@@ -67,44 +47,8 @@ function Progress({ t }) {
     return rows.sort((a, b) => a.readiness - b.readiness);
   }, [brain]);
 
-  const radarAxes = masteryRows.slice(0, 6).map((r) => ({ label: r.topic.slice(0, 14), value: r.readiness }));
-  const heatCounts = React.useMemo(() => {
-    const out = {};
-    const sched = window.getSchedule ? window.getSchedule() : { sessions: [] };
-    for (const s of sched.sessions || []) {
-      if (s.status !== "completed" || !s.date) continue;
-      out[s.date] = (out[s.date] || 0) + 1;
-    }
-    return out;
-  }, [brain]);
-  const heatCells = buildHeatCells(52 * 7, heatCounts);
-  const waterfall = [
-    { label: L("Start", "Старт", "Старт", "Départ", "Start"), delta: 20 },
-    { label: L("Practice", "Практика", "Практика", "Pratique", "Übung"), delta: Math.round(hoursStudied) },
-    { label: L("Fixes", "Помилки", "Ошибки", "Erreurs", "Fehler"), delta: Math.min(12, masteryRows.filter((r) => r.readiness >= 70).length) },
-    { label: L("Now", "Зараз", "Сейчас", "Maintenant", "Jetzt"), delta: weakest ? Math.round(weakest.readiness / 10) : 4 },
-  ];
-  const candles = week.map((d, i) => ({
-    label: [t.mon, t.tue, t.wed, t.thu, t.fri, t.sat, t.sun][i],
-    open: d.scheduled,
-    high: Math.max(d.scheduled, d.completed),
-    low: 0,
-    close: d.completed,
-  }));
-  const stacked = examViews.slice(0, 3).map((ev, i) => ({
-    label: ev.name,
-    color: ["#1B4D4A", "#D4B36A", "#8892a8"][i] || "#1B4D4A",
-    values: week.map((d) => (d.completed ? ev.readiness / 10 : 0)),
-  }));
-  const sankeyLinks = masteryRows.slice(0, 5).map((r) => ({
-    from: r.topic.slice(0, 16),
-    to: r.readiness < 50 ? L("Drill", "Дрил", "Дрил", "Drill", "Drill") : L("Review", "Повтор", "Повтор", "Révision", "Review"),
-    weight: Math.max(1, 100 - r.readiness),
-  }));
-  const streakSpark = week.map((d) => d.completed);
-
   return (
-    <div className="energy" style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)", fontFamily: "var(--font-sans)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)", fontFamily: "var(--font-sans)" }}>
       <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.progress_title}</h1>
       {weakest && weakest.readiness < 40 && (
         <div style={{ borderRadius: "var(--radius-xl)", background: "var(--rose-50)", border: "1px solid var(--red-100)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
@@ -116,7 +60,6 @@ function Progress({ t }) {
         <Card style={{ textAlign: "center" }}>
           <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-muted)" }}>{t.progress_streak}</p>
           <p style={{ margin: "4px 0 0", fontSize: "var(--text-5xl)", fontWeight: "var(--weight-bold)", color: "var(--action-primary)" }}>{window.computeStreak ? window.computeStreak() : 0}</p>
-          <Sparkline values={streakSpark} />
           <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t.progress_streak_days}</p>
         </Card>
 
@@ -185,7 +128,7 @@ function Progress({ t }) {
       <section>
         <h2 style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.progress_mastery}</h2>
         <Card padding="0">
-          <div ref={tableRef} style={{ maxHeight: 420, overflowY: "auto" }}>
+          <div style={{ maxHeight: 420, overflowY: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-sm)" }}>
             <thead>
               <tr style={{ background: "var(--surface-muted)", color: "var(--text-muted)", textAlign: "left" }}>
@@ -220,38 +163,6 @@ function Progress({ t }) {
           </table>
           </div>
         </Card>
-      </section>
-
-      <section>
-        <h2 style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Terminal","Термінал","Терминал","Terminal","Terminal")}</h2>
-        <div style={{ display: "grid", gap: "var(--space-4)", gridTemplateColumns: "1fr 1fr" }}>
-          <Card>
-            <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" }}>{L("Radar","Радар","Радар","Radar","Radar")}</p>
-            <RadarChart axes={radarAxes.length >= 3 ? radarAxes : [
-              { label: "Algebra", value: 40 }, { label: "Geom", value: 28 }, { label: "Prob", value: 55 },
-            ]} />
-          </Card>
-          <Card>
-            <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" }}>{L("Heatmap","Теплокарта","Теплокарта","Heatmap","Heatmap")}</p>
-            <Heatmap cells={heatCells} />
-          </Card>
-          <Card>
-            <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" }}>{L("Waterfall","Водоспад","Водопад","Waterfall","Wasserfall")}</p>
-            <Waterfall steps={waterfall} />
-          </Card>
-          <Card>
-            <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" }}>{L("Candles","Свічки","Свечи","Chandeliers","Kerzen")}</p>
-            <Candlestick days={candles} />
-          </Card>
-          <Card>
-            <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" }}>{L("Time stack","Стек часу","Стек времени","Temps","Zeit")}</p>
-            <StackedArea series={stacked.length ? stacked : [{ label: "Study", color: "#1B4D4A", values: week.map((d) => d.completed) }]} />
-          </Card>
-          <Card>
-            <p style={{ margin: "0 0 8px", fontSize: "var(--text-xs)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)" }}>{L("Sankey","Sankey","Sankey","Sankey","Sankey")}</p>
-            <Sankey links={sankeyLinks.length ? sankeyLinks : [{ from: "Gaps", to: "Drill", weight: 3 }]} />
-          </Card>
-        </div>
       </section>
 
       <section>

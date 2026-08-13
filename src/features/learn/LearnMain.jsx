@@ -12,10 +12,8 @@
 
 import { getTree, availableTaxonomies } from "./tree/index";
 import { localize, totalNodeCount } from "./tree/schema";
-import { canOpenNode } from "./tree/locks";
-import { UnitSkillTree } from "./tree/SkillTree";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
-import { fireHaptic } from "../../lib/motion-runtime";
+import { WaitPress } from "../../components/WaitPress";
 
 // ─── shared: node status color/label ──────────────────────────────────────────
 const MASTERY_STYLE = {
@@ -269,7 +267,12 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
       React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, teachError),
       React.createElement("button", { key: "r", onClick: () => { setTeach(null); setTeachError(null); }, style: { padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", cursor: "pointer" } }, "Retry"),
     ]);
-    if (!teach) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } }, L("Preparing your lesson…", "Готуємо урок…", "Готовим урок…", "Préparation…", "Bereite Lektion vor…"))]);
+    if (!teach) return wrap([header, React.createElement(WaitPress, {
+      key: "l",
+      title: L("Preparing your lesson…", "Готуємо урок…", "Готовим урок…", "Préparation…", "Bereite Lektion vor…"),
+      lang: t?.code,
+      compact: true,
+    })]);
     return wrap([
       header,
       React.createElement("p", { key: "hook", style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-body)" } }, teach.hook),
@@ -435,8 +438,6 @@ function LearnMain({ t }) {
   const [openNode, setOpenNode] = React.useState(null); // { unit, node }
   const [running, setRunning] = React.useState(null);   // { unit, node }
   const [justUnlocked, setJustUnlocked] = React.useState(null);
-  const [lockShake, setLockShake] = React.useState(null);
-  const [lockHint, setLockHint] = React.useState(null);
   const [shownMastered, setShownMastered] = React.useState(mastered);
   // Learn store change → re-render (mastery pill updates immediately after
   // a Prove finish). Same subscribe pattern brain-store / profile-store use.
@@ -545,31 +546,37 @@ function LearnMain({ t }) {
         style: { "--learn-pct": String(pct) },
       }, React.createElement("div", { className: "learn-progress-fill" })),
     ),
-    lockHint && React.createElement("p", {
-      key: "lock",
-      role: "status",
-      style: { margin: "0 0 12px", fontSize: 13, color: "var(--amber-700)", fontWeight: 600 },
-    }, lockHint),
-    ...tree.units.map((unit) => React.createElement(UnitSkillTree, {
+    ...tree.units.map((unit, ui) => React.createElement("div", {
       key: unit.id,
-      unit,
-      tree,
-      progress: nodeState,
-      lang,
-      justUnlocked,
-      lockShake,
-      onSelect: (node) => {
-        if (!canOpenNode(tree, nodeState, node.id)) {
-          setLockShake(node.id);
-          setLockHint(L("Finish the previous node first.", "Пройди попередню ноду.", "Пройди предыдущую ноду.", "Termine d'abord le nœud précédent.", "Schließe zuerst den vorherigen Knoten."));
-          fireHaptic("medium");
-          window.setTimeout(() => setLockShake(null), 400);
-          return;
-        }
-        setLockHint(null);
-        setOpenNode({ unit, node });
-      },
-    })),
+      className: "learn-unit",
+      style: { marginBottom: 28, "--learn-i": String(ui) },
+    },
+      React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" } }, localize(unit.title, lang)),
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+        ...unit.nodes.map((node) => {
+          const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
+          const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
+          const unlockedNow = justUnlocked === node.id;
+          return React.createElement("button", {
+            key: node.id,
+            type: "button",
+            className: "learn-node",
+            onClick: () => setOpenNode({ unit, node }),
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" },
+          },
+            React.createElement("span", {
+              className: "learn-medal" + (unlockedNow ? " learn-medal--pop" : ""),
+              style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" },
+              "aria-label": masteryAria(st.mastery),
+            }, style.label),
+            React.createElement("div", { style: { flex: 1 } },
+              React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
+              React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
+            ),
+          );
+        }),
+      ),
+    )),
     openNode && React.createElement("div", {
       key: "sheet",
       className: "learn-sheet-backdrop",
