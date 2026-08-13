@@ -1,5 +1,7 @@
 // AI Exam Coach — Dashboard: plan-centric design with "Today's AI Plan" hero,
 // adaptive scheduling, TodaysMission briefing, and projected outcomes.
+import { EnergyTicker } from "../../components/EnergyTicker";
+
 function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
@@ -174,8 +176,27 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
     <h2 style={{ margin: 0, fontSize: size || "var(--text-lg)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)" }}>{children}</h2>
   );
 
+  const tape = [
+    { id: "streak", label: L(`Streak ${streak}`, `Streak ${streak}`, `Streak ${streak}`, `Série ${streak}`, `Serie ${streak}`) },
+    { id: "forecast", label: anyCourseStarted
+      ? L(`Forecast ${overallGrade}`, `Прогноз ${overallGrade}`, `Прогноз ${overallGrade}`, `Prévu ${overallGrade}`, `Prognose ${overallGrade}`)
+      : L("Forecast — add an exam", "Прогноз — додай іспит", "Прогноз — добавь экзамен", "Pronostic — ajoute un examen", "Prognose — Prüfung hinzufügen") },
+    focus && focus.daysAway >= 0
+      ? { id: "exam", label: L(`${focus.name} in ${focus.daysAway} days`, `${focus.name} через ${focus.daysAway} днів`, `${focus.name} через ${focus.daysAway} дней`, `${focus.name} dans ${focus.daysAway} j`, `${focus.name} in ${focus.daysAway} Tagen`) }
+      : { id: "exam", label: L("No exam date yet", "Дати іспиту ще немає", "Даты экзамена ещё нет", "Pas encore de date", "Noch kein Datum") },
+    { id: "week", label: L(`${hoursStudied}h this week`, `${hoursStudied} год цього тижня`, `${hoursStudied} ч на этой неделе`, `${hoursStudied} h cette semaine`, `${hoursStudied} Std diese Woche`) },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
+      <EnergyTicker
+        items={tape}
+        label={L("Live tape", "Стрічка", "Лента", "Bandeau", "Ticker")}
+        onPick={(id) => {
+          if (id === "exam") onGoToExams && onGoToExams();
+          else if (id === "week") onGoToSchedule && onGoToSchedule();
+        }}
+      />
 
       {/* ── Adaptive scheduling notification ─────────────── */}
       {adaptMsg && (

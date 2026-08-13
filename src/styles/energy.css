@@ -1,0 +1,154 @@
+/* Phase 4.4 energy layer — trading tape + CRT grain. Scoped so the
+   rest of the app can opt in with .energy. Reduced-motion kills loops. */
+
+:root {
+  --motion-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-springy: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --motion-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-swift: cubic-bezier(0.6, 0, 0.4, 1);
+  --motion-micro: 120ms;
+  --motion-quick: 200ms;
+  --motion-base: 320ms;
+  --motion-slow: 520ms;
+  --motion-cinema: 800ms;
+}
+
+.land.energy {
+  --glow-x: 70%;
+  --glow-y: 30%;
+  --land-tape-h: 32px;
+  position: relative;
+}
+
+.land .energy-ticker {
+  position: sticky;
+  top: var(--land-nav-h, 56px);
+  z-index: 8;
+}
+
+.land.energy::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(245, 245, 244, 0.7) 0 1px,
+    transparent 1px 3px
+  );
+  mix-blend-mode: overlay;
+  animation: energy-crt 10s steps(2, end) infinite;
+}
+
+.land.energy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 36% at var(--glow-x) var(--glow-y), rgba(243, 208, 98, 0.16), transparent 70%);
+}
+
+.energy-ticker {
+  overflow: hidden;
+  background: #0B0C0D;
+  color: #F3D062;
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.energy-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: energy-tape 28s linear infinite;
+}
+
+.energy-ticker-row {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.energy-ticker-row button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 10px 22px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.energy-ticker-row button::before {
+  content: "◆ ";
+  opacity: 0.55;
+}
+
+.energy-ticker:hover .energy-ticker-track {
+  animation-play-state: paused;
+}
+
+.land-chart-band {
+  opacity: 0.16;
+  animation: energy-breathe 4s ease-in-out infinite;
+}
+
+.land-chart-pulse {
+  transform-origin: 312px 18px;
+  animation: energy-pulse 1.6s var(--motion-snap) infinite;
+}
+
+.land-chart-line {
+  animation-duration: 1600ms;
+}
+
+.land-chart figcaption {
+  font-variant-numeric: tabular-nums;
+}
+
+.land-kicker {
+  margin: 0 0 14px;
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #F3D062;
+}
+
+@keyframes energy-tape {
+  to { transform: translateX(-50%); }
+}
+
+@keyframes energy-breathe {
+  50% { opacity: 0.28; }
+}
+
+@keyframes energy-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.7); }
+}
+
+@keyframes energy-crt {
+  0%, 96%, 100% { opacity: 0.045; }
+  97% { opacity: 0.02; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .energy::before,
+  .land.energy::after,
+  .energy-ticker-track,
+  .land-chart-band,
+  .land-chart-pulse {
+    animation: none;
+  }
+  .land.energy::after { background: none; }
+  .land-chart-band { opacity: 0.2; }
+  .land-chart-pulse { opacity: 1; transform: none; }
+}
