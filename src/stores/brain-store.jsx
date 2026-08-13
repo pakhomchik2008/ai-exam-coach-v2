@@ -30,6 +30,9 @@
 // Must load AFTER exams-store / schedule-store / profile-store / mistakes-store
 // (it composes their subscribe fns) and BEFORE any screen that calls useBrain().
 
+import { predictedFromReadiness, schemeFromExam, stepDownPredicted, targetReadiness } from "../lib/scales";
+import { dropIeltsSpeakingTopics } from "../lib/ielts-listen";
+
 const MASTERY_KEY = "brain_mastery_v1";
 const KB_KEY      = "brain_kb_v1";
 const MEMORY_KEY  = "brain_memory_v1";
@@ -478,18 +481,20 @@ function simulateReadinessGain(examId, topicIdx, correct = true) {
 }
 
 // ─── canonical grade / probability / pace ─────────────────────────────────────
-// One grade scale, used everywhere. predictedGrade, target thresholds, the
-// probability of hitting the target and pace are ALL derived from the single
-// readiness number — so no two places can ever disagree.
+// Predicted grade uses the exam's own scheme (IELTS band, НМТ 100–200,
+// A-Level letters). Probability and pace still share one readiness number
+// so no two places can disagree — they just convert the target through
+// that same scheme instead of A-Level thresholds.
 
-const GRADE_THRESHOLDS = [["A*", 90], ["A", 80], ["B", 65], ["C", 50], ["D", 35], ["E", 0]];
-function gradeFromReadiness(r) {
-  for (const [g, min] of GRADE_THRESHOLDS) if (r >= min) return g;
-  return "E";
+function examScheme(exam) {
+  const qualificationId = window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId;
+  return schemeFromExam({ qualificationId, gradingSystem: exam.gradingSystem });
 }
-function readinessForGrade(g) {
-  const f = GRADE_THRESHOLDS.find((x) => x[0] === g);
-  return f ? f[1] : 80;
+function gradeFromReadiness(r, exam) {
+  return predictedFromReadiness(r, exam ? examScheme(exam) : schemeFromExam({}));
+}
+function readinessForGrade(g, exam) {
+  return targetReadiness(g, exam ? examScheme(exam) : schemeFromExam({}));
 }
 // Optimistic-but-bounded FORECAST of exam-day readiness if the student keeps
 // following the plan. This is the fix for the honest-but-harsh problem: raw
@@ -510,14 +515,14 @@ function projectedReadiness(readiness, daysAway) {
 // (forecast) readiness, so a standing start with weeks to go isn't punished as
 // if the exam were today. Centred so sitting exactly at the target forecasts
 // ~55%, scaled gently by the gap, floored at 3% (never a demoralising 1%).
-function targetProbability(readiness, targetGrade, daysAway) {
-  const need = readinessForGrade(targetGrade);
+function targetProbability(readiness, targetGrade, daysAway, scheme) {
+  const need = targetReadiness(targetGrade, scheme);
   const gap = readiness - need;
   return clamp(3, 99, Math.round(55 + gap * 0.9));
 }
-function paceFromReadiness(readiness, targetGrade, daysAway) {
+function paceFromReadiness(readiness, targetGrade, daysAway, scheme) {
   if (daysAway != null && daysAway < 0) return "exam_passed";
-  const need = readinessForGrade(targetGrade);
+  const need = targetReadiness(targetGrade, scheme);
   const expectedByNow = Math.max(0, need * (1 - (daysAway || 0) / 90));
   const delta = readiness - expectedByNow;
   return delta >= 0 ? "on_track" : delta >= -20 ? "slightly_behind" : "very_behind";
@@ -540,7 +545,8 @@ function getBrain() {
 
   const todayMs = Date.now();
   const examViews = exams.map((exam) => {
-    const topics = enrichExamTopics(exam, masteryMap);
+    const qualificationId = window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId;
+    const topics = dropIeltsSpeakingTopics(enrichExamTopics(exam, masteryMap), (t) => t.topicName, qualificationId);
     const readiness = examReadiness(exam, topics);
     const weakest = topics.slice().sort((a, b) => a.retention - b.retention).slice(0, 5);
     const due = topics.filter((t) => t.lastSeen && t.retention < 0.7);
@@ -559,13 +565,15 @@ function getBrain() {
     // Predicted grade + probability are forecasts for exam DAY, so they read off
     // the projected (runway-aware) readiness — not the raw "right now" number.
     const projReadiness = projectedReadiness(readiness, daysAway);
-    const predictedGrade = gradeFromReadiness(projReadiness);
-    const probability = targetProbability(projReadiness, exam.targetGrade, daysAway);
+    const scheme = schemeFromExam({ qualificationId, gradingSystem: exam.gradingSystem });
+    const predictedGrade = predictedFromReadiness(projReadiness, scheme);
+    const probability = targetProbability(projReadiness, exam.targetGrade, daysAway, scheme);
     const risk = riskFromProbability(probability);
-    const pace = paceFromReadiness(readiness, exam.targetGrade, daysAway);
+    const pace = paceFromReadiness(readiness, exam.targetGrade, daysAway, scheme);
 
     return {
       id: exam.id, name: window.examDisplayName ? window.examDisplayName(exam) : exam.name, color: exam.color, examBoard: exam.examBoard,
+      qualificationId, scheme,
       targetGrade: exam.targetGrade, examDate: exam.examDate, daysAway,
       topics, readiness, projReadiness, confidence, coverage, predictedGrade, probability, risk, pace, started,
       weakestTopics: weakest, dueTopics: due,
@@ -581,7 +589,13 @@ function getBrain() {
   const overallConfidence = avg(active, (e) => e.confidence);
   // Overall predicted grade forecasts exam day too — averages the per-exam
   // projected readiness, so it agrees with the per-exam predicted grades.
-  const overallPredictedGrade = gradeFromReadiness(avg(active, (e) => e.projReadiness));
+  const overallPredictedGrade = (() => {
+    if (!active.length) return "–";
+    if (active.length === 1) return active[0].predictedGrade;
+    const sameQual = active.every((e) => e.qualificationId === active[0].qualificationId);
+    if (sameQual) return predictedFromReadiness(avg(active, (e) => e.projReadiness), active[0].scheme);
+    return active.reduce((a, b) => (a.probability <= b.probability ? a : b)).predictedGrade;
+  })();
   const allDue = examViews.flatMap((e) => e.dueTopics.map((t) => ({ ...t, examName: e.name, examColor: e.color })));
   const allWeak = examViews.flatMap((e) => e.weakestTopics.map((t) => ({ ...t, examName: e.name, examColor: e.color })))
     .sort((a, b) => a.retention - b.retention);
@@ -622,7 +636,7 @@ function brainCourses() {
     recommendedSessions: e.dueTopics.length,
     weakTopics: e.weakestTopics.map((t) => t.topicName).slice(0, 5),
     forecastOnTrack: e.predictedGrade,
-    forecastMissed: (({ "A*": "A", A: "B", B: "C", C: "D", D: "E", E: "E" })[e.predictedGrade] || e.predictedGrade),
+    forecastMissed: stepDownPredicted(e.predictedGrade, e.scheme),
     remainingWork: { sessions: e.dueTopics.length, papers: 0, hours: Math.round(e.dueTopics.length * 0.75 * 10) / 10 },
     // Persisted knowledge base from the student's uploads (null until they add
     // materials) — lets CourseDetail show that an upload produced something real.

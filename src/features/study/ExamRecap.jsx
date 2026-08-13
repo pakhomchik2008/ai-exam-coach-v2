@@ -16,6 +16,7 @@
 //   · the AI comment is generated from those numbers, and simply doesn't
 //     render if generation fails. No canned encouragement.
 import { recordAttempt, scaledScoreFor, scoreTrend } from "../../lib/exam-attempts";
+import { renderCoachMarkdown } from "../../lib/math-render";
 
 const MAX_LISTED_MISTAKES = 3;
 
@@ -264,11 +265,9 @@ function ExamRecap({
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
             {sessionMistakes.map((m) => (
               <div key={m.id}>
-                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-strong)", lineHeight: 1.45 }}>{m.question}</p>
+                <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-strong)", lineHeight: 1.45 }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(m.question) }} />
                 {m.options && m.options[m.correctIndex] != null && (
-                  <p style={{ margin: "3px 0 0", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-medium)" }}>
-                    ✓ {m.options[m.correctIndex]}
-                  </p>
+                  <p style={{ margin: "3px 0 0", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-medium)" }} dangerouslySetInnerHTML={{ __html: `✓ ${renderCoachMarkdown(m.options[m.correctIndex])}` }} />
                 )}
                 <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{m.topic}</p>
               </div>
@@ -294,7 +293,7 @@ function ExamRecap({
                 ))}
               </div>
             )
-            : <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.6 }}>{comment}</p>}
+            : <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(comment) }} />}
         </div>
       )}
 
@@ -310,20 +309,16 @@ function ExamRecap({
               return (
                 <div key={i} style={{ background: "var(--surface-card)", border: `1px solid ${answered ? (isCorrect ? "var(--emerald-100)" : "var(--red-200)") : "var(--border-subtle)"}`, borderRadius: "var(--radius-lg)", padding: "12px 14px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
-                    <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", lineHeight: 1.5 }}>{i + 1}. {r.question}</p>
+                    <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: `${i + 1}. ${renderCoachMarkdown(r.question)}` }} />
                     <span style={{ fontSize: 15, flexShrink: 0 }}>{!answered ? "⬜" : isCorrect ? "✅" : "❌"}</span>
                   </div>
-                  <p style={{ margin: "0 0 2px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>
-                    {answered
-                      ? `${L("Your answer", "Ваша відповідь", "Ваш ответ", "Votre réponse", "Deine Antwort")}: ${opts[r.selected]}`
-                      : L("Not answered", "Немає відповіді", "Нет ответа", "Sans réponse", "Nicht beantwortet")}
-                  </p>
+                  <p style={{ margin: "0 0 2px", fontSize: "var(--text-xs)", color: "var(--text-muted)" }} dangerouslySetInnerHTML={{ __html: answered
+                      ? `${L("Your answer", "Ваша відповідь", "Ваш ответ", "Votre réponse", "Deine Antwort")}: ${renderCoachMarkdown(opts[r.selected] || "")}`
+                      : L("Not answered", "Немає відповіді", "Нет ответа", "Sans réponse", "Nicht beantwortet") }} />
                   {!isCorrect && (
-                    <p style={{ margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-semibold)" }}>
-                      {L("Correct", "Правильно", "Правильно", "Correct", "Richtig")}: {opts[r.correct]}
-                    </p>
+                    <p style={{ margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-semibold)" }} dangerouslySetInnerHTML={{ __html: `${L("Correct", "Правильно", "Правильно", "Correct", "Richtig")}: ${renderCoachMarkdown(opts[r.correct] || "")}` }} />
                   )}
-                  <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)", lineHeight: 1.5 }}>{r.explanation}</p>
+                  <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)", lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(r.explanation) }} />
                 </div>
               );
             })}

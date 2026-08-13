@@ -9,6 +9,10 @@ import {
   percentToScore,
   scoreToPercent,
   scaleSteps,
+  schemeFromExam,
+  predictedFromReadiness,
+  targetReadiness,
+  stepDownPredicted,
 } from "./scales";
 
 describe("scale definitions match the real exams", () => {
@@ -44,8 +48,11 @@ describe("scaleForTaxonomy", () => {
   it.each([
     ["ielts", "ielts"],
     ["nmt", "nmt_subject"],
+    ["zno", "nmt_subject"],
     ["sat", "sat_total"],
     ["gcse", "gcse"],
+    ["toefl", "toefl"],
+    ["act", "act"],
   ])("maps %s to the %s scale", (taxonomy, expected) => {
     expect(scaleIdForTaxonomy(taxonomy)).toBe(expected);
   });
@@ -158,6 +165,51 @@ describe("percent <-> score round trip", () => {
   it("keeps scoreToPercent inside 0–100", () => {
     expect(scoreToPercent(-999, SCALES.gcse)).toBe(0);
     expect(scoreToPercent(999, SCALES.gcse)).toBe(100);
+  });
+});
+
+describe("schemeFromExam — exam's own grading, not A-Level letters", () => {
+  it("IELTS stays 0–9 even when leftover letter grades sit on the row", () => {
+    const scheme = schemeFromExam({
+      qualificationId: "ielts",
+      gradingSystem: { kind: "scale", options: ["A*", "A", "B", "C", "D", "E"] },
+    });
+    expect(scheme.kind).toBe("score");
+    if (scheme.kind === "score") {
+      expect(scheme.min).toBe(0);
+      expect(scheme.max).toBe(9);
+    }
+    expect(predictedFromReadiness(50, scheme)).toBe("4.5");
+    expect(predictedFromReadiness(39, scheme)).toBe("3.5");
+  });
+
+  it("НМТ reports 100–200", () => {
+    const scheme = schemeFromExam({ qualificationId: "nmt" });
+    expect(predictedFromReadiness(0, scheme)).toBe("100");
+    expect(predictedFromReadiness(50, scheme)).toBe("150");
+    expect(predictedFromReadiness(100, scheme)).toBe("200");
+  });
+
+  it("A-Level still uses letters", () => {
+    const scheme = schemeFromExam({ qualificationId: "alevel" });
+    expect(scheme.kind).toBe("scale");
+    expect(predictedFromReadiness(95, scheme)).toBe("A*");
+    expect(predictedFromReadiness(50, scheme)).toBe("C");
+  });
+
+  it("converts an IELTS 7.5 target into readiness, not the letter-A threshold", () => {
+    const scheme = schemeFromExam({ qualificationId: "ielts" });
+    expect(targetReadiness("7.5", scheme)).toBe(scoreToPercent(7.5, SCALES.ielts));
+    expect(targetReadiness("A", scheme)).toBe(80);
+  });
+
+  it("steps down one real increment", () => {
+    const ielts = schemeFromExam({ qualificationId: "ielts" });
+    expect(stepDownPredicted("7.5", ielts)).toBe("7.0");
+    const nmt = schemeFromExam({ qualificationId: "nmt" });
+    expect(stepDownPredicted("180", nmt)).toBe("179");
+    const alevel = schemeFromExam({ qualificationId: "alevel" });
+    expect(stepDownPredicted("B", alevel)).toBe("C");
   });
 });
 

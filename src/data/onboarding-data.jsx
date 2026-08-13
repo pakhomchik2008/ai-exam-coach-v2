@@ -20,6 +20,19 @@ const EXAM_TYPES = [
     grade: { kind: "scale", options: ["7","6","5","4","3","2"], current: "4", target: "6" } },
   { id: "nmt",    label: "NMT",        emoji: "🇺🇦", blurb: { en: "NMT · 100–200", uk: "НМТ · 100–200", ru: "НМТ · 100–200", fr: "NMT · 100–200", de: "NMT · 100–200" }, board: "UCEQA", educationSystemId: "k12",
     grade: { kind: "score", min: 100, max: 200, step: 1, current: 145, target: 180 } },
+  // Language papers live in the bundled snapshot so Add Exam / onboarding
+  // still show the real scale when the qualifications table has not been
+  // applied yet. DB rows overlay these. Speaking is omitted from IELTS
+  // presets — no mic path.
+  { id: "ielts",  label: "IELTS",      emoji: "🌐", blurb: { en: "Bands 0–9", uk: "Бали 0–9", ru: "Баллы 0–9", fr: "Bandes 0–9", de: "Bänder 0–9" }, board: null, educationSystemId: "language",
+    sectionBased: true,
+    grade: { kind: "score", min: 0, max: 9, step: 0.5, current: 6, target: 7.5 } },
+  { id: "toefl",  label: "TOEFL",      emoji: "🌐", blurb: { en: "iBT 0–120", uk: "iBT 0–120", ru: "iBT 0–120", fr: "iBT 0–120", de: "iBT 0–120" }, board: null, educationSystemId: "language",
+    sectionBased: true,
+    grade: { kind: "score", min: 0, max: 120, step: 1, current: 80, target: 100 } },
+  { id: "duolingo", label: "Duolingo", emoji: "🦉", blurb: { en: "DET 10–160", uk: "DET 10–160", ru: "DET 10–160", fr: "DET 10–160", de: "DET 10–160" }, board: null, educationSystemId: "language",
+    sectionBased: true,
+    grade: { kind: "score", min: 10, max: 160, step: 5, current: 105, target: 130 } },
   { id: "matura", label: "Matura",     emoji: "🇵🇱", blurb: { en: "0–100%", uk: "0–100%", ru: "0–100%", fr: "0–100%", de: "0–100%" }, board: "CKE", educationSystemId: "k12",
     grade: { kind: "score", min: 0, max: 100, step: 1, suffix: "%", current: 60, target: 85 } },
   { id: "abitur", label: "Abitur",     emoji: "🇩🇪", blurb: { en: "1.0 best → 4.0", uk: "1.0 найкраще → 4.0", ru: "1.0 лучшее → 4.0", fr: "1.0 meilleur → 4.0", de: "1,0 beste → 4,0" }, board: "KMK", educationSystemId: "k12",
@@ -60,6 +73,28 @@ function resolveExamType(list, id) {
 }
 
 function examType(id) { return resolveExamType(EXAM_TYPES, id); }
+
+function isSectionBasedExam(id) {
+  const e = examType(id);
+  if (typeof e.sectionBased === "boolean") return e.sectionBased;
+  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo";
+}
+
+/** Add-exam default: last exam's qual, then country, never a silent GCSE. */
+function suggestedQualificationId(lastExam, profile) {
+  const fromExam = (typeof window !== "undefined" && window.examQualificationId)
+    ? window.examQualificationId(lastExam)
+    : (lastExam && lastExam.qualificationId);
+  if (fromExam && examType(fromExam).id === fromExam) return fromExam;
+  const blob = `${(lastExam && lastExam.name) || ""} ${(lastExam && lastExam.examBoard) || ""}`;
+  if (/ielts/i.test(blob)) return "ielts";
+  if (/toefl/i.test(blob)) return "toefl";
+  if (/duolingo/i.test(blob)) return "duolingo";
+  if (/(nmt|нmt|зно)/i.test(blob)) return "nmt";
+  const country = profile && profile.country && COUNTRY_TO_EXAM_TYPE[profile.country];
+  if (country) return country;
+  return "custom";
+}
 
 // ─── Study materials & learning preferences ────────────────────────────────────
 const MATERIALS = [
@@ -287,6 +322,9 @@ const SUBJECT_PRESETS = {
   ap: ["AP Calculus AB","AP Calculus BC","AP Statistics","AP Physics 1","AP Physics C","AP Chemistry","AP Biology","AP Environmental Science","AP US History","AP World History","AP European History","AP English Language","AP English Literature","AP Computer Science A","AP Psychology","AP Economics (Micro)","AP Economics (Macro)","AP US Government","AP Spanish","AP French"],
   ib: ["Mathematics AA","Mathematics AI","Physics","Chemistry","Biology","Environmental Systems","History","Geography","Economics","English A","English B","Computer Science","Visual Arts","Psychology","Philosophy"],
   nmt: ["Українська мова","Математика","Історія України","Біологія","Хімія","Фізика","Географія","Англійська мова","Іноземна мова"],
+  ielts: ["Listening","Reading","Writing"],
+  toefl: ["Reading","Listening","Speaking","Writing"],
+  duolingo: ["Literacy","Comprehension","Conversation","Production"],
   matura: ["Matematyka","Język polski","Język angielski","Biologia","Chemia","Fizyka","Historia","Geografia","Informatyka","Wiedza o społeczeństwie","Język niemiecki","Język rosyjski"],
   abitur: ["Mathematik","Deutsch","Englisch","Biologie","Chemie","Physik","Geschichte","Geographie","Informatik","Sozialkunde","Französisch","Kunst","Musik","Sport","Wirtschaft"],
   uni: ["Mathematics","Physics","Chemistry","Biology","Computer Science","Economics","Psychology","History","English Literature","Philosophy","Sociology","Political Science","Law","Business Administration","Accounting","Finance","Marketing","Engineering","Medicine","Nursing","Architecture","Statistics","Linguistics","Geography","Environmental Science","Art History","Music"],
@@ -319,7 +357,7 @@ const INTENSITY_PRESETS = [
     multiplier: 1.4 },
 ];
 
-Object.assign(window, { EXAM_TYPES, examType, resolveExamType, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB, COUNTRIES, COUNTRY_TO_EXAM_TYPE, EDUCATION_LEVELS, SUBJECT_PRESETS, UNIVERSITY_YEARS, INTENSITY_PRESETS });
+Object.assign(window, { EXAM_TYPES, examType, resolveExamType, isSectionBasedExam, suggestedQualificationId, MATERIALS, PREFERENCES, TIMEZONES, detectTimezone, DEFAULT_SUBJECTS, ONB, COUNTRIES, COUNTRY_TO_EXAM_TYPE, EDUCATION_LEVELS, SUBJECT_PRESETS, UNIVERSITY_YEARS, INTENSITY_PRESETS });
 
 // Module marker: these files carry no import/export of their own (they still
 // communicate via `window` globals), and without one the JSX transform treats

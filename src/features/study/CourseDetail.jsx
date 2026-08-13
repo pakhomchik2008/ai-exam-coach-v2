@@ -111,7 +111,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
           <div>
             <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{course.name}</h2>
             <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-              {L("Exam", "Іспит", "Экзамен", "Examen", "Prüfung")} {examDate} · {course.daysAway} {L("days away", "дн. лишилось", "дн. осталось", "j restants", "Tage")}{course.examBoard ? ` · ${course.examBoard}` : ""}
+              {L("Exam", "Іспит", "Экзамен", "Examen", "Prüfung")} {examDate} · {course.daysAway} {L("days away", "дн. лишилось", "дн. осталось", "j restants", "Tage")}
             </p>
           </div>
           <button onClick={onClose} aria-label="Close" style={{ border: "none", background: "var(--surface-muted)", width: 36, height: 36, borderRadius: "var(--radius-full)", cursor: "pointer", fontSize: 18, color: "var(--text-muted)", lineHeight: 1, flexShrink: 0 }}>✕</button>

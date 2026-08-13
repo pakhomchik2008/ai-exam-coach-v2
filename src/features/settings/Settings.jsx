@@ -53,15 +53,6 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   const [notifyStreakDanger, setNotifyStreakDanger] = React.useState(profile.notifyStreakDanger);
   const [notifyMistakeReview, setNotifyMistakeReview] = React.useState(profile.notifyMistakeReview);
   const [soundsEnabled, setSoundsEnabled] = React.useState(profile.soundsEnabled === true);
-  // Study-plan budget inputs — feed schedule-store.jsx's allocateBudget
-  // (Phase 3). Editing any of these here goes through the same saveProfile()
-  // path as the wizard, which already diffs BUDGET_FIELDS and calls
-  // replanAllSchedules() when they actually change.
-  const [weeklyHours, setWeeklyHours] = React.useState(profile.weeklyHours);
-  const [daysPerWeek, setDaysPerWeek] = React.useState(profile.daysPerWeek);
-  const [sessionLengthMin, setSessionLengthMin] = React.useState(profile.sessionLengthMin);
-  const [blackoutSlots, setBlackoutSlots] = React.useState(profile.blackoutSlots);
-  const [planIntensity, setPlanIntensity] = React.useState(profile.planIntensity || "balanced");
   const [saved, setSaved] = React.useState(false);
   const [confirmErase, setConfirmErase] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
@@ -110,7 +101,6 @@ function Settings({ t, lang, onLangChange, onLogout }) {
       notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
       soundsEnabled,
       email: emailValid ? trimmedEmail : profile.email,
-      weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, planIntensity,
     });
     setSaved(true); setTimeout(() => setSaved(false), 2800);
   }
@@ -263,84 +253,6 @@ function Settings({ t, lang, onLangChange, onLogout }) {
               )}
             </div>
           )}
-        </Section>
-
-        <Section title={L(lang, "Study intensity","Режим навчання","Режим учёбы","Intensité d'étude","Lernintensität")}>
-          <div style={{ display: "flex", gap: "var(--space-2)" }}>
-            {(window.INTENSITY_PRESETS || []).map((preset) => {
-              const sel = planIntensity === preset.id;
-              // Live preview: how many sessions/week this tier actually yields
-              // for the CURRENT exams — the difference is visible before saving.
-              let perWeek = null;
-              try {
-                const plan = window.allocateBudget(window.getExams(), { ...window.getProfile(), weeklyHours, daysPerWeek, sessionLengthMin, blackoutSlots, planIntensity: preset.id });
-                let total = 0, weeks = 1;
-                for (const [, v] of plan) total += (v.sessions || []).length;
-                const exams = window.getExams().filter((e) => new Date(e.examDate || e.date) > new Date());
-                if (exams.length) {
-                  const maxDays = Math.max(...exams.map((e) => Math.max(1, Math.ceil((new Date(e.examDate || e.date) - new Date()) / 86400000))));
-                  weeks = Math.max(1, maxDays / 7);
-                }
-                perWeek = Math.round(total / weeks);
-              } catch {}
-              return (
-                <button key={preset.id} type="button" onClick={() => setPlanIntensity(preset.id)}
-                  style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "var(--space-3) var(--space-2)", borderRadius: "var(--radius-xl)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    border: sel ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
-                    background: sel ? "var(--indigo-50)" : "var(--surface-card)", transition: "all var(--dur-fast) ease" }}>
-                  <span style={{ fontSize: 20 }}>{preset.emoji}</span>
-                  <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-bold)", color: sel ? "var(--indigo-700)" : "var(--text-strong)" }}>{preset.label[lang] || preset.label.en}</span>
-                  {perWeek !== null && (
-                    <span style={{ fontSize: "var(--text-xs)", color: sel ? "var(--indigo-600)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)" }}>
-                      ~{perWeek} {L(lang, "sessions/wk","сесій/тижд","сессий/нед","séances/sem","Einheiten/Wo")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-            {L(lang,
-              "Saving with a new mode rebuilds your whole calendar at that pace.",
-              "Збереження з новим режимом перебудовує весь календар у цьому темпі.",
-              "Сохранение с новым режимом перестраивает весь календарь в этом темпе.",
-              "Enregistrer avec un nouveau mode reconstruit tout votre calendrier à ce rythme.",
-              "Beim Speichern mit neuem Modus wird der gesamte Kalender in diesem Tempo neu aufgebaut."
-            )}
-          </p>
-        </Section>
-
-        <Section title={L(lang, "Study availability","Доступність для навчання","Доступность для учёбы","Disponibilité d'étude","Lernverfügbarkeit")}>
-          <div>
-            <div style={{ textAlign: "center", marginBottom: "var(--space-3)" }}>
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-4xl)", fontWeight: "var(--weight-bold)", color: "var(--indigo-600)", lineHeight: 1 }}>{weeklyHours}</span>
-              <p style={{ margin: "var(--space-1) 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-                {L(lang, "hours per week","годин на тиждень","часов в неделю","heures par semaine","Stunden pro Woche")}
-              </p>
-            </div>
-            <input type="range" min={2} max={40} step={1} value={weeklyHours} onChange={(e) => setWeeklyHours(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)", height: 28 }} />
-          </div>
-          <window.AvailabilityGrid
-            daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
-            sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
-            blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots}
-            copy={{
-              s2_days_per_week: L(lang, "Days per week", "Днів на тиждень", "Дней в неделю", "Jours par semaine", "Tage pro Woche"),
-              s2_session_length: L(lang, "Session length", "Тривалість сесії", "Длительность сессии", "Durée de la séance", "Sitzungsdauer"),
-              s2_when_unavailable: L(lang, "When are you unavailable?", "Коли ви недоступні?", "Когда вы недоступны?", "Quand n'êtes-vous pas disponible ?", "Wann bist du nicht verfügbar?"),
-              all_day: L(lang, "All", "Увесь день", "Весь день", "Tout", "Ganzer Tag"),
-              day_abbr: (window.ONB && window.ONB[lang] && window.ONB[lang].day_abbr) || { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" },
-              period_abbr: (window.ONB && window.ONB[lang] && window.ONB[lang].period_abbr) || { morning: "AM", afternoon: "PM", evening: "Eve" },
-            }} />
-          <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-            {L(lang,
-              "Changes here recalculate your entire study schedule to fit the new budget.",
-              "Зміни тут перераховують весь ваш розклад навчання під новий бюджет.",
-              "Изменения здесь пересчитывают весь ваш учебный график под новый бюджет.",
-              "Ces changements recalculent tout votre emploi du temps d'étude.",
-              "Änderungen hier berechnen Ihren gesamten Lernplan neu."
-            )}
-          </p>
         </Section>
 
         <Section title={t.settings_sounds || "Sounds"}>

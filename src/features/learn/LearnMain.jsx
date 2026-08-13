@@ -1,18 +1,26 @@
 // AI Exam Coach — Learn (Phase 3.7a).
 //
 // Replaces StudyHub for exams that HAVE a Learn tree defined
-// (src/features/learn/tree/index.ts). For exams without a tree, falls back
-// to StudyHub — MVP ships trees for nmt and ielts only; adding another
-// exam later is a new tree file + one registry entry, no route change.
+// (src/features/learn/tree/index.ts). NMT is per-subject: two NMT sittings
+// (language + math) are two cards, not one shared math tree. Exams without
+// a tree stay out of the picker instead of silently opening NMT Math.
 //
 // Fold everything (main list, node preview sheet, Teach, Drill, Prove) into
 // one component here rather than fanning out to 4 small files. MVP has 3
 // short linear phases; splitting them costs prop drilling and gains
 // nothing until 3.7b starts adding the other exercise types.
 
-import { getTree, availableTaxonomies } from "./tree/index";
-import { localize, totalNodeCount } from "./tree/schema";
+import { treeForExam } from "./tree/resolve";
+import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
+import { freeTopicLimit, topicIsLocked } from "./premium";
+import { ProSheet } from "./ProSheet.jsx";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+import { WaitPress } from "../../components/WaitPress";
+import { renderCoachMarkdown } from "../../lib/math-render";
+
+function mdHtml(text) {
+  return { __html: renderCoachMarkdown(text) };
+}
 
 // ─── shared: node status color/label ──────────────────────────────────────────
 const MASTERY_STYLE = {
@@ -95,13 +103,12 @@ function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   React.useEffect(() => {
     if (phase !== "teach" || teach || teachError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
     const system = `You are teaching a student the concept "${nodeTitle}" (unit: ${unitTitle}) for the ${tree.examTaxonomy.toUpperCase()} exam.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"hook":"3-sentence engaging hook","example":{"prompt":"a worked example","steps":["step 1","step 2","..."],"answer":"final answer"},"takeaway":"one-line rule to remember"}
-RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX for now — v2). ${langDir}`;
+RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX for now — v2).`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
-    Promise.race([complete({ system, messages: [{ role: "user", content: `Teach me: ${nodeTitle}` }] }), timeout])
+    Promise.race([complete({ system, messages: [{ role: "user", content: `Teach me: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
       .then((raw) => {
         const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
         if (!p || !p.hook) throw new Error("Invalid teach response");
@@ -114,16 +121,15 @@ RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX 
   React.useEffect(() => {
     if (phase !== "drill" || drillQs || drillError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
     const system = `Generate exactly 5 practice questions for the concept "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()} exam prep).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[
   {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence"},
   {"type":"fill","question":"Complete: ...","answer":"expected answer","accept":["variant 1","variant 2"],"explanation":"1 sentence"}
 ]}
-RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. Every fill answer is a short word/number/formula the learner can type. ${langDir}`;
+RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. Every fill answer is a short word/number/formula the learner can type.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
-    Promise.race([complete({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }] }), timeout])
+    Promise.race([complete({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
       .then((raw) => {
         const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
         if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error("Invalid drill response");
@@ -136,14 +142,13 @@ RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. E
   React.useEffect(() => {
     if (phase !== "prove" || proveQs || proveError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
     const system = `Generate exactly 3 real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"${nodeTitle}"}]}
-RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${langDir}`;
+RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
     const generate = () => Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }] }),
+      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }),
       timeout,
     ]).then((raw) => {
       const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -266,19 +271,24 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
       React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, teachError),
       React.createElement("button", { key: "r", onClick: () => { setTeach(null); setTeachError(null); }, style: { padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", cursor: "pointer" } }, "Retry"),
     ]);
-    if (!teach) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } }, L("Preparing your lesson…", "Готуємо урок…", "Готовим урок…", "Préparation…", "Bereite Lektion vor…"))]);
+    if (!teach) return wrap([header, React.createElement(WaitPress, {
+      key: "l",
+      title: L("Preparing your lesson…", "Готуємо урок…", "Готовим урок…", "Préparation…", "Bereite Lektion vor…"),
+      lang: t?.code,
+      compact: true,
+    })]);
     return wrap([
       header,
-      React.createElement("p", { key: "hook", style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-body)" } }, teach.hook),
+      React.createElement("p", { key: "hook", style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(teach.hook) }),
       React.createElement("div", { key: "ex", style: { marginTop: 20, background: "var(--surface-muted)", borderRadius: 12, padding: 16 } },
         React.createElement("div", { style: { fontSize: 12, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.06em", marginBottom: 8 } }, L("Worked example", "Приклад", "Пример", "Exemple", "Beispiel")),
-        React.createElement("p", { style: { margin: "0 0 8px", fontWeight: 600 } }, teach.example?.prompt),
+        React.createElement("p", { style: { margin: "0 0 8px", fontWeight: 600 }, dangerouslySetInnerHTML: mdHtml(teach.example?.prompt) }),
         React.createElement("ol", { style: { paddingLeft: 20, margin: 0, color: "var(--text-body)" } },
-          (teach.example?.steps || []).map((s, i) => React.createElement("li", { key: i, style: { marginBottom: 4 } }, s)),
+          (teach.example?.steps || []).map((s, i) => React.createElement("li", { key: i, style: { marginBottom: 4 }, dangerouslySetInnerHTML: mdHtml(s) })),
         ),
-        React.createElement("p", { style: { marginTop: 10, fontWeight: 700, color: "var(--text-strong)" } }, "= ", teach.example?.answer),
+        React.createElement("p", { style: { marginTop: 10, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`= ${teach.example?.answer || ""}`) }),
       ),
-      React.createElement("p", { key: "take", style: { marginTop: 20, padding: "12px 14px", background: "var(--indigo-50)", borderRadius: 10, color: "var(--text-strong)" } }, "💡 ", teach.takeaway),
+      React.createElement("p", { key: "take", style: { marginTop: 20, padding: "12px 14px", background: "var(--indigo-50)", borderRadius: 10, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`💡 ${teach.takeaway || ""}`) }),
       React.createElement("button", {
         key: "next", onClick: () => setPhase("drill"),
         style: { marginTop: 24, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer" },
@@ -294,7 +304,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
     return wrap([
       header,
       React.createElement("div", { key: "prog", style: { fontSize: 12, color: "var(--text-faint)", marginBottom: 10 } }, `${drillIdx + 1} / ${drillQs.length}`),
-      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, q.question),
+      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       q.type === "mcq" && React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
           const wasChosen = drillSelected === i;
@@ -305,7 +315,8 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
           return React.createElement("button", {
             key: i, onClick: () => submitDrillAnswer(i), disabled: drillRevealed,
             style: { textAlign: "left", padding: "12px 14px", background: bg, border: `1.5px solid ${border}`, borderRadius: 10, fontSize: 14, cursor: drillRevealed ? "default" : "pointer", fontFamily: "var(--font-sans)" },
-          }, opt);
+            dangerouslySetInnerHTML: mdHtml(opt),
+          });
         }),
       ),
       q.type === "fill" && React.createElement("div", { key: "fill", style: { marginTop: 8 } },
@@ -322,7 +333,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
           style: { marginTop: 8, padding: "10px 16px", borderRadius: 10, background: "var(--indigo-600)", color: "#fff", border: "none", cursor: "pointer" },
         }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen")),
       ),
-      drillRevealed && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" } }, q.explanation),
+      drillRevealed && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(q.explanation) }),
       drillRevealed && React.createElement("button", {
         key: "next", onClick: nextDrill,
         style: { marginTop: 16, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" },
@@ -343,7 +354,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
         React.createElement("span", null, `${proveIdx + 1} / ${proveQs.length}`),
         React.createElement("span", { style: { fontVariantNumeric: "tabular-nums" } }, `⏱ ${mm}:${ss}`),
       ),
-      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, q.question),
+      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
           const showCorrect = proveSelected !== null && i === q.correct;
@@ -353,7 +364,8 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
           return React.createElement("button", {
             key: i, onClick: () => submitProveAnswer(i), disabled: proveSelected !== null,
             style: { textAlign: "left", padding: "12px 14px", background: bg, border: `1.5px solid ${border}`, borderRadius: 10, fontSize: 14, cursor: proveSelected !== null ? "default" : "pointer", fontFamily: "var(--font-sans)" },
-          }, opt);
+            dangerouslySetInnerHTML: mdHtml(opt),
+          });
         }),
       ),
     ]);
@@ -407,19 +419,20 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${la
 function LearnMain({ t }) {
   const lang = (t && t.code) || "en";
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[lang] || en);
-  // Pick the exam-taxonomy for the user's currently-active exam. Falls back
-  // to the first available tree if the current exam has no tree yet — the
-  // MVP shipping decision (Decision Log #41) is to keep the section open
-  // for every exam, using nmt/ielts trees as content even when the student's
-  // real exam is different.
   const exams = window.getExams ? window.getExams() : [];
-  const availableTax = availableTaxonomies();
-  const currentExam = exams[0];
-  const currentQual = currentExam && (window.examQualificationId
-    ? window.examQualificationId(currentExam)
-    : currentExam.qualificationId);
-  const taxonomy = (currentQual && availableTax.includes(currentQual)) ? currentQual : availableTax[0];
-  const tree = getTree(taxonomy);
+  const options = exams.map((exam) => ({
+    exam,
+    tree: treeForExam(exam),
+    label: window.examDisplayName ? window.examDisplayName(exam) : exam.name,
+  })).filter((o) => o.tree);
+  // Never auto-enter a tree when the student has more than one exam — even
+  // if only one currently resolves. Otherwise Learn opens Chemistry and
+  // hides Mathematics with no way back.
+  const [pickedId, setPickedId] = React.useState(() => (
+    exams.length === 1 && options.length === 1 ? options[0].exam.id : null
+  ));
+  const selected = options.find((o) => o.exam.id === pickedId) || null;
+  const tree = selected ? selected.tree : null;
 
   const learnState = window.getLearn ? window.getLearn() : {};
   const nodeState = (tree && learnState[tree.examTaxonomy]) || {};
@@ -430,6 +443,7 @@ function LearnMain({ t }) {
   const total = tree ? totalNodeCount(tree) : 0;
 
   const [openNode, setOpenNode] = React.useState(null); // { unit, node }
+  const [proSheet, setProSheet] = React.useState(false);
   const [running, setRunning] = React.useState(null);   // { unit, node }
   const [justUnlocked, setJustUnlocked] = React.useState(null);
   const [shownMastered, setShownMastered] = React.useState(mastered);
@@ -441,8 +455,9 @@ function LearnMain({ t }) {
   const startBtnRef = React.useRef(null);
 
   React.useEffect(() => {
-    const unsub = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
-    return () => unsub && unsub();
+    const unsubLearn = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
+    const unsubExams = window.subscribeExams && window.subscribeExams(() => setTick((n) => n + 1));
+    return () => { unsubLearn && unsubLearn(); unsubExams && unsubExams(); };
   }, []);
 
   React.useEffect(() => { enterOnceRef.current = false; }, []);
@@ -498,9 +513,44 @@ function LearnMain({ t }) {
     if (result && result.unlocked && result.nodeId) setJustUnlocked(result.nodeId);
   }
 
-  if (!tree) {
+  if (options.length === 0) {
     return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)" } },
-      React.createElement("p", null, L("No learn tree available for your exam yet.", "Дерево для цього іспиту ще не готове.", "Дерево для этого экзамена ещё не готово.", "Aucun arbre disponible.", "Kein Baum verfügbar.")),
+      React.createElement("h1", { style: { margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
+      React.createElement("p", { style: { margin: 0, color: "var(--text-muted)", fontSize: 14 } },
+        L("Add an exam first — Learn opens a topic tree per exam.", "Спочатку додай іспит — Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen.", "Füge zuerst eine Prüfung hinzu.")),
+    );
+  }
+
+  if (!tree) {
+    return React.createElement("div", {
+      className: "learn-main",
+      style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
+    },
+      React.createElement("h1", { style: { margin: "0 0 6px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
+      React.createElement("p", { style: { margin: "0 0 20px", color: "var(--text-muted)", fontSize: 13 } },
+        L("Pick an exam. Topics stay separate.", "Обери іспит. Теми кожного — окремо.", "Выбери экзамен. Темы каждого — отдельно.", "Choisis un examen.", "Wähle eine Prüfung.")),
+      React.createElement("div", { className: "ux-stagger", style: { display: "flex", flexDirection: "column", gap: 10 } },
+        ...options.map((o) => React.createElement("button", {
+          key: o.exam.id,
+          type: "button",
+          className: "ux-card ux-press",
+          onClick: () => setPickedId(o.exam.id),
+          style: {
+            display: "flex", alignItems: "center", gap: 14, padding: "16px 16px",
+            background: "var(--surface-card)", border: "1px solid var(--border-default)",
+            borderLeft: `6px solid ${o.exam.color || "var(--indigo-500)"}`,
+            borderRadius: "var(--radius-xl)", cursor: "pointer", textAlign: "left",
+            fontFamily: "var(--font-sans)",
+          },
+        },
+          React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, o.label),
+            React.createElement("div", { style: { fontSize: 12, color: "var(--text-muted)", marginTop: 4 } },
+              L(`${totalNodeCount(o.tree)} topics`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} sujets`, `${totalNodeCount(o.tree)} Themen`)),
+          ),
+          React.createElement("span", { "aria-hidden": "true", style: { color: "var(--text-faint)", fontSize: 20 } }, "→"),
+        )),
+      ),
     );
   }
 
@@ -514,7 +564,12 @@ function LearnMain({ t }) {
 
   const pct = total > 0 ? mastered / total : 0;
   const shouldEnter = enterOnceRef.current;
-  const examLabel = tree.examTaxonomy.toUpperCase();
+  const examLabel = selected.label || tree.examTaxonomy.toUpperCase();
+  const lessonFlat = flattenLessonNodes(tree);
+  const lessonTotal = lessonFlat.length;
+  const freeCount = freeTopicLimit(lessonTotal);
+  const proCount = Math.max(0, lessonTotal - freeCount);
+  const indexById = new Map(lessonFlat.map((row) => [row.node.id, row.index]));
   const progressLabel = L(
     `${shownMastered} of ${total} topics mastered · ${examLabel}`,
     `${shownMastered} із ${total} тем засвоєно · ${examLabel}`,
@@ -528,8 +583,30 @@ function LearnMain({ t }) {
     style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
   },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
-      React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
+      options.length > 1 && React.createElement("div", {
+        style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+      },
+        ...options.map((o) => {
+          const on = o.exam.id === pickedId;
+          return React.createElement("button", {
+            key: o.exam.id,
+            type: "button",
+            className: "ux-press",
+            onClick: () => { setOpenNode(null); setPickedId(o.exam.id); },
+            style: {
+              minHeight: 36, padding: "8px 14px", borderRadius: "var(--radius-full)",
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)",
+              border: on ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+              background: on ? "var(--indigo-50)" : "var(--surface-card)",
+              color: on ? "var(--indigo-700)" : "var(--text-body)",
+            },
+          }, o.label);
+        }),
+      ),
+      React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
       React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
+      proCount > 0 && React.createElement("p", { style: { margin: "4px 0 0", color: "var(--text-faint)", fontSize: 12 } },
+        L(`${freeCount} free · ${proCount} Pro`, `${freeCount} безкоштовно · ${proCount} Pro`, `${freeCount} бесплатно · ${proCount} Pro`, `${freeCount} gratuits · ${proCount} Pro`, `${freeCount} gratis · ${proCount} Pro`)),
       React.createElement("div", {
         className: "learn-progress",
         role: "progressbar",
@@ -551,22 +628,25 @@ function LearnMain({ t }) {
           const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
           const unlockedNow = justUnlocked === node.id;
+          const idx = indexById.has(node.id) ? indexById.get(node.id) : -1;
+          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal);
           return React.createElement("button", {
             key: node.id,
             type: "button",
             className: "learn-node",
-            onClick: () => setOpenNode({ unit, node }),
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)" },
+            onClick: () => (locked ? setProSheet(true) : setOpenNode({ unit, node })),
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", opacity: locked ? 0.72 : 1 },
           },
             React.createElement("span", {
               className: "learn-medal" + (unlockedNow ? " learn-medal--pop" : ""),
-              style: { fontSize: 20, color: style.color, minWidth: 24, textAlign: "center" },
-              "aria-label": masteryAria(st.mastery),
-            }, style.label),
+              style: { fontSize: 20, color: locked ? "var(--text-faint)" : style.color, minWidth: 24, textAlign: "center" },
+              "aria-label": locked ? "Pro" : masteryAria(st.mastery),
+            }, locked ? "🔒" : style.label),
             React.createElement("div", { style: { flex: 1 } },
               React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
               React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
             ),
+            locked && React.createElement("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999 } }, "Pro"),
           );
         }),
       ),
@@ -605,6 +685,7 @@ function LearnMain({ t }) {
         onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
       }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
     )),
+    proSheet && React.createElement(ProSheet, { key: "pro", freeCount, lockedCount: proCount, onClose: () => setProSheet(false), t }),
   );
 }
 

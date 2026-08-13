@@ -89,3 +89,40 @@ export function renderMathText(input: string): string {
     return renderMathSegment(s);
   }).join("");
 }
+
+// Private-use sentinels so markdown regexes can see math as one token.
+// tokenizeMath runs FIRST — otherwise `**$x$**` splits into `**` + math + `**`
+// and the bold regex never pairs. Markers have no `*` / `$` / backticks.
+function mathMarker(i: number): string {
+  return `\uE000M${i}\uE001`;
+}
+
+// Markdown-lite + KaTeX for every student-facing AI string. Same substitutions
+// as the old AIChat `_md`, plus leftover `**` stripped so a model that wraps
+// a formula in bold never leaks asterisks onto the screen.
+export function renderCoachMarkdown(input: string): string {
+  if (!input) return "";
+  const normalized = String(input).replace(/<br\s*\/?>(\r?\n)?/gi, "\n");
+  const segs = tokenizeMath(normalized);
+  const mathHtml: string[] = [];
+  let joined = "";
+  for (const s of segs) {
+    if (s.kind === "text") {
+      joined += escapeHtml(s.value);
+      continue;
+    }
+    const i = mathHtml.length;
+    mathHtml.push(renderMathSegment(s));
+    joined += mathMarker(i);
+  }
+  joined = joined
+    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
+    .replace(/`([^`\n]+?)`/g, "<code style='background:var(--slate-100);padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
+    .replace(/\*\*/g, "")
+    .replace(/\n/g, "<br/>");
+  for (let i = 0; i < mathHtml.length; i++) {
+    joined = joined.split(mathMarker(i)).join(mathHtml[i]);
+  }
+  return joined;
+}

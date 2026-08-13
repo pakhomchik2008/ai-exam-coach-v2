@@ -12,8 +12,9 @@
  * student happened to be looking at. Letter grades are also simply wrong for the
  * exams this product targets — none of IELTS, НМТ, SAT or GCSE reports one.
  *
- * The rule from here on: scores are numeric, in the real units of the actual
- * exam, everywhere. Nothing in this module returns a letter.
+ * The rule from here on: a predicted grade uses the exam's own scheme.
+ * IELTS is a band, НМТ is 100–200, SAT is 400–1600. Letters exist only
+ * for exams that actually report letters (A-Level, uni class).
  */
 
 export type ScaleFormat = "decimal" | "integer";
@@ -43,6 +44,12 @@ export const SCALES = {
   sat_section: { min: 200, max: 800, step: 10, targetTop: 700, format: "integer", label: "" },
   /** GCSE 9–1 numbered grades. */
   gcse: { min: 1, max: 9, step: 1, targetTop: 7, format: "integer", label: "grade" },
+  toefl: { min: 0, max: 120, step: 1, targetTop: 100, format: "integer", label: "" },
+  duolingo: { min: 10, max: 160, step: 5, targetTop: 130, format: "integer", label: "" },
+  pte: { min: 10, max: 90, step: 1, targetTop: 76, format: "integer", label: "" },
+  act: { min: 1, max: 36, step: 1, targetTop: 32, format: "integer", label: "" },
+  ap: { min: 1, max: 5, step: 1, targetTop: 5, format: "integer", label: "" },
+  ib: { min: 1, max: 7, step: 1, targetTop: 6, format: "integer", label: "" },
   /**
    * Fallback for an exam we have no real scale for. Deliberately a plain
    * percentage rather than a guess at the exam's true units — see
@@ -57,13 +64,15 @@ export type ScaleId = keyof typeof SCALES;
 const TAXONOMY_TO_SCALE: Readonly<Record<string, ScaleId>> = {
   ielts: "ielts",
   nmt: "nmt_subject",
+  zno: "nmt_subject",
   sat: "sat_total",
-  act: "normalized",
+  act: "act",
   gcse: "gcse",
-  alevel: "normalized",
-  toefl: "normalized",
-  duolingo: "normalized",
-  pte: "normalized",
+  toefl: "toefl",
+  duolingo: "duolingo",
+  pte: "pte",
+  ap: "ap",
+  ib: "ib",
 };
 
 /** True when the resolved scale is the generic 0–100 stand-in, not a real one. */
@@ -134,4 +143,127 @@ export function scaleSteps(scale: Scale): number[] {
   const out: number[] = [];
   for (let v = scale.min; v <= scale.max; v += scale.step) out.push(roundFloat(v));
   return out;
+}
+
+/** Discrete labels, best-first — only for exams that actually report letters. */
+const LETTER_OPTIONS: Readonly<Record<string, readonly string[]>> = {
+  alevel: ["A*", "A", "B", "C", "D", "E"],
+  uni: ["1st", "2:1", "2:2", "3rd", "Pass"],
+  custom: ["A", "B", "C", "D", "Pass"],
+};
+
+export type ScoreScheme = {
+  readonly kind: "score";
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly format: ScaleFormat;
+};
+
+export type LabelScheme = {
+  readonly kind: "scale";
+  readonly options: readonly string[];
+};
+
+export type GradeScheme = ScoreScheme | LabelScheme;
+
+export interface ExamGradeInput {
+  readonly qualificationId?: string | null;
+  readonly gradingSystem?: {
+    readonly kind?: string;
+    readonly min?: number;
+    readonly max?: number;
+    readonly step?: number;
+    readonly options?: readonly string[];
+  } | null;
+}
+
+function scaleFromScoreScheme(scheme: ScoreScheme): Scale {
+  return {
+    min: scheme.min,
+    max: scheme.max,
+    step: scheme.step,
+    targetTop: scheme.max,
+    format: scheme.format,
+    label: "",
+  };
+}
+
+function scoreSchemeFromScale(scale: Scale): ScoreScheme {
+  return { kind: "score", min: scale.min, max: scale.max, step: scale.step, format: scale.format };
+}
+
+/**
+ * Picks the display scheme for an exam.
+ *
+ * A known numeric taxonomy always wins. An IELTS row that still carries
+ * leftover A-Level letters (the old default `targetGrade: "A"`) must not
+ * keep predicting "C".
+ */
+export function schemeFromExam(exam: ExamGradeInput): GradeScheme {
+  const qid = exam.qualificationId ? exam.qualificationId.toLowerCase() : "";
+  if (qid && !isNormalizedFallback(scaleIdForTaxonomy(qid))) {
+    return scoreSchemeFromScale(scaleForTaxonomy(qid));
+  }
+
+  const g = exam.gradingSystem;
+  if (g?.kind === "score" && Number.isFinite(g.min) && Number.isFinite(g.max) && (g.max as number) > (g.min as number)) {
+    const step = Number.isFinite(g.step) && (g.step as number) > 0 ? (g.step as number) : 1;
+    return {
+      kind: "score",
+      min: g.min as number,
+      max: g.max as number,
+      step,
+      format: step < 1 ? "decimal" : "integer",
+    };
+  }
+  if (g?.kind === "scale" && Array.isArray(g.options) && g.options.length > 1) {
+    return { kind: "scale", options: g.options };
+  }
+
+  if (qid && LETTER_OPTIONS[qid]) {
+    return { kind: "scale", options: LETTER_OPTIONS[qid] };
+  }
+
+  return scoreSchemeFromScale(SCALES.normalized);
+}
+
+/** Maps 0–100 readiness onto the exam's own units. */
+export function predictedFromReadiness(percent: number, scheme: GradeScheme): string {
+  if (scheme.kind === "score") {
+    const scale = scaleFromScoreScheme(scheme);
+    return formatScore(percentToScore(percent, scale), scale);
+  }
+  const n = scheme.options.length;
+  const pct = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 0;
+  const band = Math.floor((100 - pct) / (100 / n));
+  const idx = Math.min(n - 1, Math.max(0, band));
+  return scheme.options[idx] ?? scheme.options[n - 1] ?? "";
+}
+
+/** Readiness % the model must hit to claim the student's stated target. */
+export function targetReadiness(target: string | number | null | undefined, scheme: GradeScheme): number {
+  if (scheme.kind === "score") {
+    const n = typeof target === "number" ? target : Number(target);
+    if (Number.isFinite(n)) return scoreToPercent(n, scaleFromScoreScheme(scheme));
+    return 80;
+  }
+  const label = target == null ? "" : String(target);
+  const idx = scheme.options.indexOf(label);
+  if (idx < 0) return 80;
+  if (scheme.options.length <= 1) return 100;
+  return Math.round(100 - (idx / (scheme.options.length - 1)) * 100);
+}
+
+/** One increment worse — used for the "if you miss the plan" forecast. */
+export function stepDownPredicted(label: string, scheme: GradeScheme): string {
+  if (scheme.kind === "score") {
+    const n = Number(label);
+    if (!Number.isFinite(n)) return label;
+    const scale = scaleFromScoreScheme(scheme);
+    return formatScore(n - scale.step, scale);
+  }
+  const idx = scheme.options.indexOf(label);
+  if (idx < 0 || idx >= scheme.options.length - 1) return label;
+  return scheme.options[idx + 1] ?? label;
 }

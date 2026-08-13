@@ -2,6 +2,8 @@
 // AI chat tutor. The chat makes the student THINK during the session (not just
 // passively read), and passes the conversation to the recap so every session
 // leaves a real record of what was discussed.
+import { renderCoachMarkdown } from "../../lib/math-render";
+
 function StudySession({ session, startedAt, onDone, onCancel, t }) {
   // Timer is anchored to startedAt (from session-store) — surviving remounts,
   // tab switches and full page reloads. Falls back to "now" for direct use.
@@ -176,11 +178,9 @@ Rules:
     }
   };
 
-  // Render text with **bold** markdown support
-  const renderText = (text) => {
-    const parts = String(text).split(/\*\*([^*]+)\*\*/g);
-    return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
-  };
+  const renderText = (text) => (
+    <span dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(text) }} />
+  );
 
   // ── Timer — visually pauses during rating + active quiz, NOT during chat.
   // On resume it re-syncs to the startedAt anchor so a minimize/restore or
@@ -354,7 +354,7 @@ Rules:
       {activeQuiz && (
         <div style={{ marginTop: "var(--space-6)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", animation: "revealUp 0.4s ease-out" }}>
           <span style={{ display: "inline-block", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", fontSize: 11, fontWeight: 700, padding: "4px 11px", borderRadius: 20, letterSpacing: "0.06em" }}>⚡ {L("QUICK CHECK","ШВИДКА ПЕРЕВІРКА","БЫСТРАЯ ПРОВЕРКА","VÉRIFICATION RAPIDE","SCHNELLCHECK")}</span>
-          <p style={{ fontWeight: 700, fontSize: 14, margin: "var(--space-3) 0 11px", color: "var(--text-strong)", lineHeight: 1.45 }}>{activeQuiz.question}</p>
+          <p style={{ fontWeight: 700, fontSize: 14, margin: "var(--space-3) 0 11px", color: "var(--text-strong)", lineHeight: 1.45 }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(activeQuiz.question) }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {activeQuiz.options.map((opt, oi) => {
               const isCorrect = oi === activeQuiz.correct;
@@ -369,14 +369,14 @@ Rules:
                 <button key={oi} disabled={quizAnswered} onClick={quizAnswered ? undefined : () => answerQuiz(oi)}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 12, color: col, fontSize: 13, textAlign: "left", cursor: quizAnswered ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)" }}>
                   <span style={{ width: 26, height: 26, borderRadius: 8, background: lbg, color: lcol, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{OPT_LABELS[oi]}</span>
-                  <span style={{ lineHeight: 1.45, fontWeight: 500 }}>{opt}</span>
+                  <span style={{ lineHeight: 1.45, fontWeight: 500 }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(opt) }} />
                 </button>
               );
             })}
           </div>
           {quizAnswered && (
             <div style={{ marginTop: 10, padding: "11px 14px", background: quizSelected === activeQuiz.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${quizSelected === activeQuiz.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 12, color: quizSelected === activeQuiz.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }}>
-              {(quizSelected === activeQuiz.correct ? "✅ " : "💡 ") + activeQuiz.explanation}
+              <span dangerouslySetInnerHTML={{ __html: (quizSelected === activeQuiz.correct ? "✅ " : "💡 ") + renderCoachMarkdown(activeQuiz.explanation) }} />
             </div>
           )}
           {quizAnswered && <Button variant="secondary" size="md" fullWidth onClick={() => setActiveQuizIdx(null)} style={{ marginTop: "var(--space-4)" }}>{L("Continue studying","Продовжити навчання","Продолжить обучение","Continuer à étudier","Weiter lernen")}</Button>}

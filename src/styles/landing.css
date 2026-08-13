@@ -134,8 +134,8 @@
 }
 .land-hero-sticky {
   position: sticky;
-  top: var(--land-nav-h);
-  height: calc(100svh - var(--land-nav-h));
+  top: calc(var(--land-nav-h) + var(--land-tape-h, 0px));
+  height: calc(100svh - var(--land-nav-h) - var(--land-tape-h, 0px));
   display: flex;
   flex-direction: column;
   overflow: hidden;

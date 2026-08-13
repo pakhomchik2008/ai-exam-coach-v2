@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderMathText } from "./math-render";
+import { renderMathText, renderCoachMarkdown } from "./math-render";
 
 describe("renderMathText", () => {
   it("escapes plain HTML in prose", () => {
@@ -40,5 +40,45 @@ describe("renderMathText", () => {
 
   it("handles empty input", () => {
     expect(renderMathText("")).toBe("");
+  });
+});
+
+describe("renderCoachMarkdown", () => {
+  it("renders **bold** in prose", () => {
+    const html = renderCoachMarkdown("say **hello** there");
+    expect(html).toContain("<strong>hello</strong>");
+    expect(html).not.toContain("**");
+  });
+
+  it("bolds a formula wrapped in stars — the fading-step case", () => {
+    const html = renderCoachMarkdown("— **$12x = 36$**");
+    expect(html).toContain("<strong>");
+    expect(html).toContain("katex");
+    expect(html).not.toContain("**");
+    expect(html).not.toContain("$12x");
+  });
+
+  it("renders a hint that mentions $x$ without leaking dollars", () => {
+    const html = renderCoachMarkdown("Значення $x$ із кроку 3");
+    expect(html).toContain("Значення");
+    expect(html).toContain("із кроку 3");
+    expect(html).toContain("katex");
+    expect(html).not.toContain("$x$");
+  });
+
+  it("strips leftover unpaired ** so students never see stars", () => {
+    const html = renderCoachMarkdown("oops **broken");
+    expect(html).toBe("oops broken");
+  });
+
+  it("still escapes HTML in prose", () => {
+    const html = renderCoachMarkdown("**hi** <script>bad</script>");
+    expect(html).toContain("<strong>hi</strong>");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("handles empty input", () => {
+    expect(renderCoachMarkdown("")).toBe("");
   });
 });
