@@ -13,6 +13,25 @@ describe("parseFeynmanGrade", () => {
     expect(g.completeness).toBe(0);
     expect(g.gaps).toEqual(["constants"]);
   });
+
+  it("repairs LaTeX backslashes that break JSON.parse", () => {
+    // \c is not a JSON escape — this is the cdot / left / sum case.
+    const g = parseFeynmanGrade('{"clarity":3,"completeness":2,"gaps":[],"feedback":"Use $a \\cdot b$"}');
+    expect(g.feedback).toContain("cdot");
+    expect(g.clarity).toBe(3);
+  });
+
+  it("accepts comment as feedback and a one-object array", () => {
+    const g = parseFeynmanGrade([{ comment: "Too vague.", clarity: "4" }]);
+    expect(g.feedback).toBe("Too vague.");
+    expect(g.clarity).toBe(4);
+  });
+
+  it("uses raw prose when JSON is missing so the student still sees a grade", () => {
+    const g = parseFeynmanGrade("That was not an explanation of divisibility.");
+    expect(g.feedback).toMatch(/divisibility/);
+    expect(g.clarity).toBe(0);
+  });
 });
 
 describe("buildFeynmanSystem", () => {

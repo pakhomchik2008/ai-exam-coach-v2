@@ -4,6 +4,7 @@
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
 import { languageNameFor } from "../../lib/paper-language";
+import { describeAiError } from "../../lib/ai-error";
 import { buildFeynmanSystem, parseFeynmanGrade } from "./feynman";
 
 function md(text) {
@@ -80,10 +81,14 @@ export function FeynmanDialog({ topic, onExit, t }) {
         }),
         timeout,
       ]);
-      const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-      setGrade(parseFeynmanGrade(parsed));
+      const parsed = window.parseJSON ? window.parseJSON(raw) : null;
+      setGrade(parseFeynmanGrade(parsed ?? raw));
     } catch (e) {
-      setError(e.message || L("Failed", "Не вдалося", "Не удалось", "Échec", "Fehler"));
+      const timedOut = e && e.message === "timeout";
+      const fromServer = e && typeof e.status === "number" ? describeAiError(e, t?.code) : null;
+      setError(fromServer || (timedOut
+        ? L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще.", "Это длилось слишком долго — попробуйте ещё.", "Trop long — réessayez.", "Zu lange — nochmal.")
+        : L("Could not grade that — try again.", "Не вдалося оцінити — спробуйте ще.", "Не удалось оценить — попробуйте ещё.", "Notation impossible — réessayez.", "Bewertung fehlgeschlagen — nochmal.")));
     } finally {
       setLoading(false);
     }
@@ -155,7 +160,7 @@ export function FeynmanDialog({ topic, onExit, t }) {
           `Klarheit ${grade.clarity}/10 · Vollständigkeit ${grade.completeness}/10`)),
       React.createElement("div", { dangerouslySetInnerHTML: { __html: md(grade.feedback) } }),
       grade.gaps.length > 0 && React.createElement("ul", { style: { margin: "10px 0 0", paddingLeft: 18 } },
-        ...grade.gaps.map((g, i) => React.createElement("li", { key: i }, g))),
+        ...grade.gaps.map((g, i) => React.createElement("li", { key: i, dangerouslySetInnerHTML: { __html: md(g) } }))),
       marked
         ? React.createElement("div", { style: { marginTop: 14, color: "var(--emerald-600)", fontWeight: 600 } }, "+50 XP")
         : React.createElement("button", {
