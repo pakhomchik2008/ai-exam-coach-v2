@@ -90,9 +90,9 @@ const STEP_COUNT = 5;
 // section handling (buildSectionCourse) reads from CURRICULUM_SEED, but these
 // three qualifications have no seed rows yet, so the fallback lives here.
 // Order matches the real papers: Listening / Reading first (input),
-// Writing last. IELTS Speaking is omitted — no mic path yet.
+// Writing last. Speaking is live (3.7g Whisper).
 const LANGUAGE_SECTIONS: Record<string, string[]> = {
-  ielts: ["Listening", "Reading", "Writing"],
+  ielts: ["Listening", "Reading", "Speaking", "Writing"],
   toefl: ["Reading", "Listening", "Speaking", "Writing"],
   duolingo: ["Literacy", "Comprehension", "Conversation", "Production"],
 };

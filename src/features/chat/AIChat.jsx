@@ -21,6 +21,7 @@ import { IeltsWriting } from "../ielts/IeltsWriting";
 import { SocraticDialog } from "../learn/SocraticDialog.jsx";
 import { FadingDialog } from "../learn/FadingDialog.jsx";
 import { FeynmanDialog } from "../learn/FeynmanDialog.jsx";
+import { SpeakingDialog } from "../learn/SpeakingDialog.jsx";
 import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
@@ -2850,8 +2851,23 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
           "Объясните новичку за 60–90 секунд. Голос или текст. Коуч найдёт пробелы.",
           "Explique à un débutant en 60–90 s. Voix ou texte.",
           "Erkläre einem Anfänger in 60–90 s. Stimme oder Text.")),
+      topicAllowsSpeaking(topic) && card("speaking", "🎙️",
+        L("Speaking", "Говоріння", "Говорение", "Expression orale", "Sprechen"),
+        L("Cue card, then talk. Whisper transcribes. The coach gives IELTS-style bands.",
+          "Картка, потім говорите. Whisper пише текст. Коуч ставить бали як на IELTS.",
+          "Карточка, потом говорите. Whisper пишет текст. Коуч ставит баллы как на IELTS.",
+          "Carte, puis tu parles. Whisper transcrit. Notes style IELTS.",
+          "Karte, dann sprechen. Whisper schreibt. IELTS-Bänder.")),
     ),
   ]);
+}
+
+function topicAllowsSpeaking(topic) {
+  const resolved = window.resolveTopicForBrain && window.resolveTopicForBrain(topic);
+  if (!resolved || !window.getExams) return /ielts|toefl/i.test(topic || "");
+  const exam = window.getExams().find((e) => e.id === resolved.examId);
+  const qual = (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || "";
+  return qual === "ielts" || qual === "toefl" || /ielts|toefl/i.test(topic || "");
 }
 
 function LessonEngine({ topic, mode, onExit, t }) {
@@ -2878,6 +2894,9 @@ function LessonEngine({ topic, mode, onExit, t }) {
     }
     if (learnMethod === "feynman") {
       return React.createElement(FeynmanDialog, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "speaking") {
+      return React.createElement(SpeakingDialog, { topic: activeTopic, onExit, t });
     }
     return React.createElement(LearnTheoryReader, { topic: activeTopic, onExit, t, onOpenTopic: setActiveTopic });
   }

@@ -17,7 +17,7 @@ or new infra first, defer what does.
 | **3.7d — SM-2 spaced repetition** | Silver/Gold/Legendary transitions, "Review today (N)" | 3.7a mastery in production first | after 3.7c |
 | **3.7e — Boss levels + prereqs + SVG tree** | Unit-end mini exam, prerequisite locks, SVG lines between nodes | 3.7a-b live | after 3.7d |
 | **3.7f — AI Coach overlay** | Half-sheet chat with node context | prompt system design | separate PR |
-| **3.7g — IELTS Speaking (audio in/out)** | Mic capture, TTS listening prompts, Whisper transcript, band scoring | **OpenAI account + Whisper API** (Decision Log #39: no autonomous add) | blocked, ask Hlib |
+| **3.7g — IELTS Speaking (audio in/out)** | Mic capture, Whisper transcript, band scoring | OPENAI_API_KEY on Vercel | **this PR** (`phase-3.7g/speaking`) |
 | **3.7h — Video-narrated Teach** | OpenAI TTS + slide render + ffmpeg concat + Supabase Storage cache | **OpenAI account + ffmpeg infra** (Vercel/Supabase edge can't run ffmpeg binary — needs Docker container or Vercel Functions Pro >250MB) | blocked, real infra decision |
 | **3.7i — Free/Pro paywall** | 1 unit free, rest gated, hearts/video/coach tiering | **Real billing** (Stripe not integrated; same reason Trial-end email was deferred) | blocked |
 | **3.7j — Playwright E2E** | The DoD scenarios from the spec | Playwright not installed; adds dev-tooling burden | after main tree is done |
