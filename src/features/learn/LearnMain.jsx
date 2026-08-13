@@ -96,13 +96,12 @@ function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   React.useEffect(() => {
     if (phase !== "teach" || teach || teachError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
     const system = `You are teaching a student the concept "${nodeTitle}" (unit: ${unitTitle}) for the ${tree.examTaxonomy.toUpperCase()} exam.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"hook":"3-sentence engaging hook","example":{"prompt":"a worked example","steps":["step 1","step 2","..."],"answer":"final answer"},"takeaway":"one-line rule to remember"}
-RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX for now — v2). ${langDir}`;
+RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX for now — v2).`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
-    Promise.race([complete({ system, messages: [{ role: "user", content: `Teach me: ${nodeTitle}` }] }), timeout])
+    Promise.race([complete({ system, messages: [{ role: "user", content: `Teach me: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
       .then((raw) => {
         const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
         if (!p || !p.hook) throw new Error("Invalid teach response");
@@ -115,16 +114,15 @@ RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX 
   React.useEffect(() => {
     if (phase !== "drill" || drillQs || drillError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
     const system = `Generate exactly 5 practice questions for the concept "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()} exam prep).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[
   {"type":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence"},
   {"type":"fill","question":"Complete: ...","answer":"expected answer","accept":["variant 1","variant 2"],"explanation":"1 sentence"}
 ]}
-RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. Every fill answer is a short word/number/formula the learner can type. ${langDir}`;
+RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. Every fill answer is a short word/number/formula the learner can type.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
-    Promise.race([complete({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }] }), timeout])
+    Promise.race([complete({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
       .then((raw) => {
         const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
         if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error("Invalid drill response");
@@ -137,14 +135,13 @@ RULES: mix 3 mcq + 2 fill. Difficulty matches complexity ${node.complexity}/5. E
   React.useEffect(() => {
     if (phase !== "prove" || proveQs || proveError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
     const system = `Generate exactly 3 real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"${nodeTitle}"}]}
-RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index. ${langDir}`;
+RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
     const generate = () => Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }] }),
+      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }),
       timeout,
     ]).then((raw) => {
       const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));

@@ -70,7 +70,7 @@ export function IeltsReading({
           });
           const to = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
           return Promise.race([
-            complete({ system, messages: [{ role: "user", content: `Write passage ${i + 1}.` }] }),
+            complete({ system, messages: [{ role: "user", content: `Write passage ${i + 1}.` }], paperQual: "ielts" }),
             to,
           ]).then((raw) => {
             const p = parseJson(raw) as Passage;

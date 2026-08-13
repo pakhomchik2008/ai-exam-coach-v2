@@ -776,7 +776,7 @@ RULES:
         // the whole {questions, sessionTitle} envelope for the first call, and
         // `regenerate` returns only the inner questions array on retry.
         const complete1 = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext }),
+          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenQual }),
           timeout,
         ]).then((raw) => window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
         const parsed = await complete1();
@@ -1093,7 +1093,7 @@ RULES:
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }] }),
+          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examViews[0]?.id) : null) }),
           timeout,
         ]).then((raw) => {
           const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -1501,7 +1501,7 @@ RULES:
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }] }),
+          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }], paperQual: practiceQual }),
           timeout,
         ]).then((r) => {
           const p = window.parseJSON ? window.parseJSON(r) : JSON.parse(r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1));
@@ -1897,14 +1897,13 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
           const ts = topics.filter((_, j) => j % numChunks === i);
           return ts.length ? ts : topics.slice(0, Math.min(3, topics.length));
         });
-        const langDir = window.aiLangDirective ? window.aiLangDirective() : "";
         const makeChunk = (ts) => {
           const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
-RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.${langDir ? " " + langDir : ""}`;
+RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.`;
           const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }] }), to])
+          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: examQual }), to])
             .then((raw) => {
               const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
               return Array.isArray(p && p.questions) ? p.questions : [];
