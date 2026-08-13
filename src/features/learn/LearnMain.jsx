@@ -1,16 +1,16 @@
 // AI Exam Coach — Learn (Phase 3.7a).
 //
 // Replaces StudyHub for exams that HAVE a Learn tree defined
-// (src/features/learn/tree/index.ts). For exams without a tree, falls back
-// to StudyHub — MVP ships trees for nmt and ielts only; adding another
-// exam later is a new tree file + one registry entry, no route change.
+// (src/features/learn/tree/index.ts). NMT is per-subject: two NMT sittings
+// (language + math) are two cards, not one shared math tree. Exams without
+// a tree stay out of the picker instead of silently opening NMT Math.
 //
 // Fold everything (main list, node preview sheet, Teach, Drill, Prove) into
 // one component here rather than fanning out to 4 small files. MVP has 3
 // short linear phases; splitting them costs prop drilling and gains
 // nothing until 3.7b starts adding the other exercise types.
 
-import { getTree, availableTaxonomies } from "./tree/index";
+import { treeForExam } from "./tree/resolve";
 import { localize, totalNodeCount } from "./tree/schema";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
@@ -410,19 +410,17 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
 function LearnMain({ t }) {
   const lang = (t && t.code) || "en";
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[lang] || en);
-  // Pick the exam-taxonomy for the user's currently-active exam. Falls back
-  // to the first available tree if the current exam has no tree yet — the
-  // MVP shipping decision (Decision Log #41) is to keep the section open
-  // for every exam, using nmt/ielts trees as content even when the student's
-  // real exam is different.
   const exams = window.getExams ? window.getExams() : [];
-  const availableTax = availableTaxonomies();
-  const currentExam = exams[0];
-  const currentQual = currentExam && (window.examQualificationId
-    ? window.examQualificationId(currentExam)
-    : currentExam.qualificationId);
-  const taxonomy = (currentQual && availableTax.includes(currentQual)) ? currentQual : availableTax[0];
-  const tree = getTree(taxonomy);
+  const options = exams.map((exam) => ({
+    exam,
+    tree: treeForExam(exam),
+    label: window.examDisplayName ? window.examDisplayName(exam) : exam.name,
+  })).filter((o) => o.tree);
+  const [pickedId, setPickedId] = React.useState(() => (
+    options.length === 1 ? options[0].exam.id : null
+  ));
+  const selected = options.find((o) => o.exam.id === pickedId) || null;
+  const tree = selected ? selected.tree : null;
 
   const learnState = window.getLearn ? window.getLearn() : {};
   const nodeState = (tree && learnState[tree.examTaxonomy]) || {};
@@ -501,9 +499,44 @@ function LearnMain({ t }) {
     if (result && result.unlocked && result.nodeId) setJustUnlocked(result.nodeId);
   }
 
-  if (!tree) {
+  if (options.length === 0) {
     return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)" } },
-      React.createElement("p", null, L("No learn tree available for your exam yet.", "Дерево для цього іспиту ще не готове.", "Дерево для этого экзамена ещё не готово.", "Aucun arbre disponible.", "Kein Baum verfügbar.")),
+      React.createElement("h1", { style: { margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
+      React.createElement("p", { style: { margin: 0, color: "var(--text-muted)", fontSize: 14 } },
+        L("Add an exam first — Learn opens a topic tree per exam.", "Спочатку додай іспит — Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen.", "Füge zuerst eine Prüfung hinzu.")),
+    );
+  }
+
+  if (!tree) {
+    return React.createElement("div", {
+      className: "learn-main",
+      style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
+    },
+      React.createElement("h1", { style: { margin: "0 0 6px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
+      React.createElement("p", { style: { margin: "0 0 20px", color: "var(--text-muted)", fontSize: 13 } },
+        L("Pick an exam. Topics stay separate.", "Обери іспит. Теми кожного — окремо.", "Выбери экзамен. Темы каждого — отдельно.", "Choisis un examen.", "Wähle eine Prüfung.")),
+      React.createElement("div", { className: "ux-stagger", style: { display: "flex", flexDirection: "column", gap: 10 } },
+        ...options.map((o) => React.createElement("button", {
+          key: o.exam.id,
+          type: "button",
+          className: "ux-card ux-press",
+          onClick: () => setPickedId(o.exam.id),
+          style: {
+            display: "flex", alignItems: "center", gap: 14, padding: "16px 16px",
+            background: "var(--surface-card)", border: "1px solid var(--border-default)",
+            borderLeft: `6px solid ${o.exam.color || "var(--indigo-500)"}`,
+            borderRadius: "var(--radius-xl)", cursor: "pointer", textAlign: "left",
+            fontFamily: "var(--font-sans)",
+          },
+        },
+          React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+            React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, o.label),
+            React.createElement("div", { style: { fontSize: 12, color: "var(--text-muted)", marginTop: 4 } },
+              L(`${totalNodeCount(o.tree)} topics`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} sujets`, `${totalNodeCount(o.tree)} Themen`)),
+          ),
+          React.createElement("span", { "aria-hidden": "true", style: { color: "var(--text-faint)", fontSize: 20 } }, "→"),
+        )),
+      ),
     );
   }
 
@@ -517,7 +550,7 @@ function LearnMain({ t }) {
 
   const pct = total > 0 ? mastered / total : 0;
   const shouldEnter = enterOnceRef.current;
-  const examLabel = tree.examTaxonomy.toUpperCase();
+  const examLabel = selected.label || tree.examTaxonomy.toUpperCase();
   const progressLabel = L(
     `${shownMastered} of ${total} topics mastered · ${examLabel}`,
     `${shownMastered} із ${total} тем засвоєно · ${examLabel}`,
@@ -531,7 +564,12 @@ function LearnMain({ t }) {
     style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
   },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
-      React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
+      options.length > 1 && React.createElement("button", {
+        type: "button",
+        onClick: () => { setRunning(null); setOpenNode(null); setPickedId(null); },
+        style: { border: "none", background: "transparent", padding: 0, marginBottom: 10, cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 13, fontWeight: 600, color: "var(--indigo-600)" },
+      }, L("← All exams", "← Усі іспити", "← Все экзамены", "← Tous les examens", "← Alle Prüfungen")),
+      React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
       React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
       React.createElement("div", {
         className: "learn-progress",

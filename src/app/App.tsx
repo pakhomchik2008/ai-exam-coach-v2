@@ -271,8 +271,8 @@ function renderTab({
       return <AIChat t={t} initialQuery={chatQuery} onConsumeQuery={() => setChatQuery(null)} />;
     }
     case "study": {
-      // Phase 3.7a — new Learn section replaces StudyHub for exams with a
-      // tree defined (currently nmt, ielts). StudyHub stays available on
+      // Phase 3.7a — Learn section. NMT is per-subject (language ≠ math).
+      // StudyHub stays available on
       // /studyhub for one release as a rollback path if LearnMain
       // regresses something in production.
       return <LearnMain t={t} />;
