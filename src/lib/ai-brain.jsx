@@ -118,7 +118,7 @@ function buildLearnerContext(opts = {}) {
   return lines.join("\n");
 }
 
-import { paperLanguageDirective } from "./paper-language";
+import { coachLanguageDirective, inferCoachQual, paperLanguageDirective, paperLanguageFor } from "./paper-language";
 
 // ─── central completion ───────────────────────────────────────────────────────
 
@@ -156,9 +156,23 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   // silently not cache (verify via response.usage.cache_read_input_tokens).
   // It engages more reliably for students with several active exams (larger
   // ctx) and once a Sonnet-based tier ships (lower minimum: 1024 tokens).
-  // paperQual wins over the UI language: an НМТ paper stays Ukrainian even
-  // when the app is in English, and IELTS stays English when the app is not.
-  const langBit = paperQual ? paperLanguageDirective(paperQual) : aiLangDirective(langOverride);
+  // Exam language beats the UI. Learn trees pass `nmt-ukr` (not `nmt`);
+  // chat often passes neither paperQual nor a topic — then a sole NMT
+  // student still gets Ukrainian. Explicit paperQual keeps the paper
+  // wording; inferred quals use the coach wording.
+  const topicExamQual = topicContext && topicContext.examId && window.getExams
+    ? (() => {
+      const exam = window.getExams().find((e) => e.id === topicContext.examId);
+      return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+    })()
+    : null;
+  const studentQuals = window.getExams
+    ? window.getExams().map((e) => (window.examQualificationId && window.examQualificationId(e)) || e.qualificationId)
+    : [];
+  const inferred = inferCoachQual({ paperQual, topicExamQual, studentQuals });
+  const langBit = paperQual
+    ? paperLanguageDirective(paperQual)
+    : (inferred && paperLanguageFor(inferred) ? coachLanguageDirective(inferred) : aiLangDirective(langOverride));
   const dynamic = [langBit, ctx].filter(Boolean).join("\n\n");
   const systemBlocks = [];
   if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });
