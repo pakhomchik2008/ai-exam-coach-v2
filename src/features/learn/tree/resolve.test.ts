@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
+import { alevelTreeSlug, nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
 import { getTree } from "./index";
 
 describe("nmtTreeSlug", () => {
@@ -35,6 +35,30 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "NMT Українська мова", qualificationId: "gcse" })).toBe("nmt-ukr");
     expect(treeKeyForExam({ name: "НМТ Математика", qualificationId: "gcse" })).toBe("nmt");
   });
+
+  it("splits A-Level subjects instead of one shared tree", () => {
+    expect(treeKeyForExam({ name: "A-Level Mathematics", qualificationId: "alevel" })).toBe("alevel-math");
+    expect(treeKeyForExam({ name: "A-Level Further Mathematics", qualificationId: "alevel" })).toBe("alevel-fm");
+    expect(treeKeyForExam({ name: "A-Level Chemistry", qualificationId: "alevel" })).toBe("alevel-chem");
+    expect(treeKeyForExam({ name: "A-Level English Literature", qualificationId: "alevel" })).toBe("alevel-lit");
+    expect(treeKeyForExam({ name: "A-Level English Language", qualificationId: "alevel" })).toBe("alevel-eng");
+  });
+
+  it("still finds A-Level maths when the stored qualificationId is a stale GCSE", () => {
+    expect(treeKeyForExam({ name: "A-Level Mathematics", qualificationId: "gcse" })).toBe("alevel-math");
+  });
+
+  it("does not register a bare alevel key", () => {
+    expect(getTree("alevel")).toBeNull();
+    expect(treeKeyForExam({ name: "A-Level", qualificationId: "alevel" })).toBeNull();
+  });
+});
+
+describe("alevelTreeSlug", () => {
+  it("keeps Further Maths off the Maths tree", () => {
+    expect(alevelTreeSlug({ name: "A-Level Further Maths" })).toBe("alevel-fm");
+    expect(alevelTreeSlug({ name: "A-Level Mathematics" })).toBe("alevel-math");
+  });
 });
 
 describe("treeForExam", () => {
@@ -49,6 +73,28 @@ describe("treeForExam", () => {
 
   it("keeps node ids unique inside each NMT subject tree", () => {
     for (const key of ["nmt-ukr", "nmt-hist", "nmt-bio", "nmt-chem", "nmt-phys", "nmt-geo", "nmt-eng", "nmt-lit"]) {
+      const tree = getTree(key);
+      expect(tree, key).toBeTruthy();
+      const ids = tree!.units.flatMap((u) => u.nodes.map((n) => n.id));
+      expect(new Set(ids).size, key).toBe(ids.length);
+    }
+  });
+
+  it("returns different trees for A-Level Maths and Chemistry", () => {
+    const math = treeForExam({ name: "A-Level Mathematics", qualificationId: "alevel" });
+    const chem = treeForExam({ name: "A-Level Chemistry", qualificationId: "alevel" });
+    expect(math?.examTaxonomy).toBe("alevel-math");
+    expect(chem?.examTaxonomy).toBe("alevel-chem");
+    expect(math).not.toBe(chem);
+  });
+
+  it("keeps node ids unique inside each A-Level subject tree", () => {
+    for (const key of [
+      "alevel-math", "alevel-fm", "alevel-phys", "alevel-chem", "alevel-bio",
+      "alevel-cs", "alevel-econ", "alevel-bus", "alevel-eng", "alevel-lit",
+      "alevel-hist", "alevel-geo", "alevel-psy", "alevel-pol",
+      "alevel-fr", "alevel-de", "alevel-es",
+    ]) {
       const tree = getTree(key);
       expect(tree, key).toBeTruthy();
       const ids = tree!.units.flatMap((u) => u.nodes.map((n) => n.id));
