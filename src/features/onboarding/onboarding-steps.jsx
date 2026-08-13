@@ -27,7 +27,7 @@ function GradePicker({ grade, value, onChange, accent }) {
     return (
       <div>
         <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-3xl)", fontWeight: "var(--weight-bold)", color: accent, lineHeight: 1 }}>{value}{grade.suffix || ""}</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-3xl)", fontWeight: "var(--weight-bold)", color: accent, lineHeight: 1 }}>{grade.step && grade.step < 1 ? Number(value).toFixed(1) : value}{grade.suffix || ""}</span>
           <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{grade.min}–{grade.max}{grade.suffix || ""}</span>
         </div>
         <input type="range" min={grade.min} max={grade.max} step={grade.step} value={value}
