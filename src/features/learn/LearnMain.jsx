@@ -26,6 +26,68 @@ import {
   scoreDrill,
   shuffled,
 } from "./drill-exercises";
+import { formatRegenWait, getHearts, HEARTS_MAX, HEARTS_REGEN_MS, spendHeart, subscribeHearts } from "../../lib/hearts";
+
+function HeartsBar({ t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const unsub = subscribeHearts(() => setTick((n) => n + 1));
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => { unsub(); clearInterval(id); };
+  }, []);
+  const { hearts, nextRegenAt } = getHearts();
+  const wait = nextRegenAt ? Math.max(0, nextRegenAt - Date.now()) : 0;
+  return React.createElement("div", {
+    "aria-label": L(`${hearts} of ${HEARTS_MAX} hearts`, `${hearts} з ${HEARTS_MAX} сердець`, `${hearts} из ${HEARTS_MAX} сердец`, `${hearts} sur ${HEARTS_MAX} cœurs`, `${hearts} von ${HEARTS_MAX} Herzen`),
+    style: { display: "flex", alignItems: "center", gap: 6, fontVariantNumeric: "tabular-nums" },
+  },
+    React.createElement("span", { "aria-hidden": "true", style: { letterSpacing: 2, fontSize: 16, color: "var(--red-500)" } },
+      "❤".repeat(hearts) + "♡".repeat(Math.max(0, HEARTS_MAX - hearts))),
+    hearts < HEARTS_MAX && nextRegenAt && React.createElement("span", {
+      style: { fontSize: 11, fontWeight: 600, color: "var(--text-faint)", fontFamily: "var(--font-mono)" },
+    }, formatRegenWait(wait)),
+  );
+}
+
+function OutOfHearts({ t, onBack, onContinue }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const unsub = subscribeHearts(() => setTick((n) => n + 1));
+    const id = setInterval(() => setTick((n) => n + 1), 1000);
+    return () => { unsub(); clearInterval(id); };
+  }, []);
+  const { hearts, nextRegenAt } = getHearts();
+  if (hearts > 0) {
+    return React.createElement("div", { style: { textAlign: "center", padding: "28px 8px" } },
+      React.createElement("p", { style: { color: "var(--text-body)", margin: "0 0 16px" } },
+        L("A heart is back — continue.", "Серце повернулось — далі.", "Сердце вернулось — дальше.", "Un cœur est revenu.", "Ein Herz ist zurück.")),
+      React.createElement("button", {
+        type: "button",
+        onClick: onContinue,
+        style: { padding: "12px 24px", borderRadius: 999, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" },
+      }, L("Continue", "Далі", "Далее", "Continuer", "Weiter")),
+    );
+  }
+  const wait = nextRegenAt ? Math.max(0, nextRegenAt - Date.now()) : HEARTS_REGEN_MS;
+  return React.createElement("div", { style: { textAlign: "center", padding: "28px 8px" } },
+    React.createElement("div", { style: { fontSize: 36, marginBottom: 10 } }, "♡"),
+    React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 20, color: "var(--text-strong)" } },
+      L("Out of hearts", "Серця скінчились", "Сердца кончились", "Plus de cœurs", "Keine Herzen")),
+    React.createElement("p", { style: { margin: "0 0 18px", color: "var(--text-muted)", fontSize: 14 } },
+      L(`Next heart in ${formatRegenWait(wait)}. Teach is still free.`,
+        `Наступне серце через ${formatRegenWait(wait)}. Теорія безкоштовна.`,
+        `Следующее сердце через ${formatRegenWait(wait)}. Теория бесплатная.`,
+        `Prochain cœur dans ${formatRegenWait(wait)}.`,
+        `Nächstes Herz in ${formatRegenWait(wait)}.`)),
+    onBack && React.createElement("button", {
+      type: "button",
+      onClick: onBack,
+      style: { padding: "12px 24px", borderRadius: 999, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" },
+    }, L("Back to list", "До списку", "К списку", "Retour à la liste", "Zurück zur Liste")),
+  );
+}
 
 function mdHtml(text) {
   return { __html: renderCoachMarkdown(text) };
@@ -129,9 +191,14 @@ function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   const [proveResults, setProveResults] = React.useState([]);
   const [proveTimeLeft, setProveTimeLeft] = React.useState(node.estimatedMinutes * 60);
   const [finalMastery, setFinalMastery] = React.useState(null);
+  const [heartWall, setHeartWall] = React.useState(false);
 
   const nodeTitle = localize(node.title, lang);
   const unitTitle = localize(unit.title, lang);
+
+  React.useEffect(() => {
+    if (skipToProve && getHearts().hearts <= 0) setHeartWall(true);
+  }, [skipToProve]);
 
   // Teach: one Sonnet call, cached in local state for the life of this
   // component (no persistence — MVP doesn't need "resume mid-lesson").
@@ -220,6 +287,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     setDrillSelected(input);
     setDrillRevealed(true);
     setDrillResults((r) => [...r, { correct: isCorrect }]);
+    if (!isCorrect) spendHeart();
   }
 
   async function submitExplain() {
@@ -246,6 +314,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
       setDrillGrade(grade);
       setDrillRevealed(true);
       setDrillResults((r) => [...r, { correct: grade.pass }]);
+      if (!grade.pass) spendHeart();
     } catch (e) {
       setDrillGradeError(e.message || "Failed to grade");
     } finally {
@@ -254,6 +323,10 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
   }
 
   function nextDrill() {
+    if (getHearts().hearts <= 0) {
+      setHeartWall(true);
+      return;
+    }
     if (drillIdx + 1 >= drillQs.length) {
       setPhase("prove");
       return;
@@ -278,15 +351,19 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     setProveResults(nextResults);
     // Log wrong ones into the shared Mistake Journal — same shape every
     // other engine uses so the journal groups them consistently.
-    if (!isCorrect && window.logMistake) {
-      window.logMistake({
-        topic: nodeTitle, question: q.question, options: q.options,
-        correctIndex: q.correct, selectedIndex: optIdx, explanation: q.explanation,
-      });
+    if (!isCorrect) {
+      spendHeart();
+      if (window.logMistake) {
+        window.logMistake({
+          topic: nodeTitle, question: q.question, options: q.options,
+          correctIndex: q.correct, selectedIndex: optIdx, explanation: q.explanation,
+        });
+      }
     }
     setTimeout(() => {
       setProveSelected(null);
       if (proveIdx + 1 >= proveQs.length) finishProve(nextResults);
+      else if (getHearts().hearts <= 0) setHeartWall(true);
       else setProveIdx((i) => i + 1);
     }, 1200);
   }
@@ -328,11 +405,21 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
       "aria-label": L("Back", "Назад", "Назад", "Retour", "Zurück"),
       style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 },
     }, "←"),
-    React.createElement("div", null,
+    React.createElement("div", { style: { flex: 1, minWidth: 0 } },
       React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.06em" } }, unitTitle),
       React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, nodeTitle),
     ),
+    React.createElement(HeartsBar, { t }),
   );
+
+  if (heartWall) {
+    return wrap([header, React.createElement(OutOfHearts, {
+      key: "hearts",
+      t,
+      onBack: () => leave(null),
+      onContinue: () => setHeartWall(false),
+    })]);
+  }
 
   // ── Phase: Teach ──
   if (phase === "teach") {
@@ -359,7 +446,11 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
       ),
       React.createElement("p", { key: "take", style: { marginTop: 20, padding: "12px 14px", background: "var(--indigo-50)", borderRadius: 10, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`💡 ${teach.takeaway || ""}`) }),
       React.createElement("button", {
-        key: "next", onClick: () => setPhase("drill"),
+        key: "next",
+        onClick: () => {
+          if (getHearts().hearts <= 0) { setHeartWall(true); return; }
+          setPhase("drill");
+        },
         style: { marginTop: 24, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer" },
       }, L("Start drill →", "Почати вправи →", "Начать упражнения →", "Commencer →", "Übung starten →")),
     ]);
@@ -704,7 +795,8 @@ function LearnMain({ t }) {
   React.useEffect(() => {
     const unsubLearn = window.subscribeLearn && window.subscribeLearn(() => setTick((n) => n + 1));
     const unsubExams = window.subscribeExams && window.subscribeExams(() => setTick((n) => n + 1));
-    return () => { unsubLearn && unsubLearn(); unsubExams && unsubExams(); };
+    const unsubHearts = subscribeHearts(() => setTick((n) => n + 1));
+    return () => { unsubLearn && unsubLearn(); unsubExams && unsubExams(); unsubHearts(); };
   }, []);
 
   React.useEffect(() => { enterOnceRef.current = false; }, []);
@@ -850,7 +942,10 @@ function LearnMain({ t }) {
           }, o.label);
         }),
       ),
-      React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
+      React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } },
+        React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
+        React.createElement(HeartsBar, { t }),
+      ),
       React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
       proCount > 0 && React.createElement("p", { style: { margin: "4px 0 0", color: "var(--text-faint)", fontSize: 12 } },
         L(`${freeCount} free · ${proCount} Pro`, `${freeCount} безкоштовно · ${proCount} Pro`, `${freeCount} бесплатно · ${proCount} Pro`, `${freeCount} gratuits · ${proCount} Pro`, `${freeCount} gratis · ${proCount} Pro`)),
@@ -929,8 +1024,14 @@ function LearnMain({ t }) {
       React.createElement("button", {
         type: "button",
         className: "learn-btn learn-btn--ghost",
-        onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
-      }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
+        disabled: getHearts().hearts <= 0,
+        onClick: () => {
+          if (getHearts().hearts <= 0) return;
+          setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true });
+        },
+      }, getHearts().hearts <= 0
+        ? L("Skip to Prove — no hearts", "Перевірка — немає сердець", "Проверка — нет сердец", "Test — plus de cœurs", "Test — keine Herzen")
+        : L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
     )),
     proSheet && React.createElement(ProSheet, { key: "pro", freeCount, lockedCount: proCount, onClose: () => setProSheet(false), t }),
   );
