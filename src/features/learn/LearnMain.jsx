@@ -16,6 +16,11 @@ import { freeTopicLimit, topicIsLocked } from "./premium";
 import { ProSheet } from "./ProSheet.jsx";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
+import { renderCoachMarkdown } from "../../lib/math-render";
+
+function mdHtml(text) {
+  return { __html: renderCoachMarkdown(text) };
+}
 
 // ─── shared: node status color/label ──────────────────────────────────────────
 const MASTERY_STYLE = {
@@ -274,16 +279,16 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     })]);
     return wrap([
       header,
-      React.createElement("p", { key: "hook", style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-body)" } }, teach.hook),
+      React.createElement("p", { key: "hook", style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(teach.hook) }),
       React.createElement("div", { key: "ex", style: { marginTop: 20, background: "var(--surface-muted)", borderRadius: 12, padding: 16 } },
         React.createElement("div", { style: { fontSize: 12, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.06em", marginBottom: 8 } }, L("Worked example", "Приклад", "Пример", "Exemple", "Beispiel")),
-        React.createElement("p", { style: { margin: "0 0 8px", fontWeight: 600 } }, teach.example?.prompt),
+        React.createElement("p", { style: { margin: "0 0 8px", fontWeight: 600 }, dangerouslySetInnerHTML: mdHtml(teach.example?.prompt) }),
         React.createElement("ol", { style: { paddingLeft: 20, margin: 0, color: "var(--text-body)" } },
-          (teach.example?.steps || []).map((s, i) => React.createElement("li", { key: i, style: { marginBottom: 4 } }, s)),
+          (teach.example?.steps || []).map((s, i) => React.createElement("li", { key: i, style: { marginBottom: 4 }, dangerouslySetInnerHTML: mdHtml(s) })),
         ),
-        React.createElement("p", { style: { marginTop: 10, fontWeight: 700, color: "var(--text-strong)" } }, "= ", teach.example?.answer),
+        React.createElement("p", { style: { marginTop: 10, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`= ${teach.example?.answer || ""}`) }),
       ),
-      React.createElement("p", { key: "take", style: { marginTop: 20, padding: "12px 14px", background: "var(--indigo-50)", borderRadius: 10, color: "var(--text-strong)" } }, "💡 ", teach.takeaway),
+      React.createElement("p", { key: "take", style: { marginTop: 20, padding: "12px 14px", background: "var(--indigo-50)", borderRadius: 10, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`💡 ${teach.takeaway || ""}`) }),
       React.createElement("button", {
         key: "next", onClick: () => setPhase("drill"),
         style: { marginTop: 24, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer" },
@@ -299,7 +304,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     return wrap([
       header,
       React.createElement("div", { key: "prog", style: { fontSize: 12, color: "var(--text-faint)", marginBottom: 10 } }, `${drillIdx + 1} / ${drillQs.length}`),
-      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, q.question),
+      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       q.type === "mcq" && React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
           const wasChosen = drillSelected === i;
@@ -310,7 +315,8 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
           return React.createElement("button", {
             key: i, onClick: () => submitDrillAnswer(i), disabled: drillRevealed,
             style: { textAlign: "left", padding: "12px 14px", background: bg, border: `1.5px solid ${border}`, borderRadius: 10, fontSize: 14, cursor: drillRevealed ? "default" : "pointer", fontFamily: "var(--font-sans)" },
-          }, opt);
+            dangerouslySetInnerHTML: mdHtml(opt),
+          });
         }),
       ),
       q.type === "fill" && React.createElement("div", { key: "fill", style: { marginTop: 8 } },
@@ -327,7 +333,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
           style: { marginTop: 8, padding: "10px 16px", borderRadius: 10, background: "var(--indigo-600)", color: "#fff", border: "none", cursor: "pointer" },
         }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen")),
       ),
-      drillRevealed && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" } }, q.explanation),
+      drillRevealed && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(q.explanation) }),
       drillRevealed && React.createElement("button", {
         key: "next", onClick: nextDrill,
         style: { marginTop: 16, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" },
@@ -348,7 +354,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
         React.createElement("span", null, `${proveIdx + 1} / ${proveQs.length}`),
         React.createElement("span", { style: { fontVariantNumeric: "tabular-nums" } }, `⏱ ${mm}:${ss}`),
       ),
-      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, q.question),
+      React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
           const showCorrect = proveSelected !== null && i === q.correct;
@@ -358,7 +364,8 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
           return React.createElement("button", {
             key: i, onClick: () => submitProveAnswer(i), disabled: proveSelected !== null,
             style: { textAlign: "left", padding: "12px 14px", background: bg, border: `1.5px solid ${border}`, borderRadius: 10, fontSize: 14, cursor: proveSelected !== null ? "default" : "pointer", fontFamily: "var(--font-sans)" },
-          }, opt);
+            dangerouslySetInnerHTML: mdHtml(opt),
+          });
         }),
       ),
     ]);

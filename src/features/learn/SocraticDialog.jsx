@@ -3,20 +3,13 @@
 // Third card on the Learn picker. Does not touch skill-tree Prove or
 // mastery. One hint, one surrender, +50 XP on Got it (same as cards).
 
-import { tokenizeMath, renderMathSegment, escapeHtml as escapeHtmlMath } from "../../lib/math-render";
+import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
 import { languageNameFor } from "../../lib/paper-language";
 import { buildSocraticSystem, parseSocraticTurn, recentMistakeLines } from "./socratic";
 
 function md(text) {
-  if (!text) return "";
-  const normalized = String(text).replace(/<br\s*\/?>(\r?\n)?/gi, "\n");
-  return tokenizeMath(normalized).map((s) => {
-    if (s.kind !== "text") return renderMathSegment(s);
-    return escapeHtmlMath(s.value)
-      .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\n/g, "<br/>");
-  }).join("");
+  return renderCoachMarkdown(text);
 }
 
 function examQual(resolved) {
