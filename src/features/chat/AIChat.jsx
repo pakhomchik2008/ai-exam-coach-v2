@@ -19,6 +19,9 @@ import { isIeltsReadingTopic, isIeltsWritingTopic } from "../../lib/ielts-paper"
 import { IeltsReading } from "../ielts/IeltsReading";
 import { IeltsWriting } from "../ielts/IeltsWriting";
 import { SocraticDialog } from "../learn/SocraticDialog.jsx";
+import { FadingDialog } from "../learn/FadingDialog.jsx";
+import { FeynmanDialog } from "../learn/FeynmanDialog.jsx";
+import { recommendLearnMethod } from "../learn/recommend";
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -2787,15 +2790,30 @@ function LearnFlashcards({ topic, onExit, t }) {
   ]);
 }
 
-// Picker — asked every time the student opens Learn mode. Three options,
+// Picker — asked every time the student opens Learn mode. Five methods,
 // no persistence: the "right" method depends on the topic and the mood, not
 // on a permanent setting somewhere the student would forget to change.
 function LearnMethodPicker({ topic, onExit, onPick, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const recommended = recommendLearnMethod({ firstVisit: true });
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },
   }, children);
-  const cardStyle = { flex: 1, padding: "24px 22px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms" };
+  const cardStyle = { flex: "1 1 240px", padding: "24px 22px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms" };
+  const card = (id, emoji, title, blurb) => {
+    const rec = recommended === id;
+    return React.createElement("button", {
+      key: id,
+      onClick: () => onPick(id),
+      style: { ...cardStyle, borderColor: rec ? "var(--indigo-400)" : "var(--border-default)" },
+    },
+      rec && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em" } },
+        L("Recommended", "Рекомендовано", "Рекомендуем", "Recommandé", "Empfohlen")),
+      React.createElement("div", { style: { fontSize: 28 } }, emoji),
+      React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } }, title),
+      React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } }, blurb),
+    );
+  };
   return wrap([
     React.createElement("div", { key: "hdr", style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 18 } },
       React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
@@ -2804,39 +2822,41 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
     ),
     React.createElement("h1", { key: "title", style: { margin: "0 0 24px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, topic),
     React.createElement("div", { key: "opts", style: { display: "flex", gap: 14, flexWrap: "wrap" } },
-      React.createElement("button", { onClick: () => onPick("theory"), style: cardStyle },
-        React.createElement("div", { style: { fontSize: 28 } }, "📖"),
-        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
-          L("Full theory page", "Повна теорія", "Полная теория", "Théorie complète", "Vollständige Theorie")),
-        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
-          L("Structured read — TL;DR, concepts, worked examples, common mistakes, cheat sheet.",
-            "Структурований конспект — TL;DR, концепції, приклади, помилки, шпаргалка.",
-            "Структурированный конспект — TL;DR, концепции, примеры, ошибки, шпаргалка.",
-            "Lecture structurée — TL;DR, concepts, exemples, erreurs, aide-mémoire.",
-            "Strukturierte Lektüre — TL;DR, Konzepte, Beispiele, Fehler, Spickzettel.")),
-      ),
-      React.createElement("button", { onClick: () => onPick("flashcards"), style: cardStyle },
-        React.createElement("div", { style: { fontSize: 28 } }, "🎴"),
-        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
-          L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten")),
-        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
-          L("6-10 bite-sized cards, one concept each. Swipe through at your pace.",
-            "6-10 коротких карток, по одному концепту. Гортайте у своєму темпі.",
-            "6-10 коротких карточек, по одному концепту. Листайте в своём темпе.",
-            "6-10 cartes courtes, un concept chacune. Passe à ton rythme.",
-            "6-10 kurze Karten, ein Konzept pro Karte. Blättere in deinem Tempo.")),
-      ),
-      React.createElement("button", { onClick: () => onPick("socratic"), style: cardStyle },
-        React.createElement("div", { style: { fontSize: 28 } }, "💬"),
-        React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } },
-          L("Explain with the coach", "Пояснити разом", "Объяснить вместе", "Expliquer ensemble", "Gemeinsam erklären")),
-        React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } },
-          L("The coach asks. You find the idea. One hint if you stall.",
-            "Коуч питає. Ви самі виводите ідею. Одна підказка, якщо застрягли.",
-            "Коуч спрашивает. Вы сами выводите идею. Одна подсказка, если застряли.",
-            "Le coach questionne. Tu trouves l’idée. Un indice si tu bloques.",
-            "Der Coach fragt. Du findest die Idee. Ein Tipp, wenn du hängst.")),
-      ),
+      card("theory", "📖",
+        L("Full theory page", "Повна теорія", "Полная теория", "Théorie complète", "Vollständige Theorie"),
+        L("Structured read — TL;DR, concepts, worked examples, common mistakes, cheat sheet.",
+          "Структурований конспект — TL;DR, концепції, приклади, помилки, шпаргалка.",
+          "Структурированный конспект — TL;DR, концепции, примеры, ошибки, шпаргалка.",
+          "Lecture structurée — TL;DR, concepts, exemples, erreurs, aide-mémoire.",
+          "Strukturierte Lektüre — TL;DR, Konzepte, Beispiele, Fehler, Spickzettel.")),
+      card("flashcards", "🎴",
+        L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten"),
+        L("6-10 bite-sized cards, one concept each. Swipe through at your pace.",
+          "6-10 коротких карток, по одному концепту. Гортайте у своєму темпі.",
+          "6-10 коротких карточек, по одному концепту. Листайте в своём темпе.",
+          "6-10 cartes courtes, un concept chacune. Passe à ton rythme.",
+          "6-10 kurze Karten, ein Konzept pro Karte. Blättere in deinem Tempo.")),
+      card("socratic", "💬",
+        L("Explain with the coach", "Пояснити разом", "Объяснить вместе", "Expliquer ensemble", "Gemeinsam erklären"),
+        L("The coach asks. You find the idea. One hint if you stall.",
+          "Коуч питає. Ви самі виводите ідею. Одна підказка, якщо застрягли.",
+          "Коуч спрашивает. Вы сами выводите идею. Одна подсказка, если застряли.",
+          "Le coach questionne. Tu trouves l’idée. Un indice si tu bloques.",
+          "Der Coach fragt. Du findest die Idee. Ein Tipp, wenn du hängst.")),
+      card("fading", "🪜",
+        L("Step by step", "Крок за кроком", "Шаг за шагом", "Étape par étape", "Schritt für Schritt"),
+        L("A worked example that hides one more step each level. You fill the gaps.",
+          "Розв’язок, де кожен рівень ховає ще один крок. Ви заповнюєте пропуски.",
+          "Решение, где каждый уровень прячет ещё один шаг. Вы заполняете пропуски.",
+          "Un exemple travaillé qui cache une étape de plus. Tu complètes.",
+          "Ein Beispiel, das pro Level einen Schritt mehr verbirgt.")),
+      card("feynman", "🎤",
+        L("Explain it back", "Поясни мені", "Объясни мне", "Explique-moi", "Erklär es"),
+        L("Teach a beginner in 60–90 seconds. Voice or text. The coach grades gaps.",
+          "Поясніть новачку за 60–90 секунд. Голос або текст. Коуч знайде прогалини.",
+          "Объясните новичку за 60–90 секунд. Голос или текст. Коуч найдёт пробелы.",
+          "Explique à un débutant en 60–90 s. Voix ou texte.",
+          "Erkläre einem Anfänger in 60–90 s. Stimme oder Text.")),
     ),
   ]);
 }
@@ -2859,6 +2879,12 @@ function LessonEngine({ topic, mode, onExit, t }) {
     }
     if (learnMethod === "socratic") {
       return React.createElement(SocraticDialog, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "fading") {
+      return React.createElement(FadingDialog, { topic: activeTopic, onExit, t });
+    }
+    if (learnMethod === "feynman") {
+      return React.createElement(FeynmanDialog, { topic: activeTopic, onExit, t });
     }
     return React.createElement(LearnTheoryReader, { topic: activeTopic, onExit, t, onOpenTopic: setActiveTopic });
   }

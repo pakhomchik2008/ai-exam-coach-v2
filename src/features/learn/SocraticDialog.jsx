@@ -5,6 +5,7 @@
 
 import { tokenizeMath, renderMathSegment, escapeHtml as escapeHtmlMath } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
+import { languageNameFor } from "../../lib/paper-language";
 import { buildSocraticSystem, parseSocraticTurn, recentMistakeLines } from "./socratic";
 
 function md(text) {
@@ -16,6 +17,16 @@ function md(text) {
       .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\n/g, "<br/>");
   }).join("");
+}
+
+function examQual(resolved) {
+  if (!resolved || !window.getExams) return null;
+  const exam = window.getExams().find((e) => e.id === resolved.examId);
+  return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+}
+
+function coachLanguageName(resolved, tcode) {
+  return languageNameFor(examQual(resolved)) || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[tcode] || "English");
 }
 
 function mistakeSnippet(topic) {
@@ -53,9 +64,10 @@ export function SocraticDialog({ topic, onExit, t }) {
     const history = threadRef.current.concat(
       userText ? [{ role: "user", content: userText }] : [],
     );
+    const qual = examQual(resolved);
     const system = buildSocraticSystem({
       topic,
-      language: lang,
+      language: coachLanguageName(resolved, lang),
       mistakes: mistakeSnippet(topic),
       hintUsed: nextHint,
       surrendered: nextSurrender,
@@ -70,6 +82,7 @@ export function SocraticDialog({ topic, onExit, t }) {
         system,
         messages: history.length ? history : [{ role: "user", content: `Start the dialogue on: ${topic}` }],
         topicContext,
+        paperQual: qual,
       }),
       timeout,
     ]);
