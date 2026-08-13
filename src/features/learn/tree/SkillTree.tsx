@@ -35,16 +35,12 @@ export function UnitSkillTree({
   progress,
   lang,
   onSelect,
-  justUnlocked,
-  lockShake,
 }: {
   unit: LearnUnit;
   tree: LearnTree;
   progress: NodeProgressMap;
   lang: string;
   onSelect: (node: LearnNode) => void;
-  justUnlocked?: string | null;
-  lockShake?: string | null;
 }) {
   const layout = layoutUnit(unit);
   const lessons = unit.nodes.filter((n) => !isBossNode(n));
@@ -74,7 +70,6 @@ export function UnitSkillTree({
           {layout.edges.map((e) => (
             <path
               key={`${e.kind}-${e.fromId}-${e.toId}`}
-              className="energy-draw energy-path"
               d={edgePath(e)}
               fill="none"
               stroke={e.kind === "spine" ? "var(--border-default)" : "var(--indigo-300, #a5b4fc)"}
@@ -92,7 +87,6 @@ export function UnitSkillTree({
               return (
                 <polygon
                   key={p.id}
-                  className="energy-boss"
                   points={pts}
                   fill={g.fill}
                   stroke={g.stroke}
@@ -103,7 +97,6 @@ export function UnitSkillTree({
             return (
               <circle
                 key={p.id}
-                className={open && !isMastered(mastery) ? "energy-node-breathe" : undefined}
                 cx={p.x}
                 cy={p.y}
                 r={TREE_R}
@@ -124,7 +117,6 @@ export function UnitSkillTree({
               <button
                 key={p.id}
                 type="button"
-                className={`${justUnlocked === p.id ? "energy-mastery" : ""} ${lockShake === p.id ? "energy-lock-shake" : ""}`.trim()}
                 onClick={() => onSelect(p.node)}
                 aria-disabled={locked}
                 style={{

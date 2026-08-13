@@ -12,9 +12,12 @@ import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
 import { ExamRecap } from "../study/ExamRecap.jsx";
-import { DrainTimer, QuestionFlip, SegmentBar } from "../../components/energy/arcade";
-import { TypingDots, StreamLine } from "../../components/energy/chat-life";
-import { fireHaptic } from "../../lib/motion-runtime";
+import { WaitPress } from "../../components/WaitPress";
+import { ListenClip } from "../../components/ListenClip";
+import { dropIeltsSpeakingTopics, isIeltsListeningTopic, isIeltsQual, isIeltsSpeakingTopic } from "../../lib/ielts-listen";
+import { isIeltsReadingTopic, isIeltsWritingTopic } from "../../lib/ielts-paper";
+import { IeltsReading } from "../ielts/IeltsReading";
+import { IeltsWriting } from "../ielts/IeltsWriting";
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -27,6 +30,24 @@ import { fireHaptic } from "../../lib/motion-runtime";
 function _qualificationOf(exam) {
   if (!exam) return null;
   return (window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId) || null;
+}
+
+/** Academic vs GT + which paper — asked every sitting, never stored. */
+function _ieltsSitPickers({ t, module, setModule, paper, setPaper, papers }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const chip = (on, label, onClick, key) => React.createElement("button", {
+    key, type: "button", onClick,
+    style: { padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 20, border: `1.5px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, background: on ? "var(--indigo-50)" : "var(--surface-card)", color: on ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" },
+  }, label);
+  return [
+    React.createElement("p", { key: "ml", style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Module this sitting", "Модуль цього разу", "Модуль в этот раз", "Module cette fois", "Modul diesmal")),
+    React.createElement("div", { key: "mv", style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 } },
+      chip(module === "academic", "Academic", () => setModule("academic"), "ac"),
+      chip(module === "gt", "General Training", () => setModule("gt"), "gt")),
+    React.createElement("p", { key: "pl", style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Paper", "Секція", "Секция", "Épreuve", "Teil")),
+    React.createElement("div", { key: "pv", style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 } },
+      ...papers.map((p) => chip(paper === p.key, p.label, () => setPaper(p.key), p.key))),
+  ];
 }
 
 // Novelty engine (Phase 3 §3a) — proof point wired into Practice Engine only,
@@ -445,13 +466,11 @@ RULES:
 
   // ─── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Building your study guide...", "Створюємо ваш навчальний посібник...", "Создаём ваше учебное пособие...", "Création de votre guide d'étude...", "Dein Lernleitfaden wird erstellt...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
-      React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)" } }, L("This takes a moment — lots of material to prepare", "Це займе трохи часу — потрібно підготувати багато матеріалу", "Это займёт немного времени — нужно подготовить много материала", "Cela prend un moment — beaucoup de matériel à préparer", "Das dauert einen Moment — viel Material wird vorbereitet")),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Building your study guide...", "Створюємо ваш навчальний посібник...", "Создаём ваше учебное пособие...", "Création de votre guide d'étude...", "Dein Lernleitfaden wird erstellt..."),
+      subtitle: `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`,
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -676,6 +695,14 @@ function QuickCheckEngine({ topic, onExit, t }) {
   const recordedRef = React.useRef(false);
 
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const listenQual = React.useMemo(() => {
+    if (!resolved || !window.getExams) return null;
+    const exam = window.getExams().find((e) => e.id === resolved.examId);
+    return exam ? _qualificationOf(exam) : null;
+  }, [resolved]);
+  const listenMode = isIeltsListeningTopic(topic, listenQual);
+  const readMode = isIeltsReadingTopic(topic, listenQual);
+  const writeMode = isIeltsWritingTopic(topic, listenQual);
   // Adaptive difficulty: rises as this topic racks up perfect Quick Checks
   // (see recordQuickCheckResult in brain-store.jsx) — read once per topic so
   // it stays stable for the duration of this session.
@@ -699,11 +726,32 @@ function QuickCheckEngine({ topic, onExit, t }) {
     setLoading(true); setError(null); setQuestions(null); setIdx(0); setSelected(null); setRevealed(false); setResults([]); setDone(false); setFillInput(""); setLevelUp(false);
     recordedRef.current = false;
     startTime.current = Date.now();
+    if (readMode || writeMode) { setLoading(false); return; }
     (async () => {
       try {
         const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-        const system = `You are building a QUICK CHECK — 5 rapid retrieval questions for a student who has studied this topic before. This is NOT a flashcard deck. Each question has ONE correct answer and immediate feedback.
+        const system = listenMode
+          ? `You are building an IELTS LISTENING Quick Check. The student HEARS a short recording — they must not be able to answer by reading the question alone.
+
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
+
+EVERY item is type "listen":
+{"type":"listen","script":"60-120 words of spoken English (conversation or short monologue). Do not put the answer in the first sentence.","accent":"en-GB","question":"What the student is asked AFTER hearing the clip","options":["A","B","C","D"],"correct":0,"explanation":"1 sentence.","topic":"sub-skill"}
+
+You may replace options+correct with fill-in: "answer":"library","accept":["library","the library"] (no options).
+
+FORMAT: {"questions":[...5 items...],"sessionTitle":"Short title"}
+
+RULES:
+- Exactly 5 listen items. No silent reading MCQ. No theory-about-listening questions.
+- script is the ONLY place the facts live. question + options must be unanswerable without the script.
+- Mix: form/note completion (fill), multiple choice, matching speakers, specific detail.
+- Scripts in English. Vary setting (booking, campus, lecture, everyday).
+- accent is one of en-GB, en-US, en-AU.
+- Difficulty: ${DIFFICULTY_MIXES[difficulty - 1]}
+- Explanations 1 sentence.`
+          : `You are building a QUICK CHECK — 5 rapid retrieval questions for a student who has studied this topic before. This is NOT a flashcard deck. Each question has ONE correct answer and immediate feedback.
 
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 
@@ -748,7 +796,7 @@ RULES:
         setLoading(false);
       }
     })();
-  }, [topic]);
+  }, [topic, readMode, writeMode, listenMode]);
 
   const answerMcq = (optIdx) => {
     if (selected !== null) return;
@@ -792,13 +840,19 @@ RULES:
     }
   };
 
+  if (readMode) {
+    return React.createElement(IeltsReading, { mode: "quick", module: "academic", onExit, t });
+  }
+  if (writeMode) {
+    return React.createElement(IeltsWriting, { mode: "practice", module: "academic", onExit, t });
+  }
+
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Preparing Quick Check...", "Готуємо швидку перевірку...", "Готовим быструю проверку...", "Préparation de la vérification rapide...", "Schnelltest wird vorbereitet...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Preparing Quick Check...", "Готуємо швидку перевірку...", "Готовим быструю проверку...", "Préparation de la vérification rapide...", "Schnelltest wird vorbereitet..."),
+      subtitle: `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`,
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -865,10 +919,26 @@ RULES:
   const pct = Math.round(((idx + 1) / total) * 100);
 
   const renderQuestion = () => {
-    if (q.type === "fill") {
+    const isListen = q.type === "listen" || !!(listenMode && q.script);
+    const clip = isListen && q.script ? React.createElement(ListenClip, {
+      key: `clip-${idx}`,
+      script: q.script,
+      locale: q.accent || "en-GB",
+      playLabel: L("Play audio", "Увімкнути аудіо", "Включить аудио", "Écouter", "Audio abspielen"),
+      stopLabel: L("Stop", "Стоп", "Стоп", "Stop", "Stopp"),
+      replayLabel: L("Play again", "Ще раз", "Ещё раз", "Réécouter", "Nochmal"),
+      fallbackHint: L("Your browser can't play speech. Read the recording below.", "Браузер не вміє озвучувати. Прочитай запис нижче.", "Браузер не умеет озвучивать. Прочитай запись ниже.", "Le navigateur ne peut pas lire l'audio. Lis l'enregistrement.", "Browser kann nicht vorlesen. Lies die Aufnahme."),
+    }) : null;
+    const transcript = isListen && revealed && q.script
+      ? React.createElement("p", { style: { marginTop: 12, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.55, textAlign: "left" } },
+        L("Recording: ", "Запис: ", "Запись: ", "Enregistrement : ", "Aufnahme: "), q.script)
+      : null;
+
+    if (q.type === "fill" || (isListen && !(q.options && q.options.length))) {
       return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-          React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--amber-50)", "var(--amber-700)", L("✍️ FILL IN", "✍️ ЗАПОВНІТЬ", "✍️ ЗАПОЛНИТЕ", "✍️ COMPLÉTEZ", "✍️ AUSFÜLLEN"))),
+          clip,
+          React.createElement("div", { style: { marginBottom: 14 } }, _badge(isListen ? "var(--indigo-50)" : "var(--amber-50)", isListen ? "var(--indigo-700)" : "var(--amber-700)", isListen ? L("🎧 LISTEN", "🎧 СЛУХАЙ", "🎧 СЛУШАЙ", "🎧 ÉCOUTE", "🎧 HÖR ZU") : L("✍️ FILL IN", "✍️ ЗАПОВНІТЬ", "✍️ ЗАПОЛНИТЕ", "✍️ COMPLÉTEZ", "✍️ AUSFÜLLEN"))),
           React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question).replace("___", "<u style='border-bottom:2px dashed var(--indigo-500);padding:0 8px;color:var(--indigo-500)'>___</u>") } }),
           !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
             React.createElement("input", {
@@ -883,14 +953,16 @@ RULES:
             }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen"))),
           revealed && React.createElement("div", {
             style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-          }, selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`))));
+          }, selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`)),
+          transcript));
     }
 
-    // MCQ
+    // MCQ (and listen-with-options)
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+        clip,
         React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
-          _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
+          _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", isListen ? L("🎧 LISTEN", "🎧 СЛУХАЙ", "🎧 СЛУШАЙ", "🎧 ÉCOUTE", "🎧 HÖR ZU") : L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
           q.topic && _badge("var(--surface-muted)", "var(--text-muted)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
@@ -911,7 +983,8 @@ RULES:
           })),
         revealed && React.createElement("div", {
           style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-        }, selected === q.correct ? "✅ " : "💡 ", q.explanation)));
+        }, selected === q.correct ? "✅ " : "💡 ", q.explanation),
+        transcript));
   };
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
@@ -1169,14 +1242,11 @@ RULES:
 
   // ── Loading ──
   if (phase === "loading" && !error) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Preparing Speed Round...", "Готуємо швидкий раунд...", "Готовим быстрый раунд...", "Préparation du tour rapide...", "Speed-Runde wird vorbereitet...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, L(`${totalQ} questions × ${perQ} seconds each`, `${totalQ} питань × по ${perQ} секунд`, `${totalQ} вопросов × по ${perQ} секунд`, `${totalQ} questions × ${perQ} secondes chacune`, `${totalQ} Fragen × je ${perQ} Sekunden`)),
-      chosenTopics.length > 0 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", maxWidth: 340 } },
-        ...chosenTopics.map((n, i) => React.createElement("span", { key: i, style: { padding: "4px 10px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 11, color: "var(--indigo-700)", fontWeight: 600 } }, n))),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Preparing Speed Round...", "Готуємо швидкий раунд...", "Готовим быстрый раунд...", "Préparation du tour rapide...", "Speed-Runde wird vorbereitet..."),
+      subtitle: L(`${totalQ} questions × ${perQ} seconds each`, `${totalQ} питань × по ${perQ} секунд`, `${totalQ} вопросов × по ${perQ} секунд`, `${totalQ} questions × ${perQ} secondes chacune`, `${totalQ} Fragen × je ${perQ} Sekunden`),
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -1331,6 +1401,19 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
   const [revealed, setRevealed] = React.useState(false);
   const [results, setResults] = React.useState([]);
   const [patternAlert, setPatternAlert] = React.useState(null);
+  const [ieltsModule, setIeltsModule] = React.useState("academic");
+  const [ieltsPaper, setIeltsPaper] = React.useState("reading");
+  const [ieltsRun, setIeltsRun] = React.useState(null);
+
+  const practiceQual = React.useMemo(() => {
+    const exam = config.examId && window.getExams
+      ? window.getExams().find((e) => e.id === config.examId)
+      : (examViews.length === 1 && window.getExams
+        ? window.getExams().find((e) => e.id === examViews[0].id)
+        : null);
+    return _qualificationOf(exam);
+  }, [config.examId, examViews]);
+  const ieltsOn = isIeltsQual(practiceQual);
 
   const everyTopic = examViews.flatMap((e) => (e.topics || []).map((t) => ({ name: t.topicName || t.name, exam: e.name, examId: e.id, topicIdx: t.topicIdx, retention: t.retention })));
   // Scoped to the chosen exam. Previously every exam's topics were flattened
@@ -1360,6 +1443,19 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
     }
   }, [results.length]);
 
+  if (ieltsRun?.paper === "reading") {
+    return React.createElement(IeltsReading, {
+      mode: "practice", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+  if (ieltsRun?.paper === "writing") {
+    return React.createElement(IeltsWriting, {
+      mode: "practice", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+
   // ── Setup screen ──
   if (phase === "setup") {
     const DIFFS = [
@@ -1369,8 +1465,13 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
       { key: "adaptive", label: L("Adaptive", "Адаптивний", "Адаптивный", "Adaptatif", "Adaptiv"), emoji: "🤖", desc: L("AI adjusts in real-time", "AI підлаштовується в реальному часі", "AI подстраивается в реальном времени", "L'IA s'ajuste en temps réel", "KI passt sich in Echtzeit an") },
     ];
     const selectedTopics = config.topics.length > 0 ? config.topics : allTopics.slice(0, 3).map((t) => t.name);
+    const showGeneric = !ieltsOn || ieltsPaper === "listening";
 
     const startPractice = async () => {
+      if (ieltsOn && (ieltsPaper === "reading" || ieltsPaper === "writing")) {
+        setIeltsRun({ paper: ieltsPaper, module: ieltsModule });
+        return;
+      }
       // ~1 minute per question is the pace a timed drill should feel like.
       setRemainingSec(config.timed ? config.length * 60 : null);
       setStartedAt(Date.now());
@@ -1425,8 +1526,21 @@ RULES:
         React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("🎯 Practice Exam", "🎯 Тренувальний іспит", "🎯 Тренировочный экзамен", "🎯 Examen d'entraînement", "🎯 Übungsprüfung"))),
 
       // Difficulty
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Difficulty", "Складність", "Сложность", "Difficulté", "Schwierigkeit")),
-      React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 } },
+      ieltsOn && _ieltsSitPickers({
+        t, module: ieltsModule, setModule: setIeltsModule, paper: ieltsPaper, setPaper: setIeltsPaper,
+        papers: [
+          { key: "reading", label: L("Reading · 1 passage", "Reading · 1 текст", "Reading · 1 текст", "Reading · 1 texte", "Reading · 1 Text") },
+          { key: "writing", label: L("Writing · 1 task", "Writing · 1 завдання", "Writing · 1 задание", "Writing · 1 tâche", "Writing · 1 Aufgabe") },
+          { key: "listening", label: L("Listening", "Listening", "Listening", "Listening", "Listening") },
+        ],
+      }),
+      ieltsOn && (ieltsPaper === "reading" || ieltsPaper === "writing") && React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } },
+        ieltsPaper === "reading"
+          ? L("One passage + ~10 questions. True/False/Not Given, MCQ, fill. Like the real paper.", "Один текст + ~10 питань. True/False/Not Given, MCQ, пропуски. Як на справжньому папері.", "Один текст + ~10 вопросов. True/False/Not Given, MCQ, пропуски. Как на настоящем бланке.", "Un texte + ~10 questions. True/False/Not Given, QCM, trous. Comme l'épreuve réelle.", "Ein Text + ~10 Fragen. True/False/Not Given, MCQ, Lücken. Wie die echte Prüfung.")
+          : L("You get a prompt (chart or essay). You write. Examiner gives a band + why + what to fix.", "Тема (графік або есе). Ти пишеш. Екзаменатор ставить банд + чому + де підтягнути.", "Тема (график или эссе). Ты пишешь. Экзаменатор ставит балл + почему + где подтянуть.", "Un sujet (graphique ou essai). Tu écris. L'examinateur donne une bande + pourquoi + quoi corriger.", "Ein Prompt (Diagramm oder Essay). Du schreibst. Band + Begründung + Lücken.")),
+
+      showGeneric && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Difficulty", "Складність", "Сложность", "Difficulté", "Schwierigkeit")),
+      showGeneric && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 } },
         ...DIFFS.map((d) => React.createElement("button", {
           key: d.key, onClick: () => setConfig((c) => ({ ...c, difficulty: d.key })),
           style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: config.difficulty === d.key ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${config.difficulty === d.key ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
@@ -1450,9 +1564,8 @@ RULES:
           }, e.name);
         })),
 
-      // Length
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Questions", "Питань", "Вопросов", "Questions", "Fragen")),
-      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } },
+      showGeneric && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Questions", "Питань", "Вопросов", "Questions", "Fragen")),
+      showGeneric && React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } },
         ...[5, 10, 20, 50].map((n) => {
           const on = config.length === n;
           return React.createElement("button", {
@@ -1461,8 +1574,7 @@ RULES:
           }, n);
         })),
 
-      // Optional timer
-      React.createElement("button", {
+      showGeneric && React.createElement("button", {
         onClick: () => setConfig((c) => ({ ...c, timed: !c.timed })),
         "aria-pressed": config.timed,
         style: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 14px", marginBottom: 20, background: config.timed ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${config.timed ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 12, cursor: "pointer", fontFamily: "var(--font-sans)", textAlign: "left" }
@@ -1473,9 +1585,8 @@ RULES:
           React.createElement("p", { style: { margin: 0, fontSize: 11, color: "var(--text-muted)" } }, config.timed ? L(`${config.length} min — about a minute a question`, `${config.length} хв — приблизно хвилина на питання`, `${config.length} мин — примерно минута на вопрос`, `${config.length} min — environ une minute par question`, `${config.length} Min — etwa eine Minute pro Frage`) : L("Off — take your time", "Вимкнено — не поспішайте", "Выключен — не спешите", "Désactivé — prenez votre temps", "Aus — lass dir Zeit"))),
         React.createElement("span", { style: { fontSize: 12, fontWeight: 700, color: config.timed ? "var(--indigo-600)" : "var(--text-faint)" } }, config.timed ? L("ON", "УВІМК", "ВКЛ", "ON", "AN") : L("OFF", "ВИМК", "ВЫКЛ", "OFF", "AUS"))),
 
-      // Topics
-      React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Topics", "Теми", "Темы", "Sujets", "Themen")),
-      React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24, maxHeight: 180, overflowY: "auto" } },
+      showGeneric && React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px" } }, L("Topics", "Теми", "Темы", "Sujets", "Themen")),
+      showGeneric && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 24, maxHeight: 180, overflowY: "auto" } },
         ...allTopics.map((tp) => {
           const on = selectedTopics.includes(tp.name);
           return React.createElement("button", {
@@ -1493,11 +1604,10 @@ RULES:
 
   // ── Loading ──
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Generating your exam...", "Створюємо ваш іспит...", "Создаём ваш экзамен...", "Génération de votre examen...", "Deine Prüfung wird erstellt...")),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Generating your exam...", "Створюємо ваш іспит...", "Создаём ваш экзамен...", "Génération de votre examen...", "Deine Prüfung wird erstellt..."),
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -1574,7 +1684,6 @@ RULES:
     const elapsedSec = (Date.now() - questionShownAt) / 1000;
     const confidence = elapsedSec < 4 ? "easy" : elapsedSec < 12 ? "okay" : "guessing";
     const isCorrect = optIdx === q.correct;
-    fireHaptic(isCorrect ? "light" : "heavy");
     const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
@@ -1607,16 +1716,16 @@ RULES:
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", fontSize: 12 } },
           // Turns red under a minute — the only moment the number needs to grab
           // attention.
-          remainingSec !== null && React.createElement(DrainTimer, {
-            remainingSec,
-            totalSec: (config.timed ? config.length * 60 : remainingSec) || 1,
-            label: "practice",
-          }),
+          remainingSec !== null && React.createElement("span", {
+            role: "timer",
+            style: { fontFamily: "var(--font-mono)", fontWeight: 700, color: remainingSec <= 60 ? "var(--red-600)" : "var(--text-muted)" }
+          }, `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, "0")}`),
           q.difficulty && _badge(q.difficulty === "hard" ? "var(--red-50)" : q.difficulty === "easy" ? "var(--emerald-50)" : "var(--amber-50)",
             q.difficulty === "hard" ? "var(--red-700)" : q.difficulty === "easy" ? "var(--emerald-700)" : "var(--amber-700)", q.difficulty),
           React.createElement("button", { onClick: () => setPhase("summary"),
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("End exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
-      React.createElement(SegmentBar, { results: questions.map((_, i) => (i < results.length ? !!results[i].correct : null)) })),
+      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform 0.4s" } }))),
 
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
@@ -1628,8 +1737,7 @@ RULES:
         React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "var(--red-600)" } }, L(`You've struggled with ${patternAlert.topic} ${patternAlert.count} times. Consider a refresher after this exam.`, `Ви ${patternAlert.count} разів мали труднощі з темою ${patternAlert.topic}. Варто повторити її після цього іспиту.`, `У вас ${patternAlert.count} раз(а) были трудности с темой ${patternAlert.topic}. Стоит повторить её после этого экзамена.`, `Vous avez eu du mal avec ${patternAlert.topic} ${patternAlert.count} fois. Envisagez une révision après cet examen.`, `Du hattest ${patternAlert.count}x Schwierigkeiten mit ${patternAlert.topic}. Erwäge eine Auffrischung nach dieser Prüfung.`))),
 
       // Question card
-      React.createElement(QuestionFlip, { flipKey: qIdx },
-      React.createElement("div", { className: revealed ? (results[results.length - 1]?.correct ? "energy-ok" : "energy-bad energy-bad--shake") : undefined, style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
 
@@ -1655,7 +1763,7 @@ RULES:
 
         // Explanation (after reveal)
         revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
-          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation))),
+          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation)),
 
       // Continue button
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
@@ -1685,6 +1793,9 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const [autoSubmitted, setAutoSubmitted] = React.useState(false);
   const [startedAt, setStartedAt] = React.useState(null);
   const finishedRef = React.useRef(false);
+  const [ieltsModule, setIeltsModule] = React.useState("academic");
+  const [ieltsPaper, setIeltsPaper] = React.useState("reading");
+  const [ieltsRun, setIeltsRun] = React.useState(null);
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
   const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
@@ -1745,10 +1856,27 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
     return () => clearInterval(t);
   }, [phase]);
 
+  if (ieltsRun?.paper === "reading") {
+    return React.createElement(IeltsReading, {
+      mode: "exam", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+  if (ieltsRun?.paper === "writing") {
+    return React.createElement(IeltsWriting, {
+      mode: "exam", module: ieltsRun.module, t,
+      onExit: () => { setIeltsRun(null); setPhase("setup"); },
+    });
+  }
+
   // ── Setup screen ──
   if (phase === "setup" || (phase === "loading" && error)) {
     const startExam = async () => {
       if (!selectedExam) return;
+      if (isIeltsQual(examQual)) {
+        setIeltsRun({ paper: ieltsPaper, module: ieltsModule });
+        return;
+      }
       setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
       setStartedAt(Date.now());
       // Generate in PARALLEL CHUNKS of ~6 questions each, not one giant call.
@@ -1831,6 +1959,14 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
           React.createElement("span", { style: { fontSize: 14, fontWeight: 600, color: examId === e.id ? "var(--indigo-700)" : "var(--text-strong)" } }, e.name),
           React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, L(`${(e.topics || []).length || "?"} topics`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} тем`, `${(e.topics || []).length || "?"} sujets`, `${(e.topics || []).length || "?"} Themen`))))),
 
+      isIeltsQual(examQual) && _ieltsSitPickers({
+        t, module: ieltsModule, setModule: setIeltsModule, paper: ieltsPaper, setPaper: setIeltsPaper,
+        papers: [
+          { key: "reading", label: L("Reading · 3 passages · 40q · 60m", "Reading · 3 тексти · 40п · 60хв", "Reading · 3 текста · 40в · 60мин", "Reading · 3 textes · 40q · 60m", "Reading · 3 Texte · 40F · 60m") },
+          { key: "writing", label: L("Writing · Task 1+2 · 60m", "Writing · Task 1+2 · 60хв", "Writing · Task 1+2 · 60мин", "Writing · Task 1+2 · 60m", "Writing · Task 1+2 · 60m") },
+        ],
+      }),
+
       // Real vs Practice made visible (Phase 3 §3b): only a named spec can
       // honestly claim to mirror an exam's official shape — everything else
       // is a generic mock, and the copy says so rather than implying more
@@ -1841,9 +1977,13 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
 
       selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
         ...[
-          { val: questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
-          { val: `~${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
-          { val: examTopics.length || L("All", "Усі", "Все", "Tous", "Alle"), label: L("Topics", "Теми", "Темы", "Sujets", "Themen") },
+          isIeltsQual(examQual) && ieltsPaper === "writing"
+            ? { val: "2", label: L("Tasks", "Завдання", "Задания", "Tâches", "Aufgaben") }
+            : { val: isIeltsQual(examQual) ? 40 : questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
+          { val: isIeltsQual(examQual) ? "60m" : `~${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
+          isIeltsQual(examQual)
+            ? { val: ieltsPaper === "writing" ? "T1+T2" : "3", label: ieltsPaper === "writing" ? L("Paper", "Папір", "Бумага", "Épreuve", "Teil") : L("Passages", "Тексти", "Тексты", "Textes", "Texte") }
+            : { val: examTopics.length || L("All", "Усі", "Все", "Tous", "Alle"), label: L("Topics", "Теми", "Темы", "Sujets", "Themen") },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center" } },
           React.createElement("p", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
@@ -1853,12 +1993,11 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
 
   // ── Loading ──
   if (phase === "loading") {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Assembling your mock exam...", "Складаємо ваш пробний іспит...", "Составляем ваш пробный экзамен...", "Préparation de votre examen blanc...", "Deine Testprüfung wird zusammengestellt...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, selectedExam?.name),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Assembling your mock exam...", "Складаємо ваш пробний іспит...", "Составляем ваш пробный экзамен...", "Préparation de votre examen blanc...", "Deine Testprüfung wird zusammengestellt..."),
+      subtitle: selectedExam?.name,
+      lang: t?.code,
+    });
   }
 
   // ── Summary ──
@@ -1926,7 +2065,7 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, L(`Question ${idx + 1} of ${total}`, `Питання ${idx + 1} з ${total}`, `Вопрос ${idx + 1} из ${total}`, `Question ${idx + 1} sur ${total}`, `Frage ${idx + 1} von ${total}`)),
         React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } },
-          React.createElement(DrainTimer, { remainingSec: timeLeft, totalSec: timeLimitSec || timeLeft || 1, label: "exam" }),
+          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: timeLeft <= 120 ? "var(--red-700)" : "var(--text-strong)" } }, `⏱ ${mmss(timeLeft)}`),
           React.createElement("button", { onClick: () => setShowFinishConfirm(true),
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Finish exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
       // Progress dots — filled once answered, outlined if not, current is wider
@@ -2335,8 +2474,12 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     ),
   );
 
-  if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
-    L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"))]);
+  if (loading) return wrap([header, React.createElement(WaitPress, {
+    key: "l",
+    title: L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"),
+    lang: t?.code,
+    compact: true,
+  })]);
   if (error) return wrap([header,
     React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
     React.createElement("button", { key: "r", onClick: () => setRetry((n) => n + 1), style: { marginTop: 10, padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontFamily: "var(--font-sans)" } },
@@ -2581,8 +2724,12 @@ function LearnFlashcards({ topic, onExit, t }) {
       L("Flashcards", "Картки", "Карточки", "Cartes", "Karteikarten")),
   );
 
-  if (loading) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } },
-    L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"))]);
+  if (loading) return wrap([header, React.createElement(WaitPress, {
+    key: "l",
+    title: L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"),
+    lang: t?.code,
+    compact: true,
+  })]);
   if (error) return wrap([header,
     React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
     React.createElement("button", { key: "r", onClick: () => setRetry((n) => n + 1), style: { marginTop: 10, padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", fontFamily: "var(--font-sans)" } },
@@ -2910,12 +3057,11 @@ function LessonEngine({ topic, mode, onExit, t }) {
 
   // ─── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
-    return React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "calc(100vh - 140px)", fontFamily: "var(--font-sans)", gap: 16 } },
-      React.createElement(CoachIcon, { size: 56 }),
-      React.createElement("p", { style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" } }, L("Building your lesson...", "Створюємо ваш урок...", "Создаём ваш урок...", "Création de votre leçon...", "Deine Lektion wird erstellt...")),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)" } }, `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`),
-      React.createElement("div", { style: { display: "flex", gap: 6 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 8, height: 8, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } }))));
+    return React.createElement(WaitPress, {
+      title: L("Building your lesson...", "Створюємо ваш урок...", "Создаём ваш урок...", "Création de votre leçon...", "Deine Lektion wird erstellt..."),
+      subtitle: `${L("Topic", "Тема", "Тема", "Sujet", "Thema")}: ${topic}`,
+      lang: t?.code,
+    });
   }
 
   if (error) {
@@ -3623,7 +3769,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
           m.role === "ai" && React.createElement(CoachIcon, { size: 28 }),
           React.createElement("div", {
-            className: m.role === "ai" ? "aicoach-msg" : "energy-send",
+            className: m.role === "ai" ? "aicoach-msg" : undefined,
             style: m.role === "user"
               ? { maxWidth: "80%", background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6 }
               : { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
@@ -3639,9 +3785,8 @@ If no actions fit, omit the ACTIONS line entirely.`,
           }, a.icon && React.createElement("span", null, a.icon), a.text))))),
     typing && React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
       React.createElement(CoachIcon, { size: 28 }),
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px" } },
-        React.createElement(StreamLine, { active: true }),
-        React.createElement(TypingDots))));
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
 
   // Renders the "which exam / which topic" step as an AI-styled chat bubble
   // + selectable pills, appended right below the messages — a natural part
@@ -3670,9 +3815,13 @@ If no actions fit, omit the ACTIONS line entirely.`,
 
     // step === "topic"
     const exam = examViews.find((e) => e.id === pickerFlow.examId);
-    const topics = ((exam && exam.topics) || []).map((tp) => ({
-      name: tp.topicName || tp.name, retention: tp.lastSeen ? Math.round(tp.retention * 100) : null, unseen: !tp.lastSeen,
-    })).sort((a, b) => (a.retention ?? -1) - (b.retention ?? -1));
+    const topics = dropIeltsSpeakingTopics(
+      ((exam && exam.topics) || []).map((tp) => ({
+        name: tp.topicName || tp.name, retention: tp.lastSeen ? Math.round(tp.retention * 100) : null, unseen: !tp.lastSeen,
+      })),
+      (tp) => tp.name,
+      exam && exam.qualificationId,
+    ).sort((a, b) => (a.retention ?? -1) - (b.retention ?? -1));
     const recommended = topics.filter((tp) => tp.unseen || (tp.retention != null && tp.retention < 60)).slice(0, 5);
     const q = pickerSearch.trim().toLowerCase();
     const searched = q ? topics.filter((tp) => tp.name.toLowerCase().includes(q)) : [];
@@ -3819,7 +3968,11 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   // Review mode — Quick Check session from the queue
   if (mode === "review" && reviewTopic) {
     const isQuick = reviewTopic === "__quick__";
-    const quickTopic = isQuick ? ((brain.dueReviews || [])[0]?.topicName || (brain.weakestTopics || [])[0]?.topicName || L("General review", "Загальний огляд", "Общий обзор", "Révision générale", "Allgemeine Wiederholung")) : null;
+    const notSpeaking = (t) => {
+      const ev = (brain.examViews || []).find((e) => e.id === t.examId || e.name === t.examName);
+      return !isIeltsSpeakingTopic(t.topicName, ev && ev.qualificationId);
+    };
+    const quickTopic = isQuick ? ((brain.dueReviews || []).find(notSpeaking)?.topicName || (brain.weakestTopics || []).find(notSpeaking)?.topicName || L("General review", "Загальний огляд", "Общий обзор", "Révision générale", "Allgemeine Wiederholung")) : null;
     return React.createElement(QuickCheckEngine, {
       topic: isQuick ? quickTopic : reviewTopic,
       onExit: exitToQueue,
@@ -3833,8 +3986,12 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   // queue updates the moment a finished review writes back to the brain.
   if (mode === "review") {
     const freshBrain = window.getBrain ? window.getBrain() : {};
-    const queue = freshBrain.dueReviews || [];
-    const weakFallback = (freshBrain.weakestTopics || []).filter((t) => t.lastSeen).slice(0, 4);
+    const hideSpeaking = (t) => {
+      const ev = (freshBrain.examViews || []).find((e) => e.id === t.examId || e.name === t.examName);
+      return !isIeltsSpeakingTopic(t.topicName, ev && ev.qualificationId);
+    };
+    const queue = (freshBrain.dueReviews || []).filter(hideSpeaking);
+    const weakFallback = (freshBrain.weakestTopics || []).filter((t) => t.lastSeen && hideSpeaking(t)).slice(0, 4);
     const daysAgo = (iso) => {
       if (!iso) return null;
       const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);

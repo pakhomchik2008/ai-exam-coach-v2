@@ -434,10 +434,6 @@ function Settings({ t, lang, onLangChange, onLogout }) {
         {t.settings_saved}
       </div>
 
-      <p style={{ margin: "var(--space-6) 0 0", fontSize: "var(--text-xs)" }}>
-        <a href="#motion-lab" style={{ color: "var(--indigo-600)" }}>Motion lab</a>
-      </p>
-
     </div>
   );
 }

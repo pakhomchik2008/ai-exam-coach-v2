@@ -2,7 +2,6 @@
 // FintechX redesign: sticky translucent bar, geometric logo mark,
 // ink-pill active state, no emoji in the link row.
 import { BrandMark } from "../brand/BrandMark";
-import { EnergyTicker } from "./EnergyTicker";
 
 function NavLogoMark({ size = 26 }) {
   return <BrandMark size={size} framed />;
@@ -52,14 +51,6 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   // langOpen already closes itself after a pick.
   const navigate = (id) => { onNavigate(id); setMobileOpen(false); };
 
-  const tape = [
-    { id: "live", label: "LIVE" },
-    { id: "brand", label: "EXAM COACH" },
-    { id: "forecast", label: t.land_tick_forecast || "Forecast. Stop guessing." },
-    { id: "exams", label: t.land_tick_exams || "NMT · IELTS · SAT · GCSE" },
-    { id: "price", label: t.land_tick_price || "$4 raises the level" },
-  ];
-
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
@@ -70,7 +61,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
       <div style={{ maxWidth: "var(--container-app)", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "9px", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontSize: "var(--text-lg)" }}>
           <NavLogoMark />
-          <span>EXAM COACH</span>
+          <span>AI Exam Coach</span>
         </div>
 
         <div className="app-nav-links">
@@ -170,14 +161,6 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
-      <EnergyTicker
-        items={tape}
-        label={t.land_tick_label || "Tape"}
-        onPick={(id) => {
-          if (id === "exams") navigate("exams");
-          else if (id === "forecast") navigate("progress");
-        }}
-      />
     </nav>
   );
 }

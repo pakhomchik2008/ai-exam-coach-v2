@@ -4,7 +4,7 @@
 // the same, only the passage/task genres differ, and Sonnet is prompted
 // per-node to pick the right register at Teach time.
 //
-// Node ids follow the section prefix (l-* / r-* / w-* / s-*) chosen for
+// Node ids follow the section prefix (l-* / r-* / w-*) chosen for
 // stability across a future migration to different taxonomies (IELTS
 // Academic / General). Titles are the standard band-descriptor skill
 // headings.
@@ -62,22 +62,9 @@ const IELTS: LearnTree = {
         { id: "w-10", title: { en: "Time management (20 + 40 min)", uk: "Тайм-менеджмент" }, complexity: 2, estimatedMinutes: 7, prerequisites: [] },
       ],
     },
-    {
-      id: "s",
-      title: { en: "Speaking", uk: "Говоріння", ru: "Говорение" },
-      nodes: [
-        { id: "s-01", title: { en: "Part 1: introduction & interview", uk: "Part 1: вступ і інтерв'ю" }, complexity: 2, estimatedMinutes: 7, prerequisites: [] },
-        { id: "s-02", title: { en: "Part 2: long turn (2-min talk)", uk: "Part 2: монолог 2 хв" }, complexity: 4, estimatedMinutes: 12, prerequisites: ["s-01"] },
-        { id: "s-03", title: { en: "Part 3: discussion", uk: "Part 3: обговорення" }, complexity: 4, estimatedMinutes: 11, prerequisites: ["s-02"] },
-        { id: "s-04", title: { en: "Fluency and coherence", uk: "Плавність і зв'язність" }, complexity: 3, estimatedMinutes: 10, prerequisites: [] },
-        { id: "s-05", title: { en: "Lexical resource in speech", uk: "Лексика в мовленні" }, complexity: 3, estimatedMinutes: 9, prerequisites: [] },
-        { id: "s-06", title: { en: "Pronunciation, stress, intonation", uk: "Вимова, наголос, інтонація" }, complexity: 4, estimatedMinutes: 10, prerequisites: [] },
-        { id: "s-07", title: { en: "Grammatical range (speaking)", uk: "Граматика в мовленні" }, complexity: 4, estimatedMinutes: 10, prerequisites: [] },
-        { id: "s-08", title: { en: "Cue card strategies", uk: "Стратегії з cue-card" }, complexity: 3, estimatedMinutes: 9, prerequisites: ["s-02"] },
-        { id: "s-09", title: { en: "Common topics: work, study, hometown", uk: "Типові теми" }, complexity: 2, estimatedMinutes: 7, prerequisites: ["s-01"] },
-        { id: "s-10", title: { en: "Abstract topics (Part 3)", uk: "Абстрактні теми (Part 3)" }, complexity: 5, estimatedMinutes: 12, prerequisites: ["s-03"] },
-      ],
-    },
+    // Speaking is omitted on purpose: we have no mic / Whisper path
+    // (Decision Log #39). Shipping a silent "talk about your hometown"
+    // drill would be worse than leaving the paper out.
   ],
 };
 

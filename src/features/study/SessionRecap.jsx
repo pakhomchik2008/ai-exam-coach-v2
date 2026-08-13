@@ -1,5 +1,3 @@
-import { RecapCinema } from "../../components/energy/recap-cinema";
-
 // AI Exam Coach — Session Recap: shown immediately after a study session.
 // Two phases:
 //   1. COVERAGE — the user tells us which of the exam's topics they actually
@@ -150,22 +148,12 @@ function SessionRecap({ data, onClose, t }) {
     { label: L("XP earned", "XP", "XP", "XP", "XP"), value: `+${r.xp}` },
   ];
 
-  const trend = [r.readinessBefore || 0, ((r.readinessBefore || 0) + (r.readinessAfter || 0)) / 2, r.readinessAfter || 0];
-  const cinemaComment = chatSummary || L("Keep the streak. Same slot tomorrow.", "Тримай streak. Завтра той самий слот.", "Держи streak. Завтра тот же слот.", "Garde la série. Même créneau demain.", "Serie halten. Morgen derselbe Slot.");
-
   return (
     <div style={wrap}>
-      <RecapCinema
-        score={r.readinessAfter || 0}
-        delta={readinessDelta}
-        trend={trend}
-        mistakes={coveredNames}
-        comment={cinemaComment}
-        cta={<Button variant="primary" size="lg" fullWidth onClick={onClose}>{L("Back to Dashboard", "На головну", "На главную", "Retour au tableau", "Zurück")} →</Button>}
-      >
-      <div style={{ ...card, background: "transparent", border: 0, padding: "var(--space-4) 0 0" }}>
-        <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: "#F5F5F4" }}>{L("Session Complete!", "Сесію завершено!", "Сессия завершена!", "Séance terminée !", "Einheit fertig!")}</h1>
-        <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "rgba(245,245,244,0.7)" }}>
+      <div style={card}>
+        <p style={{ fontSize: 40, margin: "0 0 var(--space-2)" }}>🎉</p>
+        <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{L("Session Complete!", "Сесію завершено!", "Сессия завершена!", "Séance terminée !", "Einheit fertig!")}</h1>
+        <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
           {coveredNames.length} {coveredNames.length === 1 ? L("topic", "тема", "тема", "sujet", "Thema") : L("topics", "тем", "тем", "sujets", "Themen")} · {d.subject}
         </p>
 
@@ -243,8 +231,10 @@ function SessionRecap({ data, onClose, t }) {
           </div>
         )}
 
+        <div style={{ marginTop: "var(--space-6)" }}>
+          <Button variant="primary" size="lg" fullWidth onClick={onClose}>{L("Back to Dashboard", "На головну", "На главную", "Retour au tableau", "Zurück")} →</Button>
+        </div>
       </div>
-      </RecapCinema>
     </div>
   );
 }
