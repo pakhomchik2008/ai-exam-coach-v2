@@ -7,7 +7,7 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { resizeImageFile } from "../../lib/image-resize";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
-import { tokenizeMath, renderMathSegment, escapeHtml as _escapeHtmlMath } from "../../lib/math-render";
+import { renderCoachMarkdown } from "../../lib/math-render";
 import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
@@ -155,20 +155,7 @@ function CoachIcon({ size = 32, className }) {
 // are escaped, then bold/italic/code/newline substitutions run on the
 // escaped text (order matters: escaping first lets these regexes never see
 // user-injected HTML in the first place).
-const _md = (text) => {
-  if (!text) return "";
-  const normalized = String(text).replace(/<br\s*\/?>(\r?\n)?/gi, "\n");
-  const segs = tokenizeMath(normalized);
-  return segs.map((s) => {
-    if (s.kind !== "text") return renderMathSegment(s);
-    let t = _escapeHtmlMath(s.value)
-      .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*([^*\n]+?)\*/g, "<em>$1</em>")
-      .replace(/`([^`\n]+?)`/g, "<code style='background:var(--slate-100);padding:2px 5px;border-radius:4px;font-size:0.92em'>$1</code>")
-      .replace(/\n/g, "<br/>");
-    return t;
-  }).join("");
-};
+const _md = (text) => renderCoachMarkdown(text);
 
 const _isMath = (text) => /[=°²³√×÷±∑∫πΔ∞≠≤≥∈∩∪]/.test(text) || /\d\s*[\+\-\*\/]\s*\d/.test(text);
 
@@ -290,11 +277,12 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
         })),
       cpRevealed && q.explanation && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${cpSelected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-      }, cpSelected === q.correct ? "✅ " : "💡 ", q.explanation)),
+        style: { marginTop: 14, padding: "12px 16px", background: cpSelected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${cpSelected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: cpSelected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+        dangerouslySetInnerHTML: { __html: (cpSelected === q.correct ? "✅ " : "💡 ") + _md(q.explanation) },
+      })),
     cpRevealed && React.createElement("div", { style: { marginTop: 16 } },
       _btn(cpIdx + 1 < questions.length ? L("Next question →", "Наступне питання →", "Следующий вопрос →", "Question suivante →", "Nächste Frage →") : L("See results →", "Переглянути результати →", "Посмотреть результаты →", "Voir les résultats →", "Ergebnisse ansehen →"), () => { setCpIdx((n) => n + 1); setCpSelected(null); setCpRevealed(false); }, true, false)));
 }
@@ -598,11 +586,12 @@ RULES:
                   style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
                 },
                   React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-                  React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+                  React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
               })),
             revealed && q.explanation && React.createElement("div", {
-              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-            }, selected === q.correct ? "✅ " : "💡 ", q.explanation)),
+              style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+              dangerouslySetInnerHTML: { __html: (selected === q.correct ? "✅ " : "💡 ") + _md(q.explanation) },
+            })),
           revealed && React.createElement("div", { style: { marginTop: 16 } },
             _btn(quizIdx + 1 < quizzes.length ? L("Next question →", "Наступне питання →", "Следующий вопрос →", "Question suivante →", "Nächste Frage →") : secIdx + 1 < totalSections ? L("Next section →", "Наступний розділ →", "Следующий раздел →", "Section suivante →", "Nächster Abschnitt →") : L("See summary →", "Переглянути підсумок →", "Посмотреть итог →", "Voir le résumé →", "Zusammenfassung ansehen →"), nextAfterQuiz, true, false)))));
   }
@@ -939,8 +928,7 @@ RULES:
       fallbackHint: L("Your browser can't play speech. Read the recording below.", "Браузер не вміє озвучувати. Прочитай запис нижче.", "Браузер не умеет озвучивать. Прочитай запись ниже.", "Le navigateur ne peut pas lire l'audio. Lis l'enregistrement.", "Browser kann nicht vorlesen. Lies die Aufnahme."),
     }) : null;
     const transcript = isListen && revealed && q.script
-      ? React.createElement("p", { style: { marginTop: 12, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.55, textAlign: "left" } },
-        L("Recording: ", "Запис: ", "Запись: ", "Enregistrement : ", "Aufnahme: "), q.script)
+      ? React.createElement("p", { style: { marginTop: 12, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.55, textAlign: "left" }, dangerouslySetInnerHTML: { __html: L("Recording: ", "Запис: ", "Запись: ", "Enregistrement : ", "Aufnahme: ") + _md(q.script) } })
       : null;
 
     if (q.type === "fill" || (isListen && !(q.options && q.options.length))) {
@@ -961,8 +949,9 @@ RULES:
               style: { padding: "12px 20px", background: fillInput.trim() ? "var(--indigo-600)" : "var(--indigo-200)", color: "var(--white)", border: "none", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: fillInput.trim() ? "pointer" : "default", fontFamily: "var(--font-sans)" }
             }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen"))),
           revealed && React.createElement("div", {
-            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-          }, selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`)),
+            style: { padding: "12px 16px", background: selected === "correct" ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === "correct" ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === "correct" ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+            dangerouslySetInnerHTML: { __html: _md(selected === "correct" ? L(`✅ Correct! "${q.answer}"`, `✅ Правильно! «${q.answer}»`, `✅ Правильно! «${q.answer}»`, `✅ Correct ! « ${q.answer} »`, `✅ Richtig! „${q.answer}"`) : L(`💡 The answer is "${q.answer}". ${q.explanation || ""}`, `💡 Правильна відповідь: «${q.answer}». ${q.explanation || ""}`, `💡 Правильный ответ: «${q.answer}». ${q.explanation || ""}`, `💡 La réponse est « ${q.answer} ». ${q.explanation || ""}`, `💡 Die Antwort ist „${q.answer}". ${q.explanation || ""}`)) },
+          }),
           transcript));
     }
 
@@ -988,11 +977,12 @@ RULES:
               style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
           })),
         revealed && React.createElement("div", {
-          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-        }, selected === q.correct ? "✅ " : "💡 ", q.explanation),
+          style: { marginTop: 14, padding: "12px 16px", background: selected === q.correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === q.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === q.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+          dangerouslySetInnerHTML: { __html: (selected === q.correct ? "✅ " : "💡 ") + _md(q.explanation) },
+        }),
         transcript));
   };
 
@@ -1313,8 +1303,8 @@ RULES:
           ...results.filter((r) => !r.correct).map((r, i) => {
             const q = questions[r.qIdx];
             return q && React.createElement("div", { key: i, style: { background: "var(--red-50)", border: "1px solid var(--red-200)", borderRadius: 10, padding: "10px 14px", fontSize: 13 } },
-              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "var(--red-700)" } }, q.q),
-              React.createElement("p", { style: { margin: 0, color: "var(--red-700)", fontSize: 12 } }, `✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`));
+              React.createElement("p", { style: { margin: "0 0 4px", fontWeight: 600, color: "var(--red-700)" }, dangerouslySetInnerHTML: { __html: _md(q.q) } }),
+              React.createElement("p", { style: { margin: 0, color: "var(--red-700)", fontSize: 12 }, dangerouslySetInnerHTML: { __html: _md(`✓ ${q.options[q.correct]}${q.explanation ? ` — ${q.explanation}` : ""}`) } }));
           }))),
 
       _btn(L("Done →", "Готово →", "Готово →", "Terminé →", "Fertig →"), onExit, true, false));
@@ -1348,7 +1338,7 @@ RULES:
     // Question card
     React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "20px" } },
       q.topic && React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, q.topic),
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 17, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 } }, q.q),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 17, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.q) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...(q.options || []).map((opt, i) => {
           let bg = "var(--surface-card)", bc = "var(--border-default)", col = "var(--text-body)";
@@ -1363,7 +1353,7 @@ RULES:
             style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "var(--emerald-500)" : selected === i ? "var(--red-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-            opt);
+            React.createElement("span", { dangerouslySetInnerHTML: { __html: _md(opt) } }));
         }))));
 }
 
@@ -1767,12 +1757,11 @@ RULES:
               style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
           })),
 
         // Explanation (after reveal)
-        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
-          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation)),
+        revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }, dangerouslySetInnerHTML: { __html: (results[results.length - 1]?.correct ? "✅ " : "💡 ") + _md(q.explanation) } })),
 
       // Continue button
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
@@ -2107,7 +2096,7 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
               style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: isSel ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${isSel ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: isSel ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: isSel ? "var(--indigo-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: isSel ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
           })))),
 
     // Prev / Next navigation
@@ -3192,7 +3181,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
           ? _badge("linear-gradient(135deg,var(--amber-500),var(--amber-600))", "var(--white)", L("🔥 HOOK QUESTION", "🔥 ВСТУПНЕ ПИТАННЯ", "🔥 ВВОДНЫЙ ВОПРОС", "🔥 QUESTION D'ACCROCHE", "🔥 EINSTIEGSFRAGE"))
           : _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
         diff && _badge(diff === "hard" ? "var(--red-50)" : diff === "easy" ? "var(--emerald-50)" : "var(--amber-50)", diff === "hard" ? "var(--red-700)" : diff === "easy" ? "var(--emerald-700)" : "var(--amber-700)", diff)),
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 } }, question),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(question) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...options.map((opt, i) => {
           const isCor = i === correct, isSel = i === selected;
@@ -3207,11 +3196,12 @@ function LessonEngine({ topic, mode, onExit, t }) {
             style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 } }, opt));
+            React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
         })),
       revealed && React.createElement("div", {
-        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 }
-      }, selected === correct ? "✅ " : "💡 ", explanation)),
+        style: { marginTop: 14, padding: "12px 16px", background: selected === correct ? "linear-gradient(135deg, var(--emerald-50), var(--emerald-50))" : "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: `1px solid ${selected === correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: selected === correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 },
+        dangerouslySetInnerHTML: { __html: (selected === correct ? "✅ " : "💡 ") + _md(explanation) },
+      })),
     revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false)));
 
   const renderTf = (isHook) => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },

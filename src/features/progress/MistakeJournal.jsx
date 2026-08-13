@@ -6,6 +6,8 @@
 // correctly, only the ones logged as wrong, so the only honest percentage
 // is "of your logged mistakes, how many have you since fixed."
 
+import { renderCoachMarkdown } from "../../lib/math-render";
+
 function mjL(t, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[(t && t.code) || "en"] || en; }
 
 function mjTimeFilters(t) {
@@ -539,7 +541,7 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
         )}
 
         <button onClick={onToggle} style={{ textAlign: "left", border: "none", background: "transparent", cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-          <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.5 }}>{m.question}</p>
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--text-strong)", lineHeight: 1.5 }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(m.question) }} />
           <span style={{ color: "var(--text-faint)", fontSize: 12, flexShrink: 0, marginTop: 2 }}>{open ? "▲" : "▼"}</span>
         </button>
 
@@ -552,13 +554,14 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
                   const wasPicked = i === m.selectedIndex;
                   return (
                     <div key={i} style={{ fontSize: "var(--text-sm)", padding: "8px 12px", borderRadius: "var(--radius-lg)", background: isCorrect ? "var(--emerald-50)" : wasPicked ? "var(--rose-50)" : "var(--surface-muted)", color: isCorrect ? "var(--emerald-700)" : wasPicked ? "var(--red-600)" : "var(--text-muted)" }}>
-                      {isCorrect ? "✓ " : wasPicked ? "✕ " : ""}{opt}
+                      <span dangerouslySetInnerHTML={{ __html: `${isCorrect ? "✓ " : wasPicked ? "✕ " : ""}${renderCoachMarkdown(opt)}` }} />
                     </div>
                   );
                 })}
                 {m.explanation && (
                   <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px" }}>
-                    <strong style={{ color: "var(--text-body)" }}>{L("Step-by-step:", "Крок за кроком:", "Шаг за шагом:", "Étape par étape :", "Schritt für Schritt:")} </strong>{m.explanation}
+                    <strong style={{ color: "var(--text-body)" }}>{L("Step-by-step:", "Крок за кроком:", "Шаг за шагом:", "Étape par étape :", "Schritt für Schritt:")} </strong>
+                    <span dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(m.explanation) }} />
                   </div>
                 )}
               </div>
@@ -568,16 +571,14 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-faint)" }}>{L("Pick again — fresh attempt:", "Оберіть знову — нова спроба:", "Выберите снова — новая попытка:", "Choisissez à nouveau — nouvel essai :", "Wähle erneut — neuer Versuch:")}</p>
                 {(m.options || []).map((opt, i) => (
-                  <button key={i} onClick={() => pickRetry(i)} style={{ textAlign: "left", fontSize: "var(--text-sm)", padding: "8px 12px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                    {opt}
-                  </button>
+                  <button key={i} onClick={() => pickRetry(i)} style={{ textAlign: "left", fontSize: "var(--text-sm)", padding: "8px 12px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-page)", color: "var(--text-body)", cursor: "pointer", fontFamily: "var(--font-sans)" }} dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(opt) }} />
                 ))}
               </div>
             )}
 
             {retryMode === "wrongFeedback" && (
               <div style={{ fontSize: 12, color: "var(--red-700)", background: "var(--red-50)", borderRadius: "var(--radius-lg)", padding: "10px 12px" }}>
-                {L("Still tricky — this'll resurface for review tomorrow.", "Все ще складно — це знову з'явиться для повторення завтра.", "Всё ещё сложно — это снова появится для повторения завтра.", "Toujours difficile — cela réapparaîtra pour révision demain.", "Immer noch knifflig — das taucht morgen wieder zur Wiederholung auf.")} {m.explanation && <span>{m.explanation}</span>}
+                {L("Still tricky — this'll resurface for review tomorrow.", "Все ще складно — це знову з'явиться для повторення завтра.", "Всё ещё сложно — это снова появится для повторения завтра.", "Toujours difficile — cela réapparaîtra pour révision demain.", "Immer noch knifflig — das taucht morgen wieder zur Wiederholung auf.")} {m.explanation && <span dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(m.explanation) }} />}
                 <button onClick={() => setRetryMode("idle")} style={{ display: "block", marginTop: 6, border: "none", background: "transparent", color: "var(--red-600)", fontWeight: 700, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)" }}>{L("Close", "Закрити", "Закрыть", "Fermer", "Schließen")}</button>
               </div>
             )}

@@ -1,17 +1,13 @@
 // Feynman teach-back — student explains, Sonnet grades.
 // Mic uses the browser SpeechRecognition API only. No Whisper.
 
-import { tokenizeMath, renderMathSegment, escapeHtml as escapeHtmlMath } from "../../lib/math-render";
+import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
 import { languageNameFor } from "../../lib/paper-language";
 import { buildFeynmanSystem, parseFeynmanGrade } from "./feynman";
 
 function md(text) {
-  if (!text) return "";
-  return tokenizeMath(String(text)).map((s) => {
-    if (s.kind !== "text") return renderMathSegment(s);
-    return escapeHtmlMath(s.value).replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br/>");
-  }).join("");
+  return renderCoachMarkdown(text);
 }
 
 function examQual(resolved) {
