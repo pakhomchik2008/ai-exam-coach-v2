@@ -154,6 +154,17 @@ async function consumeQuota(user, endpoint) {
   const result = await resp.json();
   if (result && result.allowed) return { allowed: true, usage: result };
 
+  if (result && result.reason === "no_limit_configured") {
+    return {
+      allowed: false,
+      status: 500,
+      body: {
+        error: `AI quota is not configured for ${result.key || endpoint}. Run the matching supabase/NN_*.sql.`,
+        detail: result,
+      },
+    };
+  }
+
   return {
     allowed: false,
     status: 429,
