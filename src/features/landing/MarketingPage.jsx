@@ -10,6 +10,7 @@ import { FeatureReel } from "./FeatureReel";
 import { LearnScreen } from "./LearnScreen";
 import { OrbitField } from "./OrbitField";
 import { PredictorChart } from "./PredictorChart";
+import { startLenis } from "../../lib/motion-runtime";
 
 const CTA_DAYS = [
   ["1", "land_cta_d1"],
@@ -85,6 +86,11 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
   const [annual, setAnnual] = React.useState(true);
   const [heroRef, split] = useSplitProgress();
   const landRef = React.useRef(null);
+  React.useEffect(() => {
+    let stop = () => undefined;
+    startLenis().then((fn) => { stop = fn; });
+    return () => stop();
+  }, []);
   const langs = Object.values(window.LANGS || {});
   const headline = t.land_hero_title || "";
   const ticks = [

@@ -12,6 +12,9 @@ import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
 import { ExamRecap } from "../study/ExamRecap.jsx";
+import { DrainTimer, QuestionFlip, SegmentBar } from "../../components/energy/arcade";
+import { TypingDots, StreamLine } from "../../components/energy/chat-life";
+import { fireHaptic } from "../../lib/motion-runtime";
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -1571,6 +1574,7 @@ RULES:
     const elapsedSec = (Date.now() - questionShownAt) / 1000;
     const confidence = elapsedSec < 4 ? "easy" : elapsedSec < 12 ? "okay" : "guessing";
     const isCorrect = optIdx === q.correct;
+    fireHaptic(isCorrect ? "light" : "heavy");
     const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
@@ -1603,16 +1607,16 @@ RULES:
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", fontSize: 12 } },
           // Turns red under a minute — the only moment the number needs to grab
           // attention.
-          remainingSec !== null && React.createElement("span", {
-            role: "timer",
-            style: { fontFamily: "var(--font-mono)", fontWeight: 700, color: remainingSec <= 60 ? "var(--red-600)" : "var(--text-muted)" }
-          }, `${Math.floor(remainingSec / 60)}:${String(remainingSec % 60).padStart(2, "0")}`),
+          remainingSec !== null && React.createElement(DrainTimer, {
+            remainingSec,
+            totalSec: (config.timed ? config.length * 60 : remainingSec) || 1,
+            label: "practice",
+          }),
           q.difficulty && _badge(q.difficulty === "hard" ? "var(--red-50)" : q.difficulty === "easy" ? "var(--emerald-50)" : "var(--amber-50)",
             q.difficulty === "hard" ? "var(--red-700)" : q.difficulty === "easy" ? "var(--emerald-700)" : "var(--amber-700)", q.difficulty),
           React.createElement("button", { onClick: () => setPhase("summary"),
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("End exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
-      React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform 0.4s" } }))),
+      React.createElement(SegmentBar, { results: questions.map((_, i) => (i < results.length ? !!results[i].correct : null)) })),
 
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
@@ -1624,7 +1628,8 @@ RULES:
         React.createElement("p", { style: { margin: "4px 0 0", fontSize: 12, color: "var(--red-600)" } }, L(`You've struggled with ${patternAlert.topic} ${patternAlert.count} times. Consider a refresher after this exam.`, `Ви ${patternAlert.count} разів мали труднощі з темою ${patternAlert.topic}. Варто повторити її після цього іспиту.`, `У вас ${patternAlert.count} раз(а) были трудности с темой ${patternAlert.topic}. Стоит повторить её после этого экзамена.`, `Vous avez eu du mal avec ${patternAlert.topic} ${patternAlert.count} fois. Envisagez une révision après cet examen.`, `Du hattest ${patternAlert.count}x Schwierigkeiten mit ${patternAlert.topic}. Erwäge eine Auffrischung nach dieser Prüfung.`))),
 
       // Question card
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
+      React.createElement(QuestionFlip, { flipKey: qIdx },
+      React.createElement("div", { className: revealed ? (results[results.length - 1]?.correct ? "energy-ok" : "energy-bad energy-bad--shake") : undefined, style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
 
@@ -1650,7 +1655,7 @@ RULES:
 
         // Explanation (after reveal)
         revealed && React.createElement("div", { style: { marginTop: 14, padding: "12px 16px", background: results[results.length - 1]?.correct ? "var(--emerald-50)" : "var(--amber-50)", border: `1px solid ${results[results.length - 1]?.correct ? "var(--emerald-100)" : "var(--amber-200)"}`, borderRadius: 12, fontSize: 14, color: results[results.length - 1]?.correct ? "var(--emerald-700)" : "var(--amber-700)", lineHeight: 1.6 } },
-          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation)),
+          results[results.length - 1]?.correct ? "✅ " : "💡 ", q.explanation))),
 
       // Continue button
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
@@ -1921,7 +1926,7 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } },
         React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: "var(--text-strong)" } }, L(`Question ${idx + 1} of ${total}`, `Питання ${idx + 1} з ${total}`, `Вопрос ${idx + 1} из ${total}`, `Question ${idx + 1} sur ${total}`, `Frage ${idx + 1} von ${total}`)),
         React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } },
-          React.createElement("span", { style: { fontSize: 13, fontWeight: 700, color: timeLeft <= 120 ? "var(--red-700)" : "var(--text-strong)" } }, `⏱ ${mmss(timeLeft)}`),
+          React.createElement(DrainTimer, { remainingSec: timeLeft, totalSec: timeLimitSec || timeLeft || 1, label: "exam" }),
           React.createElement("button", { onClick: () => setShowFinishConfirm(true),
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Finish exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
       // Progress dots — filled once answered, outlined if not, current is wider
@@ -3618,7 +3623,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
           m.role === "ai" && React.createElement(CoachIcon, { size: 28 }),
           React.createElement("div", {
-            className: m.role === "ai" ? "aicoach-msg" : undefined,
+            className: m.role === "ai" ? "aicoach-msg" : "energy-send",
             style: m.role === "user"
               ? { maxWidth: "80%", background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6 }
               : { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
@@ -3634,8 +3639,9 @@ If no actions fit, omit the ACTIONS line entirely.`,
           }, a.icon && React.createElement("span", null, a.icon), a.text))))),
     typing && React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
       React.createElement(CoachIcon, { size: 28 }),
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px" } },
+        React.createElement(StreamLine, { active: true }),
+        React.createElement(TypingDots))));
 
   // Renders the "which exam / which topic" step as an AI-styled chat bubble
   // + selectable pills, appended right below the messages — a natural part
