@@ -1,15 +1,15 @@
 /**
- * Six small SVG orbs on elliptical paths around the predictor card.
- * Custom marks, not emoji — the landing tone is clinical, not carnival.
- * Radii and periods stay uneven so they never line up.
+ * Six SVG orbs on elliptical paths around the predictor.
+ * Rings are drawn so the geometry reads; icons stay upright
+ * (offset-rotate: 0). Radii and periods stay uneven on purpose.
  */
 
 import type { CSSProperties, ReactNode } from "react";
 
 type Orb = {
   id: string;
-  rx: string;
-  ry: string;
+  rx: number;
+  ry: number;
   dur: string;
   start: string;
   icon: ReactNode;
@@ -68,12 +68,12 @@ function NoteIcon() {
 }
 
 const ORBS: readonly Orb[] = [
-  { id: "chart", rx: "132px", ry: "54px", dur: "18s", start: "8%", icon: <ChartIcon /> },
-  { id: "target", rx: "158px", ry: "78px", dur: "24s", start: "28%", icon: <TargetIcon /> },
-  { id: "brain", rx: "118px", ry: "88px", dur: "32s", start: "52%", icon: <BrainIcon /> },
-  { id: "book", rx: "176px", ry: "46px", dur: "22s", start: "71%", icon: <BookIcon /> },
-  { id: "bolt", rx: "148px", ry: "96px", dur: "28s", start: "14%", icon: <BoltIcon /> },
-  { id: "note", rx: "104px", ry: "62px", dur: "20s", start: "88%", icon: <NoteIcon /> },
+  { id: "chart", rx: 168, ry: 54, dur: "22s", start: "8%", icon: <ChartIcon /> },
+  { id: "target", rx: 148, ry: 86, dur: "28s", start: "30%", icon: <TargetIcon /> },
+  { id: "brain", rx: 118, ry: 96, dur: "36s", start: "54%", icon: <BrainIcon /> },
+  { id: "book", rx: 178, ry: 42, dur: "24s", start: "72%", icon: <BookIcon /> },
+  { id: "bolt", rx: 136, ry: 72, dur: "30s", start: "16%", icon: <BoltIcon /> },
+  { id: "note", rx: 98, ry: 60, dur: "20s", start: "88%", icon: <NoteIcon /> },
 ];
 
 type OrbitFieldProps = {
@@ -83,13 +83,18 @@ type OrbitFieldProps = {
 export function OrbitField({ children }: OrbitFieldProps) {
   return (
     <div className="land-orbit">
+      <svg className="land-orbit-rings" viewBox="0 0 400 280" aria-hidden="true">
+        {ORBS.map((orb) => (
+          <ellipse key={orb.id} cx="200" cy="140" rx={orb.rx} ry={orb.ry} />
+        ))}
+      </svg>
       {ORBS.map((orb) => (
         <span
           key={orb.id}
           className="land-orb"
           style={{
-            "--rx": orb.rx,
-            "--ry": orb.ry,
+            "--rx": `${(orb.rx / 400) * 100}%`,
+            "--ry": `${(orb.ry / 280) * 100}%`,
             "--dur": orb.dur,
             "--start": orb.start,
           } as CSSProperties}
@@ -97,7 +102,7 @@ export function OrbitField({ children }: OrbitFieldProps) {
           {orb.icon}
         </span>
       ))}
-      {children}
+      <div className="land-orbit-core">{children}</div>
     </div>
   );
 }

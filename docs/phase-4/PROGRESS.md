@@ -18,3 +18,7 @@ Plan: `docs/phase-4-plan.md`. Assets: `brand/`, `public/brand/`, `public/sounds/
 - [x] SVG orbs around predictor (not emoji)
 - [x] CTA hover micro-timeline (Day 1 / 3 / 7 / 47)
 - [x] Split-scroll: type left, Learn mock center, predictor right — CSS, no Framer Motion
+- [x] Product theater + “beta has no reviews” removed
+- [x] Horizontal feature reel: chat → Learn → geometry → calendar
+- [x] About copy is the $4 level-up pitch + CTAs on every block
+- [x] Orbit rings + upright discs (not hidden on mobile)
