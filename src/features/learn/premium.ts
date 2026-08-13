@@ -20,6 +20,9 @@ export function isProUser(): boolean {
   return w.getProfile?.().pro === true;
 }
 
-export function topicIsLocked(index: number, total: number): boolean {
+export function topicIsLocked(index: number, total: number, nodeId?: string): boolean {
+  // Speaking just shipped (3.7g). It sits at the end of the IELTS tree, so
+  // the half-split would lock the entire paper. Leave it free until billing.
+  if (nodeId && /^(s-|tf-speak-)/.test(nodeId)) return false;
   return isPremiumIndex(index, total) && !isProUser();
 }

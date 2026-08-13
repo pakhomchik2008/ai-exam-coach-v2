@@ -1,5 +1,5 @@
 // TOEFL iBT — ETS official task types (ets.org/toefl, updated 2026 overview).
-// Speaking omitted: no mic / Whisper path (same as IELTS, Decision Log #39).
+// Speaking uses the same Whisper path as IELTS (Phase 3.7g).
 
 import { tree, unit } from "./build-tree";
 import type { LearnTree } from "./schema";
@@ -15,6 +15,9 @@ const TOEFL: LearnTree = tree("toefl", [
   ]),
   unit("tf-write", "Writing", "Письмо", [
     "Build a Sentence", "Write an Email", "Write for an Academic Discussion",
+  ]),
+  unit("tf-speak", "Speaking", "Говоріння", [
+    "Listen and Repeat", "Take an Interview", "Hold a Conversation",
   ]),
 ]);
 
