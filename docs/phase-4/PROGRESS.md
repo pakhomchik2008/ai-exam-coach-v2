@@ -13,3 +13,8 @@ Plan: `docs/phase-4-plan.md`. Assets: `brand/`, `public/brand/`, `public/sounds/
 - [x] 8-section landing + legal views
 - [x] i18n 5 langs + missing-key test
 - [x] Gate: typecheck, lint, vitest (401), build
+- [x] Centered Anthropic/Linear hero (geometry + grid removed)
+- [x] Exam marquee under fold (13 boards, 40s, pause on hover, edge fade)
+- [x] SVG orbs around predictor (not emoji)
+- [x] CTA hover micro-timeline (Day 1 / 3 / 7 / 47)
+- [x] Split-scroll: type left, Learn mock center, predictor right — CSS, no Framer Motion

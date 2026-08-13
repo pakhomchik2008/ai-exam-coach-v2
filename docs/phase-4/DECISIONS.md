@@ -9,3 +9,5 @@ Full rationale lives in `docs/phase-4-plan.md`.
 | 49 | CSS product theater instead of a missing 30s video. |
 | 50 | Sounds default off. Preview in Settings. |
 | 51 | Legal stubs now, counsel pass in Phase 6. |
+| 52 | No Framer Motion. Split-scroll is CSS + scroll progress. New dep rejected. |
+| 53 | First paint: centered type + exam marquee. Predictor + Learn mock arrive on scroll. |
