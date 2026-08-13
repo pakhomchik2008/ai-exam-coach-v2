@@ -203,7 +203,14 @@ function Exams({ t, onPlanReady }) {
     React.useEffect(() => {
       const fn = (e) => { if (e.key === "Escape") onClose(); };
       document.addEventListener("keydown", fn);
-      return () => document.removeEventListener("keydown", fn);
+      // The sheet owns the whole viewport — letting the page behind it keep its
+      // own scrollbar means the wheel sometimes moves the list, not the form.
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", fn);
+        document.body.style.overflow = prevOverflow;
+      };
     }, []);
 
     function save() {
@@ -255,63 +262,71 @@ function Exams({ t, onPlanReady }) {
 
     const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
     const labelStyle = { display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" };
+    // Full-screen sheet, so header / body / footer each need the same reading
+    // column or they drift apart on a wide monitor.
+    const columnStyle = { width: "100%", maxWidth: 560, margin: "0 auto", boxSizing: "border-box" };
     const KIND_OPTIONS = [
       { id: "exam", label: t.exams_kind_exam }, { id: "midterm", label: t.exams_kind_midterm }, { id: "final", label: t.exams_kind_final },
       { id: "resit", label: t.exams_kind_resit }, { id: "mock", label: t.exams_kind_mock }, { id: "certification", label: t.exams_kind_cert },
     ];
 
     return (
-      <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "16px", fontFamily: "var(--font-sans)" }}>
-        <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, maxHeight: "calc(100vh - 32px)", margin: "auto 0", background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ flexShrink: 0, padding: "var(--space-4) var(--space-5) var(--space-3)", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <h2 style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
-              <button type="button" onClick={onClose} aria-label={t.exams_cancel} style={{ border: "none", background: "transparent", color: "var(--text-muted)", fontSize: 22, lineHeight: 1, cursor: "pointer", padding: 4 }}>×</button>
+      <div className="ux-overlay" role="dialog" aria-modal="true" aria-label={t.exams_add} style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", flexDirection: "column", background: "var(--surface-page)", fontFamily: "var(--font-sans)" }}>
+        {/* No slide-in class here on purpose: ux-sheet translates by 18%, and on
+            a surface that owns the whole viewport that pushes the footer buttons
+            off-screen for as long as the animation is mid-flight. */}
+        <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{ flexShrink: 0, borderBottom: "1px solid var(--border-subtle)", background: "var(--surface-card)" }}>
+            <div style={{ ...columnStyle, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", padding: "var(--space-4) var(--space-5)" }}>
+              <h2 style={{ margin: 0, fontSize: "var(--text-xl)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontWeight: "var(--weight-bold)", color: "var(--text-strong)" }}>{t.exams_add}</h2>
+              <button type="button" onClick={onClose} aria-label={t.exams_cancel} className="ux-press"
+                style={{ flexShrink: 0, border: "none", background: "var(--surface-muted)", width: 36, height: 36, borderRadius: "var(--radius-full)", color: "var(--text-muted)", fontSize: 18, lineHeight: 1, cursor: "pointer" }}>✕</button>
             </div>
-
-            {lastExam.courseId && (
-              <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" onClick={() => setSameCourse(false)}
-                  style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    border: !sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
-                    background: !sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: !sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
-                  {t.exams_new_subject}
-                </button>
-                <button type="button" onClick={() => setSameCourse(true)}
-                  style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    border: sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
-                    background: sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
-                  {t.exams_same_course(lastExam.name)}
-                </button>
-              </div>
-            )}
-
-            {sameCourse ? (
-              <div>
-                <label style={labelStyle}>{t.exams_name}</label>
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} style={inputStyle} />
-              </div>
-            ) : (
-              <div>
-                <label style={labelStyle}>{t.exams_qualification}</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {window.EXAM_TYPES.map((e) => {
-                    const sel = qualificationId === e.id;
-                    return (
-                      <button key={e.id} type="button" onClick={() => setQualificationId(e.id)}
-                        style={{ padding: "8px 12px", borderRadius: "var(--radius-full)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
-                          border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
-                          background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
-                        {e.emoji} {e.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "var(--space-4) var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <div style={{ ...columnStyle, padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+          {lastExam.courseId && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button type="button" onClick={() => setSameCourse(false)}
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                  border: !sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                  background: !sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: !sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
+                {t.exams_new_subject}
+              </button>
+              <button type="button" onClick={() => setSameCourse(true)}
+                style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                  border: sameCourse ? "2px solid var(--indigo-500)" : "1.5px solid var(--border-default)",
+                  background: sameCourse ? "var(--indigo-50)" : "var(--surface-card)", color: sameCourse ? "var(--indigo-700)" : "var(--text-body)" }}>
+                {t.exams_same_course(lastExam.name)}
+              </button>
+            </div>
+          )}
+
+          {sameCourse ? (
+            <div>
+              <label style={labelStyle}>{t.exams_name}</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t.exams_resit_ph(lastExam.name)} style={inputStyle} />
+            </div>
+          ) : (
+            <div>
+              <label style={labelStyle}>{t.exams_qualification}</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {window.EXAM_TYPES.map((e) => {
+                  const sel = qualificationId === e.id;
+                  return (
+                    <button key={e.id} type="button" onClick={() => setQualificationId(e.id)} className="ux-press"
+                      style={{ minHeight: 44, padding: "10px 16px", borderRadius: "var(--radius-full)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)",
+                        border: sel ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
+                        background: sel ? "var(--indigo-50)" : "var(--surface-card)", color: sel ? "var(--indigo-700)" : "var(--text-body)" }}>
+                      {e.emoji} {e.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <label style={labelStyle}>{t.exams_date}</label>
             <input type="date" value={examDate} min={todayISO} onChange={(e) => setExamDate(e.target.value)} style={inputStyle} />
@@ -405,10 +420,14 @@ function Exams({ t, onPlanReady }) {
             </label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder={t.exams_notes_ph} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
           </div>
+            </div>
           </div>
-          <div style={{ flexShrink: 0, display: "flex", gap: "var(--space-2)", padding: "var(--space-3) var(--space-5) var(--space-4)", borderTop: "1px solid var(--border-subtle)" }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
-            <button onClick={save} disabled={!canSave} style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
+
+          <div style={{ flexShrink: 0, borderTop: "1px solid var(--border-subtle)", background: "var(--surface-card)" }}>
+            <div style={{ ...columnStyle, display: "flex", gap: "var(--space-2)", padding: "var(--space-3) var(--space-5)" }}>
+              <button onClick={onClose} className="ux-press" style={{ flex: 1, minHeight: 44, borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", fontWeight: "var(--weight-semibold)", cursor: "pointer", fontFamily: "var(--font-sans)" }}>{t.exams_cancel}</button>
+              <button onClick={save} disabled={!canSave} className="ux-press" style={{ flex: 2, minHeight: 44, borderRadius: "var(--radius-lg)", border: "none", background: canSave ? "var(--indigo-600)" : "var(--slate-200)", color: canSave ? "var(--white)" : "var(--text-faint)", fontWeight: "var(--weight-semibold)", cursor: canSave ? "pointer" : "default", fontFamily: "var(--font-sans)" }}>{t.exams_add_submit}</button>
+            </div>
           </div>
         </div>
       </div>

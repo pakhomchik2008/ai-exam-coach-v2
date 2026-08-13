@@ -7,9 +7,15 @@
   to   { opacity: 1; transform: none; }
 }
 
+/* Opacity only, deliberately. ux-page is applied to the wrapper around EVERY
+   tab (App.tsx), and an animated transform on it makes that wrapper the
+   containing block for `position: fixed` descendants — every modal and sheet in
+   the app then sizes itself to the <main> content box instead of the viewport.
+   The wrapper is keyed on dataVersion, so the animation restarts on background
+   syncs and the breakage reappears at random. A 6px rise is not worth that. */
 @keyframes ux-page {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes ux-backdrop {
