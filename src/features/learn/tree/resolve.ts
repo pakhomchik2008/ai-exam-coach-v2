@@ -14,6 +14,7 @@ export type ExamLike = {
   name?: string;
   qualificationId?: string;
   subject?: string;
+  courseId?: string;
 };
 
 const NMT_SLUGS: { slug: string; re: RegExp }[] = [
@@ -33,23 +34,49 @@ const NMT_SLUGS: { slug: string; re: RegExp }[] = [
   { slug: "nmt-es", re: /іспанськ|испанск|spanish|español/i },
 ];
 
+function courseBlob(exam: ExamLike): string {
+  const getCourse = typeof window !== "undefined"
+    ? (window as Window & { getCourse?: (id: string) => { title?: string; subject?: string; curriculumRef?: { subject?: string; qualificationId?: string } } | null }).getCourse
+    : undefined;
+  if (!exam.courseId || !getCourse) return "";
+  const course = getCourse(exam.courseId);
+  if (!course) return "";
+  const ref = course.curriculumRef || {};
+  return [course.title, course.subject, ref.subject, ref.qualificationId].filter(Boolean).join(" ");
+}
+
 export function nmtTreeSlug(exam: ExamLike | null | undefined): string | null {
-  const blob = `${(exam && exam.name) || ""} ${(exam && exam.subject) || ""}`;
+  const blob = [
+    exam && exam.name,
+    exam && exam.subject,
+    courseBlob(exam || {}),
+  ].filter(Boolean).join(" ");
   for (const row of NMT_SLUGS) {
     if (row.re.test(blob)) return row.slug;
   }
   return null;
 }
 
-export function treeKeyForExam(exam: ExamLike | null | undefined): string | null {
-  if (!exam) return null;
+function qualificationOf(exam: ExamLike): string | null {
   const fromWindow = typeof window !== "undefined"
     ? (window as Window & { examQualificationId?: (e: ExamLike) => string | null }).examQualificationId
     : undefined;
-  const qual = (fromWindow && fromWindow(exam)) || exam.qualificationId;
+  return (fromWindow && fromWindow(exam)) || exam.qualificationId || null;
+}
+
+function looksLikeNmt(exam: ExamLike, qual: string | null): boolean {
+  if (qual === "nmt" || qual === "zno") return true;
+  return /nmt|нмт|зно/i.test(`${exam.name || ""} ${exam.subject || ""} ${courseBlob(exam)}`);
+}
+
+export function treeKeyForExam(exam: ExamLike | null | undefined): string | null {
+  if (!exam) return null;
+  const qual = qualificationOf(exam);
+  // Name wins over a stale qualificationId (old adds were silently tagged
+  // GCSE/AQA). "NMT Українська мова" with qualificationId "gcse" is still NMT.
+  if (looksLikeNmt(exam, qual)) return nmtTreeSlug(exam);
+  if (qual && getTree(qual)) return qual;
   if (!qual) return nmtTreeSlug(exam);
-  if (qual === "nmt" || qual === "zno") return nmtTreeSlug(exam);
-  if (getTree(qual)) return qual;
   return null;
 }
 

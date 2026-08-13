@@ -28,6 +28,12 @@ describe("treeKeyForExam", () => {
 
   it("does not fall through to math for SAT", () => {
     expect(treeKeyForExam({ name: "SAT", qualificationId: "sat" })).toBeNull();
+    expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "sat" })).toBeNull();
+  });
+
+  it("still finds NMT language when the stored qualificationId is a stale GCSE", () => {
+    expect(treeKeyForExam({ name: "NMT Українська мова", qualificationId: "gcse" })).toBe("nmt-ukr");
+    expect(treeKeyForExam({ name: "НМТ Математика", qualificationId: "gcse" })).toBe("nmt");
   });
 });
 
