@@ -18,7 +18,7 @@ describe("resolveThemeId", () => {
 
   it("lists all six spec ids", () => {
     expect(THEME_IDS).toEqual(["cream", "midnight", "trading", "violet", "arcade", "mono"]);
-    expect(THEMES.cream.accent).toBe("#1B4D4A");
+    expect(THEMES.cream.accent).toBe("#141822");
     expect(THEMES.midnight.accent).toBe("#F3D062");
   });
 });

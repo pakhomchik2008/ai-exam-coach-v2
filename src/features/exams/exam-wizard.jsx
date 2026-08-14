@@ -412,8 +412,8 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
 
         <div style={{ padding: "var(--space-5) var(--space-5) var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-4)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontSize: "var(--text-base)" }}>
-              {window.NavLogoMark ? <window.NavLogoMark size={24} /> : <span aria-hidden="true">🤖</span>}<span>AI Exam Coach</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, color: "var(--text-strong)", fontFamily: "var(--font-brand)", letterSpacing: "-0.03em", fontSize: "1.05rem" }}>
+              {window.NavLogoMark ? <window.NavLogoMark size={24} /> : <span aria-hidden="true">🤖</span>}<span>Exam Coach</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {onLangChange && langs.map((l) => (

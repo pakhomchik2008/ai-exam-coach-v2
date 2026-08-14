@@ -1,136 +1,64 @@
 #!/usr/bin/env python3
-"""Rasterise the EXAM COACH mark into PNG + iOS AppIcon.appiconset.
+"""Rasterise EXAM COACH icons from brand/logo-master.png.
 
-Why a stdlib PNG writer: we refuse a new dependency for one utility
-(see CLAUDE.md). Geometry matches brand/logo.svg: open book, three
-rising bars, forecast arrow.
+Master is a 1024 navy + gold book. We punch the white corner canvas
+to alpha so the rounded square sits on cream or navy chrome, then
+resize. iOS marketing icons stay opaque navy — App Store rejects
+transparency on 1024.
 """
 from __future__ import annotations
 
 import math
-import struct
-import zlib
 from pathlib import Path
+
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 BRAND_OUT = PUBLIC / "brand"
 APPICON = BRAND_OUT / "appicon" / "AppIcon.appiconset"
+MASTER = ROOT / "brand" / "logo-master.png"
 
-TEAL = (0x1B, 0x4D, 0x4A, 0xFF)
-GOLD = (0xD4, 0xB3, 0x6A, 0xFF)
-CLEAR = (0, 0, 0, 0)
-
-STROKE = 2.3
-CORNER_R = 14.0
-
-BOOK = [(9, 22), (32, 16), (55, 22), (55, 46), (32, 52), (9, 46), (9, 22)]
-SPINE = [(32, 16), (32, 52)]
-ARROW = [(15, 43), (22, 40), (28, 34), (35, 28), (42, 23), (51, 19)]
-HEAD = [(51, 19), (45.6, 17.4), (47.8, 23.2)]
-BARS = [
-    (19.2, 36.5, 5.6, 9.2),
-    (29.2, 30.2, 5.6, 15.5),
-    (39.2, 24.2, 5.6, 21.5),
-]
+NAVY = (20, 24, 34, 255)
+CORNER_R = 180.0  # matches the drawn rounded square on the 1024 master
 
 
-def dist2(ax: float, ay: float, bx: float, by: float) -> float:
-    dx, dy = ax - bx, ay - by
-    return dx * dx + dy * dy
-
-
-def dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
-    vx, vy = bx - ax, by - ay
-    length = vx * vx + vy * vy
-    if length == 0:
-        return math.sqrt(dist2(px, py, ax, ay))
-    t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / length))
-    return math.sqrt(dist2(px, py, ax + t * vx, ay + t * vy))
-
-
-def near_poly(px: float, py: float, pts: list[tuple[float, float]], half: float) -> bool:
-    for i in range(len(pts) - 1):
-        if dist_to_segment(px, py, *pts[i], *pts[i + 1]) <= half:
-            return True
-    return False
-
-
-def inside_round_rect(x: float, y: float, size: float) -> bool:
-    r = CORNER_R / 64.0 * size
-    ix = min(max(x, r), size - r)
-    iy = min(max(y, r), size - r)
-    if abs(ix - x) < 1e-6 and abs(iy - y) < 1e-6:
-        return True
-    return dist2(x, y, ix, iy) <= r * r
-
-
-def inside_rect(px: float, py: float, x: float, y: float, w: float, h: float) -> bool:
-    return x <= px <= x + w and y <= py <= y + h
-
-
-def inside_triangle(px: float, py: float, pts: list[tuple[float, float]]) -> bool:
-    (x1, y1), (x2, y2), (x3, y3) = pts
-    den = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
-    if abs(den) < 1e-9:
-        return False
-    a = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / den
-    b = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / den
-    c = 1 - a - b
-    return a >= 0 and b >= 0 and c >= 0
-
-
-def paint(px: float, py: float) -> bool:
-    half = STROKE / 2.0
-    if near_poly(px, py, BOOK, half) or near_poly(px, py, SPINE, half) or near_poly(px, py, ARROW, half):
-        return True
-    if inside_triangle(px, py, HEAD):
-        return True
-    for x, y, w, h in BARS:
-        if inside_rect(px, py, x, y, w, h):
-            return True
-    return False
-
-
-def render(size: int, background: bool) -> list[list[tuple[int, int, int, int]]]:
-    rows = []
-    scale = size / 64.0
-    for y in range(size):
-        row = []
-        cy = (y + 0.5) / scale
-        for x in range(size):
-            cx = (x + 0.5) / scale
-            marked = paint(cx, cy)
-            if background:
-                if not inside_round_rect(x + 0.5, y + 0.5, size):
-                    row.append(CLEAR)
-                elif marked:
-                    row.append(GOLD)
-                else:
-                    row.append(TEAL)
-            else:
-                row.append(GOLD if marked else CLEAR)
-        rows.append(row)
-    return rows
-
-
-def write_png(path: Path, rows: list[list[tuple[int, int, int, int]]]) -> None:
-    h = len(rows)
-    w = len(rows[0])
-    raw = bytearray()
-    for row in rows:
-        raw.append(0)
-        for r, g, b, a in row:
-            raw.extend((r, g, b, a))
-
-    def chunk(tag: bytes, data: bytes) -> bytes:
-        crc = zlib.crc32(tag + data) & 0xFFFFFFFF
-        return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", crc)
-
-    ihdr = struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)
-    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b"")
+def save_pil(path: Path, im: Image.Image) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(png)
+    im.save(path, format="PNG", optimize=True)
+
+
+def rounded_rect_alpha(size: int, radius: float) -> Image.Image:
+    mask = Image.new("L", (size, size), 0)
+    px = mask.load()
+    r = radius
+    for y in range(size):
+        for x in range(size):
+            dx = min(x, size - 1 - x)
+            dy = min(y, size - 1 - y)
+            if dx >= r or dy >= r:
+                px[x, y] = 255
+                continue
+            dist = math.hypot(r - dx, r - dy) - r
+            if dist <= -0.75:
+                px[x, y] = 255
+            elif dist >= 0.75:
+                px[x, y] = 0
+            else:
+                px[x, y] = int(round(255 * (0.75 - dist) / 1.5))
+    return mask
+
+
+def punch_corners(im: Image.Image) -> Image.Image:
+    rgba = im.convert("RGBA")
+    mask = rounded_rect_alpha(rgba.size[0], CORNER_R * (rgba.size[0] / 1024.0))
+    rgba.putalpha(mask)
+    return rgba
+
+
+def opaque_navy(im: Image.Image) -> Image.Image:
+    bg = Image.new("RGBA", im.size, NAVY)
+    return Image.alpha_composite(bg, im.convert("RGBA")).convert("RGB")
 
 
 IOS_ICONS = [
@@ -185,20 +113,26 @@ def copy_svgs() -> None:
     (PUBLIC / "favicon.svg").write_bytes((src / "logo.svg").read_bytes())
 
 
+def scaled(im: Image.Image, size: int) -> Image.Image:
+    return im.resize((size, size), Image.Resampling.LANCZOS)
+
+
 def main() -> None:
     copy_svgs()
-    cache: dict[int, list] = {}
+    master = punch_corners(Image.open(MASTER))
+    cache: dict[int, Image.Image] = {}
 
-    def png_for(size: int):
+    def png_for(size: int) -> Image.Image:
         if size not in cache:
             print(f"  render {size}×{size}")
-            cache[size] = render(size, background=True)
+            cache[size] = scaled(master, size)
         return cache[size]
 
     for size in (32, 64, 128, 256, 512, 1024):
-        write_png(BRAND_OUT / f"logo-{size}.png", png_for(size))
+        save_pil(BRAND_OUT / f"logo-{size}.png", png_for(size))
 
-    write_png(PUBLIC / "apple-touch-icon.png", png_for(180) if 180 in cache else render(180, True))
+    save_pil(PUBLIC / "apple-touch-icon.png", opaque_navy(png_for(180) if 180 in cache else scaled(master, 180)))
+    cache[180] = scaled(master, 180)
 
     APPICON.mkdir(parents=True, exist_ok=True)
     (APPICON / "Contents.json").write_text(CONTENTS)
@@ -206,7 +140,7 @@ def main() -> None:
     for size in needed:
         png_for(size)
     for filename, size in IOS_ICONS:
-        write_png(APPICON / filename, cache[size])
+        save_pil(APPICON / filename, opaque_navy(cache[size]))
 
     print(f"wrote icons → {BRAND_OUT}")
 
