@@ -382,7 +382,7 @@ const EXAM_SYSTEMS = [
   { group: "🇩🇰 Denmark", options: ["Studentereksamen (STX)","HF","HTX","EUX"] },
   { group: "🇫🇮 Finland", options: ["Ylioppilastutkinto (Matriculation Exam)"] },
   { group: "🇹🇷 Turkey", options: ["YKS (Yükseköğretim Kurumları Sınavı)","LGS"] },
-  { group: "🇦🇪 UAE / Middle East", options: ["Emirates Standardized Test (EmSAT)","TOEFL","IELTS"] },
+  { group: "🇦🇪 UAE / Middle East", options: ["Emirates Standardized Test (EmSAT)","TOEFL","IELTS","PTE Academic"] },
   { group: "✏️ Custom / Other", options: ["University custom exam","School internal exam","Professional certification","Other"] },
 ];
 

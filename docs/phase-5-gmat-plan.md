@@ -10,5 +10,5 @@ Quant geometry. Data Sufficiency is DI, not Quant.
 
 - Classic 10th Edition (200–800) conversion
 - GMAT Subject / Executive Assessment
-- PTE Academic (next)
+- PTE Academic (shipped)
 - Licensed Official Practice Exam items

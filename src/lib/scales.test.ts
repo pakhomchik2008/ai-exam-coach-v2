@@ -43,6 +43,10 @@ describe("scale definitions match the real exams", () => {
     expect([SCALES.gmat_section.min, SCALES.gmat_section.max]).toEqual([60, 90]);
   });
 
+  it("PTE Academic runs 10–90", () => {
+    expect([SCALES.pte.min, SCALES.pte.max, SCALES.pte.step]).toEqual([10, 90, 1]);
+  });
+
   it("GCSE runs 1–9", () => {
     expect([SCALES.gcse.min, SCALES.gcse.max]).toEqual([1, 9]);
   });
@@ -68,6 +72,7 @@ describe("scaleForTaxonomy", () => {
     ["bac-math", "bac"],
     ["gre", "gre"],
     ["gmat", "gmat"],
+    ["pte", "pte"],
     ["nmt-ukr", "nmt_subject"],
   ])("maps %s to the %s scale", (taxonomy, expected) => {
     expect(scaleIdForTaxonomy(taxonomy)).toBe(expected);
@@ -220,6 +225,14 @@ describe("schemeFromExam — exam's own grading, not A-Level letters", () => {
     expect(predictedFromReadiness(0, scheme)).toBe("205");
     expect(predictedFromReadiness(50, scheme)).toBe("505");
     expect(predictedFromReadiness(100, scheme)).toBe("805");
+  });
+
+  it("PTE Academic reports 10–90, not IELTS bands", () => {
+    const scheme = schemeFromExam({ qualificationId: "pte" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(0, scheme)).toBe("10");
+    expect(predictedFromReadiness(50, scheme)).toBe("50");
+    expect(predictedFromReadiness(100, scheme)).toBe("90");
   });
 
   it("НМТ reports 100–200", () => {

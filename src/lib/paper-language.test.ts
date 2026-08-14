@@ -27,6 +27,7 @@ describe("paperLanguageFor", () => {
     expect(paperLanguageFor("bac-math")).toBe("fr");
     expect(paperLanguageFor("gre")).toBe("en");
     expect(paperLanguageFor("gmat")).toBe("en");
+    expect(paperLanguageFor("pte")).toBe("en");
   });
 
   it("is case-insensitive and ignores unknown quals", () => {
@@ -69,6 +70,7 @@ describe("canonicalQualification", () => {
     expect(canonicalQualification("bac-math")).toBe("bac");
     expect(canonicalQualification("gre")).toBe("gre");
     expect(canonicalQualification("gmat")).toBe("gmat");
+    expect(canonicalQualification("pte")).toBe("pte");
   });
 });
 
