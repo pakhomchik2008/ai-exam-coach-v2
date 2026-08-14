@@ -1,6 +1,6 @@
 // AI Exam Coach — Dashboard: plan-centric design with "Today's AI Plan" hero,
 // adaptive scheduling, TodaysMission briefing, and projected outcomes.
-function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t }) {
+function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGoToLearn, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
   const today = new Date().toLocaleDateString(t.code === "uk" ? "uk-UA" : t.code === "ru" ? "ru-RU" : t.code === "fr" ? "fr-FR" : t.code === "de" ? "de-DE" : "en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -70,14 +70,17 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const startRecommended = () => {
     if (!rec) return;
     if (rec.kind === "add_exam") { onGoToExams && onGoToExams(); return; }
-    if (focusSession) { startMission(focusSession); return; }
+    // Learn next / review of a syllabus topic belongs on the skill tree,
+    // not the old timer overlay — that overlay crashed when TodaysMission
+    // or StudySession got a synthesised session with no matching course.
+    if (onGoToLearn && rec.examId && rec.topicName) {
+      onGoToLearn({ examId: rec.examId, examName: rec.examName, topicName: rec.topicName, kind: rec.kind });
+      return;
+    }
     const schedData = window.getSchedule ? window.getSchedule() : {};
     const sched = Array.isArray(schedData) ? schedData : (schedData.sessions || []);
     const matched = rec.sessionId && sched.find((s) => s.id === rec.sessionId);
     if (matched) { startMission(matched); return; }
-    // Synthesize a session from the brain's recommendation so the button
-    // always launches StudySession regardless of whether today has a
-    // scheduled slot.
     startMission({
       id: rec.sessionId || `rec::${rec.examId}::${rec.topicIdx}`,
       examId: rec.examId,
@@ -86,8 +89,6 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
       color: rec.color || "var(--indigo-600)",
       difficulty: 2,
       review: 1,
-      // No scheduled slot behind this one, so the student's own default length
-      // is the honest estimate — not a hardcoded 45.
       est: rec.estMinutes || (window.getProfile && window.getProfile().sessionLengthMin) || 45,
     });
   };
@@ -148,8 +149,8 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const weekPct = weeklyGoalH > 0 ? Math.round((hoursStudied / weeklyGoalH) * 100) : 0;
 
   // Total remaining
-  const schedule = window.getSchedule();
-  const totalPending = schedule.sessions.filter(s => s.status === "pending").length;
+  const schedule = window.getSchedule() || { sessions: [] };
+  const totalPending = (schedule.sessions || []).filter((s) => s.status === "pending").length;
   const totalHours = Math.round(totalPending * 0.75 * 10) / 10;
   const streak = window.computeStreak ? window.computeStreak() : 0;
 
@@ -161,7 +162,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, t })
   const anyActive = window.getExams
     ? window.getExams().some((e) => new Date(e.examDate) > new Date())
     : false;
-  const pendingDates = schedule.sessions.filter((s) => s.status === "pending").map((s) => s.date).sort();
+  const pendingDates = (schedule.sessions || []).filter((s) => s.status === "pending").map((s) => s.date).sort();
   const lastPending = pendingDates[pendingDates.length - 1] || null;
   const rolloverKey = (() => { const d = new Date(); d.setDate(d.getDate() + 3); return window.fmtDateKey(d); })();
   const needsRollover = anyActive && !rolloverDismissed && (!lastPending || lastPending <= rolloverKey);

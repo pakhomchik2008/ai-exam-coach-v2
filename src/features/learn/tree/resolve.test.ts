@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alevelTreeSlug, nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
+import { alevelTreeSlug, findLessonByTitle, nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
 import { availableTaxonomies, getTree } from "./index";
 
 describe("nmtTreeSlug", () => {
@@ -53,6 +53,7 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "AP Calculus BC", qualificationId: "ap" })).toBe("ap-calc-bc");
     expect(treeKeyForExam({ name: "AP Calculus AB", qualificationId: "ap" })).toBe("ap-calc-ab");
     expect(treeKeyForExam({ name: "Matura Matematyka", qualificationId: "matura" })).toBe("matura-math");
+    expect(treeKeyForExam({ name: "Matura Język francuski", qualificationId: "matura" })).toBe("matura-lang");
     expect(treeKeyForExam({ name: "Abitur Deutsch", qualificationId: "abitur" })).toBe("abitur-de");
     expect(treeKeyForExam({ name: "Bac Mathématiques", qualificationId: "bac" })).toBe("bac-math");
     expect(treeKeyForExam({ name: "Baccalauréat Français", qualificationId: "bac" })).toBe("bac-fr");
@@ -135,6 +136,20 @@ describe("treeForExam", () => {
     expect(math?.examTaxonomy).toBe("alevel-math");
     expect(chem?.examTaxonomy).toBe("alevel-chem");
     expect(math).not.toBe(chem);
+  });
+
+  it("finds a Further Maths lesson from the dashboard topic name", () => {
+    const tree = treeForExam({ name: "A-Level Further Mathematics", qualificationId: "alevel" });
+    expect(findLessonByTitle(tree, "Complex Numbers")?.node.title.en).toBe("Complex Numbers");
+    expect(findLessonByTitle(tree, "no such topic")).toBeNull();
+  });
+
+  it("shows Polish-medium Matura trees in Polish, English paper in English", () => {
+    const math = getTree("matura-math");
+    expect(math?.units[0]?.title.pl).toBe("Matematyka");
+    expect(math?.units[0]?.nodes[0]?.title.en).toBe("Liczby rzeczywiste");
+    expect(getTree("matura-pl")?.units[0]?.nodes[0]?.title.en).toBe("Czytanie ze zrozumieniem");
+    expect(getTree("matura-eng")?.units[0]?.nodes[0]?.title.en).toBe("Reading Comprehension");
   });
 
   it("does not register a bare subject-split qualification key", () => {

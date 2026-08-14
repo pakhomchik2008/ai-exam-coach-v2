@@ -9,8 +9,9 @@
 // one component here rather than fanning out to 4 small files. 3.7b scoring
 // lives in drill-exercises.ts; the boards stay here so one runner owns phase.
 
-import { treeForExam } from "./tree/resolve";
+import { findLessonByTitle, treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
+import { canOpenNode, isMastered } from "./tree/locks";
 import { freeTopicLimit, topicIsLocked } from "./premium";
 import { ProSheet } from "./ProSheet.jsx";
 import { SpeakingDialog } from "./SpeakingDialog.jsx";
@@ -665,7 +666,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
 
 // ─── Main list ────────────────────────────────────────────────────────────────
 
-function LearnMain({ t }) {
+function LearnMain({ t, launch, onLaunchConsumed }) {
   const lang = (t && t.code) || "en";
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[lang] || en);
   const exams = window.getExams ? window.getExams() : [];
@@ -713,6 +714,34 @@ function LearnMain({ t }) {
   }, []);
 
   React.useEffect(() => { enterOnceRef.current = false; }, []);
+
+  React.useEffect(() => {
+    if (!launch) return;
+    const opt = options.find((o) => o.exam.id === launch.examId)
+      || options.find((o) => o.exam.name === launch.examName);
+    if (opt) {
+      setPickedId(opt.exam.id);
+      const hit = findLessonByTitle(opt.tree, launch.topicName);
+      if (hit) {
+        const lessons = flattenLessonNodes(opt.tree);
+        const idx = lessons.findIndex((row) => row.node.id === hit.node.id);
+        const progress = ((window.getLearn && window.getLearn()) || {})[opt.tree.examTaxonomy] || {};
+        const locked = topicIsLocked(idx, lessons.length, hit.node.id);
+        if (!locked && canOpenNode(opt.tree, progress, hit.node.id)) {
+          setRunning({ unit: hit.unit, node: hit.node });
+        } else {
+          const first = lessons.find((row, i) =>
+            !topicIsLocked(i, lessons.length, row.node.id)
+            && canOpenNode(opt.tree, progress, row.node.id)
+            && !isMastered(progress[row.node.id]?.mastery)
+          );
+          if (first) setRunning({ unit: first.unit, node: first.node });
+          else setOpenNode(hit);
+        }
+      }
+    }
+    if (onLaunchConsumed) onLaunchConsumed();
+  }, [launch]);
 
   React.useEffect(() => {
     if (running) return;

@@ -13,7 +13,7 @@
  *     App pulls in the full legacy tree; the click-through behavior was
  *     additionally verified manually against the dev server.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import "../bootstrap";
 
@@ -87,5 +87,69 @@ describe("AppNav header logout is wired to clearSession (audit #29, worse varian
     const appNavStart = src.indexOf("<AppNav");
     const appNavBlock = src.slice(appNavStart, src.indexOf("/>", appNavStart));
     expect(appNavBlock).toMatch(/onLogout=\{[^]*?clearSession\(\)[^]*?setRoute\("landing"\)/);
+  });
+});
+
+describe("updateAccount", () => {
+  const api = window as unknown as {
+    updateAccount: (patch: { name?: string; email?: string; password?: string }) => Promise<{ emailPending: boolean; localOnly: boolean }>;
+    setSession: (s: unknown) => unknown;
+    clearSession: () => void;
+    _supabase: { auth: { updateUser: (patch: unknown) => Promise<{ data: { user: unknown }; error: unknown }> } };
+  };
+
+  afterEach(() => {
+    api.clearSession();
+  });
+
+  it("rejects a short password without calling Supabase", async () => {
+    api.setSession({ id: "u1", email: "a@b.c", name: "Hlib", mode: "account" });
+    const orig = api._supabase.auth.updateUser;
+    let called = false;
+    api._supabase.auth.updateUser = async () => {
+      called = true;
+      return { data: { user: null }, error: null };
+    };
+    try {
+      await expect(api.updateAccount({ password: "short" })).rejects.toMatchObject({ code: "PASSWORD_SHORT" });
+      expect(called).toBe(false);
+    } finally {
+      api._supabase.auth.updateUser = orig;
+    }
+  });
+
+  it("sends password to updateUser for a real account", async () => {
+    api.setSession({ id: "u1", email: "a@b.c", name: "Hlib", mode: "account" });
+    const origUpdate = api._supabase.auth.updateUser;
+    api._supabase.auth.updateUser = async (patch) => {
+      expect(patch).toEqual({ password: "newpass12" });
+      return {
+        data: { user: { id: "u1", email: "a@b.c", is_anonymous: false, user_metadata: { full_name: "Hlib" } } },
+        error: null,
+      };
+    };
+    try {
+      const result = await api.updateAccount({ password: "newpass12" });
+      expect(result.localOnly).toBe(false);
+      expect(result.emailPending).toBe(false);
+    } finally {
+      api._supabase.auth.updateUser = origUpdate;
+    }
+  });
+
+  it("does not send a password for demo", async () => {
+    api.setSession({ id: "anon", email: null, name: "Demo", mode: "demo" });
+    const origUpdate = api._supabase.auth.updateUser;
+    let called = false;
+    api._supabase.auth.updateUser = async () => {
+      called = true;
+      return { data: { user: null }, error: null };
+    };
+    try {
+      await expect(api.updateAccount({ password: "newpass12" })).rejects.toMatchObject({ code: "DEMO" });
+      expect(called).toBe(false);
+    } finally {
+      api._supabase.auth.updateUser = origUpdate;
+    }
   });
 });

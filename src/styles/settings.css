@@ -498,10 +498,48 @@
   font-weight: var(--weight-medium);
 }
 
-.settings-avatar-ring {
+.settings-avatar-wrap {
+  position: relative;
   width: 72px;
   height: 72px;
   flex-shrink: 0;
+}
+
+.settings-avatar-ring {
+  position: absolute;
+  inset: 0;
+  width: 72px;
+  height: 72px;
+  pointer-events: none;
+}
+
+.settings-avatar-face {
+  position: absolute;
+  inset: 8px;
+  width: 56px;
+  height: 56px;
+  border-radius: 99px;
+  object-fit: cover;
+  background: var(--indigo-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+
+.settings-avatar-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .settings-danger {

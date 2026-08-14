@@ -48,6 +48,13 @@ function pteRow(subject, aliases, names) {
     topics: bacTopics(names), source: "official",
   };
 }
+function maturaRow(subject, aliases, names) {
+  return {
+    countryId: "pl", educationSystemId: "k12", qualificationId: "matura",
+    board: null, specVersion: "nowa-matura", subject, aliases,
+    topics: bacTopics(names), source: "official",
+  };
+}
 
 const CURRICULUM_SEED = [
   {
@@ -1390,206 +1397,68 @@ const CURRICULUM_SEED = [
     source: "official",
   },
   // ===== Matura (Poland, CKE) =====
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Polish Language", aliases: ["Polish", "Polish Language", "Język Polski", "Польский язык", "Польська мова", "polski"],
-    topics: [
-      { name: "Reading Comprehension", difficulty: 5, importance: 6, subtopics: ["Literary texts", "Non-literary texts", "Media texts", "Functional texts", "Critical reading", "Interpretation"] },
-      { name: "Literature", difficulty: 5, importance: 6, subtopics: ["Ancient literature", "Medieval literature", "Renaissance", "Baroque", "Enlightenment", "Romanticism", "Positivism", "Young Poland", "Interwar literature", "World War II literature", "Contemporary literature"] },
-      { name: "Literary Analysis", difficulty: 5, importance: 6, subtopics: ["Theme", "Motif", "Symbol", "Characterization", "Plot", "Narrator", "Genre", "Style", "Context"] },
-      { name: "Language", difficulty: 5, importance: 6, subtopics: ["Grammar", "Syntax", "Morphology", "Lexicology", "Phraseology", "Stylistics", "Orthography", "Punctuation"] },
-      { name: "Writing", difficulty: 5, importance: 6, subtopics: ["Essay", "Argumentative essay", "Interpretation", "Formal writing", "Summary"] },
-      { name: "Oral Examination", difficulty: 5, importance: 6, subtopics: ["Presentation", "Literary discussion", "Communication skills"] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Mathematics", aliases: ["Mathematics", "Math", "Maths", "Математика", "матем", "Matematyka"],
-    topics: [
-      { name: "Numbers", difficulty: 5, importance: 6, subtopics: ["Integers", "Fractions", "Percentages", "Powers", "Roots", "Logarithms"] },
-      { name: "Algebra", difficulty: 5, importance: 6, subtopics: ["Expressions", "Equations", "Inequalities", "Systems of equations", "Absolute value"] },
-      { name: "Functions", difficulty: 5, importance: 6, subtopics: ["Linear", "Quadratic", "Polynomial", "Rational", "Exponential", "Logarithmic", "Trigonometric"] },
-      { name: "Sequences", difficulty: 5, importance: 6, subtopics: ["Arithmetic", "Geometric"] },
-      { name: "Calculus", difficulty: 5, importance: 6, subtopics: ["Limits", "Derivatives", "Optimization", "Integrals (extended)"] },
-      { name: "Geometry", difficulty: 5, importance: 6, subtopics: ["Plane geometry", "Coordinate geometry", "Circles", "Triangles", "Polygons"] },
-      { name: "Solid Geometry", difficulty: 5, importance: 6, subtopics: ["Prisms", "Pyramids", "Cylinders", "Cones", "Spheres"] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "English Language", aliases: ["English Language", "English", "Английский язык", "Англійська мова", "английский", "англійська", "Język Angielski"],
-    topics: [
-      { name: "Reading Comprehension", difficulty: 5, importance: 7, subtopics: ["Gist and main idea", "Specific information", "Matching", "Gap filling", "Inference"] },
-      { name: "Listening Comprehension", difficulty: 5, importance: 7, subtopics: ["Gist and main idea", "Specific information", "Matching", "Multiple choice", "Note completion"] },
-      { name: "Language in Use", difficulty: 6, importance: 7, subtopics: ["Grammar structures", "Word formation", "Vocabulary in context", "Gap filling", "Sentence transformation"] },
-      { name: "Writing", difficulty: 5, importance: 6, subtopics: ["Formal letter/email", "Informal letter/email", "Argumentative essay", "Narrative", "Opinion essay"] },
-      { name: "Speaking", difficulty: 6, importance: 5, subtopics: ["Picture description", "Roleplay", "Extended monologue", "Discussion"] },
-      { name: "Topic/Theme Areas", difficulty: 4, importance: 6, subtopics: ["Education", "Work", "Family", "Health", "Technology", "Environment", "Culture", "Science", "Travel", "Society"] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Biology", aliases: ["Biology", "Bio", "Биология", "Біологія", "био", "біо"],
-    topics: [
-      { name: "Cell Biology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Biochemistry", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Genetics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Evolution", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Ecology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Plant Biology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Animal Biology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Human Physiology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Microbiology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Biotechnology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Experimental Skills", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Chemistry", aliases: ["Chemistry", "Chem", "Химия", "Хімія", "хим", "хім"],
-    topics: [
-      { name: "Atomic Structure", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Periodic Table", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Chemical Bonding", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Stoichiometry", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Solutions", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Thermochemistry", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Reaction Rates", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Chemical Equilibrium", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Acids and Bases", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Redox", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Organic Chemistry", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Analytical Chemistry", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Laboratory Skills", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Physics", aliases: ["Physics", "Физика", "Фізика", "физ", "фіз"],
-    topics: [
-      { name: "Mechanics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Thermodynamics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Electricity", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Magnetism", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Oscillations", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Waves", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Optics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Atomic Physics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Nuclear Physics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Modern Physics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Experimental Physics", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Computer Science", aliases: ["Computer Science", "Computing", "CS", "Информатика", "Інформатика", "Informatyka"],
-    topics: [
-      { name: "Algorithms", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Programming", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Data Structures", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Databases", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Computer Systems", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Operating Systems", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Computer Networks", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Cybersecurity", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Logic", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Binary Representation", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Data Analysis", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Spreadsheets", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Geography", aliases: ["Geography", "География", "Географія", "гео"],
-    topics: [
-      { name: "Physical Geography", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Human Geography", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Economic Geography", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Population", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Climate", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Geomorphology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Hydrology", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Agriculture", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Industry", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Globalization", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Maps", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "GIS", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "History", aliases: ["History", "История", "Історія", "истор", "істор"],
-    topics: [
-      { name: "Ancient History", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Middle Ages", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Early Modern Europe", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Partitions of Poland", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "World War I", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Interwar Period", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "World War II", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Cold War", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Modern Poland", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Historical Source Analysis", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Civics (WOS)", aliases: ["Civics", "Обществознание", "Суспільствознавство", "WOS"],
-    topics: [
-      { name: "Constitution", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Law", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Government", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Democracy", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Human Rights", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "European Union", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "International Organizations", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Economics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Politics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Citizenship", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    subject: "Economics", aliases: ["Economics", "Econ", "Экономика", "Економіка", "эконом"],
-    topics: [
-      { name: "Microeconomics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Macroeconomics", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Business", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Public Finance", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "International Trade", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Banking", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Labour Market", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Entrepreneurship", difficulty: 5, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
-  {
-    countryId: "pl", educationSystemId: "k12", qualificationId: "matura", board: null, specVersion: "nowa-matura",
-    // Generic placeholder for German/French/Spanish/Russian/Italian matura
-    // (each sat under the same CKE exam format as English). Skill areas only —
-    // no language-specific vocabulary/grammar content, since that depends on
-    // which language the student actually picks.
-    subject: "Foreign Languages", aliases: ["Foreign Languages", "Foreign Language", "Иностранные языки", "Іноземні мови"],
-    topics: [
-      { name: "Reading Comprehension", difficulty: 5, importance: 7, subtopics: [] },
-      { name: "Listening Comprehension", difficulty: 5, importance: 7, subtopics: [] },
-      { name: "Writing", difficulty: 5, importance: 6, subtopics: [] },
-      { name: "Speaking", difficulty: 6, importance: 5, subtopics: [] },
-      { name: "Grammar", difficulty: 6, importance: 7, subtopics: [] },
-      { name: "Vocabulary", difficulty: 4, importance: 6, subtopics: [] },
-    ],
-    source: "official",
-  },
+  // Polish-medium papers use CKE titles so Learn / Socratic / topic pickers
+  // stay Polish. Język angielski stays English (the paper language).
+  maturaRow("Język polski", ["Polish", "Polish Language", "Język Polski", "Польский язык", "Польська мова", "polski"], [
+    "Czytanie ze zrozumieniem", "Literatura", "Analiza utworu literackiego",
+    "Język: gramatyka i stylistyka", "Wypracowanie", "Egzamin ustny",
+  ]),
+  maturaRow("Matematyka", ["Mathematics", "Math", "Maths", "Математика", "матем", "Matematyka"], [
+    "Liczby rzeczywiste", "Algebra", "Funkcje", "Ciągi", "Rachunek różniczkowy",
+    "Planimetria", "Stereometria",
+  ]),
+  maturaRow("Język angielski", ["English Language", "English", "Английский язык", "Англійська мова", "английский", "англійська", "Język Angielski"], [
+    "Reading Comprehension", "Listening Comprehension", "Language in Use",
+    "Writing", "Topic/Theme Areas",
+  ]),
+  maturaRow("Biologia", ["Biology", "Bio", "Биология", "Біологія", "био", "біо"], [
+    "Biologia komórki", "Biochemia", "Genetyka", "Ewolucjonizm", "Ekologia",
+    "Biologia roślin", "Biologia zwierząt", "Fizjologia człowieka", "Mikrobiologia",
+    "Biotechnologia", "Umiejętności doświadczalne",
+  ]),
+  maturaRow("Chemia", ["Chemistry", "Chem", "Химия", "Хімія", "хим", "хім"], [
+    "Budowa atomu", "Układ okresowy", "Wiązania chemiczne", "Stechiometria",
+    "Roztwory", "Termochemia", "Kinetyka reakcji", "Równowaga chemiczna",
+    "Kwasy i zasady", "Reakcje redoks", "Chemia organiczna", "Chemia analityczna",
+  ]),
+  maturaRow("Fizyka", ["Physics", "Физика", "Фізика", "физ", "фіз"], [
+    "Mechanika", "Termodynamika", "Elektryczność", "Magnetyzm",
+    "Drgania", "Fale", "Optyka", "Fizyka atomowa",
+    "Fizyka jądrowa", "Fizyka współczesna",
+  ]),
+  maturaRow("Informatyka", ["Computer Science", "Computing", "CS", "Информатика", "Інформатика", "Informatyka"], [
+    "Algorytmy", "Programowanie", "Struktury danych", "Bazy danych",
+    "Systemy komputerowe", "Systemy operacyjne", "Sieci komputerowe",
+    "Cyberbezpieczeństwo", "Logika", "Zapis binarny", "Analiza danych", "Arkusze kalkulacyjne",
+  ]),
+  maturaRow("Geografia", ["Geography", "География", "Географія", "гео"], [
+    "Geografia fizyczna", "Geografia społeczna", "Geografia ekonomiczna",
+    "Ludność", "Klimat", "Geomorfologia", "Hydrologia",
+    "Rolnictwo", "Przemysł", "Globalizacja", "Mapy", "GIS",
+  ]),
+  maturaRow("Historia", ["History", "История", "Історія", "истор", "істор"], [
+    "Starożytność", "Średniowiecze", "Nowożytność",
+    "Rozbiory Polski", "I wojna światowa", "Dwudziestolecie międzywojenne",
+    "II wojna światowa", "Zimna wojna", "Polska współczesna", "Analiza źródeł historycznych",
+  ]),
+  maturaRow("Wiedza o społeczeństwie", ["Civics", "Civics (WOS)", "Обществознание", "Суспільствознавство", "WOS"], [
+    "Konstytucja", "Prawo", "Władza państwowa", "Demokracja", "Prawa człowieka",
+    "Unia Europejska", "Organizacje międzynarodowe", "Gospodarka",
+    "Polityka", "Obywatelstwo",
+  ]),
+  maturaRow("Ekonomia", ["Economics", "Econ", "Экономика", "Економіка", "эконом"], [
+    "Mikroekonomia", "Makroekonomia", "Przedsiębiorstwo", "Finanse publiczne",
+    "Handel międzynarodowy", "Bankowość", "Rynek pracy", "Przedsiębiorczość",
+  ]),
+  // Generic placeholder for German/French/Spanish/Russian/Italian matura
+  // (each sat under the same CKE exam format as English). Skill areas only —
+  // no language-specific vocabulary/grammar content, since that depends on
+  // which language the student actually picks. Titles stay English because
+  // the paper language is the foreign language, not Polish.
+  maturaRow("Język obcy", ["Foreign Languages", "Foreign Language", "Иностранные языки", "Іноземні мови"], [
+    "Reading Comprehension", "Listening Comprehension", "Writing",
+    "Grammar", "Vocabulary",
+  ]),
   // ===== Abitur (Germany, KMK) =====
   {
     countryId: "de", educationSystemId: "k12", qualificationId: "abitur", board: null, specVersion: "kmk",
@@ -2006,15 +1875,11 @@ const KNOWN_SUBJECTS = {
   // AI-fallback list needed; leaving this empty prevents duplicate search
   // entries (English name here vs. Ukrainian name in the seed).
   nmt: [],
-  // Polish, Mathematics, and a modern foreign language (basic level) are
-  // mandatory for every Matura student (Polish & Mathematics topic
-  // breakdowns in CURRICULUM_SEED above). This is the extended-level
-  // (rozszerzenie) elective — students sit at least one, up to six.
+  // Core Matura papers are seeded above (CKE Polish titles). Leftovers
+  // fall through to AI-generate + confirm — never silently "official".
   matura: [
-    "Biology", "Chemistry", "Physics", "Geography", "History", "Civics (WOS)", "Computer Science", "Philosophy",
-    "History of Art", "History of Music", "Latin & Ancient Culture", "Polish", "Mathematics",
-    "Foreign Language: English", "Foreign Language: German", "Foreign Language: French", "Foreign Language: Spanish",
-    "Foreign Language: Russian", "Foreign Language: Italian",
+    "Filozofia", "Historia sztuki", "Historia muzyki", "Język łaciński i kultura antyczna",
+    "Język niemiecki", "Język francuski", "Język hiszpański", "Język rosyjski", "Język włoski",
   ],
   // Abitur is set at the German STATE (Bundesland) level, not nationally — the
   // KMK only coordinates broad standards, so there's no single national

@@ -274,6 +274,73 @@ async function upgradeAnonymousAccount({ name, email, password }) {
   return { session, emailPending };
 }
 
+// Same 8-char floor as the landing signup form. Shorter values are rejected
+// here so Settings never hits Supabase with a password the signup UI would
+// have blocked.
+const MIN_PASSWORD_LEN = 8;
+
+/**
+ * Logged-in account edits from Settings. Demo / anonymous sessions only
+ * write the local profile — they have no recoverable password.
+ */
+async function updateAccount({ name, email, password } = {}) {
+  const session = getSession();
+  const trimmedName = typeof name === "string" ? name.trim() : "";
+  const trimmedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  const nextPassword = typeof password === "string" ? password : "";
+
+  if (nextPassword && nextPassword.length < MIN_PASSWORD_LEN) {
+    const err = new Error(`Use at least ${MIN_PASSWORD_LEN} characters.`);
+    err.code = "PASSWORD_SHORT";
+    throw err;
+  }
+
+  const profilePatch = {};
+  if (trimmedName) profilePatch.fullName = trimmedName;
+  if (trimmedEmail) profilePatch.email = trimmedEmail;
+  if (Object.keys(profilePatch).length && window.saveProfile) window.saveProfile(profilePatch);
+
+  const isDemo = !session || session.mode === "demo" || !session.id;
+  if (isDemo) {
+    if (nextPassword) {
+      const err = new Error("Create an account to set a password.");
+      err.code = "DEMO";
+      throw err;
+    }
+    if (session && trimmedName) setSession({ ...session, name: trimmedName });
+    return { emailPending: false, localOnly: true };
+  }
+
+  const patch = {};
+  if (nextPassword) patch.password = nextPassword;
+  if (trimmedEmail && trimmedEmail !== (session.email || "").toLowerCase()) patch.email = trimmedEmail;
+  if (trimmedName) patch.data = { full_name: trimmedName };
+  if (!Object.keys(patch).length) return { emailPending: false, localOnly: false };
+
+  const { data, error } = await _supabase.auth.updateUser(patch);
+  if (error) {
+    const err = new Error(error.message);
+    err.code = "UPDATE_ERROR";
+    throw err;
+  }
+
+  const user = data?.user || null;
+  const emailPending = !!(patch.email && user && (user.new_email || user.email !== patch.email));
+  if (user) {
+    const next = _supabaseUserToSession(user);
+    if (next && next.mode === "account") {
+      setSession({
+        ...next,
+        name: trimmedName || next.name,
+        email: emailPending ? session.email : (next.email || session.email),
+      });
+    }
+  } else if (trimmedName) {
+    setSession({ ...session, name: trimmedName });
+  }
+  return { emailPending, localOnly: false };
+}
+
 // ─── server-call credentials ──────────────────────────────────────────────────
 // /api/complete and /api/fetch-url both require a live access token (api/_guard.js).
 // getSession() refreshes an expired token before returning it.
@@ -304,6 +371,7 @@ Object.assign(window, {
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
   signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount,
+  updateAccount, MIN_PASSWORD_LEN,
   getAccessToken, apiHeaders,
 });
 

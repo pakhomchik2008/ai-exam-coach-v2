@@ -79,56 +79,52 @@ function SettingsPage({ title, onClose, backLabel, children }) {
   );
 }
 
+function avatarLetters(name) {
+  return (name || "?").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+}
+
 function XpAvatar({ src, name, into, need }) {
   const r = 32;
   const circ = 2 * Math.PI * r;
   const pct = need > 0 ? Math.min(1, into / need) : 0;
-  const letters = (name || "?").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
   return (
-    <svg className="settings-avatar-ring" viewBox="0 0 72 72" aria-hidden="true">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="var(--border-default)" strokeWidth="3" />
-      <circle cx="36" cy="36" r={r} fill="none" stroke="var(--amber-500)" strokeWidth="3"
-        strokeDasharray={`${circ * pct} ${circ}`} strokeLinecap="round" transform="rotate(-90 36 36)" />
+    <div className="settings-avatar-wrap" aria-hidden="true">
       {src
-        ? <image href={src} x="8" y="8" width="56" height="56" clipPath="inset(0 round 28px)" />
-        : (
-          <>
-            <circle cx="36" cy="36" r="26" fill="var(--indigo-600)" />
-            <text x="36" y="42" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="700" fontFamily="var(--font-sans)">{letters}</text>
-          </>
-        )}
-    </svg>
+        ? <img className="settings-avatar-face" src={src} alt="" />
+        : <span className="settings-avatar-face">{avatarLetters(name)}</span>}
+      <svg className="settings-avatar-ring" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r={r} fill="none" stroke="var(--border-default)" strokeWidth="3" />
+        <circle cx="36" cy="36" r={r} fill="none" stroke="var(--amber-500)" strokeWidth="3"
+          strokeDasharray={`${circ * pct} ${circ}`} strokeLinecap="round" transform="rotate(-90 36 36)" />
+      </svg>
+    </div>
   );
 }
 
-function initialsAvatar(name) {
-  const c = document.createElement("canvas");
-  c.width = 128;
-  c.height = 128;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--indigo-600").trim() || "#4F46E5";
-  ctx.fillRect(0, 0, 128, 128);
-  ctx.fillStyle = "#fff";
-  ctx.font = "700 52px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const letters = (name || "?").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
-  ctx.fillText(letters, 64, 70);
-  return c.toDataURL("image/png");
-}
+const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
-function readAvatarFile(file, done) {
+function readAvatarFile(file, done, fail) {
+  if (!file || !String(file.type || "").startsWith("image/")) { fail(); return; }
+  if (file.size > AVATAR_MAX_BYTES) { fail(); return; }
   const img = new Image();
   const url = URL.createObjectURL(file);
   img.onload = () => {
-    const c = document.createElement("canvas");
-    c.width = 128;
-    c.height = 128;
-    const ctx = c.getContext("2d");
-    const s = Math.min(img.width, img.height);
-    ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
-    done(c.toDataURL("image/jpeg", 0.82));
+    try {
+      const c = document.createElement("canvas");
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext("2d");
+      const s = Math.min(img.width, img.height) || 1;
+      ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+      done(c.toDataURL("image/jpeg", 0.82));
+    } catch {
+      fail();
+    }
     URL.revokeObjectURL(url);
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    fail();
   };
   img.src = url;
 }
@@ -178,6 +174,12 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const [hoursPerDay, setHoursPerDay] = React.useState(profile.hoursPerDay || Math.round((profile.weeklyHours || 12) / (profile.daysPerWeek || 5)));
   const [country, setCountry] = React.useState(profile.country || "");
   const [avatar, setAvatar] = React.useState(profile.avatarDataUrl || "");
+  const [password, setPassword] = React.useState("");
+  const [password2, setPassword2] = React.useState("");
+  const [accountError, setAccountError] = React.useState("");
+  const [avatarError, setAvatarError] = React.useState("");
+  const [emailPending, setEmailPending] = React.useState(false);
+  const [accountBusy, setAccountBusy] = React.useState(false);
   const [quietStart, setQuietStart] = React.useState(profile.quietHoursStart ?? 22);
   const [quietEnd, setQuietEnd] = React.useState(profile.quietHoursEnd ?? 7);
   const [quietOn, setQuietOn] = React.useState(profile.quietHoursStart != null);
@@ -191,7 +193,6 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const [egg, setEgg] = React.useState(0);
   const [pushStatus, setPushStatus] = React.useState("unsupported");
   const [exported, setExported] = React.useState(false);
-  const fileRef = React.useRef(null);
   const pro = isProUser();
   const xp = window.xpLevel ? window.xpLevel() : { level: 1, xp: 0, into: 0, need: 100 };
   const tier = window.xpTier ? window.xpTier() : { id: "novice", emoji: "🌱" };
@@ -199,6 +200,9 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const streak = window.computeStreak ? window.computeStreak() : 0;
   const ZONES = window.TIMEZONES || [];
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const session = window.getSession ? window.getSession() : null;
+  const isDemo = !session || session.mode === "demo";
+  const minPassword = window.MIN_PASSWORD_LEN || 8;
 
   React.useEffect(() => {
     if (!window.isPushSupported || !window.isPushSupported()) return;
@@ -224,20 +228,52 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
     return next;
   }
 
-  function saveCore() {
+  async function saveProfileSheet() {
     const trimmedEmail = email.trim();
     const emailValid = !trimmedEmail || EMAIL_RE.test(trimmedEmail);
     setEmailError(emailValid ? "" : t.settings_email_invalid);
+    setAccountError("");
+    if (!emailValid) return;
+    if (password && password.length < minPassword) {
+      setAccountError(L(lang, `Use at least ${minPassword} characters.`, `Щонайменше ${minPassword} символів.`, `Не менее ${minPassword} символов.`, `Au moins ${minPassword} caractères.`, `Mindestens ${minPassword} Zeichen.`));
+      return;
+    }
+    if (password && password !== password2) {
+      setAccountError(t.settings_password_mismatch);
+      return;
+    }
     persist({
       fullName, timezone: tz.id, reminderEnabled, reminderHour,
       notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
       notifyMaster, soundsEnabled, soundVolume, hapticEnabled, theme, accent, dyslexiaFont,
       tierThemeDisabled: tierOff, hoursPerDay, country, avatarDataUrl: avatar,
       quietHoursStart: quietOn ? quietStart : null, quietHoursEnd: quietOn ? quietEnd : null,
-      email: emailValid ? trimmedEmail : profile.email,
+      email: trimmedEmail,
     });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2800);
+    if (!window.updateAccount) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2800);
+      setSheet(null);
+      return;
+    }
+    setAccountBusy(true);
+    try {
+      const result = await window.updateAccount({
+        name: fullName,
+        email: trimmedEmail,
+        password: password || undefined,
+      });
+      setPassword("");
+      setPassword2("");
+      setEmailPending(!!result.emailPending);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2800);
+      if (!result.emailPending) setSheet(null);
+    } catch (err) {
+      setAccountError(err && err.code === "DEMO" ? t.settings_password_demo : (err && err.message) || t.settings_email_invalid);
+    } finally {
+      setAccountBusy(false);
+    }
   }
 
   async function buy() {
@@ -267,7 +303,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
         <div className="settings-hub-grid">
           <HubCard
             title={L(lang, "Profile", "Профіль", "Профиль", "Profil", "Profil")}
-            sub={L(lang, "Name, photo, email", "Ім'я, фото, email", "Имя, фото, email", "Nom, photo, e-mail", "Name, Foto, E-Mail")}
+            sub={L(lang, "Name, photo, email, password", "Ім'я, фото, email, пароль", "Имя, фото, email, пароль", "Nom, photo, e-mail, mot de passe", "Name, Foto, E-Mail, Passwort")}
             onClick={() => setSheet("profile")}
             icon={<HubIcon><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></HubIcon>}
           />
@@ -365,28 +401,47 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
                 <em>{email || "—"} · {L(lang, "Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level} {tier.emoji}</em>
               </span>
             </div>
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => {
+            <input id="settings-avatar-file" type="file" accept="image/*" className="settings-avatar-file" onChange={(e) => {
               const f = e.target.files && e.target.files[0];
-              if (f) readAvatarFile(f, (data) => { setAvatar(data); persist({ avatarDataUrl: data }); });
+              e.target.value = "";
+              if (!f) return;
+              readAvatarFile(f, (data) => {
+                setAvatarError("");
+                setAvatar(data);
+                persist({ avatarDataUrl: data });
+              }, () => setAvatarError(t.settings_avatar_bad));
             }} />
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button type="button" onClick={() => fileRef.current && fileRef.current.click()}
-                style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
+              <label htmlFor="settings-avatar-file"
+                style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer", textAlign: "center", fontFamily: "var(--font-sans)", fontSize: 14 }}>
                 {L(lang, "Upload photo", "Завантажити фото", "Загрузить фото", "Uploader une photo", "Foto hochladen")}
-              </button>
-              <button type="button" onClick={() => { const data = initialsAvatar(fullName); setAvatar(data); persist({ avatarDataUrl: data }); }}
+              </label>
+              <button type="button" onClick={() => { setAvatar(""); persist({ avatarDataUrl: "" }); setAvatarError(""); }}
                 style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
-                {L(lang, "Generate initials", "Згенерувати ініціали", "Сгенерировать инициалы", "Générer les initiales", "Initialen erzeugen")}
+                {L(lang, "Use initials", "Ініціали", "Инициалы", "Initiales", "Initialen")}
               </button>
             </div>
+            {avatarError && <p style={{ color: "var(--red-600)", fontSize: 12, margin: "-4px 0 12px" }}>{avatarError}</p>}
             <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_fullname}</label>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" style={{ ...inputStyle, marginBottom: 12 }} />
             <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_email}</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" style={inputStyle} />
             {emailError && <p style={{ color: "var(--red-600)", fontSize: 12 }}>{emailError}</p>}
-            <button type="button" onClick={() => { saveCore(); setSheet(null); }}
-              style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-              {t.settings_save}
+            {emailPending && <p style={{ color: "var(--indigo-700)", fontSize: 12 }}>{t.settings_email_pending}</p>}
+            {isDemo
+              ? <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "12px 0 0" }}>{t.settings_password_demo}</p>
+              : (
+                <>
+                  <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", margin: "12px 0 4px" }}>{t.settings_password}</label>
+                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder={t.settings_password_note} style={{ ...inputStyle, marginBottom: 12 }} />
+                  <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_password_confirm}</label>
+                  <input type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" style={inputStyle} />
+                </>
+              )}
+            {accountError && <p style={{ color: "var(--red-600)", fontSize: 12 }}>{accountError}</p>}
+            <button type="button" disabled={accountBusy} onClick={saveProfileSheet}
+              style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: accountBusy ? "wait" : "pointer" }}>
+              {accountBusy ? L(lang, "Saving…", "Збереження…", "Сохранение…", "Enregistrement…", "Speichern…") : t.settings_save}
             </button>
           </div>
         </SettingsPage>
@@ -554,6 +609,24 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
                   persist({ quietHoursStart: v ? quietStart : null, quietHoursEnd: v ? quietEnd : null });
                 }} />
               </Row>
+              {quietOn && (
+                <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+                  <span className="settings-row-label">
+                    <strong>{quietStart}:00 → {quietEnd}:00</strong>
+                    <em>{L(lang, "Start / end", "Початок / кінець", "Начало / конец", "Début / fin", "Start / Ende")}</em>
+                  </span>
+                  <input type="range" min={0} max={23} value={quietStart} onChange={(e) => {
+                    const h = Number(e.target.value);
+                    setQuietStart(h);
+                    persist({ quietHoursStart: h, quietHoursEnd: quietEnd });
+                  }} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+                  <input type="range" min={0} max={23} value={quietEnd} onChange={(e) => {
+                    const h = Number(e.target.value);
+                    setQuietEnd(h);
+                    persist({ quietHoursStart: quietStart, quietHoursEnd: h });
+                  }} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+                </div>
+              )}
               {window.isPushSupported && window.isPushSupported() && pushStatus !== "granted" && pushStatus !== "denied" && (
                 <Row label={L(lang, "Enable browser push", "Увімкнути push", "Включить push", "Activer le push", "Push aktivieren")} chevron
                   onClick={async () => setPushStatus(await window.requestPushPermission())} />
