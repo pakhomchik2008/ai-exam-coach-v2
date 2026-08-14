@@ -1,6 +1,6 @@
 /* ============================================================
    AI Exam Coach — Color tokens
-   Pre-FintechX palette: white page, slate neutrals, indigo accent.
+   Cream Paper is the default named palette (see themes.css).
    Emerald is success/progress only — not chrome.
    ============================================================ */
 :root {
@@ -12,32 +12,32 @@
   --emerald-600: #059669;
   --emerald-700: #047857;
 
-  --indigo-50:  #EEF2FF;
-  --indigo-100: #E0E7FF;
-  --indigo-200: #C7D2FE;
-  --indigo-400: #818CF8;
-  --indigo-500: #6366F1;
-  --indigo-600: #4F46E5;
-  --indigo-700: #4338CA;
-  --indigo-800: #3730A3;
+  --indigo-50:  #E7EEEE;
+  --indigo-100: #D2DEDC;
+  --indigo-200: #A8C2BE;
+  --indigo-400: #3D6F6C;
+  --indigo-500: #2A5C59;
+  --indigo-600: #1B4D4A;
+  --indigo-700: #163E3C;
+  --indigo-800: #102E2C;
 
-  /* ---- Neutrals (Slate) ---- */
-  --slate-50:  #F8FAFC;
-  --slate-100: #F1F5F9;
-  --slate-200: #E2E8F0;
-  --slate-300: #CBD5E1;
-  --slate-400: #94A3B8;
-  --slate-500: #64748B;
-  --slate-600: #475569;
-  --slate-700: #334155;
-  --slate-800: #1E293B;
-  --slate-900: #0F172A;
+  /* ---- Neutrals (warm paper) ---- */
+  --slate-50:  #F7F5F0;
+  --slate-100: #EFEDE7;
+  --slate-200: #E4E1D8;
+  --slate-300: #D0CCC0;
+  --slate-400: #9A968C;
+  --slate-500: #6F6C64;
+  --slate-600: #4A4843;
+  --slate-700: #33322E;
+  --slate-800: #1C1C1A;
+  --slate-900: #0E0F10;
   --white: #FFFFFF;
-  --app-bg: #F9FAFB;
+  --app-bg: #FAFAF8;
 
-  --ink-900: #0F172A;
-  --ink-800: #1E293B;
-  --ink-700: #334155;
+  --ink-900: #1B4D4A;
+  --ink-800: #163E3C;
+  --ink-700: #2A5C59;
 
   /* ---- Semantic status ---- */
   --green-50:  #ECFDF5;
@@ -91,7 +91,7 @@
      Semantic aliases — prefer these in components
      ============================================================ */
   --surface-page:   var(--app-bg);
-  --surface-card:   var(--white);
+  --surface-card:   #F2F0EA;
   --surface-muted:  var(--slate-50);
   --surface-sunken: var(--slate-100);
   --surface-ink:    var(--ink-900);
@@ -133,63 +133,4 @@
   --risk-med-bg:  var(--amber-50);
   --risk-high-fg: var(--red-700);
   --risk-high-bg: var(--red-50);
-}
-
-/* Dark appearance (Settings Light/Dark/System). Surfaces only. */
-:root[data-theme="dark"] {
-  --app-bg:         #0F172A;
-  --surface-page:   #0F172A;
-  --surface-card:   #1E293B;
-  --surface-muted:  #1E293B;
-  --surface-sunken: #0B1220;
-  --surface-nav:    rgba(15, 23, 42, 0.86);
-  --slate-50:  #1E293B;
-  --slate-100: #334155;
-  --slate-200: #475569;
-  --slate-300: #64748B;
-  --slate-400: #94A3B8;
-  --slate-500: #CBD5E1;
-  --slate-600: #E2E8F0;
-  --slate-700: #F1F5F9;
-  --slate-800: #F8FAFC;
-  --slate-900: #F8FAFC;
-  --text-strong:  #F8FAFC;
-  --text-body:    #E2E8F0;
-  --text-muted:   #94A3B8;
-  --text-faint:   #64748B;
-  --border-subtle: rgba(248, 250, 252, 0.08);
-  --border-default: rgba(248, 250, 252, 0.14);
-  --border-strong:  rgba(248, 250, 252, 0.22);
-  --action-primary: #A5B4FC;
-  --action-primary-hover: #C7D2FE;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --app-bg:         #0F172A;
-    --surface-page:   #0F172A;
-    --surface-card:   #1E293B;
-    --surface-muted:  #1E293B;
-    --surface-sunken: #0B1220;
-    --surface-nav:    rgba(15, 23, 42, 0.86);
-    --slate-50:  #1E293B;
-    --slate-100: #334155;
-    --slate-200: #475569;
-    --slate-300: #64748B;
-    --slate-400: #94A3B8;
-    --slate-500: #CBD5E1;
-    --slate-600: #E2E8F0;
-    --slate-700: #F1F5F9;
-    --slate-800: #F8FAFC;
-    --slate-900: #F8FAFC;
-    --text-strong:  #F8FAFC;
-    --text-body:    #E2E8F0;
-    --text-muted:   #94A3B8;
-    --text-faint:   #64748B;
-    --border-subtle: rgba(248, 250, 252, 0.08);
-    --border-default: rgba(248, 250, 252, 0.14);
-    --border-strong:  rgba(248, 250, 252, 0.22);
-    --action-primary: #A5B4FC;
-    --action-primary-hover: #C7D2FE;
-  }
 }
