@@ -82,8 +82,9 @@ function migrateProfile(raw) {
     hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
     // Phase 4 sound kit. Spec default is off — existing profiles stay silent.
     soundsEnabled: typeof p.soundsEnabled === "boolean" ? p.soundsEnabled : false,
-    // Manual Pro flag until Stripe exists. Learn locks the second half of
-    // each tree unless this is true.
+    // Pro cache. Stripe webhook is the writer; a missing subscriptions
+    // table still lets Hlib flip this by hand. Client refresh only
+    // overwrites when a real row exists.
     pro: p.pro === true,
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",

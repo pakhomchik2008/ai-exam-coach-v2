@@ -1,9 +1,27 @@
 // Pro gate sheet — shown when a free student taps a locked Learn topic.
-// Billing is not wired. The point is to show the rest of the syllabus
-// exists, not to hide it.
+// Checkout is a server redirect. This sheet is the in-Learn pay click.
+
+import { startProCheckout } from "../../lib/billing";
 
 export function ProSheet({ lockedCount, freeCount, onClose, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  async function upgrade() {
+    setBusy(true);
+    setError("");
+    const result = await startProCheckout();
+    if (result.alreadyPro) {
+      onClose();
+      return;
+    }
+    if (result.error) {
+      setError(result.error);
+      setBusy(false);
+    }
+  }
+
   return React.createElement("div", {
     className: "learn-sheet-backdrop",
     onClick: onClose,
@@ -19,15 +37,24 @@ export function ProSheet({ lockedCount, freeCount, onClose, t }) {
     React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--text-strong)" } },
       L("The rest of the syllabus", "Решта програми", "Остальная программа", "Le reste du programme", "Der Rest des Lehrplans")),
     React.createElement("p", { style: { margin: "0 0 18px", fontSize: 15, lineHeight: 1.55, color: "var(--text-muted)" } },
-      L(`${freeCount} topics are free. ${lockedCount} more unlock with Pro — same list as the full tree, not a thinner course.`,
-        `${freeCount} тем безкоштовно. Ще ${lockedCount} відкриються в Pro — той самий список, не урізаний курс.`,
-        `${freeCount} тем бесплатно. Ещё ${lockedCount} откроются в Pro — тот же список, не урезанный курс.`,
-        `${freeCount} sujets gratuits. ${lockedCount} de plus avec Pro.`,
-        `${freeCount} Themen gratis. ${lockedCount} weitere mit Pro.`)),
+      L(`${freeCount} topics are free. ${lockedCount} more unlock with Pro — 3 days trial, then $4/month. Card at checkout.`,
+        `${freeCount} тем безкоштовно. Ще ${lockedCount} відкриються в Pro — 3 дні тріалу, далі $4/міс. Картка на Checkout.`,
+        `${freeCount} тем бесплатно. Ещё ${lockedCount} откроются в Pro — 3 дня триала, дальше $4/мес. Карта на Checkout.`,
+        `${freeCount} sujets gratuits. ${lockedCount} de plus avec Pro — 3 jours d’essai, puis $4/mois.`,
+        `${freeCount} Themen gratis. ${lockedCount} weitere mit Pro — 3 Tage Trial, dann $4/Monat.`)),
+    error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "var(--red-600)" } }, error) : null,
+    React.createElement("button", {
+      type: "button",
+      disabled: busy,
+      onClick: upgrade,
+      style: { width: "100%", padding: "14px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: busy ? "wait" : "pointer", fontFamily: "var(--font-sans)", opacity: busy ? 0.7 : 1 },
+    }, busy
+      ? L("Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
+      : L("Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")),
     React.createElement("button", {
       type: "button",
       onClick: onClose,
-      style: { width: "100%", padding: "14px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
-    }, L("Got it", "Зрозуміло", "Понятно", "Compris", "Verstanden")),
+      style: { width: "100%", marginTop: 8, padding: "12px 16px", borderRadius: 12, border: "none", background: "transparent", color: "var(--text-muted)", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "var(--font-sans)" },
+    }, L("Not now", "Не зараз", "Не сейчас", "Pas maintenant", "Nicht jetzt")),
   ));
 }
