@@ -27,6 +27,13 @@ function bacRow(subject, aliases, names) {
     topics: bacTopics(names), source: "official",
   };
 }
+function greRow(subject, aliases, names) {
+  return {
+    countryId: "us", educationSystemId: "higher-ed", qualificationId: "gre",
+    board: null, specVersion: "shorter-2023", subject, aliases,
+    topics: bacTopics(names), source: "official",
+  };
+}
 
 const CURRICULUM_SEED = [
   {
@@ -1852,6 +1859,37 @@ const CURRICULUM_SEED = [
   bacRow("LLCER Anglais", ["LLCER", "Anglais spécialité", "English"], [
     "Imaginaires", "Rencontres", "Explorations", "Arts et débats d'idées",
     "Traduction et médiation", "Synthèse de documents", "Épreuve orale de spécialité",
+  ]),
+  greRow("Verbal Reasoning", ["Verbal", "GRE Verbal", "Verbal Reasoning"], [
+    "Text Completion (one blank)",
+    "Text Completion (two and three blanks)",
+    "Sentence Equivalence",
+    "Reading Comprehension: main idea",
+    "Reading Comprehension: detail and inference",
+    "Author's purpose, tone, structure",
+    "Vocabulary in context",
+    "Argument in a short passage",
+    "Pacing: 27 questions / 41 minutes",
+  ]),
+  greRow("Quantitative Reasoning", ["Quant", "GRE Quant", "Quantitative Reasoning", "GRE Math"], [
+    "Arithmetic and number properties",
+    "Algebra: equations and inequalities",
+    "Algebra: functions and exponents",
+    "Geometry: plane and coordinate",
+    "Data analysis and statistics",
+    "Quantitative Comparison",
+    "Numeric Entry",
+    "Data Interpretation sets",
+    "Word problems and rates",
+    "Pacing: 27 questions / 47 minutes",
+  ]),
+  greRow("Analytical Writing", ["AWA", "GRE Writing", "Issue essay", "Analytical Writing"], [
+    "Issue task: take a position",
+    "Issue: reasons and examples",
+    "Organization and transitions",
+    "Standard written English",
+    "The 0–6 scoring scale",
+    "30-minute Issue timing",
   ]),
 ];
 

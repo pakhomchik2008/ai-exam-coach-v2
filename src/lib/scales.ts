@@ -49,6 +49,10 @@ export const SCALES = {
   pte: { min: 10, max: 90, step: 1, targetTop: 76, format: "integer", label: "" },
   /** Baccalauréat général. Bulletins print half-points; 16 is mention TB. */
   bac: { min: 0, max: 20, step: 0.5, targetTop: 16, format: "decimal", label: "/20" },
+  /** GRE General V+Q. ETS prints two 130–170s; students plan against the sum. */
+  gre: { min: 260, max: 340, step: 1, targetTop: 320, format: "integer", label: "V+Q" },
+  gre_section: { min: 130, max: 170, step: 1, targetTop: 160, format: "integer", label: "" },
+  gre_awa: { min: 0, max: 6, step: 0.5, targetTop: 5, format: "decimal", label: "AWA" },
   act: { min: 1, max: 36, step: 1, targetTop: 32, format: "integer", label: "" },
   ap: { min: 1, max: 5, step: 1, targetTop: 5, format: "integer", label: "" },
   ib: { min: 1, max: 7, step: 1, targetTop: 6, format: "integer", label: "" },
@@ -76,6 +80,7 @@ const TAXONOMY_TO_SCALE: Readonly<Record<string, ScaleId>> = {
   ap: "ap",
   ib: "ib",
   bac: "bac",
+  gre: "gre",
 };
 
 /** True when the resolved scale is the generic 0–100 stand-in, not a real one. */

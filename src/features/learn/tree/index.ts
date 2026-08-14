@@ -7,7 +7,7 @@
 //
 // Subject-split exams (NMT, A-Level, GCSE, AP, IB, Matura, Abitur, Bac) never
 // register a bare qualification key. Section exams (SAT, ACT, IELTS,
-// TOEFL, DET) do — one sitting, one tree. `nmt` stays Mathematics on
+// TOEFL, DET, GRE) do — one sitting, one tree. `nmt` stays Mathematics on
 // purpose: learn-store already keys math mastery under that taxonomy.
 
 import type { LearnTree } from "./schema";
@@ -17,6 +17,7 @@ import SAT from "./sat";
 import ACT from "./act";
 import TOEFL from "./toefl";
 import DUOLINGO from "./duolingo";
+import GRE from "./gre";
 import {
   NMT_UKR, NMT_HIST, NMT_BIO, NMT_CHEM, NMT_PHYS, NMT_GEO,
   NMT_ENG, NMT_LIT, NMT_DE, NMT_FR, NMT_ES,
@@ -179,6 +180,7 @@ const TREES: Record<string, LearnTree> = {
   ielts: IELTS,
   toefl: TOEFL,
   duolingo: DUOLINGO,
+  gre: GRE,
 };
 
 export function getTree(examTaxonomy: string): LearnTree | null {
