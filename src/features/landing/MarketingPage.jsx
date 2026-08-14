@@ -154,24 +154,24 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
               <h3>{t.land_price_free_name}</h3>
               <p className="land-plan-price">{t.land_price_free_price}</p>
               <p>{t.land_price_free_body}</p>
-              <button type="button" className="land-btn land-btn-ghost" onClick={tap(onSignup)}>{t.land_price_cta}</button>
+              <button type="button" className="land-btn land-btn-ghost" onClick={tap(onSignup)}>{t.land_price_free_cta}</button>
             </article>
             <article className="land-plan is-featured">
               <h3>{t.land_price_pro_name}</h3>
               <p className="land-plan-price">
                 {annual ? t.land_price_pro_year : t.land_price_pro_month}
-                <span>{t.land_price_per_month}</span>
+                <span>{annual ? t.land_price_per_year : t.land_price_per_month}</span>
               </p>
               <p>{t.land_price_pro_body}</p>
               <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_price_cta}</button>
             </article>
             <article className="land-plan is-ink">
-              <h3>{t.land_price_opus_name}</h3>
+              <h3>{t.land_price_max_name}</h3>
               <p className="land-plan-price">
-                {annual ? t.land_price_opus_year : t.land_price_opus_month}
-                <span>{t.land_price_per_month}</span>
+                {annual ? t.land_price_max_year : t.land_price_max_month}
+                <span>{annual ? t.land_price_per_year : t.land_price_per_month}</span>
               </p>
-              <p>{t.land_price_opus_body}</p>
+              <p>{t.land_price_max_body}</p>
               <button type="button" className="land-btn land-btn-amber" onClick={tap(onSignup)}>{t.land_price_cta}</button>
             </article>
           </div>
