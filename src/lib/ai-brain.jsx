@@ -118,7 +118,7 @@ function buildLearnerContext(opts = {}) {
   return lines.join("\n");
 }
 
-import { coachLanguageDirective, inferCoachQual, paperLanguageDirective, paperLanguageFor } from "./paper-language";
+import { coachLanguageDirective, inferCoachQual, paperLanguageDirective, paperLanguageFor, paperQualForExam } from "./paper-language";
 
 // ─── central completion ───────────────────────────────────────────────────────
 
@@ -163,16 +163,23 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   const topicExamQual = topicContext && topicContext.examId && window.getExams
     ? (() => {
       const exam = window.getExams().find((e) => e.id === topicContext.examId);
-      return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+      const family = (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+      return paperQualForExam({ ...exam, qualificationId: family }) || family;
     })()
     : null;
   const studentQuals = window.getExams
-    ? window.getExams().map((e) => (window.examQualificationId && window.examQualificationId(e)) || e.qualificationId)
+    ? window.getExams().map((e) => {
+      const family = (window.examQualificationId && window.examQualificationId(e)) || e.qualificationId;
+      return paperQualForExam({ ...e, qualificationId: family }) || family;
+    })
     : [];
   const inferred = inferCoachQual({ paperQual, topicExamQual, studentQuals });
-  const langBit = paperQual
-    ? paperLanguageDirective(paperQual)
-    : (inferred && paperLanguageFor(inferred) ? coachLanguageDirective(inferred) : aiLangDirective(langOverride));
+  const qual = paperQual || inferred;
+  // Paper language always beats explainLang / UI. NMT math stays Ukrainian
+  // even if the student set "explain in English"; NMT English stays English.
+  const langBit = paperLanguageFor(qual)
+    ? (paperQual ? paperLanguageDirective(paperQual) : coachLanguageDirective(qual))
+    : aiLangDirective(langOverride);
   const dynamic = [langBit, ctx].filter(Boolean).join("\n\n");
   const systemBlocks = [];
   if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });

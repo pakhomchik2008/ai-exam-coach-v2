@@ -19,6 +19,7 @@ export interface I18nString {
   readonly ru?: string;
   readonly fr?: string;
   readonly de?: string;
+  readonly es?: string;
 }
 
 export interface LearnNode {

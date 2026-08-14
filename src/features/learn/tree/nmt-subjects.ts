@@ -18,8 +18,22 @@ function node(
   complexity: 1 | 2 | 3 | 4 | 5,
   estimatedMinutes: number,
   prerequisites: readonly string[] = [],
+  paper?: "de" | "fr" | "es",
 ): LearnNode {
-  return { id, title: { en, uk, ru: uk }, complexity, estimatedMinutes, prerequisites };
+  return {
+    id,
+    title: {
+      en,
+      uk,
+      ru: uk,
+      ...(paper === "de" ? { de: uk } : {}),
+      ...(paper === "fr" ? { fr: uk } : {}),
+      ...(paper === "es" ? { es: uk } : {}),
+    },
+    complexity,
+    estimatedMinutes,
+    prerequisites,
+  };
 }
 
 export const NMT_UKR: LearnTree = {
@@ -318,26 +332,37 @@ export const NMT_LIT: LearnTree = {
 
 function langTree(taxonomy: string, reading: string, vocab: string, grammar: string): LearnTree {
   const p = taxonomy.replace("nmt-", "");
+  const paper = taxonomy === "nmt-de" ? "de" as const : taxonomy === "nmt-fr" ? "fr" as const : "es" as const;
+  const unitLang = paper === "de"
+    ? { en: "Language", uk: "Мова", de: "Sprache" }
+    : paper === "fr"
+      ? { en: "Language", uk: "Мова", fr: "Langue" }
+      : { en: "Language", uk: "Мова", es: "Idioma" };
+  const examLang = paper === "de"
+    ? { en: "Exam skills", uk: "Екзамен", de: "Prüfung" }
+    : paper === "fr"
+      ? { en: "Exam skills", uk: "Екзамен", fr: "Examen" }
+      : { en: "Exam skills", uk: "Екзамен", es: "Examen" };
   return {
     examTaxonomy: taxonomy,
     units: [
       {
         id: `${p}-use`,
-        title: { en: "Language", uk: "Мова" },
+        title: unitLang,
         nodes: [
-          node(`${p}-01`, "Reading", reading, 3, 11),
-          node(`${p}-02`, "Vocabulary", vocab, 3, 11),
-          node(`${p}-03`, "Grammar", grammar, 4, 13),
-          node(`${p}-04`, "Word formation", "Словотвір", 3, 8, [`${p}-03`]),
+          node(`${p}-01`, "Reading", reading, 3, 11, [], paper),
+          node(`${p}-02`, "Vocabulary", vocab, 3, 11, [], paper),
+          node(`${p}-03`, "Grammar", grammar, 4, 13, [], paper),
+          node(`${p}-04`, "Word formation", paper === "de" ? "Wortbildung" : paper === "fr" ? "Formation des mots" : "Formación de palabras", 3, 8, [`${p}-03`], paper),
         ],
       },
       {
         id: `${p}-exam`,
-        title: { en: "Exam skills", uk: "Екзамен" },
+        title: examLang,
         nodes: [
-          node(`${p}-05`, "Communication", "Комунікація", 3, 9, [`${p}-02`]),
-          node(`${p}-06`, "Text types", "Типи текстів", 3, 8, [`${p}-01`]),
-          node(`${p}-07`, "Exam tasks", "Екзаменаційні завдання", 3, 10, [`${p}-01`, `${p}-03`]),
+          node(`${p}-05`, "Communication", paper === "de" ? "Kommunikation" : paper === "fr" ? "Communication" : "Comunicación", 3, 9, [`${p}-02`], paper),
+          node(`${p}-06`, "Text types", paper === "de" ? "Textsorten" : paper === "fr" ? "Types de textes" : "Tipos de texto", 3, 8, [`${p}-01`], paper),
+          node(`${p}-07`, "Exam tasks", paper === "de" ? "Prüfungsaufgaben" : paper === "fr" ? "Tâches d'examen" : "Tareas de examen", 3, 10, [`${p}-01`, `${p}-03`], paper),
         ],
       },
     ],

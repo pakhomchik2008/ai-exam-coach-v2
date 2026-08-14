@@ -1,9 +1,11 @@
 /**
  * Exam papers AND coach replies follow the exam's official language.
- * НМТ stays Ukrainian even if the app UI is English. Learn trees use
- * slugs like `nmt-ukr` — those must still resolve to Ukrainian.
+ * НМТ (math, Ukrainian, history, …) stays Ukrainian even if the app UI
+ * is English. NMT English / German / French / Spanish papers stay in
+ * that language — qualificationId is just `nmt` for every NMT subject,
+ * so we also read the exam name.
  */
-export type PaperLanguage = "en" | "uk" | "de" | "pl" | "fr";
+export type PaperLanguage = "en" | "uk" | "de" | "pl" | "fr" | "es";
 
 const PAPER_LANGUAGE: Readonly<Record<string, PaperLanguage>> = {
   nmt: "uk",
@@ -28,7 +30,21 @@ const LANGUAGE_NAME: Readonly<Record<PaperLanguage, string>> = {
   de: "German",
   pl: "Polish",
   fr: "French",
+  es: "Spanish",
 };
+
+// qualificationId on an NMT sitting is always `nmt`. These slugs (Learn
+// tree taxonomy, or inferred from the subject name) pick the paper language.
+const NMT_FOREIGN: readonly { slug: string; lang: PaperLanguage; re: RegExp }[] = [
+  { slug: "nmt-eng", lang: "en", re: /англійськ|английск|english|англ/i },
+  { slug: "nmt-de", lang: "de", re: /німецьк|немецк|german|deutsch/i },
+  { slug: "nmt-fr", lang: "fr", re: /французьк|французск|french|français/i },
+  { slug: "nmt-es", lang: "es", re: /іспанськ|испанск|spanish|español/i },
+];
+
+const NMT_FOREIGN_BY_SLUG: Readonly<Record<string, PaperLanguage>> = Object.fromEntries(
+  NMT_FOREIGN.map((row) => [row.slug, row.lang]),
+);
 
 export function canonicalQualification(qualificationId: string | null | undefined): string | null {
   if (!qualificationId) return null;
@@ -44,9 +60,42 @@ export function canonicalQualification(qualificationId: string | null | undefine
 }
 
 export function paperLanguageFor(qualificationId: string | null | undefined): PaperLanguage | null {
-  const canon = canonicalQualification(qualificationId);
+  if (!qualificationId) return null;
+  const id = qualificationId.toLowerCase();
+  if (NMT_FOREIGN_BY_SLUG[id]) return NMT_FOREIGN_BY_SLUG[id];
+  const canon = canonicalQualification(id);
   if (!canon) return null;
   return PAPER_LANGUAGE[canon] || null;
+}
+
+export type ExamNameLike = {
+  name?: string | null;
+  subject?: string | null;
+  qualificationId?: string | null;
+};
+
+/**
+ * Language key for this sitting, not the family. `nmt` + "Англійська мова"
+ * → `nmt-eng` so Practice / Speed Round / chat do not inherit Ukrainian.
+ */
+export function paperQualForExam(exam: ExamNameLike | null | undefined): string | null {
+  if (!exam) return null;
+  const qual = (exam.qualificationId || "").toLowerCase();
+  if (NMT_FOREIGN_BY_SLUG[qual]) return qual;
+  const blob = `${exam.name || ""} ${exam.subject || ""}`;
+  const isNmt = qual === "nmt" || qual === "zno" || qual.startsWith("nmt-") || /nmt|зно/i.test(blob);
+  if (isNmt) {
+    for (const row of NMT_FOREIGN) {
+      if (row.re.test(blob)) return row.slug;
+    }
+    return qual || "nmt";
+  }
+  return exam.qualificationId || null;
+}
+
+/** I18nString lookup code: paper language when known, else the UI. */
+export function copyLangFor(qualificationId: string | null | undefined, uiLang = "en"): string {
+  return paperLanguageFor(qualificationId) || uiLang || "en";
 }
 
 export function languageNameFor(qualificationId: string | null | undefined): string | null {
@@ -58,14 +107,24 @@ export function paperLanguageDirective(qualificationId: string | null | undefine
   const code = paperLanguageFor(qualificationId);
   if (!code) return "";
   const exam = (canonicalQualification(qualificationId) || "exam").toUpperCase();
-  return `This is a real ${exam} paper. Write the ENTIRE paper — question stems, options, explanations, topic labels, passages — in ${LANGUAGE_NAME[code]} only. Do not mix languages (no English stem with ${LANGUAGE_NAME[code]} answers, or the reverse). The student's app UI may be in another language; ignore it for this paper.`;
+  const name = LANGUAGE_NAME[code];
+  const foreign = qualificationId ? NMT_FOREIGN_BY_SLUG[qualificationId.toLowerCase()] : undefined;
+  const paperNote = foreign
+    ? ` This is the NMT ${name} paper (foreign language). Stems, options, passages, explanations, JSON string values, action chips — ${name} only. Do not translate into Ukrainian.`
+    : "";
+  return `This is a real ${exam} paper. Write the ENTIRE paper — question stems, options, explanations, topic labels, passages, every JSON string value — in ${name} only. Do not mix languages (no English stem with ${name} answers, or the reverse). The student's app UI may be in another language; ignore it for this paper.${paperNote}`;
 }
 
 export function coachLanguageDirective(qualificationId: string | null | undefined): string {
   const code = paperLanguageFor(qualificationId);
   if (!code) return "";
   const exam = (canonicalQualification(qualificationId) || "exam").toUpperCase();
-  return `This student is preparing for ${exam}. Respond ENTIRELY in ${LANGUAGE_NAME[code]} — chat, theory, flashcards, Socratic turns, hints, explanations, action chips. The app UI language does not matter. Do not mix in English.`;
+  const name = LANGUAGE_NAME[code];
+  const foreign = qualificationId ? NMT_FOREIGN_BY_SLUG[qualificationId.toLowerCase()] : undefined;
+  const extra = foreign
+    ? ` NMT ${name} as a subject: theory, flashcards, Socratic, chat, hints — ${name} only. No Ukrainian.`
+    : "";
+  return `This student is preparing for ${exam}. Respond ENTIRELY in ${name} — chat, theory, flashcards, Socratic turns, hints, explanations, action chips, every JSON string. The app UI language does not matter. Do not mix in another language.${extra}`;
 }
 
 export function inferCoachQual(opts: {
@@ -75,11 +134,12 @@ export function inferCoachQual(opts: {
 }): string | null {
   if (opts.paperQual) return opts.paperQual;
   if (opts.topicExamQual) return opts.topicExamQual;
-  // NMT students often have nmt-ukr + nmt-math + … — same exam language.
-  const uniq = [...new Set(
-    (opts.studentQuals || [])
-      .map((q) => canonicalQualification(q))
-      .filter((q): q is string => Boolean(q)),
-  )];
-  return uniq.length === 1 ? uniq[0] ?? null : null;
+  const raw = (opts.studentQuals || []).filter((q): q is string => Boolean(q));
+  // Same paper language (nmt-ukr + nmt-math → Ukrainian). Mixed NMT
+  // English + NMT math must NOT collapse to Ukrainian.
+  const langs = [...new Set(raw.map((q) => paperLanguageFor(q)).filter((l): l is PaperLanguage => Boolean(l)))];
+  if (langs.length === 1) {
+    return raw.find((q) => paperLanguageFor(q) === langs[0]) || null;
+  }
+  return null;
 }

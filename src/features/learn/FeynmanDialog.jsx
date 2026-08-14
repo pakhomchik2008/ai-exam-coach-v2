@@ -3,7 +3,7 @@
 
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
-import { languageNameFor } from "../../lib/paper-language";
+import { languageNameFor, paperQualForExam } from "../../lib/paper-language";
 import { describeAiError } from "../../lib/ai-error";
 import { buildFeynmanSystem, parseFeynmanGrade } from "./feynman";
 
@@ -14,7 +14,8 @@ function md(text) {
 function examQual(resolved) {
   if (!resolved || !window.getExams) return null;
   const exam = window.getExams().find((e) => e.id === resolved.examId);
-  return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+  const family = (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+  return paperQualForExam({ ...exam, qualificationId: family }) || family;
 }
 
 function speechLang(qual, ui) {
