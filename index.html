@@ -1,6 +1,22 @@
 <!doctype html>
 <html lang="en" data-theme="cream">
 <head>
+<script>
+/* Preview/local hosts must not keep OneSignal's worker. It is scoped to
+   production, and a leftover SW intercepts hashed /assets/*.js after a
+   deploy — Safari then paints a blank page. Drop it before the bundle. */
+(function () {
+  var host = location.hostname;
+  if (host === "ai-exam-coach-v2.vercel.app" || host === "exam.coach" || host === "www.exam.coach") return;
+  if (!navigator.serviceWorker) return;
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    if (!regs.length) return;
+    Promise.all(regs.map(function (r) { return r.unregister(); })).then(function () {
+      location.reload();
+    });
+  });
+})();
+</script>
 <!-- Sentry — loaded first so it can catch errors from the bundle below it,
      including a bundle that fails to parse or load at all. That is why it stays
      a CDN tag rather than moving into the bundle it is meant to watch. -->
@@ -8,10 +24,6 @@
   src="https://js-de.sentry-cdn.com/f944c5545143a5d01254af4c96e734d3.min.js"
   crossorigin="anonymous"
 ></script>
-<!-- OneSignal Web Push SDK (Phase 3 §3.5 follow-up). Loaded unconditionally —
-     src/lib/push.ts checks VITE_ONESIGNAL_APP_ID before using it, so this is
-     a harmless no-op fetch when push isn't configured (e.g. local dev). -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>EXAM COACH — AI Exam Coach</title>
@@ -36,7 +48,7 @@
   /* Floating "+N XP" gain in the Learn game HUD: rise and fade. */
   @keyframes xppop { 0% { opacity: 0; transform: translateY(6px) scale(0.9); } 25% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 0; transform: translateY(-16px) scale(1); } }
   @media (prefers-reduced-motion: reduce) { @keyframes xppop { 0% { opacity: 1; } 100% { opacity: 0; } } }
-  html, body { margin: 0; min-height: 100%; background: var(--surface-page); }
+  html, body { margin: 0; min-height: 100%; background: #FAFAF8; }
   #root { min-height: 100vh; }
 
   /* AppNav responsive collapse — the link row (9 items + lang picker + logout)
