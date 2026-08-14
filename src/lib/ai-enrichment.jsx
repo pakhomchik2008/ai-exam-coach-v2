@@ -7,43 +7,16 @@
 // Dashboard. Result patches back onto the exam record via the same
 // saveExams() path everything else uses, so there's no parallel store.
 
-// Reads a real uploaded File into Claude-ready content blocks (image/PDF/
-// PPTX/DOCX/TXT) — moved here from Onboarding.jsx so it has no UI dependency.
+import { extractStudyFile, toClaudeBlocks } from "./extract-study-file";
+
+// Shared extractor — fails open so a single unreadable file cannot abort
+// enrichment. window.fileToClaudeContent is still published for ai-brain.jsx.
 async function fileToClaudeContent(file) {
-  const name = file.name || "file";
-  const ext = name.split(".").pop().toLowerCase();
-  const mime = file.type;
-  if (mime.startsWith("image/")) {
-    const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = (e) => res(e.target.result); r.onerror = rej; r.readAsDataURL(file); });
-    return [{ type: "image", source: { type: "base64", media_type: mime, data: dataUrl.split(",")[1] } }];
+  try {
+    return toClaudeBlocks(await extractStudyFile(file));
+  } catch {
+    return [{ type: "text", text: `(could not read ${file.name || "file"})` }];
   }
-  if (ext === "pdf" || mime === "application/pdf") {
-    const ab = await file.arrayBuffer();
-    const bytes = new Uint8Array(ab);
-    let b64 = "";
-    for (let i = 0; i < bytes.length; i += 8192) b64 += btoa(String.fromCharCode(...bytes.subarray(i, i + 8192)));
-    return [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }];
-  }
-  if (["pptx", "ppt", "docx", "doc"].includes(ext) || mime.includes("presentationml") || mime.includes("wordprocessingml") || mime.includes("powerpoint") || mime.includes("msword")) {
-    const JSZip = window.JSZip;
-    if (!JSZip) return [{ type: "text", text: "(could not read this file format — JSZip unavailable)" }];
-    const ab = await file.arrayBuffer();
-    const zip = await JSZip.loadAsync(ab);
-    let text = "";
-    if (["pptx", "ppt"].includes(ext) || mime.includes("presentationml") || mime.includes("powerpoint")) {
-      const slides = Object.keys(zip.files).filter((f) => /ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a, b) => { const na = parseInt(a.match(/\d+/g).pop()), nb = parseInt(b.match(/\d+/g).pop()); return na - nb; });
-      for (const s of slides.slice(0, 25)) { const xml = await zip.files[s].async("string"); const d = document.createElement("div"); d.innerHTML = xml.replace(/<\/a:t>/g, " ").replace(/<[^>]+>/g, ""); text += d.textContent.replace(/\s+/g, " ").trim() + "\n"; }
-    } else {
-      const doc = zip.files["word/document.xml"];
-      if (doc) { const xml = await doc.async("string"); const d = document.createElement("div"); d.innerHTML = xml.replace(/<\/w:t>/g, " ").replace(/<[^>]+>/g, ""); text = d.textContent.replace(/\s+/g, " ").trim(); }
-    }
-    return [{ type: "text", text: (text.substring(0, 4000) || "(no extractable text found in this file)") }];
-  }
-  if (mime === "text/plain" || ext === "txt") {
-    const text = await file.text();
-    return [{ type: "text", text: text.substring(0, 4000) }];
-  }
-  return [{ type: "text", text: `(unsupported file type: ${name})` }];
 }
 
 function patchExamAi(examId, patch) {

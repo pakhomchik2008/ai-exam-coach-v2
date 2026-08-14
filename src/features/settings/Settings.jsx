@@ -548,7 +548,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
                 </Row>
               ))}
               <Row label={L(lang, "Quiet hours", "Тихі години", "Тихие часы", "Heures calmes", "Ruhezeiten")}
-                sub={L(lang, "Saved on the profile. The daily cron still fires at 16:00 UTC — Hobby plan has one send window.", "Пишеться в профіль. Крон як і був о 16:00 UTC — на Hobby одне вікно.", "Пишется в профиль. Крон по-прежнему 16:00 UTC.", "Enregistré. Le cron reste 16:00 UTC.", "Gespeichert. Cron bleibt 16:00 UTC.")}>
+                sub={L(lang, "No emails overnight", "Без листів уночі", "Без писем ночью", "Pas d’e-mails la nuit", "Nachts keine E-Mails")}>
                 <MagToggle on={quietOn} label="quiet" onChange={(v) => {
                   setQuietOn(v);
                   persist({ quietHoursStart: v ? quietStart : null, quietHoursEnd: v ? quietEnd : null });

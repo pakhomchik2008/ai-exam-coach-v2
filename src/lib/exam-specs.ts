@@ -36,6 +36,7 @@ export const EXAM_SPECS: Record<string, ExamSpec> = {
   alevel: spec(18, "A-Level style: demanding multi-step multiple-choice."),
   matura: spec(18, "Matura style: exam-board multiple-choice."),
   abitur: spec(16, "Abitur style: analytical multiple-choice."),
+  bac: spec(16, "Baccalauréat général: written papers are 4h (français, philosophie, most spécialités); Grand oral is 20 min. Practice uses exam-style items, not a licensed annales clock."),
   ielts: spec(40, "IELTS Reading: 3 passages, 40 questions, 60 minutes. Writing and Listening use their own clocks."),
 };
 

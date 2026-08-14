@@ -25,22 +25,45 @@ describe("limits match the spec", () => {
   });
 
   it("offers an accept attribute covering the documented types", () => {
-    for (const ext of [".pdf", ".docx", ".jpg", ".png", ".txt"]) {
+    for (const ext of [".pdf", ".docx", ".jpg", ".png", ".txt", ".xlsx", ".md", ".webp"]) {
       expect(ACCEPT_ATTRIBUTE).toContain(ext);
     }
+    expect(ACCEPT_ATTRIBUTE).toContain("application/pdf");
+    expect(ACCEPT_ATTRIBUTE).toContain("image/*");
   });
 });
 
 describe("isAcceptedType", () => {
-  it.each(["notes.pdf", "essay.docx", "deck.pptx", "photo.JPG", "scan.PNG", "raw.txt"])(
-    "accepts %s",
-    (name) => expect(isAcceptedType(name)).toBe(true),
-  );
+  it.each([
+    "notes.pdf",
+    "essay.docx",
+    "deck.pptx",
+    "photo.JPG",
+    "scan.PNG",
+    "raw.txt",
+    "sheet.xlsx",
+    "notes.md",
+    "data.csv",
+    "handout.rtf",
+    "page.webp",
+    "scan.gif",
+    "brief.odt",
+  ])("accepts %s", (name) => expect(isAcceptedType(name)).toBe(true));
 
-  it.each(["virus.exe", "archive.zip", "clip.mp4", "sheet.xlsx", "noextension"])(
+  it.each(["virus.exe", "archive.zip", "clip.mp4", "noextension", "script.js", "page.svg"])(
     "rejects %s",
     (name) => expect(isAcceptedType(name)).toBe(false),
   );
+
+  it("accepts a nameless PDF by MIME type", () => {
+    expect(isAcceptedType("untitled", "application/pdf")).toBe(true);
+    expect(validateFiles([{ name: "untitled", size: 1024, type: "application/pdf" }]).accepted).toHaveLength(1);
+  });
+
+  it("accepts a nameless photo by MIME type", () => {
+    expect(isAcceptedType("image", "image/jpeg")).toBe(true);
+    expect(isAcceptedType("image", "image/svg+xml")).toBe(false);
+  });
 
   it("is case-insensitive", () => {
     expect(isAcceptedType("Notes.PDF")).toBe(true);

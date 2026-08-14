@@ -4,7 +4,7 @@
 // attached file is re-sent with the whole conversation on each turn, so the cap
 // multiplies token cost by thread length, not just by file size.
 import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
-import { resizeImageFile } from "../../lib/image-resize";
+import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { renderCoachMarkdown } from "../../lib/math-render";
@@ -3657,7 +3657,18 @@ function ChatMode({ onExit, initialQuery, t }) {
     return chips.slice(0, 5);
   }, []);
 
-  React.useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); localStorage.setItem(HISTORY_KEY, JSON.stringify(historyRef.current)); } catch {} }, [messages]);
+  React.useEffect(() => {
+    try {
+      // UI transcript keeps name/kind only — dataUrl/base64 would blow the
+      // 5 MB localStorage cap on a couple of screenshots. Live state still
+      // holds the preview for this session.
+      const slim = messages.map((m) => (m.attachments
+        ? { ...m, attachments: m.attachments.map((f) => ({ kind: f.kind, name: f.name, ext: f.ext })) }
+        : m));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(historyRef.current));
+    } catch {}
+  }, [messages]);
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight; }, [messages, typing]);
   React.useEffect(() => { if (initialQuery && !handled.current) { handled.current = true; setTimeout(() => send(initialQuery), 100); } }, [initialQuery]);
 
@@ -3708,32 +3719,18 @@ function ChatMode({ onExit, initialQuery, t }) {
     if (!incoming.length) return;
     const lang = (window.getProfile && window.getProfile().lang) || "en";
     const { accepted, rejected } = validateFiles(incoming, attachments, CHAT_LIMITS);
-    setAttachError(rejected.length ? rejectionSummary(rejected, lang, CHAT_LIMITS) : "");
+    const problems = rejected.map((r) => rejectionSummary([r], lang, CHAT_LIMITS));
 
     const read = [];
     for (const file of accepted) {
-      const name = file.name || "file";
-      const ext = name.split(".").pop().toLowerCase();
       try {
-        if ((file.type || "").startsWith("image/")) {
-          // Same fix as StudyHub: resized to Claude's 1568px recommendation
-          // before base64 encoding. A raw phone photo blew past our payload
-          // guard and, in production, Vercel's request-body ceiling — that was
-          // "Connection hiccup" on a 2-photo attach.
-          const resized = await resizeImageFile(file);
-          read.push({ kind: "image", name, size: file.size, mimeType: resized.mimeType, base64: resized.base64, dataUrl: resized.dataUrl });
-        } else if (ext === "pdf") {
-          const ab = await file.arrayBuffer();
-          read.push({ kind: "pdf", name, size: file.size, base64: btoa(String.fromCharCode(...new Uint8Array(ab))) });
-        } else {
-          const text = await file.text();
-          read.push({ kind: "text", name, size: file.size, text: text.substring(0, 5000) });
-        }
-      } catch {
-        setAttachError(L(`${name} — could not be read`, `${name} — не вдалося прочитати`, `${name} — не удалось прочитать`, `${name} — lecture impossible`, `${name} — nicht lesbar`));
+        read.push(...(await extractStudyFile(file)));
+      } catch (err) {
+        problems.push(describeStudyFileError(err, file.name || "file", lang));
       }
     }
     if (read.length) setAttachments((a) => a.concat(read));
+    setAttachError(problems.filter(Boolean).join(" · "));
   };
 
   const send = async (raw) => {
@@ -3744,11 +3741,7 @@ function ChatMode({ onExit, initialQuery, t }) {
 
     const sent = attachments;
     const content = sent.length
-      ? sent.map((f) =>
-            f.kind === "image" ? { type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } }
-          : f.kind === "pdf" ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } }
-          : { type: "text", text: `File "${f.name}":\n\n${f.text}` })
-          .concat([{ type: "text", text: text || "Explain what is in the attached file(s)." }])
+      ? toClaudeBlocks(sent).concat([{ type: "text", text: text || "Explain what is in the attached file(s)." }])
       : text;
 
     historyRef.current = [...historyRef.current, { role: "user", content }];
@@ -3892,19 +3885,46 @@ If no actions fit, omit the ACTIONS line entirely.`,
     copyCoachText(btn.getAttribute("data-copy") || "", btn);
   }
 
+  const renderSentFiles = (files) => {
+    if (!files || !files.length) return [];
+    return files.map((f, i) => {
+      if (f.kind === "image" && f.dataUrl) {
+        return React.createElement("img", {
+          key: `${f.name}-${i}`,
+          src: f.dataUrl,
+          alt: f.name || "",
+          style: { display: "block", maxWidth: 220, width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10 },
+        });
+      }
+      const icon = f.kind === "image" ? "🖼️" : (f.kind === "pdf" || f.ext === "pdf") ? "📄" : "📎";
+      return React.createElement("div", {
+        key: `${f.name}-${i}`,
+        style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, lineHeight: 1.3 },
+      },
+        React.createElement("span", { "aria-hidden": true }, icon),
+        React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 } }, f.name || L("File", "Файл", "Файл", "Fichier", "Datei")));
+    });
+  };
+
   // ── Chat messages — rendered below dashboard ──
   const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 14 }, onClick: onCoachCopyClick },
     ...messages.map((m) =>
       React.createElement(React.Fragment, { key: m.id },
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
           m.role === "ai" && React.createElement(CoachIcon, { size: 28 }),
-          React.createElement("div", {
-            className: m.role === "ai" ? "aicoach-msg" : undefined,
-            style: m.role === "user"
-              ? { maxWidth: "80%", background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6 }
-              : { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
-            dangerouslySetInnerHTML: { __html: _md(m.text) }
-          })),
+          m.role === "user"
+            ? React.createElement("div", {
+                style: { maxWidth: "80%", minWidth: (m.attachments && m.attachments.length) ? 148 : undefined, background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 12px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6, display: "flex", flexDirection: "column", gap: 8 },
+              },
+                ...renderSentFiles(m.attachments),
+                m.text && m.text.trim()
+                  ? React.createElement("div", { dangerouslySetInnerHTML: { __html: _md(m.text) } })
+                  : null)
+            : React.createElement("div", {
+                className: "aicoach-msg",
+                style: { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
+                dangerouslySetInnerHTML: { __html: _md(m.text) },
+              })),
         m.role === "ai" && React.createElement("div", {
           style: { display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 38, alignItems: "center" }
         },
@@ -4020,7 +4040,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
         },
           f.kind === "image"
             ? React.createElement("img", { src: f.dataUrl, alt: "", style: { width: 18, height: 18, objectFit: "cover", borderRadius: 4, display: "block" } })
-            : React.createElement("span", null, f.kind === "pdf" ? "📄" : "📃"),
+            : React.createElement("span", null, f.kind === "pdf" || f.ext === "pdf" ? "📄" : "📃"),
           React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.name),
           React.createElement("button", {
             onClick: () => setAttachments((a) => a.filter((_, j) => j !== i)),

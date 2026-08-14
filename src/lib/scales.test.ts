@@ -53,6 +53,9 @@ describe("scaleForTaxonomy", () => {
     ["gcse", "gcse"],
     ["toefl", "toefl"],
     ["act", "act"],
+    ["bac", "bac"],
+    ["bac-math", "bac"],
+    ["nmt-ukr", "nmt_subject"],
   ])("maps %s to the %s scale", (taxonomy, expected) => {
     expect(scaleIdForTaxonomy(taxonomy)).toBe(expected);
   });
@@ -181,6 +184,13 @@ describe("schemeFromExam — exam's own grading, not A-Level letters", () => {
     }
     expect(predictedFromReadiness(50, scheme)).toBe("4.5");
     expect(predictedFromReadiness(39, scheme)).toBe("3.5");
+  });
+
+  it("Bac reports 0–20 with half points", () => {
+    const scheme = schemeFromExam({ qualificationId: "bac" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(50, scheme)).toBe("10.0");
+    expect(predictedFromReadiness(80, scheme)).toBe("16.0");
   });
 
   it("НМТ reports 100–200", () => {

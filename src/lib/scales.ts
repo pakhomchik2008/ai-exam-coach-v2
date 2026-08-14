@@ -47,6 +47,8 @@ export const SCALES = {
   toefl: { min: 0, max: 120, step: 1, targetTop: 100, format: "integer", label: "" },
   duolingo: { min: 10, max: 160, step: 5, targetTop: 130, format: "integer", label: "" },
   pte: { min: 10, max: 90, step: 1, targetTop: 76, format: "integer", label: "" },
+  /** Baccalauréat général. Bulletins print half-points; 16 is mention TB. */
+  bac: { min: 0, max: 20, step: 0.5, targetTop: 16, format: "decimal", label: "/20" },
   act: { min: 1, max: 36, step: 1, targetTop: 32, format: "integer", label: "" },
   ap: { min: 1, max: 5, step: 1, targetTop: 5, format: "integer", label: "" },
   ib: { min: 1, max: 7, step: 1, targetTop: 6, format: "integer", label: "" },
@@ -73,6 +75,7 @@ const TAXONOMY_TO_SCALE: Readonly<Record<string, ScaleId>> = {
   pte: "pte",
   ap: "ap",
   ib: "ib",
+  bac: "bac",
 };
 
 /** True when the resolved scale is the generic 0–100 stand-in, not a real one. */
@@ -83,7 +86,15 @@ export function isNormalizedFallback(id: ScaleId): boolean {
 /** Resolves a taxonomy to a scale id, falling back to the normalized scale. */
 export function scaleIdForTaxonomy(taxonomy: string | null | undefined): ScaleId {
   if (!taxonomy) return "normalized";
-  return TAXONOMY_TO_SCALE[taxonomy.toLowerCase()] ?? "normalized";
+  const id = taxonomy.toLowerCase();
+  if (TAXONOMY_TO_SCALE[id]) return TAXONOMY_TO_SCALE[id];
+  // Learn trees are `bac-math` / `nmt-ukr`. The scale belongs to the exam.
+  const dash = id.indexOf("-");
+  if (dash > 0) {
+    const family = id.slice(0, dash);
+    if (TAXONOMY_TO_SCALE[family]) return TAXONOMY_TO_SCALE[family];
+  }
+  return "normalized";
 }
 
 export function scaleForTaxonomy(taxonomy: string | null | undefined): Scale {

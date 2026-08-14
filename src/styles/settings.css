@@ -148,13 +148,29 @@
   color: var(--red-600);
 }
 
-/* Detail pages use rows + toggles */
+/* Detail pages use rows + toggles.
+
+   No global box-sizing in this app. A row with width:100% + horizontal
+   padding is then 36px wider than the card; overflow:hidden (needed so
+   square row corners don't paint over the 16px radius) clips that extra
+   on the RIGHT — which is exactly where the toggle sits. The left card
+   on Notifications looked fine because its labels are short; the right
+   card's toggle was the first thing the clip ate. */
+
+.settings-hub,
+.settings-hub *,
+.settings-page,
+.settings-page * {
+  box-sizing: border-box;
+}
 
 .settings-card {
   background: var(--surface-card);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
 }
 
@@ -162,7 +178,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 18px 10px;
+  padding: 16px 20px 10px;
   font-size: 11px;
   font-weight: var(--weight-semibold);
   letter-spacing: 0.08em;
@@ -193,6 +209,8 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -235,20 +253,33 @@
   color: var(--text-strong);
 }
 
-/* Detail pages fill the same column the nav uses. A single stretched card on a
-   1024px page reads as a half-empty sheet, so cards flow into as many columns
-   as fit; auto-fit collapses the empty track so a one-card page still spans the
-   full width. */
+/* Same 1→2 column break as the hub tiles. auto-fit + minmax(22rem, 1fr)
+   looked clever and then overflowed the main column — grid items default
+   to min-width:auto, so a long Quiet-hours line forced the track wider
+   than the page and the right-edge toggles got clipped. */
 .settings-page-body {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  grid-template-columns: 1fr;
   align-items: start;
   gap: 22px;
+  width: 100%;
+  min-width: 0;
 }
 
-/* An odd card count would otherwise leave a hole in the last row. */
-.settings-page-body > :last-child:nth-child(odd) {
-  grid-column: 1 / -1;
+.settings-page-body > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 720px) {
+  .settings-page-body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Odd leftover card on the last row spans both tracks. */
+  .settings-page-body > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 
 /* Profile is a form, not cards: keep its fields one under another at a width
@@ -260,11 +291,14 @@
 }
 
 .settings-row {
+  appearance: none;
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 16px 18px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 16px 20px;
   border: none;
   border-top: 1px solid var(--border-subtle);
   background: transparent;
@@ -272,6 +306,10 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.settings-card > .settings-row:last-child {
+  padding-bottom: 20px;
 }
 
 .settings-row:disabled {
@@ -298,6 +336,7 @@
   font-size: var(--text-xs);
   color: var(--text-faint);
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .settings-row-value {
@@ -316,15 +355,17 @@
 }
 
 .settings-toggle {
+  appearance: none;
   width: 44px;
   height: 26px;
   border-radius: 99px;
   border: none;
   padding: 0;
+  margin: 0;
   background: var(--slate-300);
   cursor: pointer;
   position: relative;
-  flex-shrink: 0;
+  flex: 0 0 44px;
   transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -371,14 +412,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 18px 16px;
+  padding: 8px 20px 16px;
 }
 
 .settings-theme-rail {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 8px 18px 16px;
+  padding: 8px 20px 16px;
 }
 
 .settings-theme-swatch {
@@ -475,7 +516,7 @@
 .settings-swatches {
   display: flex;
   gap: 10px;
-  padding: 8px 18px 16px;
+  padding: 8px 20px 16px;
 }
 
 .settings-swatch {

@@ -8,7 +8,7 @@ import { EXAM_CHIPS } from "./ExamMarquee";
 describe("exam marquee", () => {
   it("lists every board named on the landing brief", () => {
     const names = EXAM_CHIPS.map((exam) => exam.name);
-    for (const need of ["НМТ", "IELTS", "SAT", "GCSE", "TOEFL", "ACT", "AP", "Abitur", "Duolingo", "Matura"]) {
+    for (const need of ["НМТ", "IELTS", "SAT", "GCSE", "TOEFL", "ACT", "AP", "Abitur", "Bac", "Duolingo", "Matura"]) {
       expect(names).toContain(need);
     }
   });
