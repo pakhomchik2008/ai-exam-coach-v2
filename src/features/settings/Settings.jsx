@@ -357,36 +357,38 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
 
       {sheet === "profile" && (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} onClose={() => setSheet(null)}>
-          <div className="settings-row" style={{ alignItems: "center", borderTop: "none", paddingLeft: 0, paddingRight: 0 }}>
-            <XpAvatar src={avatar} name={fullName} into={xp.into} need={xp.need} />
-            <span className="settings-row-label">
-              <strong>{fullName || L(lang, "Your name", "Твоє ім'я", "Твоё имя", "Ton nom", "Dein Name")}</strong>
-              <em>{email || "—"} · {L(lang, "Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level} {tier.emoji}</em>
-            </span>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => {
-            const f = e.target.files && e.target.files[0];
-            if (f) readAvatarFile(f, (data) => { setAvatar(data); persist({ avatarDataUrl: data }); });
-          }} />
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <button type="button" onClick={() => fileRef.current && fileRef.current.click()}
-              style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
-              {L(lang, "Upload photo", "Завантажити фото", "Загрузить фото", "Uploader une photo", "Foto hochladen")}
+          <div className="settings-form">
+            <div className="settings-row" style={{ alignItems: "center", borderTop: "none", paddingLeft: 0, paddingRight: 0 }}>
+              <XpAvatar src={avatar} name={fullName} into={xp.into} need={xp.need} />
+              <span className="settings-row-label">
+                <strong>{fullName || L(lang, "Your name", "Твоє ім'я", "Твоё имя", "Ton nom", "Dein Name")}</strong>
+                <em>{email || "—"} · {L(lang, "Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level} {tier.emoji}</em>
+              </span>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => {
+              const f = e.target.files && e.target.files[0];
+              if (f) readAvatarFile(f, (data) => { setAvatar(data); persist({ avatarDataUrl: data }); });
+            }} />
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button type="button" onClick={() => fileRef.current && fileRef.current.click()}
+                style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
+                {L(lang, "Upload photo", "Завантажити фото", "Загрузить фото", "Uploader une photo", "Foto hochladen")}
+              </button>
+              <button type="button" onClick={() => { const data = initialsAvatar(fullName); setAvatar(data); persist({ avatarDataUrl: data }); }}
+                style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
+                {L(lang, "Generate initials", "Згенерувати ініціали", "Сгенерировать инициалы", "Générer les initiales", "Initialen erzeugen")}
+              </button>
+            </div>
+            <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_fullname}</label>
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+            <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_email}</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+            {emailError && <p style={{ color: "var(--red-600)", fontSize: 12 }}>{emailError}</p>}
+            <button type="button" onClick={() => { saveCore(); setSheet(null); }}
+              style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+              {t.settings_save}
             </button>
-            <button type="button" onClick={() => { const data = initialsAvatar(fullName); setAvatar(data); persist({ avatarDataUrl: data }); }}
-              style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
-              {L(lang, "Generate initials", "Згенерувати ініціали", "Сгенерировать инициалы", "Générer les initiales", "Initialen erzeugen")}
-            </button>
           </div>
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_fullname}</label>
-          <input value={fullName} onChange={(e) => setFullName(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
-          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_email}</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
-          {emailError && <p style={{ color: "var(--red-600)", fontSize: 12 }}>{emailError}</p>}
-          <button type="button" onClick={() => { saveCore(); setSheet(null); }}
-            style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-            {t.settings_save}
-          </button>
         </SettingsPage>
       )}
 
