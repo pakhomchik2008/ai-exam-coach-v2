@@ -28,4 +28,12 @@ describe("i18n key parity", () => {
   it("Ukrainian hero is the source headline", () => {
     expect(String(langs.uk?.land_hero_title)).toContain("Exam Coach");
   });
+
+  it("privacy copy says Settings wipe the auth account, not a Phase 6 cascade", () => {
+    for (const code of Object.keys(langs)) {
+      const body = String(langs[code]?.legal_privacy_body);
+      expect(body, code).not.toMatch(/phase 6|фаз[іе] 6/i);
+      expect(body, code).toMatch(/auth/i);
+    }
+  });
 });

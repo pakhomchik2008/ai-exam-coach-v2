@@ -55,7 +55,7 @@ function mjPriorityShort(t, tone) {
   }[tone];
 }
 
-function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
+function MistakeJournal({ t, onGoToChat, onGoToDashboard, onGoToCalendar }) {
   const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const bump = () => setRefreshKey((k) => k + 1);
@@ -79,7 +79,9 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
   const [sortOrder, setSortOrder] = React.useState("newest");
   const [search, setSearch] = React.useState("");
   const [openId, setOpenId] = React.useState(null);
+  const [toast, setToast] = React.useState(null);
   const reviewSectionRef = React.useRef(null);
+  const toastNavRef = React.useRef(null);
 
   const priorityByTopic = React.useMemo(() => new Map(topics.map((tp) => [tp.topic, tp.priority])), [topics]);
 
@@ -127,6 +129,12 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
       durationMin: Math.max(15, tp.estReviewMin),
     });
     bump();
+    setToast(L("Session added to today", "Сесію додано на сьогодні", "Сессия добавлена на сегодня", "Séance ajoutée à aujourd’hui", "Sitzung für heute hinzugefügt"));
+    if (toastNavRef.current) clearTimeout(toastNavRef.current);
+    toastNavRef.current = setTimeout(() => {
+      setToast(null);
+      if (onGoToCalendar) onGoToCalendar();
+    }, 900);
   }
 
   if (mistakes.length === 0) {
@@ -238,6 +246,14 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard }) {
               onGoToChat={onGoToChat} />
           ))}
         </div>
+      )}
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 28, right: 28, zIndex: 9999,
+          background: "rgba(15, 23, 42, 0.82)", color: "var(--white)",
+          borderRadius: "var(--radius-xl)", padding: "12px 20px",
+          fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
+        }}>{toast}</div>
       )}
     </div>
   );

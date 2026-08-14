@@ -59,8 +59,8 @@ export function totalNodeCount(tree: LearnTree): number {
   return tree.units.reduce((sum, u) => sum + u.nodes.length, 0);
 }
 
-// Lesson-only flatten. Boss nodes stay out of the free/Pro split so a
-// synthetic unit boss never eats a free slot.
+// Lesson-only flatten. Boss nodes stay out so a synthetic unit boss
+// never inflates "N of M topics" in the Learn header.
 export function flattenLessonNodes(tree: LearnTree): readonly { node: LearnNode; unit: LearnUnit; index: number }[] {
   const out: { node: LearnNode; unit: LearnUnit; index: number }[] = [];
   for (const unit of tree.units) {

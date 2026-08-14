@@ -38,6 +38,8 @@ const PERSONAL_KEYS = [
   "brain_difficulty_v1",
   "brain_lessoncache_v1",
   "study_result_v1",
+  "aicoach_chat_msgs_v2",
+  "aicoach_chat_hist_v2",
 ];
 
 // Shared, non-personal caches that must survive a logout — they are identical

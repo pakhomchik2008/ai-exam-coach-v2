@@ -87,7 +87,6 @@ import "./features/progress/MistakeJournal.jsx";
 import "./features/progress/Progress.jsx";
 import "./features/calendar/Schedule.jsx";
 import "./features/calendar/StudyCalendar.jsx";
-import "./features/calendar/calendar-tests.jsx";
 import "./features/exams/Exams.jsx";
 import "./features/settings/Settings.jsx";
 
