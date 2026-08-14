@@ -51,6 +51,11 @@ describe("copyLangFor", () => {
     expect(copyLangFor("nmt-de", "en")).toBe("de");
     expect(copyLangFor(null, "fr")).toBe("fr");
   });
+
+  it("reads NMT English from the exam name, not the family id", () => {
+    expect(copyLangFor(paperQualForExam({ qualificationId: "nmt", name: "NMT Математика" }), "en")).toBe("uk");
+    expect(copyLangFor(paperQualForExam({ qualificationId: "nmt", name: "NMT English" }), "uk")).toBe("en");
+  });
 });
 
 describe("canonicalQualification", () => {

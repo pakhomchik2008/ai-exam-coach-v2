@@ -26,7 +26,7 @@ import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
 import { freeTopicLimit, isProUser, topicIsLocked } from "../learn/premium";
-import { copyLangFor, inferCoachQual, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
+import { copyLangFor, inferCoachQual, languageNameFor, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
 
 /**
@@ -2145,7 +2145,7 @@ function saveDiffVote(topicKey, vote) {
 // (most-recent 60) keeps localStorage from growing without limit. Bumping
 // LESSON_CACHE_VER invalidates every cached plan at once when the prompt changes.
 const LESSON_CACHE_KEY = "brain_lessoncache_v1";
-const LESSON_CACHE_VER = 2;
+const LESSON_CACHE_VER = 3;
 const LESSON_CACHE_MAX = 60;
 function lessonCacheKey({ mode, topic, examId, vote, lang, ui }) {
   return `${LESSON_CACHE_VER}::${mode}::${topic}::${examId || "any"}::v${vote ?? 0}::${lang || "ui"}::${ui || "en"}`;
@@ -2174,6 +2174,13 @@ function lessonPaperOpts(resolved) {
   const paperQual = _paperQualOf(exam);
   const langOverride = paperLanguageFor(paperQual) ? undefined : (exam && exam.explainLang ? exam.explainLang : undefined);
   return { exam, paperQual, langOverride, cacheLang: paperLanguageFor(paperQual) || exam?.explainLang };
+}
+
+// Learn chrome follows the paper, not the app UI: NMT math stays Ukrainian
+// even when the nav is English. NMT English stays English.
+function learnCopyCode(resolved, uiLang) {
+  const { paperQual } = lessonPaperOpts(resolved);
+  return copyLangFor(paperQual, uiLang || "en");
 }
 
 // Builds (or returns cached) a lesson plan for a topic. Pure of React so both
@@ -2351,7 +2358,8 @@ STRUCTURE — every field required unless marked optional:
 {
   "title": "One clear title, matching the topic",
   "tldr": "2-3 sentences summarising the whole idea in plain language a beginner can grasp",
-  "diagram": "REQUIRED unless the topic is purely verbal (grammar, essay structure, vocab). Raw SVG code: full <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 W H\\">…</svg>. For anything numeric, spatial, structural, or process-shaped — draw it. Better to have a decent diagram than none. See DIAGRAM PLAYBOOK below.",
+  "diagram": "REQUIRED. Raw SVG: <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 720 400\\">…</svg>. This is a DRAWING the student remembers — geometry, arrows, axes, shaded regions — never a layout of notes. See DIAGRAM PLAYBOOK.",
+  "diagramCaption": "One sentence naming what the figure shows (not the word Diagram).",
   "concepts": [
     {"heading": "Concept name", "body": "2-4 short paragraphs explaining it. Use analogies and concrete examples. **Bold** key terms."}
   ],
@@ -2368,24 +2376,42 @@ RULES:
 - 2-3 worked examples that cover different situations.
 - 3-6 pitfalls; 4-8 cheat-sheet lines.
 - 2-3 relatedConcepts — topic names the student would naturally study NEXT to build on this one. Real topic names only, no filler like "practice problems".
-- diagram: include for EVERY topic that has any visual anchor — see DIAGRAM PLAYBOOK. Only skip when the topic is purely verbal (essay writing, grammar rules, vocabulary lists). "I couldn't think of one" is never a reason. currentColor for every stroke, fill, and text so the same SVG works on light and dark themes. Never <script>, never on* attributes, never external images.
-
-DIAGRAM PLAYBOOK — pick the shape by topic type:
-- Geometry (triangle, circle, quadrilateral, angle) → draw the actual figure with labelled vertices/sides/angles. Include the specific values from your worked example.
-- Coordinate geometry / vectors → axes with numbered gridlines and the points/lines plotted.
-- Functions (linear, quadratic, trig, exp, log) → plot the graph on axes across a sensible range. Mark intercepts and any key features (vertex, asymptote).
-- Derivatives / integrals → the function's graph with the tangent line, or the shaded region under the curve.
-- Stereometry (prism, cone, sphere, pyramid) → 3D-projected wireframe with dashed hidden edges.
-- Number-line topics (inequalities, absolute value, intervals) → horizontal number line with the solution set shaded.
-- Probability / combinatorics → tree diagram or Venn diagram, whichever fits the example.
-- Statistics → bar chart, histogram, or box plot matching the sample data.
-- Physics-shaped topics (motion, forces) → free-body diagram or a time-vs-position graph.
-- IELTS Listening/Reading passage shapes → flow chart, table skeleton, or map — whatever the task uses.
-- Sizing: viewBox 0 0 400 260 for most; larger for wide graphs. No fixed width or height on the <svg> element itself, only viewBox — the reader wraps at max 480px.
-- Style: 1.5-2px strokes, small filled circles for points, sans-serif text 12-14px. Prefer simplicity over decoration.
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
-- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
+- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.
+
+DIAGRAM PLAYBOOK — the figure is the visual memory of the page. It must show a RELATIONSHIP in space.
+
+BANNED (these fail the page — do not emit them):
+- A 2×2 or N×M grid of equal rounded rectangles filled with bullet lists
+- Four identical "type of X" cards
+- Putting the word "Diagram" / "Схема" inside the SVG
+- ASCII arrows as text ("->", "=>", "→" as characters in a <text>)
+- More than ~18 words of running prose in the whole SVG
+- Identical boxes with no connecting geometry
+
+REQUIRED:
+- One composition, one story. Labels are 1–4 words. Explanation lives in concepts, not in the drawing.
+- Directed edges use a real arrowhead: <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="currentColor"/></marker></defs> then marker-end="url(#arr)" on the <line> or <path>.
+- Soft region fills: fill="currentColor" fill-opacity="0.08" to "0.16". Strokes 1.75–2.25, stroke="currentColor", stroke-linecap="round", stroke-linejoin="round".
+- Points: small filled circles r="3.5". Hidden 3D edges: stroke-dasharray="5 4".
+- font-family="ui-sans-serif, system-ui, sans-serif" font-size 13–15, font-weight 650 on titles. currentColor for every stroke, fill, and text (light and dark themes).
+- viewBox "0 0 720 400" (taller only if the figure needs vertical space). Leave 20px padding inside the viewBox so arrowheads and labels are not clipped. No width or height attributes on <svg>. Never <script>, never on* attributes, never external images.
+
+SHAPE BY TOPIC:
+- Geometry (triangle, circle, quadrilateral, angle) → the actual figure with labelled vertices/sides/angles and the numbers from your worked example.
+- Coordinate geometry / vectors → axes with numbered ticks and the points/lines plotted.
+- Functions (linear, quadratic, trig, exp, log) → the graph on axes; mark intercepts, vertex, asymptote.
+- Derivatives / integrals → the curve plus a tangent, or a shaded region under the curve.
+- Stereometry (prism, cone, sphere, pyramid) → 3D-projected wireframe, dashed hidden edges.
+- Number-line topics → a horizontal line with the solution set as a thick shaded interval.
+- Probability / combinatorics → a tree with weighted branches, or overlapping Venn sets — not a table of numbers.
+- Statistics → bars, a histogram, or a box plot of the sample data.
+- Physics-shaped topics → a free-body diagram or a time-vs-position graph.
+- Logic / proof / methods → FOUR DIFFERENT geometries in one canvas, never four copies of a card. Direct = a left-to-right implication chain of 3–4 pills with arrowed paths. Contradiction = a path that assumes ¬Q and ends at a ⊥. Induction = three rising steps (n=1, k, k+1). Contrapositive = a reversed arrow ¬Q → ¬P. Two-word titles only.
+- Classification / taxonomy → a tree or nested sets.
+- Procedure / algorithm / grammar / essay structure → numbered nodes on a path with arrows (a sentence skeleton, a paragraph map) — not a list of tips.
+- IELTS Listening/Reading → the map, flow, or table skeleton the task actually uses.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
     const raw = await Promise.race([
       complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
@@ -2403,7 +2429,9 @@ DIAGRAM PLAYBOOK — pick the shape by topic type:
 }
 
 function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const copy = learnCopyCode(resolved, t?.code);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -2414,7 +2442,6 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
   // multiply the reward. Same shape as LessonEngine's xpCommittedRef.
   const grantedRef = React.useRef(false);
   const speechRef = React.useRef(null);
-  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -2422,7 +2449,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     grantedRef.current = false;
     (async () => {
       try {
-        const parsed = await generateTheoryReader({ topic, resolved, tcode: t?.code, force: retry > 0 });
+        const parsed = await generateTheoryReader({ topic, resolved, tcode: copy, force: retry > 0 });
         if (cancelled) return;
         setPlan(parsed); setLoading(false);
       } catch (e) {
@@ -2457,7 +2484,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
       ...(Array.isArray(plan.pitfalls) ? [L("Common mistakes:", "Типові помилки:", "Типичные ошибки:", "Erreurs fréquentes :", "Häufige Fehler:"), ...plan.pitfalls] : []),
     ].filter((s) => typeof s === "string" && s.trim().length > 0);
     setSpeaking(true);
-    speechRef.current = speak(chunks, t?.code || "en", () => setSpeaking(false));
+    speechRef.current = speak(chunks, copy, () => setSpeaking(false));
   };
 
   const markAsRead = () => {
@@ -2498,7 +2525,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
   if (loading) return wrap([header, React.createElement(WaitPress, {
     key: "l",
     title: L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"),
-    lang: t?.code,
+    lang: copy,
     compact: true,
   })]);
   if (error) return wrap([header,
@@ -2517,24 +2544,21 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     header,
     React.createElement("h1", { key: "title", style: { margin: "0 0 12px", fontSize: 28, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2, letterSpacing: "-0.01em" } }, plan.title),
     plan.tldr && React.createElement("div", { key: "tldr", style: { marginTop: 8, padding: "16px 18px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 15, lineHeight: 1.6, color: "var(--text-strong)" } },
-      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, "TL;DR"),
+      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, L("TL;DR", "Коротко", "Коротко", "En bref", "Kurz gesagt")),
       React.createElement("div", { dangerouslySetInnerHTML: html(plan.tldr) }),
     ),
-    // AI-authored SVG diagram — only when Claude judged it helpful. Runs
-    // through sanitizeSvg (DOMPurify) so a stray <script> or on* attribute
-    // is dropped before it reaches the DOM. `currentColor` in stroke/fill
-    // makes strokes follow text color, so the same diagram reads on light
-    // and dark themes.
+    // AI-authored SVG. sanitizeSvg (DOMPurify) drops script/on*. currentColor
+    // in the prompt keeps strokes on both themes. Chrome lives in learn.css
+    // so a 720-wide viewBox fills the column instead of sitting in a 480px box.
     plan.diagram && (() => {
       const clean = sanitizeSvg(plan.diagram);
       if (!clean) return null;
-      return React.createElement("figure", {
-        key: "diagram",
-        style: { margin: "24px 0 0", padding: "18px 20px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, textAlign: "center", color: "var(--text-strong)" },
-      },
-        React.createElement("div", { style: { maxWidth: 480, margin: "0 auto" }, dangerouslySetInnerHTML: { __html: clean } }),
-        React.createElement("figcaption", { style: { marginTop: 10, fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" } },
-          L("Diagram", "Схема", "Схема", "Schéma", "Diagramm")),
+      const caption = typeof plan.diagramCaption === "string" && plan.diagramCaption.trim()
+        ? plan.diagramCaption.trim()
+        : null;
+      return React.createElement("figure", { key: "diagram", className: "theory-diagram" },
+        React.createElement("div", { dangerouslySetInnerHTML: { __html: clean } }),
+        caption && React.createElement("figcaption", null, caption),
       );
     })(),
     // Concepts — the main body. Each concept renders as its own heading +
@@ -2645,6 +2669,7 @@ async function generateFlashcards({ topic, resolved, tcode, force }) {
   const run = (async () => {
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+    const langName = languageNameFor(paperQual);
     const system = `You are the best exam-prep teacher in the world. Break the topic "${topic}" into a small deck of concept cards — each card is ONE clear idea a student can absorb in under 30 seconds.
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
@@ -2663,7 +2688,7 @@ RULES:
 - Each card covers ONE distinct concept — no repeats, no near-duplicates.
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - **Bold** the single key term on each card.
-- Skip filler like "in this card we will…" — get straight to the point.`;
+- Skip filler like "in this card we will…" — get straight to the point.${langName ? `\n- Write EVERY JSON string (title, heading, body, example) in ${langName} only. The app UI may be in another language — ignore it.` : ""}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
     const raw = await Promise.race([
       complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
@@ -2684,7 +2709,9 @@ RULES:
 }
 
 function LearnFlashcards({ topic, onExit, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const copy = learnCopyCode(resolved, t?.code);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -2692,14 +2719,13 @@ function LearnFlashcards({ topic, onExit, t }) {
   const [idx, setIdx] = React.useState(0);
   const [markedRead, setMarkedRead] = React.useState(false);
   const grantedRef = React.useRef(false);
-  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
 
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true); setError(null); setPlan(null); setIdx(0);
     (async () => {
       try {
-        const parsed = await generateFlashcards({ topic, resolved, tcode: t?.code, force: retry > 0 });
+        const parsed = await generateFlashcards({ topic, resolved, tcode: copy, force: retry > 0 });
         if (cancelled) return;
         setPlan(parsed); setLoading(false);
       } catch (e) {
@@ -2747,7 +2773,7 @@ function LearnFlashcards({ topic, onExit, t }) {
   if (loading) return wrap([header, React.createElement(WaitPress, {
     key: "l",
     title: L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"),
-    lang: t?.code,
+    lang: copy,
     compact: true,
   })]);
   if (error) return wrap([header,
@@ -2810,7 +2836,9 @@ function LearnFlashcards({ topic, onExit, t }) {
 // no persistence: the "right" method depends on the topic and the mood, not
 // on a permanent setting somewhere the student would forget to change.
 function LearnMethodPicker({ topic, onExit, onPick, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const copy = learnCopyCode(resolved, t?.code);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const recommended = recommendLearnMethod({ firstVisit: true });
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },

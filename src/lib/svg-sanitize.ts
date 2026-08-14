@@ -20,8 +20,11 @@ import DOMPurify from "dompurify";
 // container.
 export function sanitizeSvg(input: string | null | undefined): string | null {
   if (!input || typeof input !== "string") return null;
-  const trimmed = input.trim();
-  if (!trimmed.toLowerCase().startsWith("<svg")) return null;
+  const lower = input.toLowerCase();
+  const start = lower.indexOf("<svg");
+  const end = lower.lastIndexOf("</svg>");
+  if (start < 0 || end < 0 || end < start) return null;
+  const trimmed = input.slice(start, end + "</svg>".length);
   const clean = DOMPurify.sanitize(trimmed, { USE_PROFILES: { svg: true, svgFilters: true } });
   return clean && clean.trim().length > 0 ? clean : null;
 }

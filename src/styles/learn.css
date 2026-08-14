@@ -76,6 +76,35 @@
   animation: learn-sheet-up var(--dur-normal) var(--ease-out);
 }
 
+/* Theory-page figure. The SVG is AI-authored; this chrome is what stops
+   it reading as a screenshot pasted into a card. Full column width, paper
+   wash, no inner 480px clamp. */
+.theory-diagram {
+  margin: 28px 0 4px;
+  padding: 28px 22px 18px;
+  background: color-mix(in srgb, var(--theme-text) 3.5%, var(--surface-card));
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  color: var(--text-strong);
+}
+.theory-diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.theory-diagram svg text {
+  font-family: var(--font-sans);
+}
+.theory-diagram figcaption {
+  margin: 14px 4px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  font-style: normal;
+  text-align: left;
+}
+
 .learn-btn {
   font-family: var(--font-sans);
   cursor: pointer;
