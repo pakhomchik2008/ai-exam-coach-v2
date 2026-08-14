@@ -1,15 +1,14 @@
 # Brand source
 
-Why this folder exists: PNG master + SVG fallback + iOS AppIcon.
+Why this folder exists: SVG + PNG + iOS AppIcon.
 `public/brand/` is what the site serves. This folder is what you edit.
 
 ## Mark construction
 
-Open book. Two facing pages, champagne gold `#CCA563` on
-navy `#141822`. No teal, no bars, no forecast arrow.
+Open book. Three rising bars on the pages. A curved arrow to the
+forecast. Gold `#D4B36A` on teal `#1B4D4A`. No diamond, no graph-e.
 
-`logo-master.png` is the app icon (1024). Generator punches
-transparent corners, then writes web PNG + iOS set.
+ViewBox 64. Stroke 2.3, round caps. Lockup adds `EXAM COACH` / `SINCE 2026`.
 
 ## Generators
 
