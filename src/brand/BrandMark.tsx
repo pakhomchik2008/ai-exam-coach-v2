@@ -1,10 +1,24 @@
 /**
- * EXAM COACH mark — open book, rising bars, forecast arrow.
- * Same paths as brand/logo.svg so nav, favicon, and lockup stay one drawing.
+ * Exam Coach mark — block E of eleven squares.
+ * Same geometry as brand/logo.svg so nav, favicon, and lockup stay one drawing.
  */
 
-const GOLD = "#D4B36A";
-const TEAL = "#1B4D4A";
+const PURPLE = "#8921F5";
+const PAPER = "#F7F5F0";
+const NAVY = "#141822";
+
+const CELLS: [number, number][] = [
+  [0, 0], [1, 0], [2, 0],
+  [0, 1],
+  [0, 2], [1, 2], [2, 2],
+  [0, 3],
+  [0, 4], [1, 4], [2, 4],
+];
+
+const SQUARE = 6;
+const GAP = 4;
+const ORIGIN_X = 19;
+const ORIGIN_Y = 9;
 
 type BrandMarkProps = {
   size?: number;
@@ -12,24 +26,23 @@ type BrandMarkProps = {
   title?: string;
 };
 
-export function BrandGlyph({ color = GOLD }: { color?: string }) {
+export function BrandGlyph({ color = PURPLE }: { color?: string }) {
   return (
-    <g>
-      <g fill="none" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 22 L32 16 L55 22 V46 L32 52 L9 46 Z" />
-        <path d="M32 16 V52" />
-        <path d="M15 43 C 22 40, 28 34, 35 28 C 39 24, 45 21, 51 19" />
-      </g>
-      <rect x="19.2" y="36.5" width="5.6" height="9.2" rx="1" fill={color} />
-      <rect x="29.2" y="30.2" width="5.6" height="15.5" rx="1" fill={color} />
-      <rect x="39.2" y="24.2" width="5.6" height="21.5" rx="1" fill={color} />
-      <path d="M51 19 L45.6 17.4 L47.8 23.2 Z" fill={color} />
+    <g fill={color}>
+      {CELLS.map(([col, row]) => (
+        <rect
+          key={`${col}-${row}`}
+          x={ORIGIN_X + col * (SQUARE + GAP)}
+          y={ORIGIN_Y + row * (SQUARE + GAP)}
+          width={SQUARE}
+          height={SQUARE}
+        />
+      ))}
     </g>
   );
 }
 
 export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
-  const color = framed ? GOLD : TEAL;
   return (
     <svg
       width={size}
@@ -39,8 +52,8 @@ export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
       aria-hidden={title ? undefined : true}
       aria-label={title}
     >
-      {framed ? <rect width="64" height="64" rx="14" fill={TEAL} /> : null}
-      <BrandGlyph color={color} />
+      {framed ? <rect width="64" height="64" rx="14" fill={PAPER} /> : null}
+      <BrandGlyph />
     </svg>
   );
 }
@@ -50,7 +63,7 @@ type BrandLockupProps = {
   title?: string;
 };
 
-export function BrandLockup({ width = 200, title = "EXAM COACH" }: BrandLockupProps) {
+export function BrandLockup({ width = 200, title = "Exam Coach" }: BrandLockupProps) {
   return (
     <svg
       width={width}
@@ -58,31 +71,30 @@ export function BrandLockup({ width = 200, title = "EXAM COACH" }: BrandLockupPr
       role="img"
       aria-label={title}
     >
-      <rect width="280" height="340" fill={TEAL} />
+      <rect width="280" height="340" fill={NAVY} />
       <g transform="translate(140 118) scale(2.15) translate(-32 -32)">
-        <BrandGlyph color={GOLD} />
+        <BrandGlyph />
       </g>
       <text
         x="140"
         y="236"
         textAnchor="middle"
-        fill={GOLD}
-        fontFamily="var(--font-sans), ui-sans-serif, system-ui, sans-serif"
-        fontSize="28"
-        fontWeight="800"
-        letterSpacing="0.12em"
+        fill={PAPER}
+        fontFamily="var(--font-brand), Georgia, serif"
+        fontSize="32"
+        fontWeight="600"
       >
-        EXAM COACH
+        {title}
       </text>
       <text
         x="140"
         y="268"
         textAnchor="middle"
-        fill={GOLD}
+        fill={PURPLE}
         fontFamily="var(--font-sans), ui-sans-serif, system-ui, sans-serif"
         fontSize="11"
         fontWeight="600"
-        letterSpacing="0.36em"
+        letterSpacing="0.32em"
       >
         SINCE 2026
       </text>
