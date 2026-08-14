@@ -45,3 +45,26 @@ jobs:
         # Phase 6 requires failing on high; enforcing it from the start keeps the
         # dependency tree from drifting back into a vulnerable state.
         run: npm audit --audit-level=high --omit=dev
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke
+        run: npm run test:e2e
+        env:
+          CI: true
