@@ -2,11 +2,11 @@
 
 .land {
   --land-nav-h: 56px;
-  --land-teal: #1C1917;
-  --land-teal-deep: #141210;
-  --land-ink: #141210;
-  --land-paper: #F6F1E8;
-  --land-wash: #F3EEE6;
+  --land-teal: #1B4D4A;
+  --land-teal-deep: #102E2C;
+  --land-ink: #0E0F10;
+  --land-paper: #FAFAF9;
+  --land-wash: #F5F5F4;
   --land-amber: #F3D062;
   --land-line: rgba(245, 245, 244, 0.22);
   --land-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -477,7 +477,7 @@
   font-family: var(--land-mono);
   font-size: 0.68rem;
   letter-spacing: -0.03em;
-  color: #1C1917;
+  color: #1B4D4A;
 }
 .land-learn-head p:last-of-type {
   margin: 4px 0 0;
@@ -495,7 +495,7 @@
   width: 26%;
   height: 100%;
   border-radius: inherit;
-  background: #1C1917;
+  background: #1B4D4A;
 }
 .land-learn-unit {
   margin: 10px 0 6px;

@@ -242,7 +242,7 @@
 .energy-xp-fill {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #1C1917, #D4B36A);
+  background: linear-gradient(90deg, #1B4D4A, #D4B36A);
   transform-origin: left center;
   transition: width 520ms var(--motion-springy);
   position: relative;
@@ -349,7 +349,7 @@
 }
 .energy-drain-fluid {
   width: 100%;
-  background: #1C1917;
+  background: #1B4D4A;
   transition: height 200ms linear;
 }
 .energy-drain--danger .energy-drain-fluid { background: #B91C1C; animation: energy-breathe 1s ease-in-out infinite; }
@@ -526,7 +526,7 @@
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: #1C1917;
+  background: #1B4D4A;
   animation: fadeUp 280ms var(--motion-snap) both;
 }
 .energy-waterfall, .energy-candle {
@@ -669,7 +669,7 @@
   width: 2px;
   height: 0.85em;
   margin-left: 5px;
-  background: #1C1917;
+  background: #1B4D4A;
   vertical-align: -0.08em;
   animation: wait-caret 1s steps(1) infinite;
 }
@@ -728,7 +728,7 @@
   font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
   font-size: 0.68rem;
   font-style: normal;
-  color: #1C1917;
+  color: #1B4D4A;
 }
 .wait-press-q span {
   display: block;
@@ -775,7 +775,7 @@
   display: block;
   width: 40%;
   height: 100%;
-  background: #1C1917;
+  background: #1B4D4A;
   animation: wait-bar 1.4s var(--motion-smooth) infinite;
 }
 @keyframes wait-live {
@@ -876,8 +876,8 @@
   gap: 8px;
   padding: 12px 18px;
   border-radius: 999px;
-  border: 1.5px solid #1C1917;
-  background: #1C1917;
+  border: 1.5px solid #1B4D4A;
+  background: #1B4D4A;
   color: #fff;
   font-weight: 700;
   font-size: 14px;
@@ -886,7 +886,7 @@
 }
 .listen-clip-btn[aria-pressed="true"] {
   background: transparent;
-  color: #1C1917;
+  color: #1B4D4A;
 }
 .listen-clip--fallback {
   text-align: left;
@@ -926,13 +926,13 @@
   color: var(--text-muted);
   padding: 0;
 }
-.ielts-paper-clock { margin-left: auto; font-variant-numeric: tabular-nums; color: #1C1917; }
+.ielts-paper-clock { margin-left: auto; font-variant-numeric: tabular-nums; color: #1B4D4A; }
 .ielts-paper-btn {
   align-self: flex-start;
   padding: 12px 18px;
   border: none;
   border-radius: 12px;
-  background: #1C1917;
+  background: #1B4D4A;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -982,8 +982,8 @@
   color: var(--text-body);
 }
 .ielts-task-switch button.is-on {
-  border-color: #1C1917;
-  background: #1C1917;
+  border-color: #1B4D4A;
+  background: #1B4D4A;
   color: #fff;
 }
 .ielts-fill { display: flex; gap: 8px; }
@@ -1015,7 +1015,7 @@
 .ielts-explain { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
 .ielts-paper--done { align-items: center; text-align: center; }
 .ielts-band-kicker { letter-spacing: 0.12em; color: #D4B36A; font-size: 12px; }
-.ielts-band { margin: 0; font-size: 56px; font-weight: 800; color: #1C1917; line-height: 1; }
+.ielts-band { margin: 0; font-size: 56px; font-weight: 800; color: #1B4D4A; line-height: 1; }
 .ielts-band-card {
   width: min(420px, 100%);
   text-align: left;

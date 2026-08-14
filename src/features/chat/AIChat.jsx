@@ -3529,7 +3529,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
       // Floating button
       React.createElement("button", {
         onClick: () => { setAskOpen((v) => !v); if (!askOpen) { setAskReply(null); setAskInput(""); } },
-        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "var(--white)", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(28,25,23,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
+        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "var(--white)", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(79,70,229,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
       }, askOpen ? "✕" : "💬")));
 }
 
