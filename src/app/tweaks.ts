@@ -14,17 +14,17 @@ type VarSet = Record<string, string>;
 /**
  * Accent palettes — each swaps the entire indigo/accent token set. "Indigo" is
  * the legacy key for the default palette (saved tweaks reference it by name) —
- * its values are now the FintechX pine accent.
+ * values are ink on cream, not pine.
  */
 const ACCENT_PALETTES: Record<string, VarSet> = {
   Indigo: {
-    "--indigo-50": "#EFF6F1",
-    "--indigo-100": "#DDEDE3",
-    "--indigo-500": "#227C63",
-    "--indigo-600": "#1A6650",
-    "--indigo-700": "#145240",
-    "--action-accent": "#1A6650",
-    "--action-accent-hover": "#145240",
+    "--indigo-50": "#F3EEE6",
+    "--indigo-100": "#E8E0D4",
+    "--indigo-500": "#2A2622",
+    "--indigo-600": "#1C1917",
+    "--indigo-700": "#141210",
+    "--action-accent": "#1C1917",
+    "--action-accent-hover": "#141210",
   },
   Violet: {
     "--indigo-50": "#F5F3FF",

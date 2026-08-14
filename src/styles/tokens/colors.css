@@ -1,50 +1,47 @@
 /* ============================================================
-   AI Exam Coach — Color tokens · "FintechX" redesign
-   Nature-inspired light UI: warm paper surfaces, deep evergreen
-   ink for primary actions, fresh emerald for progress/success,
-   soft mint tints where indigo washes used to be.
-   Variable NAMES are unchanged (components depend on them) —
-   only the values moved. --indigo-* now carries the deep-pine
-   accent family; the name is legacy.
+   AI Exam Coach — Color tokens
+   Cream page, warm paper cards, ink for actions. --indigo-* is the
+   accent family (legacy name); values are ink, not pine or violet.
+   Emerald stays semantic only (success / progress), never chrome.
    ============================================================ */
 :root {
   /* ---- Brand ---- */
   --emerald-50:  #EDF9F2;
   --emerald-100: #D7F1E3;
-  --emerald-500: #16A06E;   /* fresh leaf — progress / success */
-  --emerald-600: #0F8259;   /* hover */
+  --emerald-500: #16A06E;   /* success / progress only */
+  --emerald-600: #0F8259;
   --emerald-700: #0B6848;
 
   --emerald-300: #9BDDC0;
 
-  /* Legacy name, new value: deep pine accent (was indigo) */
-  --indigo-50:  #EFF6F1;
-  --indigo-100: #DDEDE3;
-  --indigo-200: #C5E0D1;
-  --indigo-400: #4C9B82;
-  --indigo-500: #227C63;   /* brand mark + accent */
-  --indigo-600: #1A6650;   /* accent hover */
-  --indigo-700: #145240;
-  --indigo-800: #0E4234;
+  /* Legacy name. Ink accent — buttons, links, icon washes. */
+  --indigo-50:  #F3EEE6;
+  --indigo-100: #E8E0D4;
+  --indigo-200: #D4C8B8;
+  --indigo-400: #6F675C;
+  --indigo-500: #2A2622;
+  --indigo-600: #1C1917;
+  --indigo-700: #141210;
+  --indigo-800: #0C0B0A;
 
-  /* ---- Neutrals (warm stone-slate blend) ---- */
-  --slate-50:  #F6F7F5;
-  --slate-100: #EEF0EC;
-  --slate-200: #E1E5DF;
-  --slate-300: #C9CFC7;
-  --slate-400: #98A09A;
-  --slate-500: #6A736D;
-  --slate-600: #4C554F;
-  --slate-700: #37403A;
-  --slate-800: #222A25;
-  --slate-900: #121A16;    /* ink */
-  --white: #FFFFFF;
-  --app-bg: #F5F7F4;       /* warm paper page background */
+  /* ---- Neutrals (warm cream-stone) ---- */
+  --slate-50:  #F7F3EC;
+  --slate-100: #EFE9DF;
+  --slate-200: #E4DCD0;
+  --slate-300: #D0C6B8;
+  --slate-400: #A39686;
+  --slate-500: #7A6E62;
+  --slate-600: #5C5248;
+  --slate-700: #3F3832;
+  --slate-800: #2A2521;
+  --slate-900: #161412;
+  --white: #FFFDF8;
+  --app-bg: #F6F1E8;
 
-  /* Ink surfaces — dark "AI insight" cards à la FintechX */
-  --ink-900: #0E1512;
-  --ink-800: #16201B;
-  --ink-700: #22302A;
+  /* Ink surfaces — dark cards and primary pills */
+  --ink-900: #141210;
+  --ink-800: #1C1917;
+  --ink-700: #2A2622;
 
   /* ---- Semantic status ---- */
   --green-50:  #EDF9F2;
@@ -113,21 +110,21 @@
   --text-muted:   var(--slate-500);
   --text-faint:   var(--slate-400);
   --text-invert:  var(--white);
-  --text-on-ink-muted: #9DABA2;       /* secondary text on ink cards */
+  --text-on-ink-muted: #C4BBB0;       /* secondary text on ink cards */
 
   /* Borders */
   --border-subtle: var(--slate-100);
   --border-default:var(--slate-200);
   --border-strong: var(--slate-300);
 
-  /* Actions — FintechX-style: primary CTAs are deep ink pills */
+  /* Actions — ink pills on cream */
   --action-primary:        var(--ink-900);
   --action-primary-hover:  var(--ink-700);
   --action-accent:         var(--indigo-600);
   --action-accent-hover:   var(--indigo-700);
 
   /* Focus ring */
-  --focus-ring: var(--emerald-500);
+  --focus-ring: var(--ink-900);
 
   /* Difficulty (Easy / Medium / Hard) */
   --diff-easy-bg:   var(--emerald-100);
@@ -156,59 +153,59 @@
    steal the accent the way Legend gold does. Hardcoded hex in components
    will still look light; same known hole as the Legend tier. */
 :root[data-theme="dark"] {
-  --app-bg:         #0C110E;
-  --surface-page:   #0C110E;
-  --surface-card:   #151C18;
-  --surface-muted:  #1B231E;
-  --surface-sunken: #101612;
-  --surface-nav:    rgba(16, 22, 18, 0.86);
-  --slate-50:  #1A211C;
-  --slate-100: #222A24;
-  --slate-200: #2D352F;
-  --slate-300: #3B443D;
-  --slate-400: #8C968E;
-  --slate-500: #A6B0A8;
-  --slate-600: #C2CAC3;
-  --slate-700: #DBE1DB;
-  --slate-800: #EAEFE9;
-  --slate-900: #F3F6F1;
-  --text-strong:  #F3F6F1;
-  --text-body:    #DBE1DB;
-  --text-muted:   #9CA69E;
-  --text-faint:   #74807A;
-  --border-subtle: rgba(233, 240, 231, 0.09);
-  --border-default: rgba(233, 240, 231, 0.14);
-  --border-strong:  rgba(233, 240, 231, 0.22);
-  --action-primary: #EAEFE9;
-  --action-primary-hover: #F3F6F1;
+  --app-bg:         #141210;
+  --surface-page:   #141210;
+  --surface-card:   #1C1917;
+  --surface-muted:  #24201C;
+  --surface-sunken: #12100E;
+  --surface-nav:    rgba(20, 18, 16, 0.86);
+  --slate-50:  #1C1917;
+  --slate-100: #24201C;
+  --slate-200: #322C27;
+  --slate-300: #433C36;
+  --slate-400: #8A8076;
+  --slate-500: #A89F94;
+  --slate-600: #C4BBB0;
+  --slate-700: #DDD5CA;
+  --slate-800: #EDE6DB;
+  --slate-900: #F6F1E8;
+  --text-strong:  #F6F1E8;
+  --text-body:    #DDD5CA;
+  --text-muted:   #A89F94;
+  --text-faint:   #8A8076;
+  --border-subtle: rgba(246, 241, 232, 0.09);
+  --border-default: rgba(246, 241, 232, 0.14);
+  --border-strong:  rgba(246, 241, 232, 0.22);
+  --action-primary: #EDE6DB;
+  --action-primary-hover: #F6F1E8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --app-bg:         #0C110E;
-    --surface-page:   #0C110E;
-    --surface-card:   #151C18;
-    --surface-muted:  #1B231E;
-    --surface-sunken: #101612;
-    --surface-nav:    rgba(16, 22, 18, 0.86);
-    --slate-50:  #1A211C;
-    --slate-100: #222A24;
-    --slate-200: #2D352F;
-    --slate-300: #3B443D;
-    --slate-400: #8C968E;
-    --slate-500: #A6B0A8;
-    --slate-600: #C2CAC3;
-    --slate-700: #DBE1DB;
-    --slate-800: #EAEFE9;
-    --slate-900: #F3F6F1;
-    --text-strong:  #F3F6F1;
-    --text-body:    #DBE1DB;
-    --text-muted:   #9CA69E;
-    --text-faint:   #74807A;
-    --border-subtle: rgba(233, 240, 231, 0.09);
-    --border-default: rgba(233, 240, 231, 0.14);
-    --border-strong:  rgba(233, 240, 231, 0.22);
-    --action-primary: #EAEFE9;
-    --action-primary-hover: #F3F6F1;
+    --app-bg:         #141210;
+    --surface-page:   #141210;
+    --surface-card:   #1C1917;
+    --surface-muted:  #24201C;
+    --surface-sunken: #12100E;
+    --surface-nav:    rgba(20, 18, 16, 0.86);
+    --slate-50:  #1C1917;
+    --slate-100: #24201C;
+    --slate-200: #322C27;
+    --slate-300: #433C36;
+    --slate-400: #8A8076;
+    --slate-500: #A89F94;
+    --slate-600: #C4BBB0;
+    --slate-700: #DDD5CA;
+    --slate-800: #EDE6DB;
+    --slate-900: #F6F1E8;
+    --text-strong:  #F6F1E8;
+    --text-body:    #DDD5CA;
+    --text-muted:   #A89F94;
+    --text-faint:   #8A8076;
+    --border-subtle: rgba(246, 241, 232, 0.09);
+    --border-default: rgba(246, 241, 232, 0.14);
+    --border-strong:  rgba(246, 241, 232, 0.22);
+    --action-primary: #EDE6DB;
+    --action-primary-hover: #F6F1E8;
   }
 }

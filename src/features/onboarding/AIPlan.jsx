@@ -554,7 +554,7 @@ function AIPlan({ examIds, onStart, t }) {
             border: "none", borderRadius: "var(--radius-2xl)", padding: "18px 48px",
             background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))",
             color: "var(--white)", fontSize: 18, fontWeight: 700, cursor: "pointer",
-            fontFamily: "var(--font-sans)", boxShadow: "0 8px 30px rgba(34,124,99,0.35)",
+            fontFamily: "var(--font-sans)", boxShadow: "0 8px 30px rgba(28,25,23,0.35)",
           }}
           >
             ✨ {L("Start My AI Plan","Розпочати мій AI план","Начать мой AI план","Démarrer mon plan IA","Meinen KI-Plan starten")} →
