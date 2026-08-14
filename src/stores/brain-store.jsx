@@ -680,9 +680,10 @@ function recommendNextAction() {
 
   const gain = simulateReadinessGain(e.id, t.topicIdx, true);
   const sched = window.getSchedule ? window.getSchedule() : { sessions: [] };
+  const sessions = Array.isArray(sched) ? sched : (sched.sessions || []);
   const match =
-    sched.sessions.find((s) => s.status === "pending" && s.examId === e.id && window.topicIndexFromId(s.id) === t.topicIdx) ||
-    sched.sessions.find((s) => s.status === "pending" && s.examId === e.id);
+    sessions.find((s) => s.status === "pending" && s.examId === e.id && window.topicIndexFromId(s.id) === t.topicIdx) ||
+    sessions.find((s) => s.status === "pending" && s.examId === e.id);
 
   return {
     kind: !t.lastSeen ? "learn" : "review",

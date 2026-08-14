@@ -27,6 +27,18 @@ describe("stepMatches", () => {
   it("ignores spaces and multiply dots", () => {
     expect(normalizeAnswer("2 · x")).toBe("2x");
   });
+
+  it("accepts a short paraphrase of a phrase answer", () => {
+    const step = {
+      reveal: "conclude",
+      answer: "the sum is divisible by 3",
+      accept: ["divisible by 3", "3 divides the sum"],
+      hint: "common factor",
+    };
+    expect(stepMatches("sum of any 3 int is div by 3", step)).toBe(true);
+    expect(stepMatches("divisible by 3", step)).toBe(true);
+    expect(stepMatches("hello", step)).toBe(false);
+  });
 });
 
 describe("hiddenIndexes", () => {

@@ -3,7 +3,7 @@
 
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
-import { languageNameFor } from "../../lib/paper-language";
+import { copyLangFor, languageNameFor, paperQualForExam } from "../../lib/paper-language";
 import { describeAiError } from "../../lib/ai-error";
 import { buildFeynmanSystem, parseFeynmanGrade } from "./feynman";
 
@@ -14,7 +14,8 @@ function md(text) {
 function examQual(resolved) {
   if (!resolved || !window.getExams) return null;
   const exam = window.getExams().find((e) => e.id === resolved.examId);
-  return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+  const family = (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+  return paperQualForExam({ ...exam, qualificationId: family }) || family;
 }
 
 function speechLang(qual, ui) {
@@ -26,7 +27,13 @@ function speechLang(qual, ui) {
 }
 
 export function FeynmanDialog({ topic, onExit, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(
+    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
+    [topic],
+  );
+  const qual = examQual(resolved);
+  const copy = copyLangFor(qual, t?.code || "en");
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const [draft, setDraft] = React.useState("");
   const [listening, setListening] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -35,11 +42,6 @@ export function FeynmanDialog({ topic, onExit, t }) {
   const [marked, setMarked] = React.useState(false);
   const grantedRef = React.useRef(false);
   const recRef = React.useRef(null);
-  const resolved = React.useMemo(
-    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
-    [topic],
-  );
-  const qual = examQual(resolved);
   const canSpeak = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   function toggleMic() {
@@ -51,7 +53,7 @@ export function FeynmanDialog({ topic, onExit, t }) {
       return;
     }
     const rec = new Ctor();
-    rec.lang = speechLang(qual, t?.code);
+    rec.lang = speechLang(qual, copy);
     rec.interimResults = true;
     rec.onresult = (ev) => {
       const text = Array.from(ev.results).map((r) => r[0].transcript).join(" ");
@@ -68,7 +70,7 @@ export function FeynmanDialog({ topic, onExit, t }) {
     if (!text || loading) return;
     setLoading(true); setError(null); setGrade(null);
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const lang = languageNameFor(qual) || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[t?.code] || "English");
+    const lang = languageNameFor(qual) || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[copy] || "English");
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
     try {
@@ -85,7 +87,7 @@ export function FeynmanDialog({ topic, onExit, t }) {
       setGrade(parseFeynmanGrade(parsed ?? raw));
     } catch (e) {
       const timedOut = e && e.message === "timeout";
-      const fromServer = e && typeof e.status === "number" ? describeAiError(e, t?.code) : null;
+      const fromServer = e && typeof e.status === "number" ? describeAiError(e, copy) : null;
       setError(fromServer || (timedOut
         ? L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще.", "Это длилось слишком долго — попробуйте ещё.", "Trop long — réessayez.", "Zu lange — nochmal.")
         : L("Could not grade that — try again.", "Не вдалося оцінити — спробуйте ще.", "Не удалось оценить — попробуйте ещё.", "Notation impossible — réessayez.", "Bewertung fehlgeschlagen — nochmal.")));
@@ -149,7 +151,7 @@ export function FeynmanDialog({ topic, onExit, t }) {
         style: { padding: "10px 16px", borderRadius: 10, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)", opacity: !draft.trim() || loading ? 0.5 : 1 },
       }, L("Grade me", "Оціни", "Оцени", "Note-moi", "Bewerten")),
     ),
-    loading && React.createElement(WaitPress, { key: "w", title: L("Listening to your explanation…", "Читаю пояснення…", "Читаю объяснение…", "Lecture…", "Lese…"), lang: t?.code, compact: true }),
+    loading && React.createElement(WaitPress, { key: "w", title: L("Listening to your explanation…", "Читаю пояснення…", "Читаю объяснение…", "Lecture…", "Lese…"), lang: copy, compact: true }),
     error && React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error),
     grade && React.createElement("div", { key: "g", style: { marginTop: 18, padding: 16, borderRadius: 14, border: "1px solid var(--border-default)", background: "var(--surface-card)" } },
       React.createElement("div", { style: { fontWeight: 700, marginBottom: 8 } },

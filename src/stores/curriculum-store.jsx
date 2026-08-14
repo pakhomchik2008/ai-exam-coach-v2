@@ -287,7 +287,7 @@ function curriculumRowsForQualification(qualificationId, board) {
 // ── Deterministic single-syllabus lookup — pure, synchronous, no AI call ───
 // qualificationId is the strong discriminator — it already pins the country
 // AND education system (nmt=UA, ib=international, alevel/gcse=GB, sat/act/ap=US,
-// matura=PL, abitur=DE). So country is intentionally NOT part of the match:
+// matura=PL, abitur=DE, bac=FR). So country is intentionally NOT part of the match:
 // a lookup resolves the official syllabus no matter what (or nothing) the
 // profile has for country. Board is matched leniently too — a row with a null
 // board is a wildcard that fits any selected exam board (topic lists are

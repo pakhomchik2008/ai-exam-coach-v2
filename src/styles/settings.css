@@ -1,0 +1,590 @@
+/* Settings — grouped cards, magnetic toggles, Free-plan breathe.
+   Lives here so Settings.jsx can stay layout+state, not a CSS-in-JS dump. */
+
+/* Settings hub — OneSignal-style tile grid. Detail is an in-tab page. */
+
+.settings-hub {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  max-width: 100%;
+  font-family: var(--font-sans);
+}
+
+.settings-hub > h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.settings-hub-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-hub-kicker {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.settings-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 720px) {
+  .settings-hub-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 980px) {
+  .settings-hub-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.settings-hub-card {
+  appearance: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 136px;
+  padding: 24px 22px 22px;
+  box-sizing: border-box;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: var(--surface-card);
+  border: none;
+  border-radius: 16px;
+  box-shadow: none;
+  transition: background 180ms var(--ease-out), transform 180ms var(--ease-out);
+}
+
+.settings-hub-card:hover {
+  background: color-mix(in srgb, var(--theme-text) 5%, var(--surface-card));
+}
+
+.settings-hub-card:focus {
+  outline: none;
+}
+
+.settings-hub-card:focus-visible {
+  outline: 2px solid var(--indigo-500);
+  outline-offset: 2px;
+}
+
+.settings-hub-card:active {
+  transform: scale(0.99);
+}
+
+.settings-hub-copy h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+
+.settings-hub-copy p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.settings-hub-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--emerald-700);
+}
+
+.settings-hub-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--emerald-500);
+}
+
+.settings-hub-cta {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--indigo-600);
+  color: var(--text-invert);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.settings-hub-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--indigo-50);
+  color: var(--indigo-600);
+}
+
+.settings-hub-card[data-danger="1"] .settings-hub-icon {
+  background: var(--red-50);
+  color: var(--red-600);
+}
+
+/* Detail pages use rows + toggles.
+
+   No global box-sizing in this app. A row with width:100% + horizontal
+   padding is then 36px wider than the card; overflow:hidden (needed so
+   square row corners don't paint over the 16px radius) clips that extra
+   on the RIGHT — which is exactly where the toggle sits. The left card
+   on Notifications looked fine because its labels are short; the right
+   card's toggle was the first thing the clip ate. */
+
+.settings-hub,
+.settings-hub *,
+.settings-page,
+.settings-page * {
+  box-sizing: border-box;
+}
+
+.settings-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.settings-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px 10px;
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.settings-card-head span[aria-hidden] {
+  font-size: 14px;
+}
+
+.settings-card > .settings-row:first-child {
+  border-top: none;
+}
+
+@keyframes settings-view-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.settings-hub-home,
+.settings-page {
+  animation: settings-view-in 360ms var(--ease-out) both;
+}
+
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.settings-page-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+}
+
+.settings-page-back {
+  appearance: none;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  border: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.settings-page-back:focus {
+  outline: none;
+}
+
+.settings-page-back:focus-visible {
+  outline: 2px solid var(--indigo-500);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.settings-page-head h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+/* Same 1→2 column break as the hub tiles. auto-fit + minmax(22rem, 1fr)
+   looked clever and then overflowed the main column — grid items default
+   to min-width:auto, so a long Quiet-hours line forced the track wider
+   than the page and the right-edge toggles got clipped. */
+.settings-page-body {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-page-body > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (min-width: 720px) {
+  .settings-page-body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Odd leftover card on the last row spans both tracks. */
+  .settings-page-body > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Profile is a form, not cards: keep its fields one under another at a width
+   you can still aim at. */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  max-width: 32rem;
+}
+
+.settings-row {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 16px 20px;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-card > .settings-row:last-child {
+  padding-bottom: 20px;
+}
+
+.settings-row:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.settings-row-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-row-label strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-body);
+}
+
+.settings-row-label em {
+  font-style: normal;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.settings-row-value {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-chevron {
+  color: var(--text-faint);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.settings-toggle {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 99px;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: var(--slate-300);
+  cursor: pointer;
+  position: relative;
+  flex: 0 0 44px;
+  transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-toggle[data-on="1"] {
+  background: var(--indigo-600);
+}
+
+.settings-toggle i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  background: var(--white);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settings-toggle[data-on="1"] i {
+  transform: translateX(18px);
+}
+
+.settings-sub-free {
+  animation: settings-breathe 2s ease-in-out infinite;
+}
+
+@keyframes settings-breathe {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(217, 165, 33, 0.18); }
+  50% { box-shadow: 0 0 0 1px rgba(217, 165, 33, 0.55), 0 0 18px -2px rgba(217, 165, 33, 0.28); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-sub-free,
+  .settings-hub-home,
+  .settings-page { animation: none; }
+  .settings-toggle, .settings-toggle i { transition: none; }
+}
+
+/* Both rails wrap instead of scrolling sideways: a half-visible swatch at the
+   card edge reads as a clipped layout, not as "scroll me". */
+.settings-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 20px 16px;
+}
+
+.settings-theme-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 20px 16px;
+}
+
+.settings-theme-swatch {
+  flex: 0 0 auto;
+  width: 124px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  border-radius: 14px;
+  padding: 8px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.settings-theme-swatch[data-on="1"] {
+  border-color: var(--indigo-500);
+  color: var(--text-strong);
+}
+
+.settings-theme-mini {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 76px;
+  padding: 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.settings-theme-mini i {
+  width: 22px;
+  height: 10px;
+  border-radius: 99px;
+}
+
+.settings-theme-mini b {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.settings-theme-swatch em {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-flag {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-default);
+  background: var(--surface-card);
+  border-radius: 14px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  transform: scale(1);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease;
+}
+
+.settings-flag[data-on="1"] {
+  border-color: var(--indigo-500);
+  color: var(--indigo-700);
+  background: var(--indigo-50);
+  transform: scale(1.04);
+  font-weight: var(--weight-medium);
+}
+
+.settings-avatar-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+.settings-avatar-ring {
+  position: absolute;
+  inset: 0;
+  width: 72px;
+  height: 72px;
+  pointer-events: none;
+}
+
+.settings-avatar-face {
+  position: absolute;
+  inset: 8px;
+  width: 56px;
+  height: 56px;
+  border-radius: 99px;
+  object-fit: cover;
+  background: var(--indigo-600);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  line-height: 1;
+}
+
+.settings-avatar-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.settings-danger {
+  border-color: var(--red-200);
+  background: var(--rose-50);
+}
+
+.settings-danger .settings-card-head {
+  color: var(--red-600);
+}
+
+.settings-swatches {
+  display: flex;
+  gap: 10px;
+  padding: 8px 20px 16px;
+}
+
+.settings-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 99px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.settings-swatch[data-on="1"] {
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 2px var(--surface-card), 0 0 0 4px var(--indigo-500);
+}
+
+html.dyslexia,
+html.dyslexia body {
+  letter-spacing: 0.045em;
+  word-spacing: 0.12em;
+  line-height: 1.65;
+}
+
+/* Legal / About prose stays at a readable measure even though the page is now
+   as wide as the nav column. */
+.settings-page .land-legal {
+  padding: 0;
+  max-width: 42rem;
+}
+
+.settings-page .land-legal h1 {
+  display: none;
+}

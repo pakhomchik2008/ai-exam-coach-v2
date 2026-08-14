@@ -5,10 +5,10 @@ Why this folder exists: SVG + PNG + iOS AppIcon.
 
 ## Mark construction
 
-Open book. Three rising bars on the pages. A curved arrow to the
-forecast. Gold `#D4B36A` on teal `#1B4D4A`. No diamond, no graph-e.
+Block E. Eleven squares on a 3×5 grid, purple `#8921F5` on
+cream `#F7F5F0`. Square 6, gap 4, origin 19,9 in a 64 viewBox.
 
-ViewBox 64. Stroke 2.3, round caps. Lockup adds `EXAM COACH` / `SINCE 2026`.
+Lockup adds `Exam Coach` / `SINCE 2026` on navy.
 
 ## Generators
 

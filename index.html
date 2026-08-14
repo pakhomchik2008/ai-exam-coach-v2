@@ -1,6 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="cream">
 <head>
+<script>
+/* Preview/local hosts must not keep OneSignal's worker. It is scoped to
+   production, and a leftover SW intercepts hashed /assets/*.js after a
+   deploy — Safari then paints a blank page. Drop it before the bundle. */
+(function () {
+  var host = location.hostname;
+  if (host === "ai-exam-coach-v2.vercel.app" || host === "exam.coach" || host === "www.exam.coach") return;
+  if (!navigator.serviceWorker) return;
+  navigator.serviceWorker.getRegistrations().then(function (regs) {
+    if (!regs.length) return;
+    Promise.all(regs.map(function (r) { return r.unregister(); })).then(function () {
+      location.reload();
+    });
+  });
+})();
+</script>
 <!-- Sentry — loaded first so it can catch errors from the bundle below it,
      including a bundle that fails to parse or load at all. That is why it stays
      a CDN tag rather than moving into the bundle it is meant to watch. -->
@@ -8,25 +24,22 @@
   src="https://js-de.sentry-cdn.com/f944c5545143a5d01254af4c96e734d3.min.js"
   crossorigin="anonymous"
 ></script>
-<!-- OneSignal Web Push SDK (Phase 3 §3.5 follow-up). Loaded unconditionally —
-     src/lib/push.ts checks VITE_ONESIGNAL_APP_ID before using it, so this is
-     a harmless no-op fetch when push isn't configured (e.g. local dev). -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>EXAM COACH — AI Exam Coach</title>
-<meta name="description" content="Personal AI tutor for NMT, IELTS, GCSE, SAT. Forecast your score. Stop guessing." />
-<meta name="theme-color" content="#1B4D4A" />
+<title>Exam Coach</title>
+<meta name="description" content="Personal tutor for NMT, IELTS, GCSE, SAT. Forecast your score. Stop guessing." />
+<meta name="theme-color" content="#FAFAF8" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-<meta property="og:title" content="EXAM COACH" />
+<meta property="og:title" content="Exam Coach" />
 <meta property="og:description" content="Forecast your score. Stop guessing." />
 <meta property="og:image" content="/brand/logo-512.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gabarito:wght@500..800&family=Hanken+Grotesk:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Gabarito:wght@500..800&family=Hanken+Grotesk:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@500;700&display=swap" />
 <!-- Kept out of /assets/ deliberately: Vite content-hashes everything it emits
      there, so that path carries a 1-year immutable cache header (vercel.json).
      An unhashed file living under it could never be updated. -->
+<link rel="icon" type="image/png" sizes="32x32" href="/brand/logo-32.png" />
 <link rel="icon" href="/favicon.svg" />
 <style>
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -36,20 +49,8 @@
   /* Floating "+N XP" gain in the Learn game HUD: rise and fade. */
   @keyframes xppop { 0% { opacity: 0; transform: translateY(6px) scale(0.9); } 25% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 0; transform: translateY(-16px) scale(1); } }
   @media (prefers-reduced-motion: reduce) { @keyframes xppop { 0% { opacity: 1; } 100% { opacity: 0; } } }
-  html, body { margin: 0; min-height: 100%; background: var(--surface-page); }
-  /* FintechX-style ambient wash: a faint sky+mint gradient breathing at the
-     top of every page, fixed so scrolling content floats over it. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background:
-      radial-gradient(60rem 28rem at 18% -8%, rgba(49, 147, 188, 0.07), transparent 60%),
-      radial-gradient(70rem 32rem at 85% -12%, rgba(22, 160, 110, 0.08), transparent 62%);
-  }
-  #root { position: relative; z-index: 1; min-height: 100vh; }
+  html, body { margin: 0; min-height: 100%; background: #FAFAF8; }
+  #root { min-height: 100vh; }
 
   /* AppNav responsive collapse — the link row (9 items + lang picker + logout)
      only fits desktop widths; below 680px it overflows/wraps illegibly, so it

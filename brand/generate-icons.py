@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Rasterise the EXAM COACH mark into PNG + iOS AppIcon.appiconset.
+"""Rasterise the Exam Coach block-E into PNG + iOS AppIcon.appiconset.
 
 Why a stdlib PNG writer: we refuse a new dependency for one utility
-(see CLAUDE.md). Geometry matches brand/logo.svg: open book, three
-rising bars, forecast arrow.
+(see CLAUDE.md). Geometry matches brand/logo.svg: eleven purple squares.
 """
 from __future__ import annotations
 
-import math
 import struct
 import zlib
 from pathlib import Path
@@ -17,43 +15,27 @@ PUBLIC = ROOT / "public"
 BRAND_OUT = PUBLIC / "brand"
 APPICON = BRAND_OUT / "appicon" / "AppIcon.appiconset"
 
-TEAL = (0x1B, 0x4D, 0x4A, 0xFF)
-GOLD = (0xD4, 0xB3, 0x6A, 0xFF)
+PURPLE = (0x89, 0x21, 0xF5, 0xFF)
+PAPER = (0xF7, 0xF5, 0xF0, 0xFF)
 CLEAR = (0, 0, 0, 0)
 
-STROKE = 2.3
 CORNER_R = 14.0
-
-BOOK = [(9, 22), (32, 16), (55, 22), (55, 46), (32, 52), (9, 46), (9, 22)]
-SPINE = [(32, 16), (32, 52)]
-ARROW = [(15, 43), (22, 40), (28, 34), (35, 28), (42, 23), (51, 19)]
-HEAD = [(51, 19), (45.6, 17.4), (47.8, 23.2)]
-BARS = [
-    (19.2, 36.5, 5.6, 9.2),
-    (29.2, 30.2, 5.6, 15.5),
-    (39.2, 24.2, 5.6, 21.5),
+SQUARE = 6.0
+GAP = 4.0
+ORIGIN_X = 19.0
+ORIGIN_Y = 9.0
+CELLS = [
+    (0, 0), (1, 0), (2, 0),
+    (0, 1),
+    (0, 2), (1, 2), (2, 2),
+    (0, 3),
+    (0, 4), (1, 4), (2, 4),
 ]
 
 
 def dist2(ax: float, ay: float, bx: float, by: float) -> float:
     dx, dy = ax - bx, ay - by
     return dx * dx + dy * dy
-
-
-def dist_to_segment(px: float, py: float, ax: float, ay: float, bx: float, by: float) -> float:
-    vx, vy = bx - ax, by - ay
-    length = vx * vx + vy * vy
-    if length == 0:
-        return math.sqrt(dist2(px, py, ax, ay))
-    t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / length))
-    return math.sqrt(dist2(px, py, ax + t * vx, ay + t * vy))
-
-
-def near_poly(px: float, py: float, pts: list[tuple[float, float]], half: float) -> bool:
-    for i in range(len(pts) - 1):
-        if dist_to_segment(px, py, *pts[i], *pts[i + 1]) <= half:
-            return True
-    return False
 
 
 def inside_round_rect(x: float, y: float, size: float) -> bool:
@@ -65,29 +47,11 @@ def inside_round_rect(x: float, y: float, size: float) -> bool:
     return dist2(x, y, ix, iy) <= r * r
 
 
-def inside_rect(px: float, py: float, x: float, y: float, w: float, h: float) -> bool:
-    return x <= px <= x + w and y <= py <= y + h
-
-
-def inside_triangle(px: float, py: float, pts: list[tuple[float, float]]) -> bool:
-    (x1, y1), (x2, y2), (x3, y3) = pts
-    den = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
-    if abs(den) < 1e-9:
-        return False
-    a = ((y2 - y3) * (px - x3) + (x3 - x2) * (py - y3)) / den
-    b = ((y3 - y1) * (px - x3) + (x1 - x3) * (py - y3)) / den
-    c = 1 - a - b
-    return a >= 0 and b >= 0 and c >= 0
-
-
 def paint(px: float, py: float) -> bool:
-    half = STROKE / 2.0
-    if near_poly(px, py, BOOK, half) or near_poly(px, py, SPINE, half) or near_poly(px, py, ARROW, half):
-        return True
-    if inside_triangle(px, py, HEAD):
-        return True
-    for x, y, w, h in BARS:
-        if inside_rect(px, py, x, y, w, h):
+    for col, row in CELLS:
+        x = ORIGIN_X + col * (SQUARE + GAP)
+        y = ORIGIN_Y + row * (SQUARE + GAP)
+        if x <= px < x + SQUARE and y <= py < y + SQUARE:
             return True
     return False
 
@@ -105,11 +69,11 @@ def render(size: int, background: bool) -> list[list[tuple[int, int, int, int]]]
                 if not inside_round_rect(x + 0.5, y + 0.5, size):
                     row.append(CLEAR)
                 elif marked:
-                    row.append(GOLD)
+                    row.append(PURPLE)
                 else:
-                    row.append(TEAL)
+                    row.append(PAPER)
             else:
-                row.append(GOLD if marked else CLEAR)
+                row.append(PURPLE if marked else CLEAR)
         rows.append(row)
     return rows
 

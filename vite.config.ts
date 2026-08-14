@@ -3,6 +3,12 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  // pdf.js worker is loaded via `?url` from extract-study-file.ts. Pinning the
+  // dep here stops Vite from re-optimizing it mid-session and breaking the
+  // worker URL on the first Study Tools PDF drop of a cold `npm run dev`.
+  optimizeDeps: {
+    include: ["pdfjs-dist"],
+  },
 
   server: {
     port: 5173,

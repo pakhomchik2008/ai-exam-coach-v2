@@ -630,7 +630,7 @@ function CalFab({ open, setOpen, onCreate, onGoToExams, t }) {
       <button onClick={() => setOpen((v) => !v)} aria-label={L("Create","Створити","Создать","Créer","Erstellen")} style={{
         width: 56, height: 56, borderRadius: "50%", border: "none", cursor: "pointer",
         background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))", color: "var(--white)",
-        fontSize: 26, boxShadow: "0 8px 24px rgba(34,124,99,0.4)", display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 26, boxShadow: "0 8px 24px rgba(79,70,229,0.4)", display: "flex", alignItems: "center", justifyContent: "center",
         transform: open ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s ease",
       }}>+</button>
     </div>

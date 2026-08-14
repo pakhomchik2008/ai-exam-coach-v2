@@ -285,7 +285,7 @@ Rules:
                 {chatMessages.map((msg, i) => (
                   <div key={i} style={{ display: "flex", gap: 8, flexDirection: msg.role === "user" ? "row-reverse" : "row", alignItems: "flex-end" }}>
                     {msg.role === "assistant" && (
-                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(34,124,99,0.3)" }}>🤖</div>
+                      <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0, boxShadow: "0 2px 8px rgba(79,70,229,0.3)" }}>🤖</div>
                     )}
                     <div style={{
                       maxWidth: "80%", padding: "10px 14px", lineHeight: 1.55, fontSize: "var(--text-sm)",
@@ -293,7 +293,7 @@ Rules:
                       background: msg.role === "user" ? "var(--indigo-600)" : "var(--surface-page)",
                       color: msg.role === "user" ? "var(--white)" : "var(--text-body)",
                       border: msg.role === "user" ? "none" : "1px solid var(--border-subtle)",
-                      boxShadow: msg.role === "user" ? "0 2px 8px rgba(34,124,99,0.25)" : "none",
+                      boxShadow: msg.role === "user" ? "0 2px 8px rgba(79,70,229,0.25)" : "none",
                     }}>
                       {renderText(msg.content)}
                     </div>

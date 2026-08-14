@@ -14,6 +14,7 @@ import {
   type NodeProgressMap,
 } from "./locks";
 import { isBossNode, localize, type LearnNode, type LearnTree, type LearnUnit } from "./schema";
+import { copyLangFor } from "../../../lib/paper-language";
 
 const GLYPH: Record<string, { fill: string; stroke: string }> = {
   locked:    { fill: "transparent", stroke: "var(--slate-400)" },
@@ -42,6 +43,7 @@ export function UnitSkillTree({
   lang: string;
   onSelect: (node: LearnNode) => void;
 }) {
+  const copyLang = copyLangFor(tree.examTaxonomy, lang);
   const layout = layoutUnit(unit);
   const lessons = unit.nodes.filter((n) => !isBossNode(n));
   const masteredLessons = lessons.filter((n) => isMastered(progress[n.id]?.mastery)).length;
@@ -52,7 +54,7 @@ export function UnitSkillTree({
     <div style={{ marginBottom: 28 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-          {localize(unit.title, lang)}
+          {localize(unit.title, copyLang)}
         </h2>
         <span style={{ fontSize: 11, color: "var(--text-faint)", whiteSpace: "nowrap" }}>
           {masteredLessons}/{lessons.length}
@@ -137,7 +139,7 @@ export function UnitSkillTree({
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-strong)" }}>
-                    {localize(p.node.title, lang)}
+                    {localize(p.node.title, copyLang)}
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 2 }}>
                     {p.isBoss

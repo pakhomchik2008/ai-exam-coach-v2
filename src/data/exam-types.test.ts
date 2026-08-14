@@ -30,7 +30,7 @@ type Api = {
 const api = window as unknown as Api;
 
 describe("examType — known ids", () => {
-  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "custom"])("resolves %s to itself", (id) => {
+  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "bac", "gre", "gmat", "pte", "custom"])("resolves %s to itself", (id) => {
     expect(api.examType(id).id).toBe(id);
   });
 });
@@ -39,7 +39,7 @@ describe("examType — unknown ids (audit #30)", () => {
   it.each([
     "a-level", // plausible misspelling of "alevel"
     "IELTS", // wrong case
-    "pte", // a real exam that is not in the catalog
+    "lsat", // a real exam that is not in the catalog
     "renamed-in-db",
   ])("resolves %p to custom, not A-Level", (id) => {
     const resolved = api.examType(id);
@@ -125,6 +125,39 @@ describe("language exams in the bundled catalog", () => {
   });
 });
 
+describe("GRE in the bundled catalog", () => {
+  it("is a 260–340 V+Q score and section-based", () => {
+    const gre = api.examType("gre");
+    expect(gre.grade.kind).toBe("score");
+    expect(gre.grade.min).toBe(260);
+    expect(gre.grade.max).toBe(340);
+    expect(gre.grade.step).toBe(1);
+    expect(api.isSectionBasedExam("gre")).toBe(true);
+  });
+});
+
+describe("GMAT in the bundled catalog", () => {
+  it("is Focus 205–805, not classic 200–800", () => {
+    const gmat = api.examType("gmat");
+    expect(gmat.grade.kind).toBe("score");
+    expect(gmat.grade.min).toBe(205);
+    expect(gmat.grade.max).toBe(805);
+    expect(gmat.grade.step).toBe(10);
+    expect(api.isSectionBasedExam("gmat")).toBe(true);
+  });
+});
+
+describe("PTE in the bundled catalog", () => {
+  it("is a 10–90 score and section-based", () => {
+    const pte = api.examType("pte");
+    expect(pte.grade.kind).toBe("score");
+    expect(pte.grade.min).toBe(10);
+    expect(pte.grade.max).toBe(90);
+    expect(pte.grade.step).toBe(1);
+    expect(api.isSectionBasedExam("pte")).toBe(true);
+  });
+});
+
 describe("suggestedQualificationId", () => {
   it("reads the last exam's qualification", () => {
     expect(api.suggestedQualificationId({ qualificationId: "nmt", name: "Maths" }, {})).toBe("nmt");
@@ -136,5 +169,19 @@ describe("suggestedQualificationId", () => {
 
   it("does not default a named NMT exam to GCSE", () => {
     expect(api.suggestedQualificationId({ name: "NMT Українська мова" }, {})).not.toBe("gcse");
+  });
+
+  it("infers GRE from the exam name", () => {
+    expect(api.suggestedQualificationId({ name: "GRE General Test" }, { country: "us" })).toBe("gre");
+  });
+
+  it("infers GMAT Focus from the exam name, not GRE", () => {
+    expect(api.suggestedQualificationId({ name: "GMAT Focus" }, {})).toBe("gmat");
+    expect(api.suggestedQualificationId({ name: "GRE General Test" }, {})).not.toBe("gmat");
+  });
+
+  it("infers PTE Academic from the exam name, not IELTS", () => {
+    expect(api.suggestedQualificationId({ name: "PTE Academic" }, {})).toBe("pte");
+    expect(api.suggestedQualificationId({ name: "IELTS Academic" }, {})).not.toBe("pte");
   });
 });

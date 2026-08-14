@@ -4,7 +4,7 @@
 // attached file is re-sent with the whole conversation on each turn, so the cap
 // multiplies token cost by thread length, not just by file size.
 import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
-import { resizeImageFile } from "../../lib/image-resize";
+import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { renderCoachMarkdown } from "../../lib/math-render";
@@ -25,7 +25,8 @@ import { SpeakingDialog } from "../learn/SpeakingDialog.jsx";
 import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
-import { freeTopicLimit, topicIsLocked } from "../learn/premium";
+import { freeTopicLimit, isProUser, topicIsLocked } from "../learn/premium";
+import { copyLangFor, inferCoachQual, languageNameFor, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
 
 /**
@@ -39,6 +40,11 @@ import { ProSheet } from "../learn/ProSheet.jsx";
 function _qualificationOf(exam) {
   if (!exam) return null;
   return (window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId) || null;
+}
+
+function _paperQualOf(exam) {
+  if (!exam) return null;
+  return paperQualForExam({ ...exam, qualificationId: _qualificationOf(exam) }) || _qualificationOf(exam);
 }
 
 /** Academic vs GT + which paper — asked every sitting, never stored. */
@@ -381,7 +387,7 @@ RULES:
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Taking too long — try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 55000));
         const raw = await Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext }),
+          complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext, paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null) }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -699,6 +705,10 @@ function QuickCheckEngine({ topic, onExit, t }) {
     const exam = window.getExams().find((e) => e.id === resolved.examId);
     return exam ? _qualificationOf(exam) : null;
   }, [resolved]);
+  const listenPaperQual = React.useMemo(() => {
+    if (!resolved || !window.getExams) return null;
+    return _paperQualOf(window.getExams().find((e) => e.id === resolved.examId));
+  }, [resolved]);
   const listenMode = isIeltsListeningTopic(topic, listenQual);
   const readMode = isIeltsReadingTopic(topic, listenQual);
   const writeMode = isIeltsWritingTopic(topic, listenQual);
@@ -774,7 +784,7 @@ RULES:
         // the whole {questions, sessionTitle} envelope for the first call, and
         // `regenerate` returns only the inner questions array on retry.
         const complete1 = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenQual }),
+          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenPaperQual || listenQual }),
           timeout,
         ]).then((raw) => window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
         const parsed = await complete1();
@@ -1091,8 +1101,16 @@ RULES:
 - Spread questions across the given topics evenly`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
+        const namesForRound = chosenTopics.length > 0 ? chosenTopics : allTopics.map((tp) => tp.name);
+        const examsById = new Map((window.getExams ? window.getExams() : []).map((e) => [e.id, e]));
+        const roundQuals = namesForRound.map((name) => {
+          const row = allTopics.find((tp) => tp.name === name);
+          return _paperQualOf(examsById.get(row?.examId));
+        }).filter(Boolean);
+        const roundLangs = [...new Set(roundQuals.map((q) => paperLanguageFor(q)).filter(Boolean))];
+        const speedPaperQual = roundLangs.length === 1 ? roundQuals[0] : _paperQualOf(examsById.get(examViews[0]?.id));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examViews[0]?.id) : null) }),
+          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: speedPaperQual }),
           timeout,
         ]).then((raw) => {
           const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -1411,7 +1429,7 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
       : (examViews.length === 1 && window.getExams
         ? window.getExams().find((e) => e.id === examViews[0].id)
         : null);
-    return _qualificationOf(exam);
+    return _paperQualOf(exam);
   }, [config.examId, examViews]);
   const ieltsOn = isIeltsQual(practiceQual);
 
@@ -1901,7 +1919,7 @@ OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
 RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.`;
           const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: examQual }), to])
+          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
             .then((raw) => {
               const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
               return Array.isArray(p && p.questions) ? p.questions : [];
@@ -2127,7 +2145,7 @@ function saveDiffVote(topicKey, vote) {
 // (most-recent 60) keeps localStorage from growing without limit. Bumping
 // LESSON_CACHE_VER invalidates every cached plan at once when the prompt changes.
 const LESSON_CACHE_KEY = "brain_lessoncache_v1";
-const LESSON_CACHE_VER = 1;
+const LESSON_CACHE_VER = 3;
 const LESSON_CACHE_MAX = 60;
 function lessonCacheKey({ mode, topic, examId, vote, lang, ui }) {
   return `${LESSON_CACHE_VER}::${mode}::${topic}::${examId || "any"}::v${vote ?? 0}::${lang || "ui"}::${ui || "en"}`;
@@ -2151,16 +2169,29 @@ function saveCachedLesson(key, plan) {
 // already in flight when the student clicks). Keyed by cacheKey → Promise.
 const _lessonInFlight = new Map();
 
+function lessonPaperOpts(resolved) {
+  const exam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
+  const paperQual = _paperQualOf(exam);
+  const langOverride = paperLanguageFor(paperQual) ? undefined : (exam && exam.explainLang ? exam.explainLang : undefined);
+  return { exam, paperQual, langOverride, cacheLang: paperLanguageFor(paperQual) || exam?.explainLang };
+}
+
+// Learn chrome follows the paper, not the app UI: NMT math stays Ukrainian
+// even when the nav is English. NMT English stays English.
+function learnCopyCode(resolved, uiLang) {
+  const { paperQual } = lessonPaperOpts(resolved);
+  return copyLangFor(paperQual, uiLang || "en");
+}
+
 // Builds (or returns cached) a lesson plan for a topic. Pure of React so both
 // LessonEngine and the topic picker's hover-prefetch can call it. `force`
 // bypasses the cache to regenerate on an explicit retry.
 async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
-  const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
+  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
   const topicKey = `${topic}::${resolved?.examId || "any"}`;
   const priorVote = getDiffVote(topicKey);
-  const cacheKey = lessonCacheKey({ mode, topic, examId: resolved?.examId, vote: priorVote, lang: _lessonExam?.explainLang, ui: tcode });
+  const cacheKey = lessonCacheKey({ mode, topic, examId: resolved?.examId, vote: priorVote, lang: cacheLang, ui: tcode });
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
@@ -2271,7 +2302,7 @@ ${STEP_TYPES}`;
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
     const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride }),
+      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
     const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -2309,8 +2340,8 @@ const THEORY_MODE_TAG = "theory";
 
 async function generateTheoryReader({ topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
-  const cacheKey = lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: _lessonExam?.explainLang, ui: tcode });
+  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
+  const cacheKey = lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: cacheLang, ui: tcode });
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
@@ -2319,7 +2350,6 @@ async function generateTheoryReader({ topic, resolved, tcode, force }) {
   const run = (async () => {
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-    const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
     const system = `You are the best exam-prep teacher in the world. Write ONE excellent, self-contained theory page for the topic "${topic}". No questions, no drills — just pure, clear teaching a student can read once and remember.
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
@@ -2328,7 +2358,8 @@ STRUCTURE — every field required unless marked optional:
 {
   "title": "One clear title, matching the topic",
   "tldr": "2-3 sentences summarising the whole idea in plain language a beginner can grasp",
-  "diagram": "REQUIRED unless the topic is purely verbal (grammar, essay structure, vocab). Raw SVG code: full <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 W H\\">…</svg>. For anything numeric, spatial, structural, or process-shaped — draw it. Better to have a decent diagram than none. See DIAGRAM PLAYBOOK below.",
+  "diagram": "REQUIRED. Raw SVG: <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 720 400\\">…</svg>. This is a DRAWING the student remembers — geometry, arrows, axes, shaded regions — never a layout of notes. See DIAGRAM PLAYBOOK.",
+  "diagramCaption": "One sentence naming what the figure shows (not the word Diagram).",
   "concepts": [
     {"heading": "Concept name", "body": "2-4 short paragraphs explaining it. Use analogies and concrete examples. **Bold** key terms."}
   ],
@@ -2345,27 +2376,45 @@ RULES:
 - 2-3 worked examples that cover different situations.
 - 3-6 pitfalls; 4-8 cheat-sheet lines.
 - 2-3 relatedConcepts — topic names the student would naturally study NEXT to build on this one. Real topic names only, no filler like "practice problems".
-- diagram: include for EVERY topic that has any visual anchor — see DIAGRAM PLAYBOOK. Only skip when the topic is purely verbal (essay writing, grammar rules, vocabulary lists). "I couldn't think of one" is never a reason. currentColor for every stroke, fill, and text so the same SVG works on light and dark themes. Never <script>, never on* attributes, never external images.
-
-DIAGRAM PLAYBOOK — pick the shape by topic type:
-- Geometry (triangle, circle, quadrilateral, angle) → draw the actual figure with labelled vertices/sides/angles. Include the specific values from your worked example.
-- Coordinate geometry / vectors → axes with numbered gridlines and the points/lines plotted.
-- Functions (linear, quadratic, trig, exp, log) → plot the graph on axes across a sensible range. Mark intercepts and any key features (vertex, asymptote).
-- Derivatives / integrals → the function's graph with the tangent line, or the shaded region under the curve.
-- Stereometry (prism, cone, sphere, pyramid) → 3D-projected wireframe with dashed hidden edges.
-- Number-line topics (inequalities, absolute value, intervals) → horizontal number line with the solution set shaded.
-- Probability / combinatorics → tree diagram or Venn diagram, whichever fits the example.
-- Statistics → bar chart, histogram, or box plot matching the sample data.
-- Physics-shaped topics (motion, forces) → free-body diagram or a time-vs-position graph.
-- IELTS Listening/Reading passage shapes → flow chart, table skeleton, or map — whatever the task uses.
-- Sizing: viewBox 0 0 400 260 for most; larger for wide graphs. No fixed width or height on the <svg> element itself, only viewBox — the reader wraps at max 480px.
-- Style: 1.5-2px strokes, small filled circles for points, sans-serif text 12-14px. Prefer simplicity over decoration.
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
-- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
+- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.
+
+DIAGRAM PLAYBOOK — the figure is the visual memory of the page. It must show a RELATIONSHIP in space.
+
+BANNED (these fail the page — do not emit them):
+- A 2×2 or N×M grid of equal rounded rectangles filled with bullet lists
+- Four identical "type of X" cards
+- Putting the word "Diagram" / "Схема" inside the SVG
+- ASCII arrows as text ("->", "=>", "→" as characters in a <text>)
+- More than ~18 words of running prose in the whole SVG
+- Identical boxes with no connecting geometry
+
+REQUIRED:
+- One composition, one story. Labels are 1–4 words. Explanation lives in concepts, not in the drawing.
+- Directed edges use a real arrowhead: <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="currentColor"/></marker></defs> then marker-end="url(#arr)" on the <line> or <path>.
+- Soft region fills: fill="currentColor" fill-opacity="0.08" to "0.16". Strokes 1.75–2.25, stroke="currentColor", stroke-linecap="round", stroke-linejoin="round".
+- Points: small filled circles r="3.5". Hidden 3D edges: stroke-dasharray="5 4".
+- font-family="ui-sans-serif, system-ui, sans-serif" font-size 13–15, font-weight 650 on titles. currentColor for every stroke, fill, and text (light and dark themes).
+- viewBox "0 0 720 400" (taller only if the figure needs vertical space). Leave 20px padding inside the viewBox so arrowheads and labels are not clipped. No width or height attributes on <svg>. Never <script>, never on* attributes, never external images.
+
+SHAPE BY TOPIC:
+- Geometry (triangle, circle, quadrilateral, angle) → the actual figure with labelled vertices/sides/angles and the numbers from your worked example.
+- Coordinate geometry / vectors → axes with numbered ticks and the points/lines plotted.
+- Functions (linear, quadratic, trig, exp, log) → the graph on axes; mark intercepts, vertex, asymptote.
+- Derivatives / integrals → the curve plus a tangent, or a shaded region under the curve.
+- Stereometry (prism, cone, sphere, pyramid) → 3D-projected wireframe, dashed hidden edges.
+- Number-line topics → a horizontal line with the solution set as a thick shaded interval.
+- Probability / combinatorics → a tree with weighted branches, or overlapping Venn sets — not a table of numbers.
+- Statistics → bars, a histogram, or a box plot of the sample data.
+- Physics-shaped topics → a free-body diagram or a time-vs-position graph.
+- Logic / proof / methods → FOUR DIFFERENT geometries in one canvas, never four copies of a card. Direct = a left-to-right implication chain of 3–4 pills with arrowed paths. Contradiction = a path that assumes ¬Q and ends at a ⊥. Induction = three rising steps (n=1, k, k+1). Contrapositive = a reversed arrow ¬Q → ¬P. Two-word titles only.
+- Classification / taxonomy → a tree or nested sets.
+- Procedure / algorithm / grammar / essay structure → numbered nodes on a path with arrows (a sentence skeleton, a paragraph map) — not a list of tips.
+- IELTS Listening/Reading → the map, flow, or table skeleton the task actually uses.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
     const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride }),
+      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
     const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -2380,7 +2429,9 @@ DIAGRAM PLAYBOOK — pick the shape by topic type:
 }
 
 function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const copy = learnCopyCode(resolved, t?.code);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -2391,7 +2442,6 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
   // multiply the reward. Same shape as LessonEngine's xpCommittedRef.
   const grantedRef = React.useRef(false);
   const speechRef = React.useRef(null);
-  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -2399,7 +2449,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     grantedRef.current = false;
     (async () => {
       try {
-        const parsed = await generateTheoryReader({ topic, resolved, tcode: t?.code, force: retry > 0 });
+        const parsed = await generateTheoryReader({ topic, resolved, tcode: copy, force: retry > 0 });
         if (cancelled) return;
         setPlan(parsed); setLoading(false);
       } catch (e) {
@@ -2434,7 +2484,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
       ...(Array.isArray(plan.pitfalls) ? [L("Common mistakes:", "Типові помилки:", "Типичные ошибки:", "Erreurs fréquentes :", "Häufige Fehler:"), ...plan.pitfalls] : []),
     ].filter((s) => typeof s === "string" && s.trim().length > 0);
     setSpeaking(true);
-    speechRef.current = speak(chunks, t?.code || "en", () => setSpeaking(false));
+    speechRef.current = speak(chunks, copy, () => setSpeaking(false));
   };
 
   const markAsRead = () => {
@@ -2475,7 +2525,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
   if (loading) return wrap([header, React.createElement(WaitPress, {
     key: "l",
     title: L("Preparing your theory page…", "Готуємо теорію…", "Готовим теорию…", "Préparation…", "Bereite Theorie vor…"),
-    lang: t?.code,
+    lang: copy,
     compact: true,
   })]);
   if (error) return wrap([header,
@@ -2494,24 +2544,21 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     header,
     React.createElement("h1", { key: "title", style: { margin: "0 0 12px", fontSize: 28, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2, letterSpacing: "-0.01em" } }, plan.title),
     plan.tldr && React.createElement("div", { key: "tldr", style: { marginTop: 8, padding: "16px 18px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 15, lineHeight: 1.6, color: "var(--text-strong)" } },
-      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, "TL;DR"),
+      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, L("TL;DR", "Коротко", "Коротко", "En bref", "Kurz gesagt")),
       React.createElement("div", { dangerouslySetInnerHTML: html(plan.tldr) }),
     ),
-    // AI-authored SVG diagram — only when Claude judged it helpful. Runs
-    // through sanitizeSvg (DOMPurify) so a stray <script> or on* attribute
-    // is dropped before it reaches the DOM. `currentColor` in stroke/fill
-    // makes strokes follow text color, so the same diagram reads on light
-    // and dark themes.
+    // AI-authored SVG. sanitizeSvg (DOMPurify) drops script/on*. currentColor
+    // in the prompt keeps strokes on both themes. Chrome lives in learn.css
+    // so a 720-wide viewBox fills the column instead of sitting in a 480px box.
     plan.diagram && (() => {
       const clean = sanitizeSvg(plan.diagram);
       if (!clean) return null;
-      return React.createElement("figure", {
-        key: "diagram",
-        style: { margin: "24px 0 0", padding: "18px 20px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, textAlign: "center", color: "var(--text-strong)" },
-      },
-        React.createElement("div", { style: { maxWidth: 480, margin: "0 auto" }, dangerouslySetInnerHTML: { __html: clean } }),
-        React.createElement("figcaption", { style: { marginTop: 10, fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" } },
-          L("Diagram", "Схема", "Схема", "Schéma", "Diagramm")),
+      const caption = typeof plan.diagramCaption === "string" && plan.diagramCaption.trim()
+        ? plan.diagramCaption.trim()
+        : null;
+      return React.createElement("figure", { key: "diagram", className: "theory-diagram" },
+        React.createElement("div", { dangerouslySetInnerHTML: { __html: clean } }),
+        caption && React.createElement("figcaption", null, caption),
       );
     })(),
     // Concepts — the main body. Each concept renders as its own heading +
@@ -2612,8 +2659,8 @@ const FLASHCARDS_MODE_TAG = "flashcards";
 
 async function generateFlashcards({ topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
-  const cacheKey = lessonCacheKey({ mode: FLASHCARDS_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: _lessonExam?.explainLang, ui: tcode });
+  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
+  const cacheKey = lessonCacheKey({ mode: FLASHCARDS_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: cacheLang, ui: tcode });
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
@@ -2622,7 +2669,7 @@ async function generateFlashcards({ topic, resolved, tcode, force }) {
   const run = (async () => {
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-    const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
+    const langName = languageNameFor(paperQual);
     const system = `You are the best exam-prep teacher in the world. Break the topic "${topic}" into a small deck of concept cards — each card is ONE clear idea a student can absorb in under 30 seconds.
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
@@ -2641,10 +2688,10 @@ RULES:
 - Each card covers ONE distinct concept — no repeats, no near-duplicates.
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - **Bold** the single key term on each card.
-- Skip filler like "in this card we will…" — get straight to the point.`;
+- Skip filler like "in this card we will…" — get straight to the point.${langName ? `\n- Write EVERY JSON string (title, heading, body, example) in ${langName} only. The app UI may be in another language — ignore it.` : ""}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
     const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride }),
+      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
     const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -2662,7 +2709,9 @@ RULES:
 }
 
 function LearnFlashcards({ topic, onExit, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const copy = learnCopyCode(resolved, t?.code);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
@@ -2670,14 +2719,13 @@ function LearnFlashcards({ topic, onExit, t }) {
   const [idx, setIdx] = React.useState(0);
   const [markedRead, setMarkedRead] = React.useState(false);
   const grantedRef = React.useRef(false);
-  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
 
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true); setError(null); setPlan(null); setIdx(0);
     (async () => {
       try {
-        const parsed = await generateFlashcards({ topic, resolved, tcode: t?.code, force: retry > 0 });
+        const parsed = await generateFlashcards({ topic, resolved, tcode: copy, force: retry > 0 });
         if (cancelled) return;
         setPlan(parsed); setLoading(false);
       } catch (e) {
@@ -2725,7 +2773,7 @@ function LearnFlashcards({ topic, onExit, t }) {
   if (loading) return wrap([header, React.createElement(WaitPress, {
     key: "l",
     title: L("Preparing your cards…", "Готуємо картки…", "Готовим карточки…", "Préparation…", "Bereite Karten vor…"),
-    lang: t?.code,
+    lang: copy,
     compact: true,
   })]);
   if (error) return wrap([header,
@@ -2788,7 +2836,9 @@ function LearnFlashcards({ topic, onExit, t }) {
 // no persistence: the "right" method depends on the topic and the mood, not
 // on a permanent setting somewhere the student would forget to change.
 function LearnMethodPicker({ topic, onExit, onPick, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
+  const copy = learnCopyCode(resolved, t?.code);
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const recommended = recommendLearnMethod({ firstVisit: true });
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },
@@ -3276,6 +3326,8 @@ function LessonEngine({ topic, mode, onExit, t }) {
         const reply = await complete({
           system: `You are grading a student's explanation. They were asked: "${s.prompt}". The ideal answer covers: ${s.ideal}. Grade their attempt — be encouraging but honest. If they missed key points, name them specifically. If they nailed it, tell them what was good. 2-3 sentences max. End with a score: ⭐ (weak), ⭐⭐ (okay), ⭐⭐⭐ (great).`,
           messages: [{ role: "user", content: explainInput }],
+          topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
+          paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null),
         });
         setExplainFeedback(reply);
         const stars = (reply.match(/⭐/g) || []).length;
@@ -3505,6 +3557,8 @@ function LessonEngine({ topic, mode, onExit, t }) {
                 (window.brainComplete || ((a) => window.claude.complete(a)))({
                   system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                   messages: [{ role: "user", content: q }],
+                  topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
+                  paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null),
                 }).then((r) => { setAskReply(r); setAskLoading(false); })
                   .catch(() => { setAskReply(L("Couldn't get an answer right now — try again.", "Не вдалося отримати відповідь зараз — спробуйте ще раз.", "Не удалось получить ответ сейчас — попробуйте ещё раз.", "Impossible d'obtenir une réponse pour le moment — réessayez.", "Antwort konnte gerade nicht abgerufen werden — versuche es erneut.")); setAskLoading(false); });
               }
@@ -3521,6 +3575,8 @@ function LessonEngine({ topic, mode, onExit, t }) {
               (window.brainComplete || ((a) => window.claude.complete(a)))({
                 system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                 messages: [{ role: "user", content: q }],
+                topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
+                paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null),
               }).then((r) => { setAskReply(r); setAskLoading(false); })
                 .catch(() => { setAskReply(L("Couldn't get an answer right now — try again.", "Не вдалося отримати відповідь зараз — спробуйте ще раз.", "Не удалось получить ответ сейчас — попробуйте ещё раз.", "Impossible d'obtenir une réponse pour le moment — réessayez.", "Antwort konnte gerade nicht abgerufen werden — versuche es erneut.")); setAskLoading(false); });
             },
@@ -3529,14 +3585,17 @@ function LessonEngine({ topic, mode, onExit, t }) {
       // Floating button
       React.createElement("button", {
         onClick: () => { setAskOpen((v) => !v); if (!askOpen) { setAskReply(null); setAskInput(""); } },
-        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "var(--white)", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(34,124,99,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
+        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "var(--white)", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(79,70,229,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
       }, askOpen ? "✕" : "💬")));
 }
 
 // ─── CHAT MODE (freeform) ────────────────────────────────────────────────────
 
 function ChatMode({ onExit, initialQuery, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const studentQuals = (window.getExams ? window.getExams() : []).map((e) => _paperQualOf(e));
+  const coachQual = inferCoachQual({ studentQuals });
+  const copy = copyLangFor(coachQual, t?.code || "en");
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   // v2 keys — old chat sessions cached a generic greeting bubble that has
   // no place in the dashboard-first layout, so this intentionally starts fresh
   // instead of resurrecting stale messages from the pre-dashboard chat.
@@ -3601,7 +3660,18 @@ function ChatMode({ onExit, initialQuery, t }) {
     return chips.slice(0, 5);
   }, []);
 
-  React.useEffect(() => { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); localStorage.setItem(HISTORY_KEY, JSON.stringify(historyRef.current)); } catch {} }, [messages]);
+  React.useEffect(() => {
+    try {
+      // UI transcript keeps name/kind only — dataUrl/base64 would blow the
+      // 5 MB localStorage cap on a couple of screenshots. Live state still
+      // holds the preview for this session.
+      const slim = messages.map((m) => (m.attachments
+        ? { ...m, attachments: m.attachments.map((f) => ({ kind: f.kind, name: f.name, ext: f.ext })) }
+        : m));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(historyRef.current));
+    } catch {}
+  }, [messages]);
   React.useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight; }, [messages, typing]);
   React.useEffect(() => { if (initialQuery && !handled.current) { handled.current = true; setTimeout(() => send(initialQuery), 100); } }, [initialQuery]);
 
@@ -3652,32 +3722,18 @@ function ChatMode({ onExit, initialQuery, t }) {
     if (!incoming.length) return;
     const lang = (window.getProfile && window.getProfile().lang) || "en";
     const { accepted, rejected } = validateFiles(incoming, attachments, CHAT_LIMITS);
-    setAttachError(rejected.length ? rejectionSummary(rejected, lang, CHAT_LIMITS) : "");
+    const problems = rejected.map((r) => rejectionSummary([r], lang, CHAT_LIMITS));
 
     const read = [];
     for (const file of accepted) {
-      const name = file.name || "file";
-      const ext = name.split(".").pop().toLowerCase();
       try {
-        if ((file.type || "").startsWith("image/")) {
-          // Same fix as StudyHub: resized to Claude's 1568px recommendation
-          // before base64 encoding. A raw phone photo blew past our payload
-          // guard and, in production, Vercel's request-body ceiling — that was
-          // "Connection hiccup" on a 2-photo attach.
-          const resized = await resizeImageFile(file);
-          read.push({ kind: "image", name, size: file.size, mimeType: resized.mimeType, base64: resized.base64, dataUrl: resized.dataUrl });
-        } else if (ext === "pdf") {
-          const ab = await file.arrayBuffer();
-          read.push({ kind: "pdf", name, size: file.size, base64: btoa(String.fromCharCode(...new Uint8Array(ab))) });
-        } else {
-          const text = await file.text();
-          read.push({ kind: "text", name, size: file.size, text: text.substring(0, 5000) });
-        }
-      } catch {
-        setAttachError(L(`${name} — could not be read`, `${name} — не вдалося прочитати`, `${name} — не удалось прочитать`, `${name} — lecture impossible`, `${name} — nicht lesbar`));
+        read.push(...(await extractStudyFile(file)));
+      } catch (err) {
+        problems.push(describeStudyFileError(err, file.name || "file", lang));
       }
     }
     if (read.length) setAttachments((a) => a.concat(read));
+    setAttachError(problems.filter(Boolean).join(" · "));
   };
 
   const send = async (raw) => {
@@ -3688,11 +3744,7 @@ function ChatMode({ onExit, initialQuery, t }) {
 
     const sent = attachments;
     const content = sent.length
-      ? sent.map((f) =>
-            f.kind === "image" ? { type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } }
-          : f.kind === "pdf" ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } }
-          : { type: "text", text: `File "${f.name}":\n\n${f.text}` })
-          .concat([{ type: "text", text: text || "Explain what is in the attached file(s)." }])
+      ? toClaudeBlocks(sent).concat([{ type: "text", text: text || "Explain what is in the attached file(s)." }])
       : text;
 
     historyRef.current = [...historyRef.current, { role: "user", content }];
@@ -3725,6 +3777,7 @@ FORMATTING:
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
         messages: historyRef.current,
+        paperQual: coachQual,
       });
       setTyping(false);
       // Parse actions from response
@@ -3833,19 +3886,46 @@ If no actions fit, omit the ACTIONS line entirely.`,
     copyCoachText(btn.getAttribute("data-copy") || "", btn);
   }
 
+  const renderSentFiles = (files) => {
+    if (!files || !files.length) return [];
+    return files.map((f, i) => {
+      if (f.kind === "image" && f.dataUrl) {
+        return React.createElement("img", {
+          key: `${f.name}-${i}`,
+          src: f.dataUrl,
+          alt: f.name || "",
+          style: { display: "block", maxWidth: 220, width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 10 },
+        });
+      }
+      const icon = f.kind === "image" ? "🖼️" : (f.kind === "pdf" || f.ext === "pdf") ? "📄" : "📎";
+      return React.createElement("div", {
+        key: `${f.name}-${i}`,
+        style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, lineHeight: 1.3 },
+      },
+        React.createElement("span", { "aria-hidden": true }, icon),
+        React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 } }, f.name || L("File", "Файл", "Файл", "Fichier", "Datei")));
+    });
+  };
+
   // ── Chat messages — rendered below dashboard ──
   const renderChat = () => React.createElement("div", { style: { padding: "0 20px 16px", display: "flex", flexDirection: "column", gap: 14 }, onClick: onCoachCopyClick },
     ...messages.map((m) =>
       React.createElement(React.Fragment, { key: m.id },
         React.createElement("div", { style: { display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", gap: 10, alignItems: "flex-start" } },
           m.role === "ai" && React.createElement(CoachIcon, { size: 28 }),
-          React.createElement("div", {
-            className: m.role === "ai" ? "aicoach-msg" : undefined,
-            style: m.role === "user"
-              ? { maxWidth: "80%", background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 14px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6 }
-              : { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
-            dangerouslySetInnerHTML: { __html: _md(m.text) }
-          })),
+          m.role === "user"
+            ? React.createElement("div", {
+                style: { maxWidth: "80%", minWidth: (m.attachments && m.attachments.length) ? 148 : undefined, background: "var(--indigo-600)", color: "var(--white)", border: "none", padding: "10px 12px", borderRadius: 16, borderTopRightRadius: 4, fontSize: 14, lineHeight: 1.6, display: "flex", flexDirection: "column", gap: 8 },
+              },
+                ...renderSentFiles(m.attachments),
+                m.text && m.text.trim()
+                  ? React.createElement("div", { dangerouslySetInnerHTML: { __html: _md(m.text) } })
+                  : null)
+            : React.createElement("div", {
+                className: "aicoach-msg",
+                style: { maxWidth: "80%", background: "var(--surface-card)", color: "var(--text-body)", border: "1px solid var(--border-subtle)", padding: "14px 18px", borderRadius: 16, borderTopLeftRadius: 4, fontSize: 15, lineHeight: 1.72 },
+                dangerouslySetInnerHTML: { __html: _md(m.text) },
+              })),
         m.role === "ai" && React.createElement("div", {
           style: { display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 38, alignItems: "center" }
         },
@@ -3961,7 +4041,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
         },
           f.kind === "image"
             ? React.createElement("img", { src: f.dataUrl, alt: "", style: { width: 18, height: 18, objectFit: "cover", borderRadius: 4, display: "block" } })
-            : React.createElement("span", null, f.kind === "pdf" ? "📄" : "📃"),
+            : React.createElement("span", null, f.kind === "pdf" || f.ext === "pdf" ? "📄" : "📃"),
           React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.name),
           React.createElement("button", {
             onClick: () => setAttachments((a) => a.filter((_, j) => j !== i)),
@@ -4191,8 +4271,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       return flat.map((row) => {
         const mastery = nodeState[row.node.id] && nodeState[row.node.id].mastery;
         return {
-          name: localize(row.node.title, t?.code || "en"),
-          unitTitle: localize(row.unit.title, t?.code || "en"),
+          name: localize(row.node.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
+          unitTitle: localize(row.unit.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
           studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
           premium: topicIsLocked(row.index, flat.length, row.node.id),
           index: row.index,
@@ -4201,7 +4281,12 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       });
     };
 
-    return ce("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
+    // Deliberately NOT a flex column: the folder sections carry
+    // `overflow: hidden` for their rounded corners, and as flex children they
+    // shrink below their content once an expanded list outgrows this fixed
+    // height — silently clipping the last rows (and the toggle) instead of
+    // scrolling. Block layout keeps every section at its natural height.
+    return ce("div", { style: { height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       ce("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
         ce("button", { onClick: () => setTopicPicker(false), "aria-label": L("Back","Назад","Назад","Retour","Zurück"), style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
         ce("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", color: "var(--text-strong)" } }, L("What do you want to learn?", "Що хочете вивчити?", "Что хотите изучить?", "Que voulez-vous apprendre ?", "Was möchtest du lernen?"))),
@@ -4228,13 +4313,16 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
               ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
                 ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
-          treeRows && proN > 0 && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
+          treeRows && proN > 0 && !isProUser() && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
             L(`${freeN} free · ${proN} Pro`, `${freeN} безкоштовно · ${proN} Pro`, `${freeN} бесплатно · ${proN} Pro`, `${freeN} gratuits · ${proN} Pro`, `${freeN} gratis · ${proN} Pro`)),
-          // Tree lists stay open so Pro topics are visible. Coarse exam.topics still collapse.
           (() => {
-            const COLLAPSE_N = treeRows ? rows.length : 5;
+            const PREVIEW_N = 3;
             const expanded = !!expandedFolders[e.id];
-            const visible = expanded || rows.length <= COLLAPSE_N ? ordered : ordered.slice(0, COLLAPSE_N);
+            // Expanded means the FULL syllabus — free and Pro alike. slice()
+            // already returns everything when the list is shorter than the
+            // preview, so there is no second cap anywhere in this path.
+            const visible = expanded ? ordered : ordered.slice(0, PREVIEW_N);
+            const hidden = Math.max(0, ordered.length - PREVIEW_N);
             return ce("div", { style: { display: "flex", flexDirection: "column" } },
               ...visible.map((r, ri) => ce("button", {
                 key: ri,
@@ -4244,19 +4332,34 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
                 },
                 onMouseEnter: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
                 onFocus: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
-                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left", opacity: r.premium ? 0.72 : 1 }
+                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
               },
-                ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
+                // Titles wrap. A 47-node Ukrainian syllabus has names far
+                // wider than the card, and an ellipsis turned them into
+                // guesswork ("Многочлени, розкладання на…").
+                ce("span", {
+                  style: {
+                    flex: 1, minWidth: 0, fontSize: 14, lineHeight: 1.4,
+                    fontWeight: r.studied ? 500 : 600,
+                    color: r.studied ? "var(--text-muted)" : "var(--text-strong)",
+                    overflowWrap: "anywhere",
+                    // Locked rows stay in the list — the student should see the
+                    // whole syllabus they're buying, just not read it yet.
+                    filter: r.premium ? "blur(3.5px)" : "none",
+                    opacity: r.premium ? 0.75 : 1,
+                    userSelect: r.premium ? "none" : "auto",
+                  },
+                }, r.name),
                 r.premium
-                  ? ce("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "Pro")
-                  : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" } }, "✓") : null)))),
-              (!treeRows && rows.length > COLLAPSE_N) && ce("button", {
+                  ? ce("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "🔒", "Pro")
+                  : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)", flexShrink: 0 } }, "✓") : null)))),
+              (ordered.length > PREVIEW_N) && ce("button", {
                 onClick: () => setExpandedFolders((m) => ({ ...m, [e.id]: !expanded })),
                 style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }
               },
                 expanded
                   ? L("Show less ↑", "Згорнути ↑", "Свернуть ↑", "Réduire ↑", "Weniger ↑")
-                  : L(`Show all ${rows.length} topics ↓`, `Показати всі ${rows.length} тем ↓`, `Показать все ${rows.length} тем ↓`, `Voir les ${rows.length} sujets ↓`, `Alle ${rows.length} Themen ↓`)),
+                  : L(`View ${hidden} more ↓`, `Ще ${hidden} ↓`, `Ещё ${hidden} ↓`, `Voir ${hidden} de plus ↓`, `${hidden} weitere ↓`)),
               // Student-proposed topic → added to the course and taught by AI.
               customTopicFor === e.id
                 ? ce("div", { style: { display: "flex", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", alignItems: "center" } },

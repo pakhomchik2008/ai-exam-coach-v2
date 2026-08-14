@@ -5,7 +5,7 @@
 
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
-import { languageNameFor } from "../../lib/paper-language";
+import { copyLangFor, languageNameFor, paperQualForExam } from "../../lib/paper-language";
 import { buildSocraticSystem, parseSocraticTurn, recentMistakeLines } from "./socratic";
 
 function md(text) {
@@ -15,7 +15,8 @@ function md(text) {
 function examQual(resolved) {
   if (!resolved || !window.getExams) return null;
   const exam = window.getExams().find((e) => e.id === resolved.examId);
-  return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+  const family = (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+  return paperQualForExam({ ...exam, qualificationId: family }) || family;
 }
 
 function coachLanguageName(resolved, tcode) {
@@ -28,8 +29,13 @@ function mistakeSnippet(topic) {
 }
 
 export function SocraticDialog({ topic, onExit, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const lang = t?.code || "en";
+  const resolved = React.useMemo(
+    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
+    [topic],
+  );
+  const copy = copyLangFor(examQual(resolved), t?.code || "en");
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
+  const lang = copy;
   const [turns, setTurns] = React.useState([]);
   const [input, setInput] = React.useState("");
   const [loading, setLoading] = React.useState(true);
@@ -41,10 +47,6 @@ export function SocraticDialog({ topic, onExit, t }) {
   const grantedRef = React.useRef(false);
   const threadRef = React.useRef([]);
   const bottomRef = React.useRef(null);
-  const resolved = React.useMemo(
-    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
-    [topic],
-  );
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
@@ -74,7 +76,7 @@ export function SocraticDialog({ topic, onExit, t }) {
     const raw = await Promise.race([
       complete({
         system,
-        messages: history.length ? history : [{ role: "user", content: `Start the dialogue on: ${topic}` }],
+        messages: history.length ? history : [{ role: "user", content: `Start the dialogue on: ${topic}. Reply in ${coachLanguageName(resolved, lang)} only.` }],
         topicContext,
         paperQual: qual,
       }),
@@ -214,9 +216,11 @@ export function SocraticDialog({ topic, onExit, t }) {
       React.createElement("button", {
         type: "button",
         onClick: surrender,
-        disabled: loading,
-        style: { padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border-default)", background: "transparent", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--text-muted)" },
-      }, L("I give up — show me", "Здаюсь, покажи", "Сдаюсь, покажи", "J’abandonne", "Zeig es mir")),
+        disabled: surrendered || loading,
+        style: { padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border-default)", background: "transparent", cursor: surrendered || loading ? "default" : "pointer", fontFamily: "var(--font-sans)", fontSize: 13, color: surrendered ? "var(--text-faint)" : "var(--text-muted)" },
+      }, surrendered
+        ? L("Shown", "Показано", "Показано", "Affiché", "Gezeigt")
+        : L("I give up — show me", "Здаюсь, покажи", "Сдаюсь, покажи", "J’abandonne", "Zeig es mir")),
     ),
     done
       ? (marked

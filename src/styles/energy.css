@@ -16,14 +16,12 @@
 .land.energy {
   --glow-x: 70%;
   --glow-y: 30%;
-  --land-tape-h: 32px;
+  --land-tape-h: 0px;
   position: relative;
 }
 
-.land .energy-ticker {
-  position: sticky;
-  top: var(--land-nav-h, 56px);
-  z-index: 8;
+.land .energy-ticker-row button::before {
+  color: #C6A572;
 }
 
 .land.energy::before {
@@ -32,13 +30,13 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
-  opacity: 0.045;
+  opacity: 0.028;
   background-image: repeating-linear-gradient(
     to bottom,
-    rgba(245, 245, 244, 0.7) 0 1px,
-    transparent 1px 3px
+    rgba(20, 24, 34, 0.35) 0 1px,
+    transparent 1px 4px
   );
-  mix-blend-mode: overlay;
+  mix-blend-mode: multiply;
   animation: energy-crt 10s steps(2, end) infinite;
 }
 
@@ -49,7 +47,7 @@
   z-index: 1;
   pointer-events: none;
   background:
-    radial-gradient(42% 36% at var(--glow-x) var(--glow-y), rgba(243, 208, 98, 0.16), transparent 70%);
+    radial-gradient(42% 36% at var(--glow-x) var(--glow-y), rgba(198, 165, 114, 0.12), transparent 70%);
 }
 
 .energy-ticker {
@@ -119,7 +117,7 @@
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #F3D062;
+  color: #9A7540;
 }
 
 @keyframes energy-tape {
@@ -242,7 +240,7 @@
 .energy-xp-fill {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #1B4D4A, #D4B36A);
+  background: linear-gradient(90deg, #141822, #D4B36A);
   transform-origin: left center;
   transition: width 520ms var(--motion-springy);
   position: relative;
@@ -349,7 +347,7 @@
 }
 .energy-drain-fluid {
   width: 100%;
-  background: #1B4D4A;
+  background: #141822;
   transition: height 200ms linear;
 }
 .energy-drain--danger .energy-drain-fluid { background: #B91C1C; animation: energy-breathe 1s ease-in-out infinite; }
@@ -526,7 +524,7 @@
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: #1B4D4A;
+  background: #141822;
   animation: fadeUp 280ms var(--motion-snap) both;
 }
 .energy-waterfall, .energy-candle {
@@ -669,7 +667,7 @@
   width: 2px;
   height: 0.85em;
   margin-left: 5px;
-  background: #1B4D4A;
+  background: #141822;
   vertical-align: -0.08em;
   animation: wait-caret 1s steps(1) infinite;
 }
@@ -728,7 +726,7 @@
   font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
   font-size: 0.68rem;
   font-style: normal;
-  color: #1B4D4A;
+  color: #141822;
 }
 .wait-press-q span {
   display: block;
@@ -775,7 +773,7 @@
   display: block;
   width: 40%;
   height: 100%;
-  background: #1B4D4A;
+  background: #141822;
   animation: wait-bar 1.4s var(--motion-smooth) infinite;
 }
 @keyframes wait-live {
@@ -876,8 +874,8 @@
   gap: 8px;
   padding: 12px 18px;
   border-radius: 999px;
-  border: 1.5px solid #1B4D4A;
-  background: #1B4D4A;
+  border: 1.5px solid #141822;
+  background: #141822;
   color: #fff;
   font-weight: 700;
   font-size: 14px;
@@ -886,7 +884,7 @@
 }
 .listen-clip-btn[aria-pressed="true"] {
   background: transparent;
-  color: #1B4D4A;
+  color: #141822;
 }
 .listen-clip--fallback {
   text-align: left;
@@ -926,13 +924,13 @@
   color: var(--text-muted);
   padding: 0;
 }
-.ielts-paper-clock { margin-left: auto; font-variant-numeric: tabular-nums; color: #1B4D4A; }
+.ielts-paper-clock { margin-left: auto; font-variant-numeric: tabular-nums; color: #141822; }
 .ielts-paper-btn {
   align-self: flex-start;
   padding: 12px 18px;
   border: none;
   border-radius: 12px;
-  background: #1B4D4A;
+  background: #141822;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -982,8 +980,8 @@
   color: var(--text-body);
 }
 .ielts-task-switch button.is-on {
-  border-color: #1B4D4A;
-  background: #1B4D4A;
+  border-color: #141822;
+  background: #141822;
   color: #fff;
 }
 .ielts-fill { display: flex; gap: 8px; }
@@ -1015,7 +1013,7 @@
 .ielts-explain { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
 .ielts-paper--done { align-items: center; text-align: center; }
 .ielts-band-kicker { letter-spacing: 0.12em; color: #D4B36A; font-size: 12px; }
-.ielts-band { margin: 0; font-size: 56px; font-weight: 800; color: #1B4D4A; line-height: 1; }
+.ielts-band { margin: 0; font-size: 56px; font-weight: 800; color: #141822; line-height: 1; }
 .ielts-band-card {
   width: min(420px, 100%);
   text-align: left;

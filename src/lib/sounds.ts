@@ -16,7 +16,9 @@ export const SOUND_NAMES = [
 
 export type SoundName = (typeof SOUND_NAMES)[number];
 
-type ProfileReader = { getProfile?: () => { soundsEnabled?: boolean } };
+type ProfileReader = {
+  getProfile?: () => { soundsEnabled?: boolean; soundVolume?: number; hapticEnabled?: boolean };
+};
 
 const cache: Partial<Record<SoundName, HTMLAudioElement>> = {};
 
@@ -25,6 +27,23 @@ function profileSoundsOn(): boolean {
     return (window as unknown as ProfileReader).getProfile?.()?.soundsEnabled === true;
   } catch {
     return false;
+  }
+}
+
+function profileVolume(): number {
+  try {
+    const v = (window as unknown as ProfileReader).getProfile?.()?.soundVolume;
+    return typeof v === "number" && v >= 0 && v <= 1 ? v : 0.7;
+  } catch {
+    return 0.7;
+  }
+}
+
+function profileHaptic(): boolean {
+  try {
+    return (window as unknown as ProfileReader).getProfile?.()?.hapticEnabled !== false;
+  } catch {
+    return true;
   }
 }
 
@@ -47,6 +66,7 @@ function elementFor(name: SoundName): HTMLAudioElement {
 }
 
 function haptic(name: SoundName): void {
+  if (!profileHaptic()) return;
   try {
     const cap = (window as unknown as {
       Capacitor?: { Plugins?: { Haptics?: { impact?: (opts: { style: string }) => void } } };
@@ -56,11 +76,20 @@ function haptic(name: SoundName): void {
   } catch {
     // web, or Capacitor not installed yet (Phase 5)
   }
+  try {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      const ms = name === "wrong" || name === "level" ? 24 : 10;
+      navigator.vibrate(ms);
+    }
+  } catch {
+    // desktop Safari has no vibrate
+  }
 }
 
 function play(name: SoundName): void {
   try {
     const audio = elementFor(name);
+    audio.volume = profileVolume();
     audio.currentTime = 0;
     const maybe = audio.play();
     if (maybe && typeof maybe.catch === "function") {
