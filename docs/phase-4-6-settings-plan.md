@@ -9,8 +9,8 @@ an App Store, or an image model.
 
 ## Ships
 
-- Hub is a 3-column tile grid (OneSignal-style). Each tile opens a
-  sheet with the real controls. Subscription tile shows Active / trial CTA.
+- Hub is a 3-column tile grid (OneSignal-style). Each tile opens an
+  in-tab page (not a bottom sheet). Subscription tile shows Active / trial CTA.
 - Subscription card first after profile (the buy button that was
   invisible in the flat list). Breathing border on Free.
 - Theme carousel: 6 palettes (Cream default). Tap previews, Save persists.
@@ -42,11 +42,12 @@ an App Store, or an image model.
 
 | # | Decision | Why |
 |---|---|---|
-| 67 | Hub tiles + sheets, not 10 new routes | Spec screenshot. Keeps Settings as one tab. |
+| 67 | Hub tiles + in-tab pages, not 10 new routes | Spec screenshot. Keeps Settings as one tab. |
 | 68 | No Crisp SDK without a website id | Same as Resend: missing key is a no-op, not a fake widget. |
 | 69 | Avatar is photo/initials, not a model | Decision Log #39. |
-| 70 | Theme persists immediately | Settings is a tab, not a dismissible sheet, so "revert on close" has nowhere to close. |
+| 70 | Theme tap previews; Save persists; Back without Save reverts | Phone sheets were too short for carousel + Save. Page close is the revert point. |
 | 71 | Six named palettes, not Light/Dark/System | Spec. Cream is default. Old `dark` profiles map to midnight. |
+| 72 | Pages, not bottom sheets | Phone overlays cramped Personalization / Notifications. Nested pages back to the parent page. |
 
 ## Reversibility
 

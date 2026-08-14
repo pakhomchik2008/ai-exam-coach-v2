@@ -1,12 +1,12 @@
 /* Settings — grouped cards, magnetic toggles, Free-plan breathe.
    Lives here so Settings.jsx can stay layout+state, not a CSS-in-JS dump. */
 
-/* Settings hub — OneSignal-style tile grid. Detail still lives in sheets. */
+/* Settings hub — OneSignal-style tile grid. Detail is an in-tab page. */
 
 .settings-hub {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 36px;
   max-width: 100%;
   font-family: var(--font-sans);
 }
@@ -24,7 +24,7 @@
 }
 
 .settings-hub-kicker {
-  margin: 0 0 10px;
+  margin: 0 0 14px;
   font-size: 13px;
   font-weight: var(--weight-medium);
   color: var(--text-muted);
@@ -33,7 +33,7 @@
 .settings-hub-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 16px;
 }
 
 @media (min-width: 720px) {
@@ -55,8 +55,8 @@
   justify-content: space-between;
   gap: 16px;
   width: 100%;
-  min-height: 112px;
-  padding: 20px 20px 18px;
+  min-height: 136px;
+  padding: 24px 22px 22px;
   box-sizing: border-box;
   text-align: left;
   cursor: pointer;
@@ -149,7 +149,7 @@
   color: var(--red-600);
 }
 
-/* Detail sheets still use rows + toggles */
+/* Detail pages use rows + toggles */
 
 .settings-card {
   background: var(--surface-card);
@@ -163,7 +163,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px 8px;
+  padding: 16px 18px 10px;
   font-size: 11px;
   font-weight: var(--weight-semibold);
   letter-spacing: 0.08em;
@@ -179,12 +179,66 @@
   border-top: none;
 }
 
+.settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 40rem;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.settings-page-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+}
+
+.settings-page-back {
+  appearance: none;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  border: none;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.settings-page-back:focus {
+  outline: none;
+}
+
+.settings-page-back:focus-visible {
+  outline: 2px solid var(--indigo-500);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.settings-page-head h1 {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.settings-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
 .settings-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 16px 18px;
   border: none;
   border-top: 1px solid var(--border-subtle);
   background: transparent;
@@ -287,7 +341,7 @@
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 16px 14px;
+  padding: 8px 18px 16px;
   scrollbar-width: none;
 }
 
@@ -295,9 +349,9 @@
 
 .settings-theme-rail {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   overflow-x: auto;
-  padding: 4px 16px 12px;
+  padding: 8px 18px 16px;
   scrollbar-width: none;
 }
 
@@ -305,7 +359,7 @@
 
 .settings-theme-swatch {
   flex: 0 0 auto;
-  width: 104px;
+  width: 124px;
   border: 1px solid var(--border-default);
   background: transparent;
   border-radius: 14px;
@@ -325,10 +379,10 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  height: 64px;
+  height: 76px;
   padding: 8px;
   border-radius: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .settings-theme-mini i {
@@ -375,7 +429,7 @@
   border-color: var(--indigo-500);
   color: var(--indigo-700);
   background: var(--indigo-50);
-  transform: scale(1.15);
+  transform: scale(1.04);
   font-weight: var(--weight-medium);
 }
 
@@ -394,31 +448,10 @@
   color: var(--red-600);
 }
 
-.settings-sheet {
-  position: fixed;
-  inset: 0;
-  z-index: 140;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.settings-sheet-panel {
-  width: 100%;
-  max-width: 520px;
-  max-height: min(88vh, 740px);
-  overflow: auto;
-  background: var(--surface-card);
-  border-radius: 16px 16px 0 0;
-  padding: 16px 20px calc(28px + env(safe-area-inset-bottom, 0px));
-  box-sizing: border-box;
-}
-
 .settings-swatches {
   display: flex;
   gap: 10px;
-  padding: 4px 16px 14px;
+  padding: 8px 18px 16px;
 }
 
 .settings-swatch {
@@ -440,4 +473,13 @@ html.dyslexia body {
   letter-spacing: 0.045em;
   word-spacing: 0.12em;
   line-height: 1.65;
+}
+
+.settings-page .land-legal {
+  padding: 0;
+  max-width: none;
+}
+
+.settings-page .land-legal h1 {
+  display: none;
 }
