@@ -209,14 +209,17 @@ export async function recordUsage(user, endpoint, usage, day) {
   }
 }
 
-// ─── entry point ──────────────────────────────────────────────────────────────
-// Returns { user, usage } on success, or null after it has already written the
-// error response — so a handler is just:
-//
-//   const gate = await guard(req, res, "complete");
-//   if (!gate) return;
+// Origin the browser actually came from, when it is on the allowlist.
+// Checkout success/cancel URLs must bounce back to preview, not always prod.
+export function resolveAppOrigin(req) {
+  const origin = req.headers.origin;
+  if (origin && !originRejected(req)) return origin;
+  return process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
+}
 
-export async function guard(req, res, endpoint) {
+// Origin + live JWT, no AI quota. Checkout uses this so a pay click cannot
+// burn the daily complete budget (Decision Log #66).
+export async function authenticate(req, res, signInMessage = "Sign in to use AI features.") {
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return null;
@@ -230,7 +233,7 @@ export async function guard(req, res, endpoint) {
 
   const token = bearerToken(req);
   if (!token) {
-    res.status(401).json({ error: "Sign in to use AI features." });
+    res.status(401).json({ error: signInMessage });
     return null;
   }
 
@@ -246,11 +249,25 @@ export async function guard(req, res, endpoint) {
     return null;
   }
 
-  const quota = await consumeQuota(user, endpoint);
+  return { user };
+}
+
+// ─── entry point ──────────────────────────────────────────────────────────────
+// Returns { user, usage } on success, or null after it has already written the
+// error response — so a handler is just:
+//
+//   const gate = await guard(req, res, "complete");
+//   if (!gate) return;
+
+export async function guard(req, res, endpoint) {
+  const auth = await authenticate(req, res);
+  if (!auth) return null;
+
+  const quota = await consumeQuota(auth.user, endpoint);
   if (!quota.allowed) {
     res.status(quota.status).json(quota.body);
     return null;
   }
 
-  return { user, usage: quota.usage };
+  return { user: auth.user, usage: quota.usage };
 }

@@ -1,7 +1,8 @@
 // AI Exam Coach — Phase 3 §3.5 notifications. Vercel Cron hits this ONCE a
-// day (see vercel.json). Runs all five triggers in one pass and sends real
+// day (see vercel.json). Runs all six triggers in one pass and sends real
 // email via Resend; every send is deduplicated through notification_log
-// (supabase/15_notification_log.sql) so a retried invocation is a no-op.
+// (supabase/15_notification_log.sql, trigger list extended in 18_subscriptions.sql)
+// so a retried invocation is a no-op.
 //
 // Deliberately reads prefs/data from the SAME `user_data` sync table every
 // other feature already writes to (see profile-store.jsx's header on the
@@ -49,6 +50,8 @@ const APP_URL = process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 // (where the initial NMT/IELTS user base concentrates) while still being
 // daytime in the Americas for a same-day nudge rather than a 3am one.
 const CRON_HOUR_UTC = 16;
+
+import { trialEmailDue } from "./_stripe.js";
 
 const RELEVANT_KEYS = ["user_profile_v1", "exams_list_v2", "study_schedule_v1", "mistakes_v1"];
 const DAY_MS = 86400000;
@@ -214,6 +217,19 @@ function mistakeReviewEmail(count) {
     html: `<p>You have ${count} mistake${count === 1 ? "" : "s"} due for review in your Mistake Journal.</p>`,
   };
 }
+function trialEndEmail() {
+  return {
+    subject: "Your Pro trial ends tomorrow",
+    html: `<p>Your 3-day Pro trial ends tomorrow. The $4/month charge starts then. Cancel from the Stripe email if you do not want to continue.</p>`,
+  };
+}
+
+async function fetchTrialing(headers) {
+  const url = `${SUPABASE_URL}/rest/v1/subscriptions?status=eq.trialing&select=user_id,trial_end&limit=1000`;
+  const resp = await fetch(url, { headers });
+  if (!resp.ok) return []; // table missing (PGRST205) until Hlib runs 18_subscriptions.sql
+  return resp.json();
+}
 
 export default async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
@@ -241,15 +257,19 @@ export default async function handler(req, res) {
   const weekKey = isoWeekKey(now);
 
   const byUser = await fetchAllUserData(headers);
+  const trialByUser = new Map();
+  for (const row of await fetchTrialing(headers)) {
+    if (row && row.user_id) trialByUser.set(row.user_id, row.trial_end);
+  }
   const results = { checked: 0, sent: 0, skipped: 0, errors: 0 };
 
   for (const [userId, data] of byUser) {
     results.checked++;
     const profile = data.user_profile_v1;
     if (!profile || typeof profile !== "object") continue;
-    if (profile.notifUnsubscribed) continue;
     const email = typeof profile.email === "string" ? profile.email.trim() : "";
     if (!email) continue; // never captured one — nothing to send to
+    const unsubscribed = profile.notifUnsubscribed === true;
 
     const exams = Array.isArray(data.exams_list_v2) ? data.exams_list_v2 : [];
     const schedule = data.study_schedule_v1 && typeof data.study_schedule_v1 === "object" ? data.study_schedule_v1 : {};
@@ -271,6 +291,10 @@ export default async function handler(req, res) {
       else results.errors++;
     }
 
+    // 1–5 are study reminders. Skip them after one-click unsubscribe.
+    // 6 (trial_end) is a billing notice — still send, or the card charges
+    // with no warning the next day.
+    if (!unsubscribed) {
     // 1. Daily reminder — only if there's a pending session today AND they
     // haven't already completed one (redundant to nudge someone who's done).
     const todaysSessions = sessions.filter((s) => s.date === todayKey);
@@ -314,6 +338,13 @@ export default async function handler(req, res) {
       if (dueCount > 0) {
         await fire("mistake_review", todayKey, () => mistakeReviewEmail(dueCount));
       }
+    }
+    }
+
+    // 6. Trial ending — UTC day before trial_end. Billing, not marketing.
+    const trialEnd = trialByUser.get(userId);
+    if (trialEmailDue(trialEnd, now)) {
+      await fire("trial_end", utcDateKey(new Date(trialEnd)), () => trialEndEmail());
     }
   }
 
