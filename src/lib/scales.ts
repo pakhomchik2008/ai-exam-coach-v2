@@ -53,6 +53,9 @@ export const SCALES = {
   gre: { min: 260, max: 340, step: 1, targetTop: 320, format: "integer", label: "V+Q" },
   gre_section: { min: 130, max: 170, step: 1, targetTop: 160, format: "integer", label: "" },
   gre_awa: { min: 0, max: 6, step: 0.5, targetTop: 5, format: "decimal", label: "AWA" },
+  /** GMAT Focus total. Tens ending in 5 — classic 200–800 is a different exam. */
+  gmat: { min: 205, max: 805, step: 10, targetTop: 655, format: "integer", label: "Focus" },
+  gmat_section: { min: 60, max: 90, step: 1, targetTop: 82, format: "integer", label: "" },
   act: { min: 1, max: 36, step: 1, targetTop: 32, format: "integer", label: "" },
   ap: { min: 1, max: 5, step: 1, targetTop: 5, format: "integer", label: "" },
   ib: { min: 1, max: 7, step: 1, targetTop: 6, format: "integer", label: "" },
@@ -81,6 +84,7 @@ const TAXONOMY_TO_SCALE: Readonly<Record<string, ScaleId>> = {
   ib: "ib",
   bac: "bac",
   gre: "gre",
+  gmat: "gmat",
 };
 
 /** True when the resolved scale is the generic 0–100 stand-in, not a real one. */

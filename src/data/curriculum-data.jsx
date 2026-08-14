@@ -34,6 +34,13 @@ function greRow(subject, aliases, names) {
     topics: bacTopics(names), source: "official",
   };
 }
+function gmatRow(subject, aliases, names) {
+  return {
+    countryId: "us", educationSystemId: "higher-ed", qualificationId: "gmat",
+    board: null, specVersion: "focus-2023", subject, aliases,
+    topics: bacTopics(names), source: "official",
+  };
+}
 
 const CURRICULUM_SEED = [
   {
@@ -1890,6 +1897,33 @@ const CURRICULUM_SEED = [
     "Standard written English",
     "The 0–6 scoring scale",
     "30-minute Issue timing",
+  ]),
+  gmatRow("Quantitative Reasoning", ["Quant", "GMAT Quant", "Quantitative Reasoning"], [
+    "Arithmetic and number properties",
+    "Fractions, ratios, percents",
+    "Algebra: equations and inequalities",
+    "Exponents, roots, and functions",
+    "Word problems and rates",
+    "Problem Solving tactics",
+    "Pacing: 21 questions / 45 minutes",
+  ]),
+  gmatRow("Verbal Reasoning", ["Verbal", "GMAT Verbal", "Verbal Reasoning"], [
+    "Reading Comprehension: main idea",
+    "Reading Comprehension: detail and inference",
+    "Reading Comprehension: structure and tone",
+    "Critical Reasoning: assumption",
+    "Critical Reasoning: strengthen and weaken",
+    "Critical Reasoning: evaluate and flaw",
+    "Pacing: 23 questions / 45 minutes",
+  ]),
+  gmatRow("Data Insights", ["DI", "GMAT DI", "Data Insights", "Integrated Reasoning"], [
+    "Data Sufficiency",
+    "Multi-Source Reasoning",
+    "Table Analysis",
+    "Graphics Interpretation",
+    "Two-Part Analysis",
+    "On-screen calculator (DI only)",
+    "Pacing: 20 questions / 45 minutes",
   ]),
 ];
 

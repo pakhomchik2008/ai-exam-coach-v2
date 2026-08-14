@@ -30,7 +30,7 @@ type Api = {
 const api = window as unknown as Api;
 
 describe("examType — known ids", () => {
-  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "bac", "gre", "custom"])("resolves %s to itself", (id) => {
+  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "bac", "gre", "gmat", "custom"])("resolves %s to itself", (id) => {
     expect(api.examType(id).id).toBe(id);
   });
 });
@@ -136,6 +136,17 @@ describe("GRE in the bundled catalog", () => {
   });
 });
 
+describe("GMAT in the bundled catalog", () => {
+  it("is Focus 205–805, not classic 200–800", () => {
+    const gmat = api.examType("gmat");
+    expect(gmat.grade.kind).toBe("score");
+    expect(gmat.grade.min).toBe(205);
+    expect(gmat.grade.max).toBe(805);
+    expect(gmat.grade.step).toBe(10);
+    expect(api.isSectionBasedExam("gmat")).toBe(true);
+  });
+});
+
 describe("suggestedQualificationId", () => {
   it("reads the last exam's qualification", () => {
     expect(api.suggestedQualificationId({ qualificationId: "nmt", name: "Maths" }, {})).toBe("nmt");
@@ -151,6 +162,10 @@ describe("suggestedQualificationId", () => {
 
   it("infers GRE from the exam name", () => {
     expect(api.suggestedQualificationId({ name: "GRE General Test" }, { country: "us" })).toBe("gre");
-    expect(api.suggestedQualificationId({ name: "GMAT Focus" }, {})).not.toBe("gre");
+  });
+
+  it("infers GMAT Focus from the exam name, not GRE", () => {
+    expect(api.suggestedQualificationId({ name: "GMAT Focus" }, {})).toBe("gmat");
+    expect(api.suggestedQualificationId({ name: "GRE General Test" }, {})).not.toBe("gmat");
   });
 });

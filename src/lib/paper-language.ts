@@ -19,6 +19,7 @@ const PAPER_LANGUAGE: Readonly<Record<string, PaperLanguage>> = {
   pte: "en",
   sat: "en",
   gre: "en",
+  gmat: "en",
   act: "en",
   ap: "en",
   gcse: "en",
@@ -60,6 +61,7 @@ export function canonicalQualification(qualificationId: string | null | undefine
   if (id === "abitur" || id.startsWith("abitur-")) return "abitur";
   if (id === "bac" || id.startsWith("bac-")) return "bac";
   if (id === "gre" || id.startsWith("gre-")) return "gre";
+  if (id === "gmat" || id.startsWith("gmat-")) return "gmat";
   return id;
 }
 

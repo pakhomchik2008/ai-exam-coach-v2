@@ -7,6 +7,6 @@ AWA one Issue essay / 30 min. Analyze an Argument is gone.
 ## Not this slice
 
 - GRE Subject Tests
-- GMAT Focus (next if GRE feels right)
+- GMAT Focus (shipped)
 - PTE Academic
 - Licensed PowerPrep items

@@ -38,6 +38,7 @@ export const EXAM_SPECS: Record<string, ExamSpec> = {
   abitur: spec(16, "Abitur style: analytical multiple-choice."),
   bac: spec(16, "Baccalauréat général: written papers are 4h (français, philosophie, most spécialités); Grand oral is 20 min. Practice uses exam-style items, not a licensed annales clock."),
   gre: spec(27, "Shorter GRE (Sept 2023+): Verbal 27/41, Quant 27/47. AWA is a separate 30-min Issue essay. Practice uses exam-style items, not a licensed PowerPrep clock."),
+  gmat: spec(21, "GMAT Focus: Quant 21/45, Verbal 23/45, Data Insights 20/45. No AWA. Practice uses exam-style items, not a licensed Official Practice Exam clock."),
   ielts: spec(40, "IELTS Reading: 3 passages, 40 questions, 60 minutes. Writing and Listening use their own clocks."),
 };
 
