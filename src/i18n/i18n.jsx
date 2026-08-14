@@ -358,7 +358,7 @@ const LANGS = {
 const EXAM_SYSTEMS = [
   { group: "🇬🇧 United Kingdom", options: ["AQA","Edexcel","OCR","WJEC","Cambridge IGCSE","Cambridge A-Level","SQA (Scotland)"] },
   { group: "🌍 International", options: ["IB (International Baccalaureate)","Cambridge International AS & A-Level","Cambridge IGCSE"] },
-  { group: "🇺🇸 United States", options: ["AP (Advanced Placement)","SAT","ACT","GRE General","Common Core"] },
+  { group: "🇺🇸 United States", options: ["AP (Advanced Placement)","SAT","ACT","GRE General","GMAT Focus","Common Core"] },
   { group: "🇺🇦 Ukraine", options: ["НМТ (Національний мультипредметний тест)","ЗНО","ДПА"] },
   { group: "🇷🇺 Russia", options: ["ЕГЭ (Единый государственный экзамен)","ОГЭ","ВПР"] },
   { group: "🇫🇷 France", options: ["Baccalauréat Général","Baccalauréat Technologique","Baccalauréat Professionnel","BTS","Classes Préparatoires"] },

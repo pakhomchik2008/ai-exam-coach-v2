@@ -42,6 +42,9 @@ const EXAM_TYPES = [
   { id: "gre",    label: "GRE",        emoji: "🇺🇸", blurb: { en: "V+Q 260–340", uk: "V+Q 260–340", ru: "V+Q 260–340", fr: "V+Q 260–340", de: "V+Q 260–340" }, board: "ETS", educationSystemId: "higher-ed",
     sectionBased: true, enMedium: true,
     grade: { kind: "score", min: 260, max: 340, step: 1, current: 305, target: 320 } },
+  { id: "gmat",   label: "GMAT",       emoji: "💼", blurb: { en: "Focus 205–805", uk: "Focus 205–805", ru: "Focus 205–805", fr: "Focus 205–805", de: "Focus 205–805" }, board: "GMAC", educationSystemId: "higher-ed",
+    sectionBased: true, enMedium: true,
+    grade: { kind: "score", min: 205, max: 805, step: 10, current: 555, target: 655 } },
   { id: "uni",    label: "University", emoji: "🎓", blurb: { en: "Degree classifications", uk: "Класифікації ступенів", ru: "Классификации степеней", fr: "Classifications de diplôme", de: "Abschlussklassen" }, board: "Custom modules", educationSystemId: "higher-ed",
     grade: { kind: "scale", options: ["1st","2:1","2:2","3rd","Pass"], current: "2:1", target: "1st" } },
   { id: "custom", label: "Custom",     emoji: "✏️", blurb: { en: "Set your own", uk: "Налаштуйте самі", ru: "Настройте сами", fr: "Personnalisé", de: "Selbst festlegen" }, board: "Any exam", educationSystemId: null,
@@ -82,7 +85,7 @@ function examType(id) { return resolveExamType(EXAM_TYPES, id); }
 function isSectionBasedExam(id) {
   const e = examType(id);
   if (typeof e.sectionBased === "boolean") return e.sectionBased;
-  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo" || id === "gre";
+  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo" || id === "gre" || id === "gmat";
 }
 
 /** Add-exam default: last exam's qual, then country, never a silent GCSE. */
@@ -96,7 +99,8 @@ function suggestedQualificationId(lastExam, profile) {
   if (/toefl/i.test(blob)) return "toefl";
   if (/duolingo/i.test(blob)) return "duolingo";
   if (/(baccalaur[eé]at|\bbac\b)/i.test(blob) && !/international/i.test(blob)) return "bac";
-  if (/\bgre\b/i.test(blob) && !/\bgmat\b/i.test(blob)) return "gre";
+  if (/\bgmat\b/i.test(blob)) return "gmat";
+  if (/\bgre\b/i.test(blob)) return "gre";
   if (/(nmt|нmt|зно)/i.test(blob)) return "nmt";
   const country = profile && profile.country && COUNTRY_TO_EXAM_TYPE[profile.country];
   if (country) return country;
@@ -336,6 +340,7 @@ const SUBJECT_PRESETS = {
   abitur: ["Mathematik","Deutsch","Englisch","Biologie","Chemie","Physik","Geschichte","Geographie","Informatik","Sozialkunde","Französisch","Kunst","Musik","Sport","Wirtschaft"],
   bac: ["Français","Philosophie","Grand oral","Mathématiques","Physique-Chimie","SVT","SES","NSI","HGGSP","HLP","LLCER Anglais"],
   gre: ["Verbal Reasoning","Quantitative Reasoning","Analytical Writing"],
+  gmat: ["Quantitative Reasoning","Verbal Reasoning","Data Insights"],
   uni: ["Mathematics","Physics","Chemistry","Biology","Computer Science","Economics","Psychology","History","English Literature","Philosophy","Sociology","Political Science","Law","Business Administration","Accounting","Finance","Marketing","Engineering","Medicine","Nursing","Architecture","Statistics","Linguistics","Geography","Environmental Science","Art History","Music"],
   custom: [],
 };
