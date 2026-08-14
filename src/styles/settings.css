@@ -1,13 +1,155 @@
 /* Settings — grouped cards, magnetic toggles, Free-plan breathe.
    Lives here so Settings.jsx can stay layout+state, not a CSS-in-JS dump. */
 
-.settings-stack {
+/* Settings hub — OneSignal-style tile grid. Detail still lives in sheets. */
+
+.settings-hub {
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  max-width: var(--container-form);
+  gap: 28px;
+  max-width: 100%;
   font-family: var(--font-sans);
 }
+
+.settings-hub > h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.settings-hub-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-hub-kicker {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.settings-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .settings-hub-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 980px) {
+  .settings-hub-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.settings-hub-card {
+  appearance: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 112px;
+  padding: 20px 20px 18px;
+  box-sizing: border-box;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  box-shadow: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.settings-hub-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-hub-card:focus {
+  outline: none;
+}
+
+.settings-hub-card:focus-visible {
+  outline: 2px solid var(--indigo-500);
+  outline-offset: 2px;
+}
+
+.settings-hub-card:active {
+  transform: scale(0.99);
+}
+
+.settings-hub-copy h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--text-strong);
+  letter-spacing: -0.01em;
+}
+
+.settings-hub-copy p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.settings-hub-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--emerald-700);
+}
+
+.settings-hub-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--emerald-500);
+}
+
+.settings-hub-cta {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--indigo-600);
+  color: var(--text-invert);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.settings-hub-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 99px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--indigo-50);
+  color: var(--indigo-600);
+}
+
+.settings-hub-card[data-danger="1"] .settings-hub-icon {
+  background: var(--red-50);
+  color: var(--red-600);
+}
+
+/* Detail sheets still use rows + toggles */
 
 .settings-card {
   background: var(--surface-card);
@@ -31,6 +173,10 @@
 
 .settings-card-head span[aria-hidden] {
   font-size: 14px;
+}
+
+.settings-card > .settings-row:first-child {
+  border-top: none;
 }
 
 .settings-row {
@@ -99,7 +245,7 @@
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
-  transition: background 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-toggle[data-on="1"] {
@@ -116,7 +262,7 @@
   background: var(--white);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   pointer-events: none;
-  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .settings-toggle[data-on="1"] i {
@@ -161,7 +307,7 @@
   gap: 6px;
   font-size: var(--text-sm);
   transform: scale(1);
-  transition: transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1), border-color 160ms ease;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms ease;
 }
 
 .settings-flag[data-on="1"] {
@@ -200,6 +346,8 @@
 .settings-sheet-panel {
   width: 100%;
   max-width: 520px;
+  max-height: min(88vh, 740px);
+  overflow: auto;
   background: var(--surface-card);
   border-radius: 16px 16px 0 0;
   padding: 16px 20px calc(28px + env(safe-area-inset-bottom, 0px));

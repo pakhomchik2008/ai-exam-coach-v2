@@ -9,8 +9,8 @@ an App Store, or an image model.
 
 ## Ships
 
-- 10 named cards, icon + uppercase header, hairline rows, sheets not
-  extra routes.
+- Hub is a 3-column tile grid (OneSignal-style). Each tile opens a
+  sheet with the real controls. Subscription tile shows Active / trial CTA.
 - Subscription card first after profile (the buy button that was
   invisible in the flat list). Breathing border on Free.
 - Theme Light/Dark/System (semantic tokens). Instant apply.
@@ -41,7 +41,7 @@ an App Store, or an image model.
 
 | # | Decision | Why |
 |---|---|---|
-| 67 | Cards + sheets, not 10 new routes | Spec. Keeps Settings as one tab. |
+| 67 | Hub tiles + sheets, not 10 new routes | Spec screenshot. Keeps Settings as one tab. |
 | 68 | No Crisp SDK without a website id | Same as Resend: missing key is a no-op, not a fake widget. |
 | 69 | Avatar is photo/initials, not a model | Decision Log #39. |
 | 70 | Theme persists immediately | Settings is a tab, not a dismissible sheet, so "revert on close" has nowhere to close. |
