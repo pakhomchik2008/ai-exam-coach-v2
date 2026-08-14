@@ -5,6 +5,7 @@
 import { isProUser } from "../learn/premium";
 import { startProCheckout, startBillingPortal } from "../../lib/billing";
 import { applyAppearance } from "../../lib/appearance";
+import { THEME_META, THEMES, resolveThemeId } from "../../styles/themes";
 import { exportPersonalData } from "../../lib/export-data";
 import { ACCENT_OPTIONS } from "../../app/tweaks";
 import { Legal } from "../../app/legal/Legal";
@@ -170,7 +171,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const [soundsEnabled, setSoundsEnabled] = React.useState(profile.soundsEnabled === true);
   const [soundVolume, setSoundVolume] = React.useState(profile.soundVolume ?? 0.7);
   const [hapticEnabled, setHapticEnabled] = React.useState(profile.hapticEnabled !== false);
-  const [theme, setTheme] = React.useState(profile.theme || "system");
+  const [theme, setTheme] = React.useState(() => resolveThemeId(profile.theme));
   const [accent, setAccent] = React.useState(profile.accent || "Indigo");
   const [dyslexiaFont, setDyslexiaFont] = React.useState(profile.dyslexiaFont === true);
   const [tierOff, setTierOff] = React.useState(profile.tierThemeDisabled === true);
@@ -205,6 +206,10 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
     window.OneSignalDeferred.push((OneSignal) => {
       setPushStatus(OneSignal.Notifications.permission ? "granted" : "default");
     });
+  }, []);
+
+  React.useEffect(() => {
+    return () => applyAppearance(window.getProfile());
   }, []);
 
   React.useEffect(() => {
@@ -396,18 +401,44 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
       )}
 
       {sheet === "appearance" && (
-        <Sheet title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")} onClose={() => setSheet(null)}>
+        <Sheet title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")} onClose={() => {
+          applyAppearance(window.getProfile());
+          setTheme(resolveThemeId(window.getProfile().theme));
+          setSheet(null);
+        }}>
           <Card>
-            <div className="settings-row">
-              <span className="settings-row-label"><strong>{L(lang, "Theme", "Тема", "Тема", "Thème", "Thema")}</strong></span>
-              <span className="settings-row-value" style={{ gap: 6 }}>
-                {["system", "light", "dark"].map((id) => (
-                  <button key={id} type="button" onClick={() => { setTheme(id); persist({ theme: id }); }}
-                    style={{ padding: "6px 10px", borderRadius: 99, border: theme === id ? "1px solid var(--indigo-500)" : "1px solid var(--border-default)", background: theme === id ? "var(--indigo-50)" : "transparent", color: theme === id ? "var(--indigo-700)" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                    {id === "system" ? L(lang, "System", "Система", "Система", "Système", "System") : id === "light" ? L(lang, "Light", "Світла", "Светлая", "Clair", "Hell") : L(lang, "Dark", "Темна", "Тёмная", "Sombre", "Dunkel")}
+            <div style={{ padding: "10px 16px 4px", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Theme", "Тема", "Тема", "Thème", "Thema")}</div>
+            <div className="settings-theme-rail">
+              {THEME_META.map((meta) => {
+                const palette = THEMES[meta.id];
+                const name = meta.name[lang] || meta.name.en;
+                return (
+                  <button
+                    key={meta.id}
+                    type="button"
+                    className="settings-theme-swatch"
+                    data-on={theme === meta.id ? "1" : "0"}
+                    aria-label={name}
+                    aria-pressed={theme === meta.id}
+                    onClick={() => {
+                      setTheme(meta.id);
+                      applyAppearance({ ...window.getProfile(), theme: meta.id });
+                    }}
+                  >
+                    <span className="settings-theme-mini" style={{ background: palette.bg, color: palette.text }}>
+                      <i style={{ background: palette.accent }} />
+                      <b style={{ color: palette.accent }}>176</b>
+                    </span>
+                    <em>{name}</em>
                   </button>
-                ))}
-              </span>
+                );
+              })}
+            </div>
+            <div className="settings-row">
+              <button type="button" onClick={() => { persist({ theme }); setSheet(null); }}
+                style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "var(--text-invert)", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {t.settings_save}
+              </button>
             </div>
             <Row label={L(lang, "Show tier background", "Показувати фон рівня", "Показывать фон уровня", "Fond du palier", "Stufen-Hintergrund")}>
               <MagToggle on={!tierOff} label="tier bg" onChange={(v) => { setTierOff(!v); persist({ tierThemeDisabled: !v }); }} />

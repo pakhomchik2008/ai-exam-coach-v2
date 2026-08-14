@@ -13,7 +13,8 @@ an App Store, or an image model.
   sheet with the real controls. Subscription tile shows Active / trial CTA.
 - Subscription card first after profile (the buy button that was
   invisible in the flat list). Breathing border on Free.
-- Theme Light/Dark/System (semantic tokens). Instant apply.
+- Theme carousel: 6 palettes (Cream default). Tap previews, Save persists.
+  data-theme on html; data-tier still only the XP wash.
 - Accent presets (existing tweak palettes, now on the profile).
 - Language flag carousel, country, dyslexia spacing, tier-background toggle.
 - Sounds + volume + preview-on-enable + `navigator.vibrate` on web.
@@ -45,6 +46,7 @@ an App Store, or an image model.
 | 68 | No Crisp SDK without a website id | Same as Resend: missing key is a no-op, not a fake widget. |
 | 69 | Avatar is photo/initials, not a model | Decision Log #39. |
 | 70 | Theme persists immediately | Settings is a tab, not a dismissible sheet, so "revert on close" has nowhere to close. |
+| 71 | Six named palettes, not Light/Dark/System | Spec. Cream is default. Old `dark` profiles map to midnight. |
 
 ## Reversibility
 

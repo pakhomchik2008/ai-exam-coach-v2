@@ -6,6 +6,7 @@
 // as exams-store.jsx/schedule-store.jsx.
 
 import { applyAppearance } from "../lib/appearance";
+import { resolveThemeId } from "../styles/themes";
 
 const PROFILE_KEY = "user_profile_v1";
 const PROFILE_SCHEMA_VERSION = 2;
@@ -86,7 +87,7 @@ function migrateProfile(raw) {
     soundsEnabled: typeof p.soundsEnabled === "boolean" ? p.soundsEnabled : false,
     soundVolume: isFiniteNumber(p.soundVolume) && p.soundVolume >= 0 && p.soundVolume <= 1 ? p.soundVolume : 0.7,
     hapticEnabled: typeof p.hapticEnabled === "boolean" ? p.hapticEnabled : true,
-    theme: p.theme === "light" || p.theme === "dark" ? p.theme : "system",
+    theme: resolveThemeId(p.theme),
     accent: ["Indigo", "Violet", "Rose", "Amber"].includes(p.accent) ? p.accent : "Indigo",
     dyslexiaFont: p.dyslexiaFont === true,
     tierThemeDisabled: p.tierThemeDisabled === true,

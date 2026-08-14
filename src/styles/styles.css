@@ -6,7 +6,8 @@
 @import "tokens/typography.css";
 @import "tokens/spacing.css";
 @import "tokens/base.css";
-@import "tokens/tiers.css";   /* level-tier re-themes — must win over base tokens */
+@import "tokens/tiers.css";   /* level-tier wash — must not steal the named palette */
+@import "themes.css";         /* data-theme palettes — wins over base + Legend gold */
 @import "tokens/motion.css";  /* fadeUp + shared overlay / press / stagger */
 @import "learn.css";          /* Learn list / sheet / medal motion */
 @import "onboarding.css";     /* first-run slit unveil, pick snap, plan ready */
