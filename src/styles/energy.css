@@ -16,7 +16,7 @@
 .land.energy {
   --glow-x: 70%;
   --glow-y: 30%;
-  --land-tape-h: 32px;
+  --land-tape-h: 0px;
   position: relative;
 }
 
