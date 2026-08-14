@@ -5,7 +5,7 @@
 // than importing individual tree files, so adding a new exam is a one-line
 // map entry, not a fan-out of imports.
 //
-// Subject-split exams (NMT, A-Level, GCSE, AP, IB, Matura, Abitur) never
+// Subject-split exams (NMT, A-Level, GCSE, AP, IB, Matura, Abitur, Bac) never
 // register a bare qualification key. Section exams (SAT, ACT, IELTS,
 // TOEFL, DET) do — one sitting, one tree. `nmt` stays Mathematics on
 // purpose: learn-store already keys math mastery under that taxonomy.
@@ -50,6 +50,10 @@ import {
   ABITUR_DE, ABITUR_MATH, ABITUR_ENG, ABITUR_BIO, ABITUR_CHEM, ABITUR_PHYS,
   ABITUR_CS, ABITUR_HIST, ABITUR_GEO, ABITUR_POL, ABITUR_MUSIC, ABITUR_LANG,
 } from "./abitur-subjects";
+import {
+  BAC_FR, BAC_PHILO, BAC_GO, BAC_MATH, BAC_PC, BAC_SVT,
+  BAC_SES, BAC_NSI, BAC_HGGSP, BAC_HLP, BAC_LLCER,
+} from "./bac-subjects";
 
 const TREES: Record<string, LearnTree> = {
   nmt: NMT_MATH,
@@ -159,6 +163,17 @@ const TREES: Record<string, LearnTree> = {
   "abitur-pol": ABITUR_POL,
   "abitur-music": ABITUR_MUSIC,
   "abitur-lang": ABITUR_LANG,
+  "bac-fr": BAC_FR,
+  "bac-philo": BAC_PHILO,
+  "bac-go": BAC_GO,
+  "bac-math": BAC_MATH,
+  "bac-pc": BAC_PC,
+  "bac-svt": BAC_SVT,
+  "bac-ses": BAC_SES,
+  "bac-nsi": BAC_NSI,
+  "bac-hggsp": BAC_HGGSP,
+  "bac-hlp": BAC_HLP,
+  "bac-llcer": BAC_LLCER,
   sat: SAT,
   act: ACT,
   ielts: IELTS,

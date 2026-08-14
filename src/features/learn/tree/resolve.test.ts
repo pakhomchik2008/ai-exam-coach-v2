@@ -45,10 +45,20 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "AP Calculus AB", qualificationId: "ap" })).toBe("ap-calc-ab");
     expect(treeKeyForExam({ name: "Matura Matematyka", qualificationId: "matura" })).toBe("matura-math");
     expect(treeKeyForExam({ name: "Abitur Deutsch", qualificationId: "abitur" })).toBe("abitur-de");
+    expect(treeKeyForExam({ name: "Bac Mathématiques", qualificationId: "bac" })).toBe("bac-math");
+    expect(treeKeyForExam({ name: "Baccalauréat Français", qualificationId: "bac" })).toBe("bac-fr");
+    expect(treeKeyForExam({ name: "Bac Philosophie", qualificationId: "bac" })).toBe("bac-philo");
+    expect(treeKeyForExam({ name: "Bac Grand oral", qualificationId: "bac" })).toBe("bac-go");
+    expect(treeKeyForExam({ name: "Bac Physique-Chimie", qualificationId: "bac" })).toBe("bac-pc");
   });
 
   it("still finds SAT when the stored qualificationId is a stale GCSE", () => {
     expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "gcse" })).toBe("sat");
+  });
+
+  it("does not treat French Bac as IB", () => {
+    expect(treeKeyForExam({ name: "Baccalauréat Mathématiques", qualificationId: "ib" })).toBe("bac-math");
+    expect(treeKeyForExam({ name: "International Baccalaureate Mathematics AA", qualificationId: "ib" })).toBe("ib-aa");
   });
 
   it("still finds NMT language when the stored qualificationId is a stale GCSE", () => {
@@ -114,6 +124,7 @@ describe("treeForExam", () => {
     expect(getTree("ib")).toBeNull();
     expect(getTree("matura")).toBeNull();
     expect(getTree("abitur")).toBeNull();
+    expect(getTree("bac")).toBeNull();
   });
 
   it("keeps node ids unique inside every registered tree", () => {

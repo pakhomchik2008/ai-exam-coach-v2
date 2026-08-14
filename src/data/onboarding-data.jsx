@@ -37,6 +37,8 @@ const EXAM_TYPES = [
     grade: { kind: "score", min: 0, max: 100, step: 1, suffix: "%", current: 60, target: 85 } },
   { id: "abitur", label: "Abitur",     emoji: "🇩🇪", blurb: { en: "1.0 best → 4.0", uk: "1.0 найкраще → 4.0", ru: "1.0 лучшее → 4.0", fr: "1.0 meilleur → 4.0", de: "1,0 beste → 4,0" }, board: "KMK", educationSystemId: "k12",
     grade: { kind: "scale", options: ["1.0","1.3","1.7","2.0","2.3","2.7","3.0"], current: "2.3", target: "1.3" } },
+  { id: "bac",    label: "Bac",        emoji: "🇫🇷", blurb: { en: "0–20 · mentions", uk: "0–20 · mentions", ru: "0–20 · mentions", fr: "0–20 · mentions", de: "0–20 · Mentions" }, board: "Éducation nationale", educationSystemId: "k12",
+    grade: { kind: "score", min: 0, max: 20, step: 0.5, current: 12, target: 16 } },
   { id: "uni",    label: "University", emoji: "🎓", blurb: { en: "Degree classifications", uk: "Класифікації ступенів", ru: "Классификации степеней", fr: "Classifications de diplôme", de: "Abschlussklassen" }, board: "Custom modules", educationSystemId: "higher-ed",
     grade: { kind: "scale", options: ["1st","2:1","2:2","3rd","Pass"], current: "2:1", target: "1st" } },
   { id: "custom", label: "Custom",     emoji: "✏️", blurb: { en: "Set your own", uk: "Налаштуйте самі", ru: "Настройте сами", fr: "Personnalisé", de: "Selbst festlegen" }, board: "Any exam", educationSystemId: null,
@@ -90,6 +92,7 @@ function suggestedQualificationId(lastExam, profile) {
   if (/ielts/i.test(blob)) return "ielts";
   if (/toefl/i.test(blob)) return "toefl";
   if (/duolingo/i.test(blob)) return "duolingo";
+  if (/(baccalaur[eé]at|\bbac\b)/i.test(blob) && !/international/i.test(blob)) return "bac";
   if (/(nmt|нmt|зно)/i.test(blob)) return "nmt";
   const country = profile && profile.country && COUNTRY_TO_EXAM_TYPE[profile.country];
   if (country) return country;
@@ -301,7 +304,7 @@ const COUNTRY_TO_EXAM_TYPE = {
   ua: "nmt",
   pl: "matura",
   de: "abitur",
-  fr: "ib",
+  fr: "bac",
   other: "custom",
 };
 
@@ -327,6 +330,7 @@ const SUBJECT_PRESETS = {
   duolingo: ["Literacy","Comprehension","Conversation","Production"],
   matura: ["Matematyka","Język polski","Język angielski","Biologia","Chemia","Fizyka","Historia","Geografia","Informatyka","Wiedza o społeczeństwie","Język niemiecki","Język rosyjski"],
   abitur: ["Mathematik","Deutsch","Englisch","Biologie","Chemie","Physik","Geschichte","Geographie","Informatik","Sozialkunde","Französisch","Kunst","Musik","Sport","Wirtschaft"],
+  bac: ["Français","Philosophie","Grand oral","Mathématiques","Physique-Chimie","SVT","SES","NSI","HGGSP","HLP","LLCER Anglais"],
   uni: ["Mathematics","Physics","Chemistry","Biology","Computer Science","Economics","Psychology","History","English Literature","Philosophy","Sociology","Political Science","Law","Business Administration","Accounting","Finance","Marketing","Engineering","Medicine","Nursing","Architecture","Statistics","Linguistics","Geography","Environmental Science","Art History","Music"],
   custom: [],
 };

@@ -18,7 +18,7 @@ export type ExamLike = {
 type SlugRow = { slug: string; re: RegExp };
 type Family =
   | "nmt" | "alevel" | "gcse" | "sat" | "act" | "ap" | "ib"
-  | "matura" | "abitur" | "ielts" | "toefl" | "duolingo";
+  | "matura" | "abitur" | "bac" | "ielts" | "toefl" | "duolingo";
 
 const NMT_SLUGS: SlugRow[] = [
   { slug: "nmt-lit", re: /літератур|литератур|literature|укрліт/i },
@@ -148,9 +148,23 @@ const ABITUR_SLUGS: SlugRow[] = [
   { slug: "abitur-geo", re: /geograph|географ|geography/i },
 ];
 
+const BAC_SLUGS: SlugRow[] = [
+  { slug: "bac-go", re: /grand\s*oral/i },
+  { slug: "bac-hggsp", re: /hggsp|géopolitique|geopolitique|histoire-g[eé]o.*sp[eé]/i },
+  { slug: "bac-hlp", re: /\bhlp\b|humanit[eé]s,\s*litt[eé]rature|litt[eé]rature et philosophie/i },
+  { slug: "bac-pc", re: /physique-chimie|physique\s*chimie/i },
+  { slug: "bac-svt", re: /\bsvt\b|sciences de la vie|vie et de la terre/i },
+  { slug: "bac-nsi", re: /\bnsi\b|num[eé]rique et sciences/i },
+  { slug: "bac-llcer", re: /llcer|anglais\s*sp[eé]|sp[eé]cialit[eé]\s*anglais/i },
+  { slug: "bac-ses", re: /\bses\b|sciences [eé]conomiques|[eé]conomiques et sociales/i },
+  { slug: "bac-philo", re: /philo/i },
+  { slug: "bac-fr", re: /fran[cç]ais|french\s*literature|french\s*lang/i },
+  { slug: "bac-math", re: /math/i },
+];
+
 const FAMILIES: Family[] = [
   "nmt", "alevel", "gcse", "sat", "act", "ap", "ib",
-  "matura", "abitur", "ielts", "toefl", "duolingo",
+  "matura", "abitur", "bac", "ielts", "toefl", "duolingo",
 ];
 
 function courseBlob(exam: ExamLike): string {
@@ -208,6 +222,10 @@ export function abiturTreeSlug(exam: ExamLike | null | undefined): string | null
   return firstSlug(exam, ABITUR_SLUGS);
 }
 
+export function bacTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, BAC_SLUGS);
+}
+
 function qualificationOf(exam: ExamLike): string | null {
   const fromWindow = typeof window !== "undefined"
     ? (window as Window & { examQualificationId?: (e: ExamLike) => string | null }).examQualificationId
@@ -227,7 +245,11 @@ function familyFromName(exam: ExamLike): Family | null {
   if (/ielts/i.test(blob)) return "ielts";
   if (/matura/i.test(blob)) return "matura";
   if (/abitur/i.test(blob)) return "abitur";
-  if (/\bib\b|baccalaureate/i.test(blob)) return "ib";
+  // French Bac before IB: "baccalaureate" used to steal "Baccalauréat".
+  if (/(baccalaur[eé]at|\bbac\s*g[eé]n[eé]ral|\bfrench\s*bac\b)/i.test(blob)
+    && !/international/i.test(blob)) return "bac";
+  if (/\bbac\b/i.test(blob) && !/\bib\b|international/i.test(blob)) return "bac";
+  if (/\bib\b|international\s*baccalaureate/i.test(blob)) return "ib";
   if (/\bap\b/i.test(blob)) return "ap";
   return null;
 }
@@ -247,6 +269,7 @@ function keyForFamily(family: Family, exam: ExamLike): string | null {
     case "ib": return ibTreeSlug(exam);
     case "matura": return maturaTreeSlug(exam);
     case "abitur": return abiturTreeSlug(exam);
+    case "bac": return bacTreeSlug(exam);
     case "sat":
     case "act":
     case "ielts":

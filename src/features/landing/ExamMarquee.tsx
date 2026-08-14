@@ -20,6 +20,7 @@ export const EXAM_CHIPS: readonly ExamChip[] = [
   { id: "act", mark: "AC", name: "ACT" },
   { id: "ap", mark: "AP", name: "AP" },
   { id: "abitur", mark: "AB", name: "Abitur" },
+  { id: "bac", mark: "BA", name: "Bac" },
   { id: "duolingo", mark: "DU", name: "Duolingo" },
   { id: "matura", mark: "MA", name: "Matura" },
   { id: "alevel", mark: "AL", name: "A-Level" },

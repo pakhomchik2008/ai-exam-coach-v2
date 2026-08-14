@@ -12,6 +12,7 @@ const PAPER_LANGUAGE: Readonly<Record<string, PaperLanguage>> = {
   zno: "uk",
   abitur: "de",
   matura: "pl",
+  bac: "fr",
   ielts: "en",
   toefl: "en",
   duolingo: "en",
@@ -56,6 +57,7 @@ export function canonicalQualification(qualificationId: string | null | undefine
   if (id === "ib" || id.startsWith("ib-")) return "ib";
   if (id === "matura" || id.startsWith("matura-")) return "matura";
   if (id === "abitur" || id.startsWith("abitur-")) return "abitur";
+  if (id === "bac" || id.startsWith("bac-")) return "bac";
   return id;
 }
 

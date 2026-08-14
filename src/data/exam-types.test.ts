@@ -30,7 +30,7 @@ type Api = {
 const api = window as unknown as Api;
 
 describe("examType — known ids", () => {
-  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "custom"])("resolves %s to itself", (id) => {
+  it.each(["gcse", "alevel", "sat", "nmt", "ielts", "toefl", "duolingo", "ib", "bac", "custom"])("resolves %s to itself", (id) => {
     expect(api.examType(id).id).toBe(id);
   });
 });

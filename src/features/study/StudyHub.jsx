@@ -3,7 +3,7 @@
 // Shared upload limits — the same 20 files / 25 MB / 200 MB rules the exam
 // wizard enforces, so the two surfaces cannot drift apart.
 import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
-import { resizeImageFile } from "../../lib/image-resize";
+import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { renderCoachMarkdown } from "../../lib/math-render";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
@@ -162,56 +162,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   };
 
   /* ─── FILE HANDLING ───────────────────────────────────────── */
-  // Extracts one file into a descriptor. Returns null and throws nothing on an
-  // unsupported type — the caller reports it alongside every other rejection so
-  // one bad file in a batch of twenty cannot abort the whole drop.
-  const extractFile = async (file) => {
-    const name = file.name || 'file';
-    const ext = name.split('.').pop().toLowerCase();
-    const mime = file.type;
-
-    {
-      if (mime.startsWith('image/')) {
-        // Resized to Claude's own 1568px recommended ceiling before it becomes
-        // base64. A raw phone photo is 2-5 MB (3-7 MB once base64-encoded);
-        // two of those in one request were blowing past both our own payload
-        // guard AND Vercel's ~4.5 MB hard request-body limit in production,
-        // which is what "Analysis failed" actually was.
-        const resized = await resizeImageFile(file);
-        return { kind: 'image', base64: resized.base64, mimeType: resized.mimeType, dataUrl: resized.dataUrl, name };
-      }
-      if (ext === 'pdf' || mime === 'application/pdf') {
-        const ab = await file.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-        return { kind: 'pdf', base64: b64, name };
-      }
-      if (['pptx', 'ppt', 'docx', 'doc'].includes(ext) || mime.includes('presentationml') || mime.includes('wordprocessingml') || mime.includes('powerpoint') || mime.includes('msword')) {
-        const JSZip = window.JSZip;
-        if (!JSZip) throw new Error(L('JSZip not ready — try refreshing.','JSZip не готовий — оновіть сторінку.','JSZip не готов — обновите страницу.','JSZip pas prêt — actualisez la page.','JSZip nicht bereit — Seite neu laden.'));
-        const ab = await file.arrayBuffer();
-        const zip = await JSZip.loadAsync(ab);
-        let text = '';
-        if (['pptx', 'ppt'].includes(ext) || mime.includes('presentationml') || mime.includes('powerpoint')) {
-          const slides = Object.keys(zip.files).filter(f => /ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a, b) => { const na = parseInt(a.match(/\d+/g).pop()), nb = parseInt(b.match(/\d+/g).pop()); return na - nb; });
-          for (const s of slides.slice(0, 25)) { const xml = await zip.files[s].async('string'); const d = document.createElement('div'); d.innerHTML = xml.replace(/<\/a:t>/g, ' ').replace(/<[^>]+>/g, ''); text += d.textContent.replace(/\s+/g, ' ').trim() + '\n'; }
-        } else {
-          const doc = zip.files['word/document.xml'];
-          if (doc) { const xml = await doc.async('string'); const d = document.createElement('div'); d.innerHTML = xml.replace(/<\/w:t>/g, ' ').replace(/<[^>]+>/g, ''); text = d.textContent.replace(/\s+/g, ' ').trim(); }
-        }
-        if (!text.trim()) throw new Error(L('no text','no text','no text','no text','no text'));
-        return { kind: 'doc', text: text.substring(0, 5000), name, ext };
-      }
-      if (mime === 'text/plain' || ext === 'txt') {
-        const text = await file.text();
-        return { kind: 'doc', text: text.substring(0, 5000), name, ext: 'txt' };
-      }
-      return null;
-    }
-  };
-
-  // Reads a whole batch: shared limits first (20 files / 25 MB each / 200 MB
-  // total), then extraction, accumulating onto whatever is already attached.
-  // Failures are collected per file rather than aborting the batch.
+  // Shared extractor (src/lib/extract-study-file.ts). PDFs used to die here
+  // on a RangeError from spreading the whole file into fromCharCode.
   const readFiles = async (list) => {
     const incoming = Array.from(list || []);
     if (!incoming.length) return;
@@ -231,11 +183,9 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     const extracted = [];
     for (const file of accepted) {
       try {
-        const descriptor = await extractFile(file);
-        if (descriptor) extracted.push(descriptor);
-        else problems.push(L(`${file.name} — unsupported file type`, `${file.name} — непідтримуваний тип файлу`, `${file.name} — неподдерживаемый тип файла`, `${file.name} — type non pris en charge`, `${file.name} — nicht unterstützter Dateityp`));
-      } catch {
-        problems.push(L(`${file.name} — could not be read`, `${file.name} — не вдалося прочитати`, `${file.name} — не удалось прочитать`, `${file.name} — lecture impossible`, `${file.name} — nicht lesbar`));
+        extracted.push(...(await extractStudyFile(file)));
+      } catch (err) {
+        problems.push(describeStudyFileError(err, file.name, lang));
       }
     }
 
@@ -255,10 +205,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     // built from the whole batch. Previously only the single stored file was
     // sent, whichever slot happened to be filled.
     if (files && files.length) {
-      const blocks = files.map((f) =>
-        f.kind === 'image' ? { type: 'image', source: { type: 'base64', media_type: f.mimeType, data: f.base64 } }
-        : f.kind === 'pdf' ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 } }
-        : { type: 'text', text: `Document "${f.name}":\n\n${f.text}` });
+      const blocks = toClaudeBlocks(files);
       const fallback = files.length === 1
         ? 'Generate study materials based on this content.'
         : `Generate one combined set of study materials covering all ${files.length} attached documents.`;
@@ -323,7 +270,9 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   /* ─── ELEMENT BUILDERS ────────────────────────────────────── */
   const buildDropZoneEl = (isDragOver, isExtracting, handlers) => {
     const label = isExtracting ? L('Extracting…','Витягую…','Извлекаю…','Extraction…','Extrahiere…') : isDragOver ? L('Drop it!','Відпускайте!','Отпускайте!','Lâchez !','Loslassen!') : L('Drop a file','Перетягніть файл','Перетащите файл','Déposez un fichier','Datei ablegen');
-    const sub = isExtracting ? L('Reading your file…','Читаю файл…','Читаю файл…','Lecture du fichier…','Lese Datei…') : 'Image · PDF · PPTX · DOCX · TXT';
+    const sub = isExtracting
+      ? L('Reading your file…','Читаю файл…','Читаю файл…','Lecture du fichier…','Lese Datei…')
+      : L('PDF, Word, PowerPoint, Excel, images, notes — drop anything','PDF, Word, PowerPoint, Excel, зображення, нотатки — закидай будь-що','PDF, Word, PowerPoint, Excel, изображения, заметки — кидай что угодно','PDF, Word, PowerPoint, Excel, images, notes — déposez tout','PDF, Word, PowerPoint, Excel, Bilder, Notizen — alles ablegen');
     const icon = isExtracting ? '⏳' : isDragOver ? '📂' : '☁️';
     return React.createElement('div', {
       onDragOver: handlers.onDragOver, onDragLeave: handlers.onDragLeave, onDrop: handlers.onDrop, onClick: isExtracting ? null : handlers.onClick,
@@ -349,9 +298,11 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
     const meta = (f) =>
       f.kind === 'image' ? { icon: '🖼️', color: 'var(--indigo-500)', preview: L('Image ready','Зображення готове','Изображение готово','Image prête','Bild bereit') }
-      : f.kind === 'pdf' ? { icon: '📄', color: 'var(--red-500)', preview: L('PDF ready — Claude will read the full document','PDF готовий — Claude прочитає весь документ','PDF готов — Claude прочитает весь документ','PDF prêt — Claude lira tout le document','PDF bereit — Claude liest das ganze Dokument') }
-      : { icon: f.ext === 'pptx' || f.ext === 'ppt' ? '📊' : f.ext === 'txt' ? '📃' : '📝',
-          color: f.ext === 'pptx' || f.ext === 'ppt' ? 'var(--amber-500)' : f.ext === 'txt' ? 'var(--slate-500)' : 'var(--sky-500)',
+      : f.kind === 'pdf' || f.ext === 'pdf' ? { icon: '📄', color: 'var(--red-500)', preview: f.text
+        ? (f.text.substring(0, 100).replace(/\n/g, ' ') + '…')
+        : L('PDF ready — Claude will read the document','PDF готовий — Claude прочитає документ','PDF готов — Claude прочитает документ','PDF prêt — Claude lira le document','PDF bereit — Claude liest das Dokument') }
+      : { icon: f.ext === 'pptx' || f.ext === 'ppt' ? '📊' : f.ext === 'xlsx' || f.ext === 'csv' ? '📊' : f.ext === 'txt' || f.ext === 'md' ? '📃' : '📝',
+          color: f.ext === 'pptx' || f.ext === 'ppt' ? 'var(--amber-500)' : f.ext === 'txt' || f.ext === 'md' ? 'var(--slate-500)' : 'var(--sky-500)',
           preview: (f.text || '').substring(0, 100).replace(/\n/g, ' ') + '…' };
 
     return React.createElement('div', { style: { marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' } },
@@ -615,11 +566,11 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '0 18px 32px' } },
       React.createElement('div', { style: { marginBottom: '20px', animation: 'fadeUp 0.35s ease-out both' } },
         React.createElement('h1', { style: { fontSize: '26px', fontWeight: 900, color: 'var(--slate-900)', lineHeight: 1.2, margin: '0 0 8px', letterSpacing: '-0.5px' } }, L('Drop anything.','Закиньте будь-що.','Закиньте что угодно.','Déposez n\'importe quoi.','Leg alles ab.'), React.createElement('br'), L('Learn everything.','Вивчіть усе.','Изучите всё.','Apprenez tout.','Lerne alles.')),
-        React.createElement('p', { style: { fontSize: '13px', color: 'var(--slate-500)', margin: 0, lineHeight: 1.7 } }, L('Image · PDF · PPTX · DOCX · YouTube link · or just type a topic. Claude builds your study set instantly.','Зображення · PDF · PPTX · DOCX · YouTube-посилання · або просто введіть тему. Claude миттєво збере ваш навчальний набір.','Изображение · PDF · PPTX · DOCX · ссылка YouTube · или просто введите тему. Claude мгновенно соберёт ваш учебный набор.','Image · PDF · PPTX · DOCX · lien YouTube · ou tapez un sujet. Claude crée votre kit d\'étude instantanément.','Bild · PDF · PPTX · DOCX · YouTube-Link · oder einfach ein Thema eingeben. Claude erstellt sofort dein Lernset.'))
+        React.createElement('p', { style: { fontSize: '13px', color: 'var(--slate-500)', margin: 0, lineHeight: 1.7 } }, L('PDF, Word, PowerPoint, Excel, images, notes, YouTube — or type a topic. Claude builds your study set.','PDF, Word, PowerPoint, Excel, зображення, нотатки, YouTube — або введіть тему. Claude збере навчальний набір.','PDF, Word, PowerPoint, Excel, изображения, заметки, YouTube — или введите тему. Claude соберёт учебный набор.','PDF, Word, PowerPoint, Excel, images, notes, YouTube — ou tapez un sujet. Claude crée votre kit.','PDF, Word, PowerPoint, Excel, Bilder, Notizen, YouTube — oder ein Thema eingeben. Claude erstellt dein Lernset.'))
       ),
       React.createElement('input', { type: 'file', id: 'study-file-input', multiple: true, accept: ACCEPT_ATTRIBUTE, onChange: (e) => { readFiles(e.target.files); e.target.value = ''; }, style: { display: 'none' } }),
       buildDropZoneEl(isDragOver, isExtractingFile, {
-        onDragOver: (e) => { e.preventDefault(); setState({ isDragOver: true }); },
+        onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setState({ isDragOver: true }); },
         onDragLeave: () => setState({ isDragOver: false }),
         onDrop: (e) => { e.preventDefault(); handleDrop(e); },
         onClick: () => { const el = document.getElementById('study-file-input'); if (el) el.click(); },

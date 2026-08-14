@@ -17,6 +17,17 @@
 // (see onboarding-data.jsx) always have board: null here too, so a lookup never
 // asks for a board field that shouldn't exist for that qualification.
 
+function bacTopics(names) {
+  return names.map((name) => ({ name, difficulty: 5, importance: 7, subtopics: [] }));
+}
+function bacRow(subject, aliases, names) {
+  return {
+    countryId: "fr", educationSystemId: "k12", qualificationId: "bac",
+    board: null, specVersion: "bo-2019", subject, aliases,
+    topics: bacTopics(names), source: "official",
+  };
+}
+
 const CURRICULUM_SEED = [
   {
     countryId: "us", educationSystemId: "k12", qualificationId: "ap", board: null, specVersion: "2024-25",
@@ -1746,6 +1757,102 @@ const CURRICULUM_SEED = [
     ],
     source: "official",
   },
+  bacRow("Français", ["Francais", "French", "Французька мова", "Французский"], [
+    "La poésie du XIXe au XXIe siècle",
+    "Le roman et le récit du Moyen Âge au XXIe siècle",
+    "Le théâtre du XVIIe siècle au XXIe siècle",
+    "La littérature d'idées du XVIe au XVIIIe siècle",
+    "Œuvre et parcours associé",
+    "Le commentaire de texte",
+    "La dissertation littéraire",
+    "Problématiser un sujet",
+    "Construire un plan dialectique",
+    "Analyser les procédés littéraires",
+    "La langue de la copie (orthographe, syntaxe)",
+    "Les 12 textes du descriptif",
+    "La lecture linéaire",
+    "L'entretien avec l'examinateur",
+  ]),
+  bacRow("Philosophie", ["Philo", "Philosophy", "Філософія", "Философия"], [
+    "La conscience et l'inconscient", "Autrui", "Le désir et le bonheur", "La liberté",
+    "Le devoir et la justice", "L'État et la société", "La raison et le réel",
+    "La vérité et la science", "La technique et le travail", "L'art",
+    "La nature et le vivant", "Le temps", "Le langage", "La religion",
+    "La dissertation philosophique", "L'explication de texte",
+    "Problématiser et conceptualiser", "Exemples, références, auteurs",
+  ]),
+  bacRow("Grand oral", ["Grand Oral", "GO", "Великий усний"], [
+    "Choisir et formuler une question",
+    "Lier la question aux deux spécialités",
+    "L'exposé de 10 minutes",
+    "L'échange avec le jury (20 min au total)",
+    "Argumenter à l'oral, sans notes lues",
+    "Projection : poursuite d'études",
+  ]),
+  bacRow("Mathématiques", ["Maths", "Mathematics", "Математика", "Math"], [
+    "Second degré et polynômes", "Suites numériques", "Dérivation",
+    "Fonction exponentielle", "Trigonométrie", "Probabilités conditionnelles",
+    "Produit scalaire du plan", "Python : fonctions et listes",
+    "Limites de fonctions", "Compléments sur la dérivation, convexité",
+    "Logarithme népérien", "Fonctions sinus et cosinus",
+    "Primitives et équations différentielles", "Calcul intégral",
+    "Suites : limites, récurrence",
+    "Vecteurs, droites et plans", "Orthogonalité et distances",
+    "Représentations paramétriques et cartésiennes",
+    "Combinatoire et dénombrement", "Sommes de variables aléatoires discrètes",
+    "Loi des grands nombres, concentration", "Python : simulation et échantillonnage",
+  ]),
+  bacRow("Physique-Chimie", ["Physique Chimie", "PC", "Physics and Chemistry", "Фізика і хімія"], [
+    "Mesure et incertitudes", "Transformations acide-base", "Cinétique et catalyse",
+    "Équilibre chimique", "Chimie organique : groupes caractéristiques", "Stratégies de synthèse",
+    "Description d'un mouvement", "Lois de Newton", "Mécanique : énergie et travail",
+    "Gravitation et satellites", "Ondes mécaniques",
+    "Lumière : modèles ondulatoire et particulaire", "Physique quantique (introduction)",
+    "Signaux électriques",
+  ]),
+  bacRow("SVT", ["Sciences de la vie et de la Terre", "Biology", "Біологія / геологія"], [
+    "Le vivant : unité et diversité", "Génome, mutations, brassage",
+    "Phénotype, environnement", "Mécanismes de l'évolution",
+    "La dynamique interne de la Terre", "Le temps géologique",
+    "La plante, productrice de matière organique", "De la plante à l'écosystème",
+    "Système immunitaire", "Cerveau, mouvement, comportement",
+    "Climat, biodiversité, responsabilités",
+  ]),
+  bacRow("SES", ["Sciences économiques et sociales", "Economics", "Економіка і соціологія"], [
+    "Comment un marché concurrentiel fonctionne-t-il ?", "La monnaie et le financement",
+    "La croissance économique", "Chômage et politiques de l'emploi",
+    "Commerce international et mondialisation",
+    "Socialisation et construction des identités", "Groupes, réseaux, stratification",
+    "Contrôle social et déviance", "Voter, opinion, démocratie",
+    "L'école et la mobilité sociale", "Inégalités et justice sociale",
+    "Dissertation et épreuve composée",
+  ]),
+  bacRow("NSI", ["Numérique et sciences informatiques", "Computer Science", "Інформатика"], [
+    "Types de données et représentations", "Algorithmique de base",
+    "Structures de données (listes, piles, files, arbres)",
+    "Algorithmes d'efficacité (tris, graphes)", "Programmation Python (spé)",
+    "Architecture matérielle", "Systèmes d'exploitation", "Réseaux et protocoles",
+    "Bases de données relationnelles, SQL", "Cybersécurité au lycée",
+  ]),
+  bacRow("HGGSP", ["Histoire-géographie, géopolitique, sciences politiques", "Geopolitics"], [
+    "Comprendre un régime politique : la démocratie",
+    "Analyser les dynamiques des puissances internationales",
+    "Étudier les divisions politiques du monde : les frontières",
+    "S'informer : un regard critique sur les sources et modes",
+    "Analyser les relations entre États et religions",
+    "De nouveaux espaces de conquête", "Faire la guerre, faire la paix",
+    "Histoire et mémoires", "Identifier, protéger et valoriser le patrimoine",
+    "L'environnement, entre exploitation et protection", "L'enjeu de la connaissance",
+  ]),
+  bacRow("HLP", ["Humanités, littérature et philosophie", "Humanities"], [
+    "Les pouvoirs de la parole", "Les représentations du monde", "La recherche de soi",
+    "L'humanité en question", "Création, continuités et ruptures",
+    "L'explication de texte HLP / essai",
+  ]),
+  bacRow("LLCER Anglais", ["LLCER", "Anglais spécialité", "English"], [
+    "Imaginaires", "Rencontres", "Explorations", "Arts et débats d'idées",
+    "Traduction et médiation", "Synthèse de documents", "Épreuve orale de spécialité",
+  ]),
 ];
 
 // Real, publicly-known subject/course NAMES (no topics) for qualifications
@@ -1811,6 +1918,12 @@ const KNOWN_SUBJECTS = {
   // AI-generate fallbacks, so search shows no duplicate rows.
   abitur: [
     "Französisch", "Spanisch", "Philosophie", "Religion/Ethik", "Kunst", "Musik", "Sport",
+  ],
+  // Core Bac général papers are seeded above (BO 2019 programmes). Leftovers
+  // fall through to AI-generate + confirm — never silently "official".
+  bac: [
+    "Sciences de l'ingénieur", "Arts", "LLCER Espagnol", "LLCER Allemand",
+    "Biologie-écologie", "Littérature", "Enseignement scientifique",
   ],
 };
 

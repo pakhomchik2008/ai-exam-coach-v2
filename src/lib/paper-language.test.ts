@@ -23,6 +23,8 @@ describe("paperLanguageFor", () => {
     expect(paperLanguageFor("alevel")).toBe("en");
     expect(paperLanguageFor("sat")).toBe("en");
     expect(paperLanguageFor("matura")).toBe("pl");
+    expect(paperLanguageFor("bac")).toBe("fr");
+    expect(paperLanguageFor("bac-math")).toBe("fr");
   });
 
   it("is case-insensitive and ignores unknown quals", () => {
@@ -62,6 +64,7 @@ describe("canonicalQualification", () => {
   it("collapses Learn tree slugs onto the exam", () => {
     expect(canonicalQualification("nmt-ukr")).toBe("nmt");
     expect(canonicalQualification("alevel-chem")).toBe("alevel");
+    expect(canonicalQualification("bac-math")).toBe("bac");
   });
 });
 
@@ -71,6 +74,7 @@ describe("paperLanguageDirective", () => {
     expect(nmt).toMatch(/Ukrainian/);
     expect(nmt).toMatch(/ignore/i);
     expect(paperLanguageDirective("ielts")).toMatch(/English/);
+    expect(paperLanguageDirective("bac")).toMatch(/French/);
     expect(paperLanguageDirective("nope")).toBe("");
   });
 });
