@@ -25,7 +25,7 @@ import { SpeakingDialog } from "../learn/SpeakingDialog.jsx";
 import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
-import { freeTopicLimit, topicIsLocked } from "../learn/premium";
+import { freeTopicLimit, isProUser, topicIsLocked } from "../learn/premium";
 import { copyLangFor, inferCoachQual, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
 
@@ -4232,7 +4232,12 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       });
     };
 
-    return ce("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
+    // Deliberately NOT a flex column: the folder sections carry
+    // `overflow: hidden` for their rounded corners, and as flex children they
+    // shrink below their content once an expanded list outgrows this fixed
+    // height — silently clipping the last rows (and the toggle) instead of
+    // scrolling. Block layout keeps every section at its natural height.
+    return ce("div", { style: { height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)", padding: "24px 20px", overflowY: "auto" } },
       ce("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 6 } },
         ce("button", { onClick: () => setTopicPicker(false), "aria-label": L("Back","Назад","Назад","Retour","Zurück"), style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
         ce("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", color: "var(--text-strong)" } }, L("What do you want to learn?", "Що хочете вивчити?", "Что хотите изучить?", "Que voulez-vous apprendre ?", "Was möchtest du lernen?"))),
@@ -4259,12 +4264,15 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
               ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
                 ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
-          treeRows && proN > 0 && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
+          treeRows && proN > 0 && !isProUser() && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
             L(`${freeN} free · ${proN} Pro`, `${freeN} безкоштовно · ${proN} Pro`, `${freeN} бесплатно · ${proN} Pro`, `${freeN} gratuits · ${proN} Pro`, `${freeN} gratis · ${proN} Pro`)),
           (() => {
             const PREVIEW_N = 3;
             const expanded = !!expandedFolders[e.id];
-            const visible = expanded || ordered.length <= PREVIEW_N ? ordered : ordered.slice(0, PREVIEW_N);
+            // Expanded means the FULL syllabus — free and Pro alike. slice()
+            // already returns everything when the list is shorter than the
+            // preview, so there is no second cap anywhere in this path.
+            const visible = expanded ? ordered : ordered.slice(0, PREVIEW_N);
             const hidden = Math.max(0, ordered.length - PREVIEW_N);
             return ce("div", { style: { display: "flex", flexDirection: "column" } },
               ...visible.map((r, ri) => ce("button", {
@@ -4275,12 +4283,27 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
                 },
                 onMouseEnter: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
                 onFocus: () => { if (!r.premium) prefetchLesson(r.name, t?.code); },
-                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left", opacity: r.premium ? 0.72 : 1 }
+                style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", background: r.studied ? "var(--surface-muted)" : "transparent", border: "none", borderTop: ri === 0 ? "none" : "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", textAlign: "left" }
               },
-                ce("span", { style: { fontSize: 14, fontWeight: r.studied ? 500 : 600, color: r.studied ? "var(--text-muted)" : "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, r.name),
+                // Titles wrap. A 47-node Ukrainian syllabus has names far
+                // wider than the card, and an ellipsis turned them into
+                // guesswork ("Многочлени, розкладання на…").
+                ce("span", {
+                  style: {
+                    flex: 1, minWidth: 0, fontSize: 14, lineHeight: 1.4,
+                    fontWeight: r.studied ? 500 : 600,
+                    color: r.studied ? "var(--text-muted)" : "var(--text-strong)",
+                    overflowWrap: "anywhere",
+                    // Locked rows stay in the list — the student should see the
+                    // whole syllabus they're buying, just not read it yet.
+                    filter: r.premium ? "blur(3.5px)" : "none",
+                    opacity: r.premium ? 0.75 : 1,
+                    userSelect: r.premium ? "none" : "auto",
+                  },
+                }, r.name),
                 r.premium
-                  ? ce("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "Pro")
-                  : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" } }, "✓") : null)))),
+                  ? ce("span", { style: { display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "🔒", "Pro")
+                  : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)", flexShrink: 0 } }, "✓") : null)))),
               (ordered.length > PREVIEW_N) && ce("button", {
                 onClick: () => setExpandedFolders((m) => ({ ...m, [e.id]: !expanded })),
                 style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }
