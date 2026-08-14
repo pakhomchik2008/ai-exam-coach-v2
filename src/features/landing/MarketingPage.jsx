@@ -1,15 +1,12 @@
 /**
- * Phase 4 marketing page. Hero splits on scroll; the next track is a
- * horizontal reel (chat / Learn / geometry / calendar). Auth stays in Landing.jsx.
+ * Phase 4 marketing page. Hero stays put (line draw, no swipe).
+ * Next: stacked product surfaces. Auth stays in Landing.jsx.
  */
 import React from "react";
 import { BrandLockup, BrandMark } from "../../brand/BrandMark";
 import { EnergyTicker } from "../../components/EnergyTicker";
 import { ExamMarquee } from "./ExamMarquee";
 import { FeatureReel } from "./FeatureReel";
-import { LearnScreen } from "./LearnScreen";
-import { OrbitField } from "./OrbitField";
-import { PredictorChart } from "./PredictorChart";
 import { startLenis } from "../../lib/motion-runtime";
 
 const CTA_DAYS = [
@@ -18,43 +15,6 @@ const CTA_DAYS = [
   ["7", "land_cta_d7"],
   ["47", "land_cta_d47"],
 ];
-
-function useSplitProgress() {
-  const ref = React.useRef(null);
-  const [progress, setProgress] = React.useState(0);
-
-  React.useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const narrow = window.matchMedia("(max-width: 860px)");
-
-    function measure() {
-      if (reduce.matches || narrow.matches) {
-        setProgress(1);
-        return;
-      }
-      const total = el.offsetHeight - window.innerHeight;
-      const scrolled = -el.getBoundingClientRect().top;
-      setProgress(Math.min(1, Math.max(0, scrolled / Math.max(1, total))));
-    }
-
-    measure();
-    window.addEventListener("scroll", measure, { passive: true });
-    window.addEventListener("resize", measure);
-    reduce.addEventListener("change", measure);
-    narrow.addEventListener("change", measure);
-    return () => {
-      window.removeEventListener("scroll", measure);
-      window.removeEventListener("resize", measure);
-      reduce.removeEventListener("change", measure);
-      narrow.removeEventListener("change", measure);
-    };
-  }, []);
-
-  return [ref, progress];
-}
 
 const FAQ_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
@@ -84,7 +44,6 @@ function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const [annual, setAnnual] = React.useState(true);
-  const [heroRef, split] = useSplitProgress();
   const landRef = React.useRef(null);
   React.useEffect(() => {
     let stop = () => undefined;
@@ -156,24 +115,23 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
       </header>
       <EnergyTicker items={ticks} label={t.land_tick_label} onPick={onTick} />
 
-      <section
-        className={`land-hero${split > 0.12 ? " is-split" : ""}`}
-        id="top"
-        ref={heroRef}
-        style={{ "--split": split }}
-      >
+      <section className="land-hero" id="top">
         <div className="land-hero-sticky">
           <svg className="land-hero-graph" viewBox="0 0 1200 640" aria-hidden="true">
             <polyline
               className="land-hero-line"
               points="40,560 180,500 320,520 520,340 760,280 1040,80 1160,40"
               fill="none"
-              stroke="rgba(245,245,244,0.16)"
+              stroke="rgba(20,24,34,0.14)"
               strokeWidth="16"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <rect x="1144" y="16" width="32" height="32" rx="4" transform="rotate(45 1162 34)" fill="#F3D062" />
+            <g transform="translate(1162 34)">
+              <g className="land-hero-peak">
+                <rect x="-16" y="-16" width="32" height="32" rx="4" transform="rotate(45)" fill="#C6A572" />
+              </g>
+            </g>
           </svg>
           <div className="land-hero-stage">
             <div className="land-hero-copy">
@@ -185,14 +143,6 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
               </h1>
               <p className="land-sub">{t.land_hero_sub}</p>
               <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} withTimeline />
-            </div>
-            <div className="land-hero-shot">
-              <LearnScreen lang={lang} />
-            </div>
-            <div className="land-hero-chart">
-              <OrbitField>
-                <PredictorChart nowLabel={t.land_hero_now} predLabel={t.land_hero_pred} />
-              </OrbitField>
             </div>
           </div>
           <ExamMarquee label={t.land_marquee} />

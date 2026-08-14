@@ -1,12 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="EXAM COACH">
-  <rect width="64" height="64" rx="14" fill="#1B4D4A"/>
-  <g fill="none" stroke="#D4B36A" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M9 22 L32 16 L55 22 V46 L32 52 L9 46 Z"/>
-    <path d="M32 16 V52"/>
-    <path d="M15 43 C 22 40, 28 34, 35 28 C 39 24, 45 21, 51 19"/>
-  </g>
-  <rect x="19.2" y="36.5" width="5.6" height="9.2" rx="1" fill="#D4B36A"/>
-  <rect x="29.2" y="30.2" width="5.6" height="15.5" rx="1" fill="#D4B36A"/>
-  <rect x="39.2" y="24.2" width="5.6" height="21.5" rx="1" fill="#D4B36A"/>
-  <path d="M51 19 L45.6 17.4 L47.8 23.2 Z" fill="#D4B36A"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Exam Coach">
+  <rect width="64" height="64" rx="14" fill="#141822"/>
+  <path fill="#CCA563" d="M14.2 22.4c.2-2.4 2.8-5 7.2-7.2C25.6 13.4 29.2 12.8 31.2 13.2v38.2c-3.2-.4-7.6-1.8-11.4-3.8-3.8-2-5.8-4-5.6-6.2z"/>
+  <path fill="#CCA563" d="M49.8 22.4c-.2-2.4-2.8-5-7.2-7.2C38.4 13.4 34.8 12.8 32.8 13.2v38.2c3.2-.4 7.6-1.8 11.4-3.8 3.8-2 5.8-4 5.6-6.2z"/>
 </svg>
