@@ -24,7 +24,7 @@ function w(): Window & {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
           maybeSingle: () => Promise<{
-            data: { status?: string } | null;
+            data: { status?: string; trial_end?: string; current_period_end?: string } | null;
             error: { code?: string } | null;
           }>;
         };
@@ -47,7 +47,7 @@ export function consumeBillingQuery(): BillingFlag | null {
   return billing;
 }
 
-export async function startProCheckout(): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
+async function postBilling(path: string): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
   const session = w().getSession?.();
   if (!session || session.mode === "demo") {
     return { error: "Create an account to start Pro." };
@@ -58,15 +58,23 @@ export async function startProCheckout(): Promise<{ ok?: true; error?: string; a
   }
   let res: Response;
   try {
-    res = await fetch("/api/stripe-checkout", { method: "POST", headers });
+    res = await fetch(path, { method: "POST", headers });
   } catch {
-    return { error: "Could not start checkout." };
+    return { error: "Could not reach billing." };
   }
   const body = await res.json().catch(() => ({})) as { url?: string; error?: string };
   if (res.status === 409) return { error: body.error || "Already Pro.", alreadyPro: true };
   if (!res.ok || !body.url) return { error: body.error || "Could not start checkout." };
   window.location.href = body.url;
   return { ok: true };
+}
+
+export async function startProCheckout(): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
+  return postBilling("/api/stripe-checkout");
+}
+
+export async function startBillingPortal(): Promise<{ ok?: true; error?: string }> {
+  return postBilling("/api/stripe-portal");
 }
 
 export async function refreshProStatus(): Promise<boolean> {

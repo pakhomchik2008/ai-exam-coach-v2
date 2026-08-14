@@ -151,3 +151,64 @@
   --risk-high-fg: var(--red-700);
   --risk-high-bg: var(--red-50);
 }
+
+/* Dark appearance (Settings Light/Dark/System). Surfaces only — do not
+   steal the accent the way Legend gold does. Hardcoded hex in components
+   will still look light; same known hole as the Legend tier. */
+:root[data-theme="dark"] {
+  --app-bg:         #0C110E;
+  --surface-page:   #0C110E;
+  --surface-card:   #151C18;
+  --surface-muted:  #1B231E;
+  --surface-sunken: #101612;
+  --surface-nav:    rgba(16, 22, 18, 0.86);
+  --slate-50:  #1A211C;
+  --slate-100: #222A24;
+  --slate-200: #2D352F;
+  --slate-300: #3B443D;
+  --slate-400: #8C968E;
+  --slate-500: #A6B0A8;
+  --slate-600: #C2CAC3;
+  --slate-700: #DBE1DB;
+  --slate-800: #EAEFE9;
+  --slate-900: #F3F6F1;
+  --text-strong:  #F3F6F1;
+  --text-body:    #DBE1DB;
+  --text-muted:   #9CA69E;
+  --text-faint:   #74807A;
+  --border-subtle: rgba(233, 240, 231, 0.09);
+  --border-default: rgba(233, 240, 231, 0.14);
+  --border-strong:  rgba(233, 240, 231, 0.22);
+  --action-primary: #EAEFE9;
+  --action-primary-hover: #F3F6F1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --app-bg:         #0C110E;
+    --surface-page:   #0C110E;
+    --surface-card:   #151C18;
+    --surface-muted:  #1B231E;
+    --surface-sunken: #101612;
+    --surface-nav:    rgba(16, 22, 18, 0.86);
+    --slate-50:  #1A211C;
+    --slate-100: #222A24;
+    --slate-200: #2D352F;
+    --slate-300: #3B443D;
+    --slate-400: #8C968E;
+    --slate-500: #A6B0A8;
+    --slate-600: #C2CAC3;
+    --slate-700: #DBE1DB;
+    --slate-800: #EAEFE9;
+    --slate-900: #F3F6F1;
+    --text-strong:  #F3F6F1;
+    --text-body:    #DBE1DB;
+    --text-muted:   #9CA69E;
+    --text-faint:   #74807A;
+    --border-subtle: rgba(233, 240, 231, 0.09);
+    --border-default: rgba(233, 240, 231, 0.14);
+    --border-strong:  rgba(233, 240, 231, 0.22);
+    --action-primary: #EAEFE9;
+    --action-primary-hover: #F3F6F1;
+  }
+}
