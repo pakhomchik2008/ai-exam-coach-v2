@@ -1,40 +1,137 @@
+// Settings — grouped cards (Phase 4.6). One tab, ten blocks, sheets not
+// extra routes. Field/Section used to remount inputs; Card/Row stay at
+// module scope for the same reason.
+
 import { isProUser } from "../learn/premium";
-import { startProCheckout } from "../../lib/billing";
+import { startProCheckout, startBillingPortal } from "../../lib/billing";
+import { applyAppearance } from "../../lib/appearance";
+import { exportPersonalData } from "../../lib/export-data";
+import { ACCENT_OPTIONS } from "../../app/tweaks";
+import { Legal } from "../../app/legal/Legal";
 
-// AI Exam Coach — Settings screen (i18n-aware)
-//
-// `Field`/`Section` are deliberately at module scope, not nested inside
-// Settings(). Defining a component inside another component's render body
-// gives it a brand-new function identity on every render of the parent — and
-// since typing in the Full name input calls setFullName, which re-renders
-// Settings, that recreated Field on every keystroke and React unmounted +
-// remounted the real <input> DOM node each time, dropping focus after every
-// single character. Module scope keeps Field's identity stable across
-// re-renders, which is the actual fix (not a debounce or event-handler patch).
-function Field({ label, children }) {
-  return (
-    <div>
-      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)", fontFamily: "var(--font-sans)" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-function Section({ title, children }) {
-  return (
-    <div>
-      <p style={{ margin: "0 0 12px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)", fontFamily: "var(--font-sans)" }}>{title}</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>{children}</div>
-    </div>
-  );
-}
-
-// Study-availability section text isn't in i18n.jsx yet (adding full 5-language
-// keys there for one settings section is a lot of churn) — same lightweight
-// inline-L() pattern AIPlan.jsx already uses for its own new copy.
 function L(lang, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[lang] || en; }
 
-function Settings({ t, lang, onLangChange, onLogout }) {
-  const { Button } = window.AIExamCoachDesignSystem_99e467;
+function Card({ icon, title, children, danger, pulse, style }) {
+  return (
+    <section className={`settings-card${danger ? " settings-danger" : ""}${pulse ? " settings-sub-free" : ""}`} style={style}>
+      <div className="settings-card-head"><span aria-hidden="true">{icon}</span>{title}</div>
+      {children}
+    </section>
+  );
+}
+
+function Row({ label, sub, value, chevron, onClick, children }) {
+  const inner = (
+    <>
+      <span className="settings-row-label">
+        <strong>{label}</strong>
+        {sub ? <em>{sub}</em> : null}
+      </span>
+      {children || (value != null ? <span className="settings-row-value">{value}{chevron ? <span className="settings-chevron">›</span> : null}</span> : null)}
+    </>
+  );
+  if (!onClick) return <div className="settings-row">{inner}</div>;
+  return <button type="button" className="settings-row" onClick={onClick}>{inner}</button>;
+}
+
+function MagToggle({ on, onChange, label }) {
+  return (
+    <button
+      type="button"
+      className="settings-toggle"
+      data-on={on ? "1" : "0"}
+      aria-pressed={on}
+      aria-label={label}
+      onClick={() => onChange(!on)}
+    >
+      <i />
+    </button>
+  );
+}
+
+function Sheet({ title, onClose, children }) {
+  return (
+    <div className="settings-sheet ux-overlay" onClick={onClose} role="presentation">
+      <div className="settings-sheet-panel ux-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div aria-hidden="true" style={{ width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" }} />
+        <h3 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>{title}</h3>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function XpAvatar({ src, name, into, need }) {
+  const r = 32;
+  const circ = 2 * Math.PI * r;
+  const pct = need > 0 ? Math.min(1, into / need) : 0;
+  const letters = (name || "?").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+  return (
+    <svg className="settings-avatar-ring" viewBox="0 0 72 72" aria-hidden="true">
+      <circle cx="36" cy="36" r={r} fill="none" stroke="var(--border-default)" strokeWidth="3" />
+      <circle cx="36" cy="36" r={r} fill="none" stroke="var(--amber-500)" strokeWidth="3"
+        strokeDasharray={`${circ * pct} ${circ}`} strokeLinecap="round" transform="rotate(-90 36 36)" />
+      {src
+        ? <image href={src} x="8" y="8" width="56" height="56" clipPath="inset(0 round 28px)" />
+        : (
+          <>
+            <circle cx="36" cy="36" r="26" fill="var(--indigo-600)" />
+            <text x="36" y="42" textAnchor="middle" fill="#fff" fontSize="18" fontWeight="700" fontFamily="var(--font-sans)">{letters}</text>
+          </>
+        )}
+    </svg>
+  );
+}
+
+function initialsAvatar(name) {
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--indigo-600").trim() || "#1A6650";
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = "#fff";
+  ctx.font = "700 52px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const letters = (name || "?").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+  ctx.fillText(letters, 64, 70);
+  return c.toDataURL("image/png");
+}
+
+function readAvatarFile(file, done) {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 128;
+    const ctx = c.getContext("2d");
+    const s = Math.min(img.width, img.height);
+    ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 128, 128);
+    done(c.toDataURL("image/jpeg", 0.82));
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function lastSyncLabel(lang) {
+  try {
+    const shadow = JSON.parse(localStorage.getItem("sync_shadow_v1") || "{}");
+    const times = Object.values(shadow).filter((v) => typeof v === "string").map((v) => Date.parse(v)).filter(Number.isFinite);
+    if (!times.length) return L(lang, "Not synced yet", "Ще не синхронізовано", "Ещё не синхронизировано", "Pas encore synchronisé", "Noch nicht synchronisiert");
+    const agoMin = Math.max(0, Math.round((Date.now() - Math.max(...times)) / 60000));
+    if (agoMin < 1) return L(lang, "Synced just now", "Синхронізовано щойно", "Синхронизировано только что", "Synchronisé à l’instant", "Gerade synchronisiert");
+    return L(lang, `Synced ${agoMin} min ago`, `Синхронізовано ${agoMin} хв тому`, `Синхронизировано ${agoMin} мин назад`, `Synchronisé il y a ${agoMin} min`, `Vor ${agoMin} Min synchronisiert`);
+  } catch {
+    return L(lang, "Local only", "Лише локально", "Только локально", "Local seulement", "Nur lokal");
+  }
+}
+
+const ACCENT_COLORS = { Indigo: "#1A6650", Violet: "#7C3AED", Rose: "#E11D48", Amber: "#D97706" };
+const PKG_VERSION = "3.0.0";
+
+function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const profile = React.useMemo(() => window.getProfile(), []);
   const [fullName, setFullName] = React.useState(profile.fullName || "");
   const [email, setEmail] = React.useState(profile.email || "");
@@ -48,26 +145,42 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   });
   const [reminderEnabled, setReminderEnabled] = React.useState(profile.reminderEnabled);
   const [reminderHour, setReminderHour] = React.useState(profile.reminderHour);
-  // Phase 3 §3.5 email trigger toggles — each independently controllable so a
-  // student who only wants exam-countdown emails can silence the daily nudge
-  // without silencing the whole channel. Read by api/notifications-cron.js.
   const [notifyExamCountdown, setNotifyExamCountdown] = React.useState(profile.notifyExamCountdown);
   const [notifyWeeklyDigest, setNotifyWeeklyDigest] = React.useState(profile.notifyWeeklyDigest);
   const [notifyStreakDanger, setNotifyStreakDanger] = React.useState(profile.notifyStreakDanger);
   const [notifyMistakeReview, setNotifyMistakeReview] = React.useState(profile.notifyMistakeReview);
+  const [notifyMaster, setNotifyMaster] = React.useState(profile.notifyMaster !== false);
   const [soundsEnabled, setSoundsEnabled] = React.useState(profile.soundsEnabled === true);
+  const [soundVolume, setSoundVolume] = React.useState(profile.soundVolume ?? 0.7);
+  const [hapticEnabled, setHapticEnabled] = React.useState(profile.hapticEnabled !== false);
+  const [theme, setTheme] = React.useState(profile.theme || "system");
+  const [accent, setAccent] = React.useState(profile.accent || "Indigo");
+  const [dyslexiaFont, setDyslexiaFont] = React.useState(profile.dyslexiaFont === true);
+  const [tierOff, setTierOff] = React.useState(profile.tierThemeDisabled === true);
+  const [hoursPerDay, setHoursPerDay] = React.useState(profile.hoursPerDay || Math.round((profile.weeklyHours || 12) / (profile.daysPerWeek || 5)));
+  const [country, setCountry] = React.useState(profile.country || "");
+  const [avatar, setAvatar] = React.useState(profile.avatarDataUrl || "");
+  const [quietStart, setQuietStart] = React.useState(profile.quietHoursStart ?? 22);
+  const [quietEnd, setQuietEnd] = React.useState(profile.quietHoursEnd ?? 7);
+  const [quietOn, setQuietOn] = React.useState(profile.quietHoursStart != null);
+  const [sheet, setSheet] = React.useState(null);
+  const [billingBusy, setBillingBusy] = React.useState(false);
+  const [billingError, setBillingError] = React.useState("");
   const [saved, setSaved] = React.useState(false);
   const [confirmErase, setConfirmErase] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
-  const [password, setPassword] = React.useState("");
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [showReminderInfo, setShowReminderInfo] = React.useState(false);
-  // "unsupported" | "default" | "granted" | "denied" — real browser
-  // permission state, not a profile boolean (see src/lib/push.ts).
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [egg, setEgg] = React.useState(0);
   const [pushStatus, setPushStatus] = React.useState("unsupported");
-  const [billingBusy, setBillingBusy] = React.useState(false);
-  const [billingError, setBillingError] = React.useState("");
+  const [exported, setExported] = React.useState(false);
+  const fileRef = React.useRef(null);
   const pro = isProUser();
+  const xp = window.xpLevel ? window.xpLevel() : { level: 1, xp: 0, into: 0, need: 100 };
+  const tier = window.xpTier ? window.xpTier() : { id: "novice", emoji: "🌱" };
+  const exams = (window.getExams ? window.getExams() : []).filter((e) => e && e.examDate);
+  const streak = window.computeStreak ? window.computeStreak() : 0;
+  const ZONES = window.TIMEZONES || [];
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   React.useEffect(() => {
     if (!window.isPushSupported || !window.isPushSupported()) return;
@@ -77,294 +190,379 @@ function Settings({ t, lang, onLangChange, onLogout }) {
     });
   }, []);
 
-  async function enablePush() {
-    const result = await window.requestPushPermission();
-    setPushStatus(result);
-  }
-
-  const ZONES = window.TIMEZONES || [];
-
   React.useEffect(() => {
     if (!confirmErase) return;
-    const id = setTimeout(() => setConfirmErase(false), 3000);
+    const id = setTimeout(() => setConfirmErase(false), 4000);
     return () => clearTimeout(id);
   }, [confirmErase]);
-  React.useEffect(() => {
-    if (!confirmLogout) return;
-    const id = setTimeout(() => setConfirmLogout(false), 3000);
-    return () => clearTimeout(id);
-  }, [confirmLogout]);
 
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  function save() {
+  function persist(patch) {
+    const next = window.saveProfile(patch);
+    applyAppearance(next);
+    return next;
+  }
+
+  function saveCore() {
     const trimmedEmail = email.trim();
     const emailValid = !trimmedEmail || EMAIL_RE.test(trimmedEmail);
     setEmailError(emailValid ? "" : t.settings_email_invalid);
-    // An invalid email shouldn't block saving the rest of the form — only the
-    // email field itself is withheld until it's fixed.
-    window.saveProfile({
+    persist({
       fullName, timezone: tz.id, reminderEnabled, reminderHour,
       notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
-      soundsEnabled,
+      notifyMaster, soundsEnabled, soundVolume, hapticEnabled, theme, accent, dyslexiaFont,
+      tierThemeDisabled: tierOff, hoursPerDay, country, avatarDataUrl: avatar,
+      quietHoursStart: quietOn ? quietStart : null, quietHoursEnd: quietOn ? quietEnd : null,
       email: emailValid ? trimmedEmail : profile.email,
     });
-    setSaved(true); setTimeout(() => setSaved(false), 2800);
-  }
-  function logOut() {
-    if (window.clearSession) window.clearSession();
-    if (onLogout) onLogout();
-  }
-  function eraseAllData() {
-    try { localStorage.clear(); } catch {}
-    if (onLogout) onLogout();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2800);
   }
 
-  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
+  async function buy() {
+    setBillingBusy(true);
+    setBillingError("");
+    const result = await startProCheckout();
+    if (result.error) { setBillingError(result.error); setBillingBusy(false); }
+  }
+  async function portal() {
+    setBillingBusy(true);
+    setBillingError("");
+    const result = await startBillingPortal();
+    if (result.error) { setBillingError(result.error); setBillingBusy(false); }
+  }
+
+  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-muted)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none" };
+  const tierWash = `linear-gradient(180deg, color-mix(in srgb, var(--tier-accent) 8%, transparent), transparent 72px)`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
+    <div className="settings-stack" style={{ backgroundImage: tierOff ? "none" : tierWash, margin: "-8px -4px 0", padding: "8px 4px 0" }}>
       <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.settings_title}</h1>
-      <div style={{ maxWidth: "var(--container-form)", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
 
-        <Section title={t.settings_account}>
-          <Field label={t.settings_fullname}>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={L(lang, "Your name","Ваше ім'я","Ваше имя","Votre nom","Dein Name")} autoComplete="name" style={inputStyle} />
-          </Field>
-          <Field label={t.settings_email}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); if (emailError) setEmailError(""); }}
-              placeholder="you@example.com"
-              autoComplete="email"
-              style={{ ...inputStyle, border: emailError ? "1px solid var(--red-400)" : inputStyle.border }}
-            />
-            {emailError && <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)" }}>{emailError}</p>}
-          </Field>
-          <Field label={t.settings_password}>
-            <div style={{ position: "relative" }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                style={{ ...inputStyle, paddingRight: 44 }}
-              />
-              <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "Hide password" : "Show password"}
-                style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", cursor: "pointer", fontSize: 16, color: "var(--text-faint)", padding: 6, lineHeight: 1 }}>
-                {showPassword ? "🙈" : "👁️"}
-              </button>
-            </div>
-            <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{t.settings_password_note}</p>
-          </Field>
-        </Section>
+      <Card icon="👤" title={L(lang, "Profile", "Профіль", "Профиль", "Profil", "Profil")}>
+        <div className="settings-row" style={{ alignItems: "center" }}>
+          <XpAvatar src={avatar} name={fullName} into={xp.into} need={xp.need} />
+          <span className="settings-row-label">
+            <strong>{fullName || L(lang, "Your name", "Твоє ім'я", "Твоё имя", "Ton nom", "Dein Name")}</strong>
+            <em>{email || "—"} · {L(lang, "Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level} {tier.emoji}</em>
+          </span>
+        </div>
+        <Row label={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} chevron onClick={() => setSheet("profile")} />
+      </Card>
 
-        <Section title="Pro">
-          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            {pro
-              ? L(lang, "Pro is on. The second half of each Learn tree is unlocked.", "Pro увімкнено. Друга половина кожного дерева Learn відкрита.", "Pro включён. Вторая половина каждого дерева Learn открыта.", "Pro est actif. La seconde moitié de chaque arbre Learn est déverrouillée.", "Pro ist an. Die zweite Hälfte jedes Learn-Baums ist offen.")
-              : L(lang, "3-day trial, then $4/month. Card at checkout. Unlocks the rest of each Learn tree.", "3 дні тріалу, далі $4/міс. Картка на Checkout. Відкриває решту кожного дерева Learn.", "3 дня триала, дальше $4/мес. Карта на Checkout. Открывает остаток каждого дерева Learn.", "3 jours d’essai, puis $4/mois. Carte au checkout.", "3 Tage Trial, dann $4/Monat. Karte beim Checkout.")}
-          </p>
-          {billingError && <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--red-600)" }}>{billingError}</p>}
-          {!pro && (
-            <Button
-              variant="accent"
-              size="md"
-              disabled={billingBusy}
-              onClick={async () => {
-                setBillingBusy(true);
-                setBillingError("");
-                const result = await startProCheckout();
-                if (result.error) {
-                  setBillingError(result.error);
-                  setBillingBusy(false);
-                }
-              }}
-            >
-              {billingBusy
-                ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
-                : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
-            </Button>
-          )}
-        </Section>
-
-        <Section title={t.settings_timezone}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
-            <span aria-hidden="true">🌍</span>
-            <span>{lang === "uk" ? "Визначено автоматично" : lang === "ru" ? "Определено автоматически" : lang === "fr" ? "Détecté automatiquement" : lang === "de" ? "Automatisch erkannt" : "Auto-detected"} — <strong style={{ color: "var(--text-strong)" }}>{tz.label} · {tz.place}</strong></span>
-          </div>
-          <Field label={t.settings_timezone}>
-            <select value={tz.id} onChange={(e) => setTz(ZONES.find((z) => z.id === e.target.value))} style={{ ...inputStyle, appearance: "none" }}>
-              {ZONES.map((z) => <option key={z.id} value={z.id}>{z.label} — {z.place}</option>)}
-            </select>
-          </Field>
-        </Section>
-
-        <Section title={t.settings_reminders}>
-          <div>
-            <label style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", cursor: "pointer" }}>
-              <input type="checkbox" checked={reminderEnabled} onChange={(e) => setReminderEnabled(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: "var(--indigo-600)", cursor: "pointer" }} />
-              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)" }}>
-                {t.settings_reminder_send}
-              </span>
-              <button type="button" onClick={(e) => { e.preventDefault(); setShowReminderInfo((v) => !v); }} aria-label={t.settings_reminder_info_label}
-                style={{ width: 18, height: 18, borderRadius: "50%", border: "1px solid var(--border-default)", background: showReminderInfo ? "var(--indigo-50)" : "var(--surface-muted)", color: "var(--text-muted)", fontSize: 11, fontWeight: "var(--weight-bold)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0, fontFamily: "var(--font-sans)" }}>
-                i
-              </button>
-            </label>
-            {showReminderInfo && (
-              <p style={{ margin: "6px 0 0 28px", fontSize: "var(--text-xs)", color: "var(--text-muted)", background: "var(--surface-muted)", borderRadius: "var(--radius-lg)", padding: "8px 10px", maxWidth: 420 }}>
-                {t.settings_reminder_info}
-              </p>
-            )}
-          </div>
-          {reminderEnabled && (
-            <div>
-              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)" }}>
-                {t.settings_reminder_time} — {String(reminderHour).padStart(2,"0")}:00
-              </label>
-              <input type="range" min={6} max={22} value={reminderHour} onChange={(e) => setReminderHour(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-xs)", color: "var(--text-faint)", marginTop: "2px" }}>
-                <span>6:00</span><span>22:00</span>
-              </div>
-              <p style={{ margin: "6px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-                {L(lang,
-                  "Emails currently arrive once a day at 16:00 UTC — precise per-user timing needs a paid cron. Your local hour above is used in the app itself.",
-                  "Листи наразі приходять раз на день о 16:00 UTC — точний час для кожного користувача потребує платного крона. Обрана година діє в самому застосунку.",
-                  "Письма пока приходят раз в день в 16:00 UTC — точное время для каждого пользователя требует платного крона. Выбранный час действует в самом приложении.",
-                  "Les e-mails arrivent une fois par jour à 16:00 UTC — un horaire par utilisateur nécessite un cron payant. L'heure choisie s'applique dans l'app.",
-                  "E-Mails kommen einmal täglich um 16:00 UTC — genaue Zeit pro Nutzer erfordert einen kostenpflichtigen Cron. Die Uhrzeit gilt in der App.")}
-              </p>
-            </div>
-          )}
-
-          {/* Per-trigger email toggles (Phase 3 §3.5). Grouped under the daily
-              reminder because they share one channel (email) and one send
-              path — see api/notifications-cron.js. */}
-          {[
-            { k: "notifyExamCountdown", v: notifyExamCountdown, set: setNotifyExamCountdown,
-              label: L(lang, "Exam countdown emails", "Листи з відліком до іспиту", "Письма с обратным отсчётом до экзамена", "E-mails du compte à rebours", "Prüfungs-Countdown-E-Mails"),
-              sub: L(lang, "One email at T-30, 14, 7, 3, and 1 day before each exam.", "По одному листу за 30, 14, 7, 3 та 1 день до кожного іспиту.", "По одному письму за 30, 14, 7, 3 и 1 день до каждого экзамена.", "Un e-mail à T-30, 14, 7, 3 et 1 jour avant chaque examen.", "Je eine E-Mail 30, 14, 7, 3 und 1 Tag vor jeder Prüfung.") },
-            { k: "notifyWeeklyDigest", v: notifyWeeklyDigest, set: setNotifyWeeklyDigest,
-              label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdomadaire", "Wochenübersicht"),
-              sub: L(lang, "Sunday summary — hours studied, sessions completed, streak.", "Підсумок у неділю — години, сесії, серія.", "Итог в воскресенье — часы, сессии, серия.", "Résumé du dimanche — heures, séances, série.", "Sonntags-Zusammenfassung — Stunden, Sitzungen, Serie.") },
-            { k: "notifyStreakDanger", v: notifyStreakDanger, set: setNotifyStreakDanger,
-              label: L(lang, "Streak-in-danger nudge", "Нагадування про серію", "Напоминание о серии", "Alerte série en danger", "Serien-Warnung"),
-              sub: L(lang, "One email when a 2+ day streak is at risk of breaking today.", "Один лист, коли серія від 2 днів під загрозою.", "Одно письмо, когда серия от 2 дней под угрозой.", "Un e-mail quand une série de 2 jours+ risque de se rompre.", "Eine E-Mail, wenn eine 2-Tage-Serie in Gefahr ist.") },
-            { k: "notifyMistakeReview", v: notifyMistakeReview, set: setNotifyMistakeReview,
-              label: L(lang, "Mistake review reminders", "Нагадування про помилки", "Напоминания об ошибках", "Rappels d'erreurs à réviser", "Fehler-Wiederholungserinnerungen"),
-              sub: L(lang, "At most once a day, only when there's something due in the journal.", "Не більше разу на день і лише коли є що переглядати.", "Не чаще раза в день и только когда есть что просмотреть.", "Au maximum une fois par jour, uniquement s'il y a quelque chose à réviser.", "Höchstens einmal täglich, nur wenn wirklich etwas fällig ist.") },
-          ].map((row) => (
-            <label key={row.k} style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", cursor: "pointer" }}>
-              <input type="checkbox" checked={row.v} onChange={(e) => row.set(e.target.checked)}
-                style={{ width: 16, height: 16, marginTop: 2, accentColor: "var(--indigo-600)", cursor: "pointer", flexShrink: 0 }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>{row.label}</span>
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.4 }}>{row.sub}</span>
-              </div>
-            </label>
+      <Card icon="📚" title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")}>
+        {exams.length === 0
+          ? <Row label={L(lang, "No exams yet", "Ще немає іспитів", "Ещё нет экзаменов", "Pas encore d’examens", "Noch keine Prüfungen")} sub={L(lang, "Add one from the Exams tab.", "Додай на вкладці Іспити.", "Добавь на вкладке Экзамены.", "Ajoute-en dans Examens.", "Füge eine unter Prüfungen hinzu.")} chevron onClick={() => onGoToExams && onGoToExams()} />
+          : exams.slice(0, 4).map((e) => (
+            <Row key={e.id} label={e.name} sub={`${e.examDate} · ${L(lang, "target", "ціль", "цель", "objectif", "Ziel")} ${e.targetGrade || "—"}`} chevron onClick={() => onGoToExams && onGoToExams()} />
           ))}
+        <Row label={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} value={`${hoursPerDay}h`} chevron onClick={() => setSheet("hours")} />
+        <Row label={L(lang, "Current tier", "Поточний рівень", "Текущий тир", "Palier actuel", "Aktuelle Stufe")} value={`${tier.emoji} ${window.tierTitle ? window.tierTitle(tier, lang) : tier.id}`} />
+      </Card>
 
-          {window.isPushSupported && window.isPushSupported() && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-default)" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)" }}>
-                  {L(lang, "Browser push notifications", "Push-сповіщення в браузері", "Push-уведомления в браузере", "Notifications push du navigateur", "Browser-Push-Benachrichtigungen")}
-                </span>
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>
-                  {pushStatus === "granted"
-                    ? L(lang, "Enabled on this browser.", "Увімкнено в цьому браузері.", "Включено в этом браузере.", "Activé sur ce navigateur.", "Auf diesem Browser aktiviert.")
-                    : pushStatus === "denied"
-                      ? L(lang, "Blocked in browser settings — re-enable there to use this.", "Заблоковано в налаштуваннях браузера.", "Заблокировано в настройках браузера.", "Bloqué dans les paramètres du navigateur.", "In den Browser-Einstellungen blockiert.")
-                      : L(lang, "Same triggers as email, delivered as a browser notification.", "Ті самі тригери, що й пошта, але як сповіщення браузера.", "Те же триггеры, что и почта, но как уведомление браузера.", "Mêmes déclencheurs que l'e-mail, en notification navigateur.", "Gleiche Auslöser wie E-Mail, als Browser-Benachrichtigung.")}
-                </span>
+      <Card icon="🎨" title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")}>
+        <div className="settings-row">
+          <span className="settings-row-label"><strong>{L(lang, "Theme", "Тема", "Тема", "Thème", "Thema")}</strong></span>
+          <span className="settings-row-value" style={{ gap: 6 }}>
+            {["system", "light", "dark"].map((id) => (
+              <button key={id} type="button" onClick={() => { setTheme(id); persist({ theme: id }); }}
+                style={{ padding: "6px 10px", borderRadius: 99, border: theme === id ? "1px solid var(--indigo-500)" : "1px solid var(--border-default)", background: theme === id ? "var(--indigo-50)" : "transparent", color: theme === id ? "var(--indigo-700)" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                {id === "system" ? L(lang, "System", "Система", "Система", "Système", "System") : id === "light" ? L(lang, "Light", "Світла", "Светлая", "Clair", "Hell") : L(lang, "Dark", "Темна", "Тёмная", "Sombre", "Dunkel")}
+              </button>
+            ))}
+          </span>
+        </div>
+        <Row label={L(lang, "Show tier background", "Показувати фон рівня", "Показывать фон уровня", "Fond du palier", "Stufen-Hintergrund")}>
+          <MagToggle on={!tierOff} label="tier bg" onChange={(v) => { setTierOff(!v); persist({ tierThemeDisabled: !v }); }} />
+        </Row>
+        <div style={{ padding: "4px 16px 4px", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Accent", "Акцент", "Акцент", "Accent", "Akzent")}</div>
+        <div className="settings-swatches">
+          {ACCENT_OPTIONS.map((name) => (
+            <button key={name} type="button" className="settings-swatch" data-on={accent === name ? "1" : "0"}
+              style={{ background: ACCENT_COLORS[name] }} aria-label={name}
+              onClick={() => { setAccent(name); persist({ accent: name }); }} />
+          ))}
+        </div>
+        <div style={{ padding: "4px 16px 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Language", "Мова", "Язык", "Langue", "Sprache")}</div>
+        <div className="settings-flags">
+          {Object.values(window.LANGS || {}).map((l) => (
+            <button key={l.code} type="button" className="settings-flag" data-on={lang === l.code ? "1" : "0"} onClick={() => onLangChange(l.code)}>
+              <span>{l.flag}</span><span>{l.label}</span>
+            </button>
+          ))}
+        </div>
+        <Row label={L(lang, "Country / region", "Країна / регіон", "Страна / регион", "Pays / région", "Land / Region")} value={country || tz.place} chevron onClick={() => setSheet("region")} />
+        <Row label={L(lang, "Dyslexia-friendly", "Зручно при дислексії", "Удобно при дислексии", "Lisibilité dyslexie", "Legasthenie-freundlich")}>
+          <MagToggle on={dyslexiaFont} label="dyslexia" onChange={(v) => { setDyslexiaFont(v); persist({ dyslexiaFont: v }); }} />
+        </Row>
+      </Card>
+
+      <Card icon="🔊" title={L(lang, "Sound & haptics", "Звук і тактильність", "Звук и тактильность", "Son et haptique", "Ton & Haptik")}>
+        <Row label={L(lang, "Sound effects", "Звукові ефекти", "Звуковые эффекты", "Effets sonores", "Soundeffekte")} sub={L(lang, "Off by default", "Тиша за замовчуванням", "По умолчанию выкл.", "Désactivé par défaut", "Standard aus")}>
+          <MagToggle on={soundsEnabled} label="sounds" onChange={(v) => {
+            setSoundsEnabled(v);
+            persist({ soundsEnabled: v });
+            if (v) window.previewSound && window.previewSound("select");
+          }} />
+        </Row>
+        {soundsEnabled && (
+          <div className="settings-row">
+            <span className="settings-row-label"><strong>{L(lang, "Volume", "Гучність", "Громкость", "Volume", "Lautstärke")}</strong></span>
+            <input type="range" min={0} max={1} step={0.05} value={soundVolume}
+              onChange={(e) => { const v = Number(e.target.value); setSoundVolume(v); persist({ soundVolume: v }); }}
+              style={{ width: 120, accentColor: "var(--indigo-600)" }} />
+          </div>
+        )}
+        <Row label={L(lang, "Haptic feedback", "Тактильний відгук", "Тактильный отклик", "Retour haptique", "Haptik")} sub={L(lang, "Vibration where the browser allows it", "Вібрація, якщо браузер вміє", "Вибрация, если браузер умеет", "Vibre si le navigateur le permet", "Vibration, wenn der Browser es kann")}>
+          <MagToggle on={hapticEnabled} label="haptic" onChange={(v) => {
+            setHapticEnabled(v);
+            persist({ hapticEnabled: v });
+            if (v && navigator.vibrate) navigator.vibrate([8, 30, 16, 30, 28]);
+          }} />
+        </Row>
+        <Row label={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} chevron onClick={() => setSheet("sounds")} />
+      </Card>
+
+      <Card icon="🔔" title={L(lang, "Notifications", "Сповіщення", "Уведомления", "Notifications", "Benachrichtigungen")}>
+        <Row label={L(lang, "All notifications", "Усі сповіщення", "Все уведомления", "Toutes les notifications", "Alle Benachrichtigungen")}>
+          <MagToggle on={notifyMaster} label="master notify" onChange={(v) => { setNotifyMaster(v); persist({ notifyMaster: v }); }} />
+        </Row>
+        {notifyMaster && (
+          <>
+            <Row label={t.settings_reminder_send} value={`${String(reminderHour).padStart(2, "0")}:00`}>
+              <MagToggle on={reminderEnabled} label="daily" onChange={setReminderEnabled} />
+            </Row>
+            {reminderEnabled && (
+              <div className="settings-row">
+                <input type="range" min={6} max={22} value={reminderHour} onChange={(e) => setReminderHour(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
               </div>
-              {pushStatus !== "granted" && pushStatus !== "denied" && (
-                <Button variant="secondary" size="sm" onClick={enablePush}>
-                  {L(lang, "Enable", "Увімкнути", "Включить", "Activer", "Aktivieren")}
-                </Button>
-              )}
-            </div>
-          )}
-        </Section>
+            )}
+            {[
+              { v: notifyExamCountdown, set: setNotifyExamCountdown, k: "notifyExamCountdown",
+                label: L(lang, "Exam approaching", "Іспит наближається", "Экзамен близко", "Examen proche", "Prüfung naht"),
+                sub: L(lang, "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1") },
+              { v: notifyWeeklyDigest, set: setNotifyWeeklyDigest, k: "notifyWeeklyDigest",
+                label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdo", "Wochenüberblick") },
+              { v: notifyStreakDanger, set: setNotifyStreakDanger, k: "notifyStreakDanger",
+                label: L(lang, "Streak in danger", "Серія в небезпеці", "Серия в опасности", "Série en danger", "Serie in Gefahr") },
+              { v: notifyMistakeReview, set: setNotifyMistakeReview, k: "notifyMistakeReview",
+                label: L(lang, "Time to review", "Час повторити", "Пора повторить", "À réviser", "Wiederholen") },
+            ].map((row) => (
+              <Row key={row.k} label={row.label} sub={row.sub}>
+                <MagToggle on={row.v} label={row.k} onChange={row.set} />
+              </Row>
+            ))}
+            <Row label={L(lang, "Quiet hours", "Тихі години", "Тихие часы", "Heures calmes", "Ruhezeiten")}
+              sub={L(lang, "Saved on the profile. The daily cron still fires at 16:00 UTC — Hobby plan has one send window.", "Пишеться в профіль. Крон як і був о 16:00 UTC — на Hobby одне вікно.", "Пишется в профиль. Крон по-прежнему 16:00 UTC.", "Enregistré. Le cron reste 16:00 UTC.", "Gespeichert. Cron bleibt 16:00 UTC.")}>
+              <MagToggle on={quietOn} label="quiet" onChange={setQuietOn} />
+            </Row>
+            {window.isPushSupported && window.isPushSupported() && pushStatus !== "granted" && pushStatus !== "denied" && (
+              <Row label={L(lang, "Enable browser push", "Увімкнути push", "Включить push", "Activer le push", "Push aktivieren")} chevron
+                onClick={async () => setPushStatus(await window.requestPushPermission())} />
+            )}
+          </>
+        )}
+      </Card>
 
-        <Section title={t.settings_sounds || "Sounds"}>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)", cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={soundsEnabled}
-              onChange={(e) => {
-                const on = e.target.checked;
-                setSoundsEnabled(on);
-                if (on) window.previewSound && window.previewSound("level");
-              }}
-              style={{ width: 16, height: 16, marginTop: 2, accentColor: "var(--indigo-600)", cursor: "pointer", flexShrink: 0 }}
-            />
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>{t.settings_sounds_on}</span>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", lineHeight: 1.4 }}>{t.settings_sounds_note}</span>
-            </div>
-          </label>
+      <Card icon="💳" title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} pulse={!pro}>
+        <Row
+          label={pro ? "Pro" : "Free"}
+          sub={pro
+            ? L(lang, "Second half of each Learn tree unlocked. $4/month after trial.", "Друга половина дерева Learn відкрита. $4/міс після тріалу.", "Вторая половина дерева Learn открыта.", "Seconde moitié de Learn déverrouillée.", "Zweite Hälfte des Learn-Baums offen.")
+            : L(lang, "3-day trial, then $4/month. Card at checkout.", "3 дні тріалу, далі $4/міс. Картка на Checkout.", "3 дня триала, дальше $4/мес.", "3 jours d’essai, puis $4/mois.", "3 Tage Trial, dann $4/Monat.")}
+          value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
+        />
+        {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
+        {!pro && (
+          <div className="settings-row">
+            <button type="button" disabled={billingBusy} onClick={buy}
+              style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
+              {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
+            </button>
+          </div>
+        )}
+        <Row label={L(lang, "Manage subscription", "Керувати підпискою", "Управлять подпиской", "Gérer l’abonnement", "Abo verwalten")}
+          sub={L(lang, "Stripe portal — invoices, cancel, card", "Портал Stripe — рахунки, скасування, картка", "Портал Stripe", "Portail Stripe", "Stripe-Portal")}
+          chevron onClick={portal} />
+        <Row label={L(lang, "Promo code", "Промокод", "Промокод", "Code promo", "Promo-Code")}
+          sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
+          chevron onClick={buy} />
+      </Card>
+
+      <Card icon="🔒" title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")}>
+        <Row label={L(lang, "Export data", "Експортувати дані", "Экспортировать данные", "Exporter les données", "Daten exportieren")}
+          value={exported ? L(lang, "Downloaded", "Завантажено", "Скачано", "Téléchargé", "Heruntergeladen") : "JSON"} chevron
+          onClick={() => { exportPersonalData(); setExported(true); }} />
+        <Row label={L(lang, "Sync", "Синхронізація", "Синхронизация", "Sync", "Sync")} value={lastSyncLabel(lang)} />
+        <Row label={L(lang, "Privacy policy", "Політика конфіденційності", "Политика конфиденциальности", "Confidentialité", "Datenschutz")} chevron onClick={() => setSheet("privacy")} />
+        <Row label={L(lang, "Terms of use", "Умови використання", "Условия использования", "Conditions", "Nutzungsbedingungen")} chevron onClick={() => setSheet("terms")} />
+        <Row label={L(lang, "Who sees my data", "Хто бачить мої дані", "Кто видит мои данные", "Qui voit mes données", "Wer meine Daten sieht")}
+          sub={L(lang, "You. RLS on Supabase. AI calls go through our proxy — the key is not in the browser.", "Ти. RLS у Supabase. AI йде через наш проксі — ключа в браузері немає.", "Ты. RLS в Supabase. AI через наш прокси.", "Toi. RLS sur Supabase. L’IA passe par notre proxy.", "Du. RLS auf Supabase. KI über unseren Proxy.")} />
+      </Card>
+
+      <Card icon="💬" title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")}>
+        <Row label={L(lang, "FAQ", "Питання", "Вопросы", "FAQ", "FAQ")} chevron onClick={() => setSheet("faq")} />
+        <Row label={L(lang, "Write to support", "Написати в підтримку", "Написать в поддержку", "Écrire au support", "Support schreiben")}
+          sub="Telegram · email" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+        <Row label={L(lang, "Report a bug", "Повідомити про баг", "Сообщить о баге", "Signaler un bug", "Fehler melden")} chevron
+          onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2/issues/new", "_blank", "noopener")} />
+        <Row label={L(lang, "Telegram community", "Telegram-спільнота", "Сообщество Telegram", "Communauté Telegram", "Telegram-Community")} chevron
+          onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+      </Card>
+
+      <Card icon="ℹ️" title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")}>
+        <Row label="exam.coach" value={`v${PKG_VERSION}`} onClick={() => {
+          const n = egg + 1;
+          setEgg(n);
+          if (n >= 5) setSheet("egg");
+        }} />
+        <Row label={L(lang, "Our story", "Наша історія", "Наша история", "Notre histoire", "Unsere Geschichte")} chevron onClick={() => setSheet("about")} />
+        <Row label={L(lang, "Contact", "Контакт", "Контакт", "Contact", "Kontakt")} value="Hlib Pakhomov" chevron
+          onClick={() => { window.location.href = "mailto:hlibpakh@gmail.com"; }} />
+        <Row label="Telegram" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+        <Row label="TikTok" chevron onClick={() => window.open("https://www.tiktok.com/@exam.coach", "_blank", "noopener")} />
+        <Row label="GitHub" chevron onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2", "_blank", "noopener")} />
+      </Card>
+
+      <Card icon="⚠️" title={L(lang, "Danger zone", "Небезпечна зона", "Опасная зона", "Zone danger", "Gefahrenzone")} danger>
+        <Row
+          label={confirmErase
+            ? L(lang, `You lose a ${streak}-day streak and ${xp.xp} XP. Tap again.`, `Втратиш серію ${streak} днів і ${xp.xp} XP. Ще раз.`, `Потеряешь серию ${streak} дней и ${xp.xp} XP. Ещё раз.`, `Tu perds ${streak} j de série et ${xp.xp} XP. Encore une fois.`, `Du verlierst ${streak} Tage Serie und ${xp.xp} XP. Nochmal.`)
+            : L(lang, "Reset progress", "Скинути прогрес", "Сбросить прогресс", "Réinitialiser", "Fortschritt zurücksetzen")}
+          chevron
+          onClick={() => {
+            if (!confirmErase) { setConfirmErase(true); return; }
+            try { localStorage.clear(); } catch {}
+            if (onLogout) onLogout();
+          }}
+        />
+        <Row
+          label={confirmLogout ? L(lang, "Tap again to log out", "Ще раз — вийти", "Ещё раз — выйти", "Encore pour quitter", "Nochmal zum Abmelden") : t.nav_logout}
+          chevron
+          onClick={() => {
+            if (!confirmLogout) { setConfirmLogout(true); return; }
+            if (window.clearSession) window.clearSession();
+            if (onLogout) onLogout();
+          }}
+        />
+        <Row
+          label={confirmDelete
+            ? L(lang, "Last tap deletes local data and signs out. Auth purge is not automated yet — email support within 30 days.", "Останній тап чистить локальні дані і виходить. Видалення акаунта на сервері поки руками — напиши в підтримку за 30 днів.", "Последний тап чистит локальные данные. Удаление аккаунта на сервере пока вручную.", "Dernier tap: données locales + déconnexion. Purge auth encore manuelle.", "Letzter Tap: lokale Daten weg. Server-Löschung noch per Support.")
+            : L(lang, "Delete account", "Видалити акаунт", "Удалить аккаунт", "Supprimer le compte", "Konto löschen")}
+          chevron
+          onClick={() => {
+            if (!confirmDelete) { setConfirmDelete(true); return; }
+            persist({ accountDeletedAt: new Date().toISOString() });
+            try { localStorage.clear(); } catch {}
+            if (window.clearSession) window.clearSession();
+            if (onLogout) onLogout();
+          }}
+        />
+      </Card>
+
+      <button type="button" onClick={saveCore}
+        style={{ alignSelf: "flex-start", padding: "12px 20px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+        {t.settings_save}
+      </button>
+
+      {sheet === "profile" && (
+        <Sheet title={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} onClose={() => setSheet(null)}>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => {
+            const f = e.target.files && e.target.files[0];
+            if (f) readAvatarFile(f, (data) => { setAvatar(data); persist({ avatarDataUrl: data }); });
+          }} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <button type="button" onClick={() => fileRef.current && fileRef.current.click()}
+              style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
+              {L(lang, "Upload photo", "Завантажити фото", "Загрузить фото", "Uploader une photo", "Foto hochladen")}
+            </button>
+            <button type="button" onClick={() => { const data = initialsAvatar(fullName); setAvatar(data); persist({ avatarDataUrl: data }); }}
+              style={{ flex: 1, padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: "pointer" }}>
+              {L(lang, "Generate initials", "Згенерувати ініціали", "Сгенерировать инициалы", "Générer les initiales", "Initialen erzeugen")}
+            </button>
+          </div>
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_fullname}</label>
+          <input value={fullName} onChange={(e) => setFullName(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_email}</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+          {emailError && <p style={{ color: "var(--red-600)", fontSize: 12 }}>{emailError}</p>}
+          <button type="button" onClick={() => { saveCore(); setSheet(null); }}
+            style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+            {t.settings_save}
+          </button>
+        </Sheet>
+      )}
+
+      {sheet === "hours" && (
+        <Sheet title={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} onClose={() => setSheet(null)}>
+          <input type="range" min={1} max={8} step={0.5} value={hoursPerDay}
+            onChange={(e) => setHoursPerDay(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+          <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-strong)" }}>{hoursPerDay}h</p>
+          <button type="button" onClick={() => { persist({ hoursPerDay }); setSheet(null); }}
+            style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+            {t.settings_save}
+          </button>
+        </Sheet>
+      )}
+
+      {sheet === "region" && (
+        <Sheet title={L(lang, "Country / timezone", "Країна / пояс", "Страна / пояс", "Pays / fuseau", "Land / Zone")} onClose={() => setSheet(null)}>
+          <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder={L(lang, "Ukraine", "Україна", "Украина", "Ukraine", "Ukraine")} style={{ ...inputStyle, marginBottom: 12 }} />
+          <select value={tz.id} onChange={(e) => setTz(ZONES.find((z) => z.id === e.target.value) || tz)} style={{ ...inputStyle, appearance: "none" }}>
+            {ZONES.map((z) => <option key={z.id} value={z.id}>{z.label} — {z.place}</option>)}
+          </select>
+          <button type="button" onClick={() => { persist({ country, timezone: tz.id }); setSheet(null); }}
+            style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+            {t.settings_save}
+          </button>
+        </Sheet>
+      )}
+
+      {sheet === "sounds" && (
+        <Sheet title={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} onClose={() => setSheet(null)}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {(window.SOUND_NAMES || []).map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => window.previewSound && window.previewSound(name)}
-                style={{
-                  border: "1px solid var(--border-default)", background: "var(--surface-muted)",
-                  color: "var(--text-body)", borderRadius: "var(--radius-full)",
-                  padding: "6px 12px", fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)",
-                  cursor: "pointer",
-                }}
-              >
-                {t.settings_sounds_preview} {name}
+              <button key={name} type="button" onClick={() => window.previewSound && window.previewSound(name)}
+                style={{ border: "1px solid var(--border-default)", background: "var(--surface-muted)", color: "var(--text-body)", borderRadius: 99, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
+                {name}
               </button>
             ))}
           </div>
-        </Section>
+        </Sheet>
+      )}
 
-        <Section title={t.settings_language}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
-            {Object.values(window.LANGS).map((l) => (
-              <button key={l.code} onClick={() => onLangChange(l.code)}
-                style={{ padding: "8px 16px", borderRadius: "var(--radius-lg)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", gap: "6px",
-                  border: lang === l.code ? "1px solid var(--indigo-500)" : "1px solid var(--border-default)",
-                  background: lang === l.code ? "var(--indigo-50)" : "var(--surface-card)",
-                  color: lang === l.code ? "var(--indigo-700)" : "var(--text-muted)",
-                  fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)" }}>
-                <span>{l.flag}</span><span>{l.label}</span>
-              </button>
-            ))}
-          </div>
-        </Section>
+      {(sheet === "privacy" || sheet === "terms") && (
+        <Sheet title={t[`legal_${sheet}_title`] || sheet} onClose={() => setSheet(null)}>
+          <Legal page={sheet} t={t} onBack={() => setSheet(null)} />
+        </Sheet>
+      )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
-          <Button variant="accent" size="md" onClick={save}>{t.settings_save}</Button>
-        </div>
+      {sheet === "faq" && (
+        <Sheet title={t.land_faq_title || "FAQ"} onClose={() => setSheet(null)}>
+          {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+            <details key={n} style={{ marginBottom: 8 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--text-strong)" }}>{t[`land_faq_${n}_q`]}</summary>
+              <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 }}>{t[`land_faq_${n}_a`]}</p>
+            </details>
+          ))}
+        </Sheet>
+      )}
 
-        <Section title={t.settings_actions}>
-          <button
-            onClick={() => confirmLogout ? logOut() : setConfirmLogout(true)}
-            style={{ alignSelf: "flex-start", border: confirmLogout ? "1px solid var(--red-200)" : "1px solid var(--border-default)", background: confirmLogout ? "var(--red-50)" : "var(--surface-card)", color: confirmLogout ? "var(--red-600)" : "var(--text-body)", borderRadius: "var(--radius-xl)", padding: "10px 20px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
-          >
-            {confirmLogout ? L(lang, "Click again to confirm","Натисніть ще раз","Нажмите ещё раз","Cliquez à nouveau","Erneut klicken") : t.nav_logout}
-          </button>
-          <div>
-            <button
-              onClick={() => confirmErase ? eraseAllData() : setConfirmErase(true)}
-              style={{ alignSelf: "flex-start", border: "1px solid var(--red-200)", background: confirmErase ? "var(--red-100)" : "var(--rose-50)", color: "var(--red-600)", borderRadius: "var(--radius-xl)", padding: "10px 20px", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)" }}
-            >
-              {confirmErase ? t.settings_erase_confirm : t.settings_erase}
-            </button>
-            <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{t.settings_erase_note}</p>
-          </div>
-        </Section>
-      </div>
+      {sheet === "about" && (
+        <Sheet title={t.land_about_title || "About"} onClose={() => setSheet(null)}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p1}</p>
+          <p style={{ margin: "12px 0 0", fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p2}</p>
+        </Sheet>
+      )}
 
-      {/* Toast notification */}
+      {sheet === "egg" && (
+        <Sheet title="Shipping stats" onClose={() => { setSheet(null); setEgg(0); }}>
+          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>
+            {L(lang, "Built by Hlib in Ukraine. Coffee: ∞. Beta testers: you.", "Зробив Гліб в Україні. Кави: ∞. Бета: ти.", "Сделал Глеб в Украине. Кофе: ∞.", "Fait par Hlib en Ukraine. Café : ∞.", "Gebaut von Hlib in der Ukraine. Kaffee: ∞.")}
+          </p>
+          <p style={{ margin: "12px 0 0", fontSize: 13, color: "var(--text-faint)" }}>exam.coach v{PKG_VERSION}</p>
+        </Sheet>
+      )}
+
       <div style={{
         position: "fixed", bottom: 28, right: 28, zIndex: 9999,
         background: "var(--slate-900)", color: "var(--white)",
@@ -380,14 +578,9 @@ function Settings({ t, lang, onLangChange, onLogout }) {
         <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--emerald-500)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</span>
         {t.settings_saved}
       </div>
-
     </div>
   );
 }
-window.Settings = Settings;
 
-// Module marker: these files carry no import/export of their own (they still
-// communicate via `window` globals), and without one the JSX transform treats
-// the file as a CommonJS script and emits a bare `require()` call that throws
-// in the browser. Removed once this module uses real imports.
+window.Settings = Settings;
 export {};

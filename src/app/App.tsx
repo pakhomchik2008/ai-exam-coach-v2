@@ -18,6 +18,7 @@ import {
 import { remountKeyFor, isTrackedKey } from "./data-version";
 import { QuickOnboarding } from "../features/onboarding/QuickOnboarding";
 import { consumeBillingQuery, refreshProStatus } from "../lib/billing";
+import { applyAppearance } from "../lib/appearance";
 
 type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
@@ -91,7 +92,8 @@ export function App() {
   // Re-apply CSS overrides whenever a tweak changes.
   React.useEffect(() => {
     applyTweaks(tw.accent, tw.density, tw.depth);
-  }, [tw.accent, tw.density, tw.depth]);
+    applyAppearance(getProfile());
+  }, [tw.accent, tw.density, tw.depth, getProfile]);
 
   React.useEffect(() => {
     const sessionKey = legacyOptional<string>("SESSION_KEY");
@@ -366,6 +368,7 @@ function renderTab({
           lang={lang}
           onLangChange={setLang}
           onLogout={() => setRoute("landing")}
+          onGoToExams={() => setTab("exams")}
         />
       );
     }

@@ -5,6 +5,8 @@
 // the same questions again per exam. Same get/save/subscribe/migrate shape
 // as exams-store.jsx/schedule-store.jsx.
 
+import { applyAppearance } from "../lib/appearance";
+
 const PROFILE_KEY = "user_profile_v1";
 const PROFILE_SCHEMA_VERSION = 2;
 
@@ -82,6 +84,18 @@ function migrateProfile(raw) {
     hasSeenLearnTooltip: typeof p.hasSeenLearnTooltip === "boolean" ? p.hasSeenLearnTooltip : false,
     // Phase 4 sound kit. Spec default is off — existing profiles stay silent.
     soundsEnabled: typeof p.soundsEnabled === "boolean" ? p.soundsEnabled : false,
+    soundVolume: isFiniteNumber(p.soundVolume) && p.soundVolume >= 0 && p.soundVolume <= 1 ? p.soundVolume : 0.7,
+    hapticEnabled: typeof p.hapticEnabled === "boolean" ? p.hapticEnabled : true,
+    theme: p.theme === "light" || p.theme === "dark" ? p.theme : "system",
+    accent: ["Indigo", "Violet", "Rose", "Amber"].includes(p.accent) ? p.accent : "Indigo",
+    dyslexiaFont: p.dyslexiaFont === true,
+    tierThemeDisabled: p.tierThemeDisabled === true,
+    notifyMaster: typeof p.notifyMaster === "boolean" ? p.notifyMaster : true,
+    notifyChannel: p.notifyChannel === "push" || p.notifyChannel === "email" ? p.notifyChannel : "both",
+    quietHoursStart: isFiniteNumber(p.quietHoursStart) && p.quietHoursStart >= 0 && p.quietHoursStart <= 23 ? Math.round(p.quietHoursStart) : null,
+    quietHoursEnd: isFiniteNumber(p.quietHoursEnd) && p.quietHoursEnd >= 0 && p.quietHoursEnd <= 23 ? Math.round(p.quietHoursEnd) : null,
+    avatarDataUrl: typeof p.avatarDataUrl === "string" && p.avatarDataUrl.startsWith("data:image/") ? p.avatarDataUrl : "",
+    accountDeletedAt: typeof p.accountDeletedAt === "string" ? p.accountDeletedAt : null,
     // Pro cache. Stripe webhook is the writer; a missing subscriptions
     // table still lets Hlib flip this by hand. Client refresh only
     // overwrites when a real row exists.
@@ -136,6 +150,12 @@ function saveProfile(patch) {
   // exams-store.jsx's saveExams triggering reconcileSchedule.
   if (_budgetFieldsChanged(before, next) && window.replanAllSchedules) {
     window.replanAllSchedules();
+  }
+  if (before.theme !== next.theme || before.accent !== next.accent || before.dyslexiaFont !== next.dyslexiaFont) {
+    applyAppearance(next);
+  }
+  if (before.tierThemeDisabled !== next.tierThemeDisabled && window.applyTierTheme) {
+    window.applyTierTheme();
   }
 
   _notifyProfile();
