@@ -4,7 +4,7 @@
  */
 
 const GOLD = "#D4B36A";
-const TEAL = "#1B4D4A";
+const INK = "#1C1917";
 
 type BrandMarkProps = {
   size?: number;
@@ -29,7 +29,7 @@ export function BrandGlyph({ color = GOLD }: { color?: string }) {
 }
 
 export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
-  const color = framed ? GOLD : TEAL;
+  const color = framed ? GOLD : INK;
   return (
     <svg
       width={size}
@@ -39,7 +39,7 @@ export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
       aria-hidden={title ? undefined : true}
       aria-label={title}
     >
-      {framed ? <rect width="64" height="64" rx="14" fill={TEAL} /> : null}
+      {framed ? <rect width="64" height="64" rx="14" fill={INK} /> : null}
       <BrandGlyph color={color} />
     </svg>
   );
@@ -58,7 +58,7 @@ export function BrandLockup({ width = 200, title = "EXAM COACH" }: BrandLockupPr
       role="img"
       aria-label={title}
     >
-      <rect width="280" height="340" fill={TEAL} />
+      <rect width="280" height="340" fill={INK} />
       <g transform="translate(140 118) scale(2.15) translate(-32 -32)">
         <BrandGlyph color={GOLD} />
       </g>

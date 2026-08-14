@@ -105,7 +105,7 @@ function initialsAvatar(name) {
   c.width = 128;
   c.height = 128;
   const ctx = c.getContext("2d");
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--indigo-600").trim() || "#1A6650";
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--indigo-600").trim() || "#1C1917";
   ctx.fillRect(0, 0, 128, 128);
   ctx.fillStyle = "#fff";
   ctx.font = "700 52px system-ui, sans-serif";
@@ -145,7 +145,7 @@ function lastSyncLabel(lang) {
   }
 }
 
-const ACCENT_COLORS = { Indigo: "#1A6650", Violet: "#7C3AED", Rose: "#E11D48", Amber: "#D97706" };
+const ACCENT_COLORS = { Indigo: "#1C1917", Violet: "#7C3AED", Rose: "#E11D48", Amber: "#D97706" };
 const PKG_VERSION = "3.0.0";
 
 function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {

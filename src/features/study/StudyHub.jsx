@@ -334,7 +334,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('div', { style: { fontSize: '15px', fontWeight: 700, color: isDragOver ? 'var(--indigo-600)' : 'var(--slate-700)', marginBottom: '3px' } }, label),
         React.createElement('div', { style: { fontSize: '12px', color: 'var(--slate-400)' } }, sub)
       ),
-      !isExtracting && React.createElement('div', { style: { padding: '6px 18px', background: 'var(--indigo-500)', color: 'var(--white)', borderRadius: '20px', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(34,124,99,0.28)' } }, '📁 ' + L('Browse Files','Огляд файлів','Обзор файлов','Parcourir','Dateien wählen'))
+      !isExtracting && React.createElement('div', { style: { padding: '6px 18px', background: 'var(--indigo-500)', color: 'var(--white)', borderRadius: '20px', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(28,25,23,0.28)' } }, '📁 ' + L('Browse Files','Огляд файлів','Обзор файлов','Parcourir','Dateien wählen'))
     );
   };
 
@@ -401,7 +401,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const buildStartBtnEl = (hasInput, isExtracting, onClick) => {
     const active = hasInput && !isExtracting;
-    return React.createElement('button', { onClick, style: { width: '100%', padding: '15px', background: active ? 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))' : 'var(--slate-200)', color: active ? 'var(--white)' : 'var(--slate-400)', border: 'none', borderRadius: '16px', fontSize: '15px', fontWeight: 800, cursor: active ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', boxShadow: active ? '0 4px 20px rgba(34,124,99,0.35)' : 'none', transition: 'all 0.2s' } },
+    return React.createElement('button', { onClick, style: { width: '100%', padding: '15px', background: active ? 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))' : 'var(--slate-200)', color: active ? 'var(--white)' : 'var(--slate-400)', border: 'none', borderRadius: '16px', fontSize: '15px', fontWeight: 800, cursor: active ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', boxShadow: active ? '0 4px 20px rgba(28,25,23,0.35)' : 'none', transition: 'all 0.2s' } },
       isExtracting ? L('Reading file…','Читаю файл…','Читаю файл…','Lecture…','Lese Datei…') : L('Get Started','Почати','Начать','Commencer','Loslegen'),
       !isExtracting && React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round', style: { flexShrink: 0 } }, React.createElement('line', { x1: '5', y1: '12', x2: '19', y2: '12' }), React.createElement('polyline', { points: '12 5 19 12 12 19' }))
     );
@@ -441,7 +441,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
           React.createElement('p', { style: { fontSize: '16px', fontWeight: 700, color: 'var(--slate-900)', lineHeight: 1.45, margin: '0 0 16px' } }, card.front),
           React.createElement('div', { style: { fontSize: '11px', color: 'var(--slate-400)', fontWeight: 600 } }, L('Tap to reveal','Торкніться, щоб відкрити','Нажмите, чтобы открыть','Touchez pour révéler','Zum Aufdecken tippen'))
         ),
-        React.createElement('div', { style: { ...base, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', boxShadow: '0 6px 28px rgba(34,124,99,0.35)', transform: 'rotateY(180deg)' } },
+        React.createElement('div', { style: { ...base, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', boxShadow: '0 6px 28px rgba(28,25,23,0.35)', transform: 'rotateY(180deg)' } },
           React.createElement('div', { style: { fontSize: '30px', marginBottom: '12px' } }, '✅'),
           React.createElement('p', { style: { fontSize: '16px', fontWeight: 700, color: 'var(--white)', lineHeight: 1.5, margin: 0 } }, card.back)
         )
@@ -463,7 +463,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('div', { style: { fontSize: '48px', fontWeight: 900, color: 'var(--slate-900)', lineHeight: 1, marginBottom: '6px' } }, `${pct}%`),
         React.createElement('div', { style: { fontSize: '16px', fontWeight: 700, color: 'var(--slate-700)', marginBottom: '5px' } }, pct >= 80 ? L('Excellent!','Чудово!','Отлично!','Excellent !','Ausgezeichnet!') : pct >= 60 ? L('Good job!','Гарна робота!','Хорошая работа!','Bien joué !','Gut gemacht!') : L('Keep going!','Продовжуйте!','Продолжайте!','Continuez !','Weiter so!')),
         React.createElement('div', { style: { fontSize: '13px', color: 'var(--slate-500)', marginBottom: '24px' } }, `${score} of ${quiz.length} correct`),
-        React.createElement('button', { onClick: () => setState({ quizAnswers: {} }), style: { padding: '12px 28px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', color: 'var(--white)', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(34,124,99,0.3)' } }, '↺ ' + L('Try Again','Спробувати ще','Попробовать ещё','Réessayer','Nochmal'))
+        React.createElement('button', { onClick: () => setState({ quizAnswers: {} }), style: { padding: '12px 28px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', color: 'var(--white)', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(28,25,23,0.3)' } }, '↺ ' + L('Try Again','Спробувати ще','Попробовать ещё','Réessayer','Nochmal'))
       );
     }
     const L = ['A', 'B', 'C', 'D'];
@@ -550,7 +550,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '24px' } },
           React.createElement('button', { onClick: () => setState({ currentCard: Math.max(0, currentCard - 1), flippedCards: {} }), disabled: currentCard === 0, style: { flex: 1, padding: '12px', background: 'var(--surface-card)', border: '1.5px solid var(--slate-200)', borderRadius: '14px', fontSize: '13px', fontWeight: 700, color: currentCard === 0 ? 'var(--slate-300)' : 'var(--slate-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: currentCard === 0 ? 'default' : 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' } },
             React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '15 18 9 12 15 6' })), L('Prev','Назад','Назад','Préc.','Zurück')),
-          React.createElement('button', { onClick: () => setState({ currentCard: Math.min(flashcards.length - 1, currentCard + 1), flippedCards: {} }), disabled: currentCard >= flashcards.length - 1, style: { flex: 1, padding: '12px', background: currentCard >= flashcards.length - 1 ? 'var(--slate-200)' : 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '14px', fontSize: '13px', fontWeight: 700, color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: currentCard >= flashcards.length - 1 ? 'default' : 'pointer', boxShadow: currentCard >= flashcards.length - 1 ? 'none' : '0 4px 12px rgba(34,124,99,0.3)' } },
+          React.createElement('button', { onClick: () => setState({ currentCard: Math.min(flashcards.length - 1, currentCard + 1), flippedCards: {} }), disabled: currentCard >= flashcards.length - 1, style: { flex: 1, padding: '12px', background: currentCard >= flashcards.length - 1 ? 'var(--slate-200)' : 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '14px', fontSize: '13px', fontWeight: 700, color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: currentCard >= flashcards.length - 1 ? 'default' : 'pointer', boxShadow: currentCard >= flashcards.length - 1 ? 'none' : '0 4px 12px rgba(28,25,23,0.3)' } },
             L('Next','Далі','Далее','Suiv.','Weiter'), React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '9 18 15 12 9 6' })))
         ),
         React.createElement('p', { style: { fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--slate-400)', margin: '0 0 10px' } }, L('All Cards','Усі картки','Все карточки','Toutes les cartes','Alle Karten')),
@@ -597,7 +597,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const chatInputBarEl = React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--slate-50)', border: '1.5px solid var(--slate-200)', borderRadius: '22px', padding: '6px 6px 6px 14px' } },
     React.createElement('input', { value: chatInput, onChange: (e) => setState({ chatInput: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } }, placeholder: L('Ask Claude anything about this topic…','Запитайте Claude будь-що про цю тему…','Спросите Claude что угодно об этой теме…','Demandez tout à Claude sur ce sujet…','Frag Claude alles zu diesem Thema…'), style: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: 'var(--slate-900)', background: 'none' } }),
-    React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(34,124,99,0.3)', flexShrink: 0 } },
+    React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(28,25,23,0.3)', flexShrink: 0 } },
       React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'var(--white)', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('line', { x1: '22', y1: '2', x2: '11', y2: '13' }), React.createElement('polygon', { points: '22 2 15 22 11 13 2 9 22 2' })))
   );
   const hasInput = !!(inputText.trim() || (files && files.length) || youtubeData);
@@ -605,7 +605,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     React.createElement('div', { style: { padding: '20px 20px 14px', flexShrink: 0 } },
       React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
-        React.createElement('div', { style: { width: '46px', height: '46px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0, boxShadow: '0 4px 14px rgba(34,124,99,0.3)' } }, '🧠'),
+        React.createElement('div', { style: { width: '46px', height: '46px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0, boxShadow: '0 4px 14px rgba(28,25,23,0.3)' } }, '🧠'),
         React.createElement('div', null,
           React.createElement('div', { style: { fontWeight: 800, fontSize: '19px', color: 'var(--slate-900)', lineHeight: 1.1 } }, L('AI Study Tool','AI-інструмент навчання','AI-инструмент обучения','Outil d\'étude IA','KI-Lernwerkzeug')),
           React.createElement('div', { style: { fontSize: '12px', color: 'var(--slate-500)', marginTop: '2px' } }, L('Powered by Claude AI','На базі Claude AI','На базе Claude AI','Propulsé par Claude AI','Unterstützt von Claude AI'))
@@ -657,7 +657,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   );
 
   const loadingScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '22px', padding: '40px', textAlign: 'center', animation: 'fadeUp 0.3s ease-out both' } },
-    React.createElement('div', { style: { width: '76px', height: '76px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', boxShadow: '0 10px 32px rgba(34,124,99,0.35)', animation: 'pulse 2s ease-in-out infinite' } }, '🧠'),
+    React.createElement('div', { style: { width: '76px', height: '76px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', boxShadow: '0 10px 32px rgba(28,25,23,0.35)', animation: 'pulse 2s ease-in-out infinite' } }, '🧠'),
     React.createElement('div', null,
       React.createElement('div', { style: { fontSize: '20px', fontWeight: 800, color: 'var(--slate-900)', marginBottom: '8px' } }, L('Building your study set','Збираю ваш навчальний набір','Собираю ваш учебный набор','Création de votre kit d\'étude','Erstelle dein Lernset')),
       React.createElement('div', { style: { fontSize: '14px', color: 'var(--slate-500)', lineHeight: 1.65, minHeight: '42px' } }, loadingMsg)
