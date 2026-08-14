@@ -193,7 +193,6 @@
   flex-direction: column;
   gap: 20px;
   width: 100%;
-  max-width: 40rem;
   padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -236,10 +235,28 @@
   color: var(--text-strong);
 }
 
+/* Detail pages fill the same column the nav uses. A single stretched card on a
+   1024px page reads as a half-empty sheet, so cards flow into as many columns
+   as fit; auto-fit collapses the empty track so a one-card page still spans the
+   full width. */
 .settings-page-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+  gap: 22px;
+}
+
+/* An odd card count would otherwise leave a hole in the last row. */
+.settings-page-body > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+/* Profile is a form, not cards: keep its fields one under another at a width
+   you can still aim at. */
+.settings-form {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  max-width: 32rem;
 }
 
 .settings-row {
@@ -348,25 +365,21 @@
   .settings-toggle, .settings-toggle i { transition: none; }
 }
 
+/* Both rails wrap instead of scrolling sideways: a half-visible swatch at the
+   card edge reads as a clipped layout, not as "scroll me". */
 .settings-flags {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
   padding: 8px 18px 16px;
-  scrollbar-width: none;
 }
-
-.settings-flags::-webkit-scrollbar { display: none; }
 
 .settings-theme-rail {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
-  overflow-x: auto;
   padding: 8px 18px 16px;
-  scrollbar-width: none;
 }
-
-.settings-theme-rail::-webkit-scrollbar { display: none; }
 
 .settings-theme-swatch {
   flex: 0 0 auto;
@@ -486,9 +499,11 @@ html.dyslexia body {
   line-height: 1.65;
 }
 
+/* Legal / About prose stays at a readable measure even though the page is now
+   as wide as the nav column. */
 .settings-page .land-legal {
   padding: 0;
-  max-width: none;
+  max-width: 42rem;
 }
 
 .settings-page .land-legal h1 {
