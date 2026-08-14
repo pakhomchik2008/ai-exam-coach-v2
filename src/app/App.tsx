@@ -17,6 +17,7 @@ import {
 } from "./tweaks";
 import { remountKeyFor, isTrackedKey } from "./data-version";
 import { QuickOnboarding } from "../features/onboarding/QuickOnboarding";
+import { consumeBillingQuery, refreshProStatus } from "../lib/billing";
 
 type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
@@ -77,6 +78,7 @@ export function App() {
 
   const [chatQuery, setChatQuery] = React.useState<string | null>(null);
   const [planExamIds, setPlanExamIds] = React.useState<string[] | null>(null);
+  const [billingNote, setBillingNote] = React.useState<"success" | "cancel" | null>(() => consumeBillingQuery());
 
   // Bumped whenever this student's data changes underneath a mounted screen —
   // from another tab (localStorage's native `storage` event) or, since Phase 2c,
@@ -117,8 +119,58 @@ export function App() {
     return () => window.removeEventListener("storage", onStorage);
   }, [getSession]);
 
+  React.useEffect(() => {
+    void refreshProStatus();
+    if (billingNote !== "success") return;
+    let cancelled = false;
+    void (async () => {
+      for (let i = 0; i < 6; i++) {
+        const pro = await refreshProStatus();
+        if (cancelled || pro) return;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [billingNote]);
+
   const langs = legacyOptional<Record<string, Dict>>("LANGS") ?? {};
   const t: Dict = langs[lang] ?? langs["en"] ?? {};
+
+  const billingBanner = billingNote ? (
+    <div
+      role="status"
+      onClick={() => setBillingNote(null)}
+      style={{
+        position: "fixed",
+        bottom: 28,
+        right: 28,
+        zIndex: 9999,
+        background: "var(--slate-900)",
+        color: "var(--white)",
+        borderRadius: "var(--radius-xl)",
+        padding: "12px 20px",
+        fontSize: "var(--text-sm)",
+        fontFamily: "var(--font-sans)",
+        maxWidth: 320,
+        boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
+        cursor: "pointer",
+      }}
+    >
+      {billingNote === "success"
+        ? (lang === "uk"
+          ? "Checkout готовий. Pro відкриється за кілька секунд."
+          : lang === "ru"
+            ? "Checkout готов. Pro откроется через несколько секунд."
+            : "Checkout done. Pro unlocks in a few seconds.")
+        : (lang === "uk"
+          ? "Checkout скасовано."
+          : lang === "ru"
+            ? "Checkout отменён."
+            : "Checkout cancelled.")}
+    </div>
+  ) : null;
 
   const goApp = () => {
     setRoute("app");
@@ -141,7 +193,12 @@ export function App() {
   };
 
   if (route === "landing") {
-    return <Landing onContinue={goAfterAuth} t={t} lang={lang} onLangChange={setLang} />;
+    return (
+      <>
+        {billingBanner}
+        <Landing onContinue={goAfterAuth} t={t} lang={lang} onLangChange={setLang} />
+      </>
+    );
   }
   if (route === "onboarding") {
     // QuickOnboarding (Phase 3 §3d) replaces the ExamWizard-based `Onboarding`
@@ -171,6 +228,7 @@ export function App() {
 
   return (
     <div>
+      {billingBanner}
       <AppNav
         current={tab}
         onNavigate={(id: string) => setTab(id)}
