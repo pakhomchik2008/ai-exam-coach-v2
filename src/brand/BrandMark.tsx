@@ -1,10 +1,10 @@
 /**
- * Exam Coach mark — open book on navy.
- * Framed mark is the PNG icon so nav, favicon, and lockup stay one drawing.
+ * EXAM COACH mark — open book, rising bars, forecast arrow.
+ * Same paths as brand/logo.svg so nav, favicon, and lockup stay one drawing.
  */
 
-const GOLD = "#CCA563";
-const NAVY = "#141822";
+const GOLD = "#D4B36A";
+const TEAL = "#1B4D4A";
 
 type BrandMarkProps = {
   size?: number;
@@ -12,32 +12,24 @@ type BrandMarkProps = {
   title?: string;
 };
 
-const LOGO_SRCSET = "/brand/logo-64.png 64w, /brand/logo-128.png 128w, /brand/logo-256.png 256w, /brand/logo-512.png 512w";
-
 export function BrandGlyph({ color = GOLD }: { color?: string }) {
   return (
-    <g fill={color}>
-      <path d="M14.2 22.4c.2-2.4 2.8-5 7.2-7.2C25.6 13.4 29.2 12.8 31.2 13.2v38.2c-3.2-.4-7.6-1.8-11.4-3.8-3.8-2-5.8-4-5.6-6.2z" />
-      <path d="M49.8 22.4c-.2-2.4-2.8-5-7.2-7.2C38.4 13.4 34.8 12.8 32.8 13.2v38.2c3.2-.4 7.6-1.8 11.4-3.8 3.8-2 5.8-4 5.6-6.2z" />
+    <g>
+      <g fill="none" stroke={color} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 22 L32 16 L55 22 V46 L32 52 L9 46 Z" />
+        <path d="M32 16 V52" />
+        <path d="M15 43 C 22 40, 28 34, 35 28 C 39 24, 45 21, 51 19" />
+      </g>
+      <rect x="19.2" y="36.5" width="5.6" height="9.2" rx="1" fill={color} />
+      <rect x="29.2" y="30.2" width="5.6" height="15.5" rx="1" fill={color} />
+      <rect x="39.2" y="24.2" width="5.6" height="21.5" rx="1" fill={color} />
+      <path d="M51 19 L45.6 17.4 L47.8 23.2 Z" fill={color} />
     </g>
   );
 }
 
 export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
-  if (framed) {
-    return (
-      <img
-        src="/brand/logo-128.png"
-        srcSet={LOGO_SRCSET}
-        sizes={`${size}px`}
-        width={size}
-        height={size}
-        alt={title || "Exam Coach"}
-        draggable={false}
-        style={{ display: "block", flexShrink: 0 }}
-      />
-    );
-  }
+  const color = framed ? GOLD : TEAL;
   return (
     <svg
       width={size}
@@ -47,7 +39,8 @@ export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
       aria-hidden={title ? undefined : true}
       aria-label={title}
     >
-      <BrandGlyph color={GOLD} />
+      {framed ? <rect width="64" height="64" rx="14" fill={TEAL} /> : null}
+      <BrandGlyph color={color} />
     </svg>
   );
 }
@@ -57,56 +50,42 @@ type BrandLockupProps = {
   title?: string;
 };
 
-export function BrandLockup({ width = 200, title = "Exam Coach" }: BrandLockupProps) {
+export function BrandLockup({ width = 200, title = "EXAM COACH" }: BrandLockupProps) {
   return (
-    <div
+    <svg
+      width={width}
+      viewBox="0 0 280 340"
       role="img"
       aria-label={title}
-      style={{
-        width,
-        boxSizing: "border-box",
-        padding: "40px 24px 32px",
-        background: NAVY,
-        textAlign: "center",
-      }}
     >
-      <img
-        src="/brand/logo-256.png"
-        srcSet="/brand/logo-256.png 256w, /brand/logo-512.png 512w"
-        sizes={`${Math.round(width * 0.46)}px`}
-        width={Math.round(width * 0.46)}
-        height={Math.round(width * 0.46)}
-        alt=""
-        draggable={false}
-        style={{ display: "block", margin: "0 auto" }}
-      />
-      <div
-        style={{
-          marginTop: 20,
-          color: GOLD,
-          fontFamily: "var(--font-brand), Georgia, serif",
-          fontSize: Math.round(width * 0.125),
-          fontWeight: 600,
-          letterSpacing: "-0.03em",
-          lineHeight: 1.1,
-        }}
+      <rect width="280" height="340" fill={TEAL} />
+      <g transform="translate(140 118) scale(2.15) translate(-32 -32)">
+        <BrandGlyph color={GOLD} />
+      </g>
+      <text
+        x="140"
+        y="236"
+        textAnchor="middle"
+        fill={GOLD}
+        fontFamily="var(--font-sans), ui-sans-serif, system-ui, sans-serif"
+        fontSize="28"
+        fontWeight="800"
+        letterSpacing="0.12em"
       >
-        {title}
-      </div>
-      <div
-        style={{
-          marginTop: 10,
-          color: GOLD,
-          fontFamily: "var(--font-sans)",
-          fontSize: Math.round(width * 0.048),
-          fontWeight: 600,
-          letterSpacing: "0.28em",
-          textTransform: "uppercase",
-          opacity: 0.72,
-        }}
+        EXAM COACH
+      </text>
+      <text
+        x="140"
+        y="268"
+        textAnchor="middle"
+        fill={GOLD}
+        fontFamily="var(--font-sans), ui-sans-serif, system-ui, sans-serif"
+        fontSize="11"
+        fontWeight="600"
+        letterSpacing="0.36em"
       >
-        Since 2026
-      </div>
-    </div>
+        SINCE 2026
+      </text>
+    </svg>
   );
 }
