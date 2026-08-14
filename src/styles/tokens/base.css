@@ -22,7 +22,7 @@ h1, h2, h3, .display {
 
 ::selection {
   background: var(--indigo-100);
-  color: var(--ink-900);
+  color: var(--slate-900);
 }
 
 /* Accessible focus ring — 2px emerald, 2px offset */

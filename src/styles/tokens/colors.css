@@ -1,132 +1,120 @@
 /* ============================================================
    AI Exam Coach — Color tokens
-   Cream page, warm paper cards, ink for actions. --indigo-* is the
-   accent family (legacy name); values are ink, not pine or violet.
-   Emerald stays semantic only (success / progress), never chrome.
+   Pre-FintechX palette: white page, slate neutrals, indigo accent.
+   Emerald is success/progress only — not chrome.
    ============================================================ */
 :root {
   /* ---- Brand ---- */
-  --emerald-50:  #EDF9F2;
-  --emerald-100: #D7F1E3;
-  --emerald-500: #16A06E;   /* success / progress only */
-  --emerald-600: #0F8259;
-  --emerald-700: #0B6848;
+  --emerald-50:  #ECFDF5;
+  --emerald-100: #D1FAE5;
+  --emerald-300: #6EE7B7;
+  --emerald-500: #10B981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
 
-  --emerald-300: #9BDDC0;
+  --indigo-50:  #EEF2FF;
+  --indigo-100: #E0E7FF;
+  --indigo-200: #C7D2FE;
+  --indigo-400: #818CF8;
+  --indigo-500: #6366F1;
+  --indigo-600: #4F46E5;
+  --indigo-700: #4338CA;
+  --indigo-800: #3730A3;
 
-  /* Legacy name. Ink accent — buttons, links, icon washes. */
-  --indigo-50:  #F3EEE6;
-  --indigo-100: #E8E0D4;
-  --indigo-200: #D4C8B8;
-  --indigo-400: #6F675C;
-  --indigo-500: #2A2622;
-  --indigo-600: #1C1917;
-  --indigo-700: #141210;
-  --indigo-800: #0C0B0A;
+  /* ---- Neutrals (Slate) ---- */
+  --slate-50:  #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-300: #CBD5E1;
+  --slate-400: #94A3B8;
+  --slate-500: #64748B;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1E293B;
+  --slate-900: #0F172A;
+  --white: #FFFFFF;
+  --app-bg: #F9FAFB;
 
-  /* ---- Neutrals (warm cream-stone) ---- */
-  --slate-50:  #F7F3EC;
-  --slate-100: #EFE9DF;
-  --slate-200: #E4DCD0;
-  --slate-300: #D0C6B8;
-  --slate-400: #A39686;
-  --slate-500: #7A6E62;
-  --slate-600: #5C5248;
-  --slate-700: #3F3832;
-  --slate-800: #2A2521;
-  --slate-900: #161412;
-  --white: #FFFDF8;
-  --app-bg: #F6F1E8;
-
-  /* Ink surfaces — dark cards and primary pills */
-  --ink-900: #141210;
-  --ink-800: #1C1917;
-  --ink-700: #2A2622;
+  --ink-900: #0F172A;
+  --ink-800: #1E293B;
+  --ink-700: #334155;
 
   /* ---- Semantic status ---- */
-  --green-50:  #EDF9F2;
-  --green-500: #16A06E;
-  --green-700: #0B6848;
+  --green-50:  #ECFDF5;
+  --green-500: #10B981;
+  --green-700: #047857;
 
-  --amber-50:  #FDF8EC;
-  --amber-100: #FAEFD1;
-  --amber-200: #F5E4B0;
-  --amber-400: #E8B93B;
-  --amber-500: #D9A521;   /* warn */
-  --amber-600: #B8880F;
-  --amber-700: #96700F;
+  --amber-50:  #FFFBEB;
+  --amber-100: #FEF3C7;
+  --amber-200: #FDE68A;
+  --amber-400: #FBBF24;
+  --amber-500: #F59E0B;
+  --amber-600: #D97706;
+  --amber-700: #B45309;
 
-  --red-50:  #FDF1EF;
-  --red-100: #FBE2DE;
-  --red-200: #F7CFC8;
-  --red-400: #EA7A64;
-  --red-500: #E2543F;     /* danger */
-  --red-600: #C7402C;
-  --red-700: #A33223;
+  --red-50:  #FEF2F2;
+  --red-100: #FEE2E2;
+  --red-200: #FECACA;
+  --red-400: #F87171;
+  --red-500: #EF4444;
+  --red-600: #DC2626;
+  --red-700: #B91C1C;
 
-  --sky-50:  #EFF6F9;
-  --sky-100: #DEEDF4;
-  --sky-500: #3193BC;
-  --sky-700: #1F6785;
+  --sky-50:  #F0F9FF;
+  --sky-100: #E0F2FE;
+  --sky-500: #0EA5E9;
+  --sky-700: #0369A1;
 
-  --rose-50:  #FDF0F2;
-  --rose-100: #FADFE4;
-  --rose-300: #F0A9B6;
-  --rose-500: #D9536E;
-  --rose-700: #A83450;
+  --rose-50:  #FFF1F2;
+  --rose-100: #FFE4E6;
+  --rose-300: #FDA4AF;
+  --rose-500: #F43F5E;
+  --rose-700: #BE123C;
 
-  --orange-50:  #FDF4EB;
-  --orange-500: #E08234;
+  --orange-50:  #FFF7ED;
+  --orange-500: #F97316;
 
-  /* ---- Subject palette (course color dots & accents) ----
-     Slightly desaturated toward the "premium organic" range so
-     the color rails feel editorial, not neon. */
-  --subject-indigo: #5B6BD6;
-  --subject-violet: #8168C9;
-  --subject-pink:   #D2609F;
-  --subject-rose:   #D9536E;
-  --subject-orange: #E08234;
-  --subject-yellow: #CDA224;
-  --subject-emerald:#16A06E;
-  --subject-cyan:   #2C9FAF;
-  --subject-blue:   #3E7BC9;
-  --subject-teal:   #1F9C8C;
-  --subject-sky:    #3193BC;
+  /* ---- Subject palette ---- */
+  --subject-indigo: #6366F1;
+  --subject-violet: #8B5CF6;
+  --subject-pink:   #EC4899;
+  --subject-rose:   #F43F5E;
+  --subject-orange: #F97316;
+  --subject-yellow: #EAB308;
+  --subject-emerald:#10B981;
+  --subject-cyan:   #06B6D4;
+  --subject-blue:   #3B82F6;
+  --subject-teal:   #14B8A6;
+  --subject-sky:    #0EA5E9;
 
   /* ============================================================
      Semantic aliases — prefer these in components
      ============================================================ */
-  /* Surfaces */
   --surface-page:   var(--app-bg);
   --surface-card:   var(--white);
   --surface-muted:  var(--slate-50);
   --surface-sunken: var(--slate-100);
-  --surface-ink:    var(--ink-900);   /* dark feature/AI cards */
-  --surface-nav:    rgba(255, 255, 255, 0.82); /* translucent app-bar / popovers */
+  --surface-ink:    var(--ink-900);
+  --surface-nav:    rgba(255, 255, 255, 0.82);
 
-  /* Text */
   --text-strong:  var(--slate-900);
   --text-body:    var(--slate-700);
   --text-muted:   var(--slate-500);
   --text-faint:   var(--slate-400);
   --text-invert:  var(--white);
-  --text-on-ink-muted: #C4BBB0;       /* secondary text on ink cards */
+  --text-on-ink-muted: #94A3B8;
 
-  /* Borders */
   --border-subtle: var(--slate-100);
   --border-default:var(--slate-200);
   --border-strong: var(--slate-300);
 
-  /* Actions — ink pills on cream */
-  --action-primary:        var(--ink-900);
-  --action-primary-hover:  var(--ink-700);
+  --action-primary:        var(--indigo-600);
+  --action-primary-hover:  var(--indigo-700);
   --action-accent:         var(--indigo-600);
   --action-accent-hover:   var(--indigo-700);
 
-  /* Focus ring */
-  --focus-ring: var(--ink-900);
+  --focus-ring: var(--indigo-500);
 
-  /* Difficulty (Easy / Medium / Hard) */
   --diff-easy-bg:   var(--emerald-100);
   --diff-easy-fg:   var(--emerald-700);
   --diff-medium-bg: var(--sky-100);
@@ -134,13 +122,11 @@
   --diff-hard-bg:   var(--rose-100);
   --diff-hard-fg:   var(--rose-700);
 
-  /* Rating buttons (SM-2 self-grade) */
   --rate-blackout: var(--red-500);
   --rate-hard:     var(--orange-500);
   --rate-good:     var(--sky-500);
   --rate-easy:     var(--emerald-500);
 
-  /* Readiness / risk */
   --risk-low-fg:  var(--emerald-700);
   --risk-low-bg:  var(--emerald-50);
   --risk-med-fg:  var(--amber-700);
@@ -149,63 +135,61 @@
   --risk-high-bg: var(--red-50);
 }
 
-/* Dark appearance (Settings Light/Dark/System). Surfaces only — do not
-   steal the accent the way Legend gold does. Hardcoded hex in components
-   will still look light; same known hole as the Legend tier. */
+/* Dark appearance (Settings Light/Dark/System). Surfaces only. */
 :root[data-theme="dark"] {
-  --app-bg:         #141210;
-  --surface-page:   #141210;
-  --surface-card:   #1C1917;
-  --surface-muted:  #24201C;
-  --surface-sunken: #12100E;
-  --surface-nav:    rgba(20, 18, 16, 0.86);
-  --slate-50:  #1C1917;
-  --slate-100: #24201C;
-  --slate-200: #322C27;
-  --slate-300: #433C36;
-  --slate-400: #8A8076;
-  --slate-500: #A89F94;
-  --slate-600: #C4BBB0;
-  --slate-700: #DDD5CA;
-  --slate-800: #EDE6DB;
-  --slate-900: #F6F1E8;
-  --text-strong:  #F6F1E8;
-  --text-body:    #DDD5CA;
-  --text-muted:   #A89F94;
-  --text-faint:   #8A8076;
-  --border-subtle: rgba(246, 241, 232, 0.09);
-  --border-default: rgba(246, 241, 232, 0.14);
-  --border-strong:  rgba(246, 241, 232, 0.22);
-  --action-primary: #EDE6DB;
-  --action-primary-hover: #F6F1E8;
+  --app-bg:         #0F172A;
+  --surface-page:   #0F172A;
+  --surface-card:   #1E293B;
+  --surface-muted:  #1E293B;
+  --surface-sunken: #0B1220;
+  --surface-nav:    rgba(15, 23, 42, 0.86);
+  --slate-50:  #1E293B;
+  --slate-100: #334155;
+  --slate-200: #475569;
+  --slate-300: #64748B;
+  --slate-400: #94A3B8;
+  --slate-500: #CBD5E1;
+  --slate-600: #E2E8F0;
+  --slate-700: #F1F5F9;
+  --slate-800: #F8FAFC;
+  --slate-900: #F8FAFC;
+  --text-strong:  #F8FAFC;
+  --text-body:    #E2E8F0;
+  --text-muted:   #94A3B8;
+  --text-faint:   #64748B;
+  --border-subtle: rgba(248, 250, 252, 0.08);
+  --border-default: rgba(248, 250, 252, 0.14);
+  --border-strong:  rgba(248, 250, 252, 0.22);
+  --action-primary: #A5B4FC;
+  --action-primary-hover: #C7D2FE;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --app-bg:         #141210;
-    --surface-page:   #141210;
-    --surface-card:   #1C1917;
-    --surface-muted:  #24201C;
-    --surface-sunken: #12100E;
-    --surface-nav:    rgba(20, 18, 16, 0.86);
-    --slate-50:  #1C1917;
-    --slate-100: #24201C;
-    --slate-200: #322C27;
-    --slate-300: #433C36;
-    --slate-400: #8A8076;
-    --slate-500: #A89F94;
-    --slate-600: #C4BBB0;
-    --slate-700: #DDD5CA;
-    --slate-800: #EDE6DB;
-    --slate-900: #F6F1E8;
-    --text-strong:  #F6F1E8;
-    --text-body:    #DDD5CA;
-    --text-muted:   #A89F94;
-    --text-faint:   #8A8076;
-    --border-subtle: rgba(246, 241, 232, 0.09);
-    --border-default: rgba(246, 241, 232, 0.14);
-    --border-strong:  rgba(246, 241, 232, 0.22);
-    --action-primary: #EDE6DB;
-    --action-primary-hover: #F6F1E8;
+    --app-bg:         #0F172A;
+    --surface-page:   #0F172A;
+    --surface-card:   #1E293B;
+    --surface-muted:  #1E293B;
+    --surface-sunken: #0B1220;
+    --surface-nav:    rgba(15, 23, 42, 0.86);
+    --slate-50:  #1E293B;
+    --slate-100: #334155;
+    --slate-200: #475569;
+    --slate-300: #64748B;
+    --slate-400: #94A3B8;
+    --slate-500: #CBD5E1;
+    --slate-600: #E2E8F0;
+    --slate-700: #F1F5F9;
+    --slate-800: #F8FAFC;
+    --slate-900: #F8FAFC;
+    --text-strong:  #F8FAFC;
+    --text-body:    #E2E8F0;
+    --text-muted:   #94A3B8;
+    --text-faint:   #64748B;
+    --border-subtle: rgba(248, 250, 252, 0.08);
+    --border-default: rgba(248, 250, 252, 0.14);
+    --border-strong:  rgba(248, 250, 252, 0.22);
+    --action-primary: #A5B4FC;
+    --action-primary-hover: #C7D2FE;
   }
 }

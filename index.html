@@ -16,7 +16,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>EXAM COACH — AI Exam Coach</title>
 <meta name="description" content="Personal AI tutor for NMT, IELTS, GCSE, SAT. Forecast your score. Stop guessing." />
-<meta name="theme-color" content="#F6F1E8" />
+<meta name="theme-color" content="#F9FAFB" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <meta property="og:title" content="EXAM COACH" />
 <meta property="og:description" content="Forecast your score. Stop guessing." />
@@ -37,18 +37,7 @@
   @keyframes xppop { 0% { opacity: 0; transform: translateY(6px) scale(0.9); } 25% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 0; transform: translateY(-16px) scale(1); } }
   @media (prefers-reduced-motion: reduce) { @keyframes xppop { 0% { opacity: 1; } 100% { opacity: 0; } } }
   html, body { margin: 0; min-height: 100%; background: var(--surface-page); }
-  /* Cream wash — no mint, no sky. Page colour does the rest. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background:
-      radial-gradient(60rem 28rem at 18% -8%, rgba(232, 214, 180, 0.40), transparent 60%),
-      radial-gradient(70rem 32rem at 85% -12%, rgba(244, 232, 210, 0.28), transparent 62%);
-  }
-  #root { position: relative; z-index: 1; min-height: 100vh; }
+  #root { min-height: 100vh; }
 
   /* AppNav responsive collapse — the link row (9 items + lang picker + logout)
      only fits desktop widths; below 680px it overflows/wraps illegibly, so it
