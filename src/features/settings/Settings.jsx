@@ -1,6 +1,6 @@
-// Settings — grouped cards (Phase 4.6). One tab, ten blocks, sheets not
-// extra routes. Field/Section used to remount inputs; Card/Row stay at
-// module scope for the same reason.
+// Settings hub — tile grid (OneSignal-style). Detail lives in sheets so
+// the tab stays one route. Helpers stay at module scope: Field/Section
+// used to remount inputs; Card/Row would too.
 
 import { isProUser } from "../learn/premium";
 import { startProCheckout, startBillingPortal } from "../../lib/billing";
@@ -11,13 +11,30 @@ import { Legal } from "../../app/legal/Legal";
 
 function L(lang, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[lang] || en; }
 
-function Card({ icon, title, children, danger, pulse, style }) {
+function HubIcon({ children }) {
   return (
-    <section className={`settings-card${danger ? " settings-danger" : ""}${pulse ? " settings-sub-free" : ""}`} style={style}>
-      <div className="settings-card-head"><span aria-hidden="true">{icon}</span>{title}</div>
-      {children}
-    </section>
+    <span className="settings-hub-icon" aria-hidden="true">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
+    </span>
   );
+}
+
+function HubCard({ title, sub, status, cta, danger, pulse, icon, onClick }) {
+  return (
+    <button type="button" className={`settings-hub-card${pulse ? " settings-sub-free" : ""}`} data-danger={danger ? "1" : undefined} onClick={onClick}>
+      <div className="settings-hub-copy">
+        <h2>{title}</h2>
+        <p>{sub}</p>
+        {status ? <span className="settings-hub-status">{status}</span> : null}
+        {cta ? <span className="settings-hub-cta">{cta}</span> : null}
+      </div>
+      {icon}
+    </button>
+  );
+}
+
+function Card({ children, danger }) {
+  return <section className={`settings-card${danger ? " settings-danger" : ""}`}>{children}</section>;
 }
 
 function Row({ label, sub, value, chevron, onClick, children }) {
@@ -235,237 +252,109 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const tierWash = `linear-gradient(180deg, color-mix(in srgb, var(--tier-accent) 8%, transparent), transparent 72px)`;
 
   return (
-    <div className="settings-stack" style={{ backgroundImage: tierOff ? "none" : tierWash, margin: "-8px -4px 0", padding: "8px 4px 0" }}>
-      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.settings_title}</h1>
+    <div className="settings-hub" style={{ backgroundImage: tierOff ? "none" : tierWash, margin: "-8px -4px 0", padding: "8px 4px 0" }}>
+      <h1>{t.settings_title}</h1>
 
-      <Card icon="👤" title={L(lang, "Profile", "Профіль", "Профиль", "Profil", "Profil")}>
-        <div className="settings-row" style={{ alignItems: "center" }}>
-          <XpAvatar src={avatar} name={fullName} into={xp.into} need={xp.need} />
-          <span className="settings-row-label">
-            <strong>{fullName || L(lang, "Your name", "Твоє ім'я", "Твоё имя", "Ton nom", "Dein Name")}</strong>
-            <em>{email || "—"} · {L(lang, "Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level} {tier.emoji}</em>
-          </span>
+      <section className="settings-hub-section">
+        <p className="settings-hub-kicker">{L(lang, "Account", "Акаунт", "Аккаунт", "Compte", "Konto")}</p>
+        <div className="settings-hub-grid">
+          <HubCard
+            title={L(lang, "Profile", "Профіль", "Профиль", "Profil", "Profil")}
+            sub={L(lang, "Name, photo, email", "Ім'я, фото, email", "Имя, фото, email", "Nom, photo, e-mail", "Name, Foto, E-Mail")}
+            onClick={() => setSheet("profile")}
+            icon={<HubIcon><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")}
+            sub={pro
+              ? L(lang, "Second half of each Learn tree unlocked.", "Друга половина дерева Learn відкрита.", "Вторая половина дерева Learn открыта.", "Seconde moitié de Learn déverrouillée.", "Zweite Hälfte des Learn-Baums offen.")
+              : L(lang, "3-day trial, then $4/month.", "3 дні тріалу, далі $4/міс.", "3 дня триала, дальше $4/мес.", "3 jours d’essai, puis $4/mois.", "3 Tage Trial, dann $4/Monat.")}
+            status={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : null}
+            cta={pro ? null : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
+            pulse={!pro}
+            onClick={() => setSheet("billing")}
+            icon={<HubIcon><rect x="2" y="5" width="20" height="14" rx="2" /><line x1="2" y1="10" x2="22" y2="10" /></HubIcon>}
+          />
         </div>
-        <Row label={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} chevron onClick={() => setSheet("profile")} />
-      </Card>
+      </section>
 
-      <Card icon="📚" title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")}>
-        {exams.length === 0
-          ? <Row label={L(lang, "No exams yet", "Ще немає іспитів", "Ещё нет экзаменов", "Pas encore d’examens", "Noch keine Prüfungen")} sub={L(lang, "Add one from the Exams tab.", "Додай на вкладці Іспити.", "Добавь на вкладке Экзамены.", "Ajoute-en dans Examens.", "Füge eine unter Prüfungen hinzu.")} chevron onClick={() => onGoToExams && onGoToExams()} />
-          : exams.slice(0, 4).map((e) => (
-            <Row key={e.id} label={e.name} sub={`${e.examDate} · ${L(lang, "target", "ціль", "цель", "objectif", "Ziel")} ${e.targetGrade || "—"}`} chevron onClick={() => onGoToExams && onGoToExams()} />
-          ))}
-        <Row label={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} value={`${hoursPerDay}h`} chevron onClick={() => setSheet("hours")} />
-        <Row label={L(lang, "Current tier", "Поточний рівень", "Текущий тир", "Palier actuel", "Aktuelle Stufe")} value={`${tier.emoji} ${window.tierTitle ? window.tierTitle(tier, lang) : tier.id}`} />
-      </Card>
-
-      <Card icon="🎨" title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")}>
-        <div className="settings-row">
-          <span className="settings-row-label"><strong>{L(lang, "Theme", "Тема", "Тема", "Thème", "Thema")}</strong></span>
-          <span className="settings-row-value" style={{ gap: 6 }}>
-            {["system", "light", "dark"].map((id) => (
-              <button key={id} type="button" onClick={() => { setTheme(id); persist({ theme: id }); }}
-                style={{ padding: "6px 10px", borderRadius: 99, border: theme === id ? "1px solid var(--indigo-500)" : "1px solid var(--border-default)", background: theme === id ? "var(--indigo-50)" : "transparent", color: theme === id ? "var(--indigo-700)" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-                {id === "system" ? L(lang, "System", "Система", "Система", "Système", "System") : id === "light" ? L(lang, "Light", "Світла", "Светлая", "Clair", "Hell") : L(lang, "Dark", "Темна", "Тёмная", "Sombre", "Dunkel")}
-              </button>
-            ))}
-          </span>
+      <section className="settings-hub-section">
+        <p className="settings-hub-kicker">{L(lang, "App", "Застосунок", "Приложение", "App", "App")}</p>
+        <div className="settings-hub-grid">
+          <HubCard
+            title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")}
+            sub={exams.length
+              ? L(lang, `${exams.length} exam${exams.length === 1 ? "" : "s"} · ${hoursPerDay}h / day`, `${exams.length} іспит(и) · ${hoursPerDay} год/день`, `${exams.length} экзамен(а) · ${hoursPerDay} ч/день`, `${exams.length} examen(s) · ${hoursPerDay} h/j`, `${exams.length} Prüfung(en) · ${hoursPerDay} Std/Tag`)
+              : L(lang, "Exams, hours, current tier", "Іспити, години, рівень", "Экзамены, часы, уровень", "Examens, heures, palier", "Prüfungen, Stunden, Stufe")}
+            onClick={() => setSheet("study")}
+            icon={<HubIcon><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")}
+            sub={L(lang, "Theme, language, accent, region", "Тема, мова, акцент, регіон", "Тема, язык, акцент, регион", "Thème, langue, accent, région", "Thema, Sprache, Akzent, Region")}
+            onClick={() => setSheet("appearance")}
+            icon={<HubIcon><circle cx="13.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="10.5" r="2.5" /><circle cx="8.5" cy="7.5" r="2.5" /><circle cx="6.5" cy="12.5" r="2.5" /><path d="M12 22c5.5 0 10-4.5 10-10 0-1.7-.4-3.3-1.1-4.7" /><path d="M2.1 10.2A10 10 0 0 0 12 22" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Sound & haptics", "Звук і тактильність", "Звук и тактильность", "Son et haptique", "Ton & Haptik")}
+            sub={soundsEnabled
+              ? L(lang, "Effects on", "Ефекти увімкнені", "Эффекты включены", "Effets activés", "Effekte an")
+              : L(lang, "Off by default", "Тиша за замовчуванням", "По умолчанию выкл.", "Désactivé par défaut", "Standard aus")}
+            onClick={() => setSheet("sound")}
+            icon={<HubIcon><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Notifications", "Сповіщення", "Уведомления", "Notifications", "Benachrichtigungen")}
+            sub={notifyMaster
+              ? L(lang, "Push, email, quiet hours", "Push, email, тихі години", "Push, email, тихие часы", "Push, e-mail, heures calmes", "Push, E-Mail, Ruhezeiten")
+              : L(lang, "All notifications off", "Усі сповіщення вимкнені", "Все уведомления выкл.", "Toutes les notifs off", "Alle Benachrichtigungen aus")}
+            status={notifyMaster ? L(lang, "Active", "Активні", "Активны", "Actif", "Aktiv") : null}
+            onClick={() => setSheet("notify")}
+            icon={<HubIcon><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></HubIcon>}
+          />
         </div>
-        <Row label={L(lang, "Show tier background", "Показувати фон рівня", "Показывать фон уровня", "Fond du palier", "Stufen-Hintergrund")}>
-          <MagToggle on={!tierOff} label="tier bg" onChange={(v) => { setTierOff(!v); persist({ tierThemeDisabled: !v }); }} />
-        </Row>
-        <div style={{ padding: "4px 16px 4px", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Accent", "Акцент", "Акцент", "Accent", "Akzent")}</div>
-        <div className="settings-swatches">
-          {ACCENT_OPTIONS.map((name) => (
-            <button key={name} type="button" className="settings-swatch" data-on={accent === name ? "1" : "0"}
-              style={{ background: ACCENT_COLORS[name] }} aria-label={name}
-              onClick={() => { setAccent(name); persist({ accent: name }); }} />
-          ))}
+      </section>
+
+      <section className="settings-hub-section">
+        <p className="settings-hub-kicker">{L(lang, "General", "Загальне", "Общее", "Général", "Allgemein")}</p>
+        <div className="settings-hub-grid">
+          <HubCard
+            title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")}
+            sub={L(lang, "Export, sync, legal", "Експорт, синк, юридичне", "Экспорт, синк, юридическое", "Export, sync, mentions", "Export, Sync, Rechtliches")}
+            onClick={() => setSheet("data")}
+            icon={<HubIcon><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")}
+            sub={L(lang, "FAQ, Telegram, bugs", "FAQ, Telegram, баги", "FAQ, Telegram, баги", "FAQ, Telegram, bugs", "FAQ, Telegram, Bugs")}
+            onClick={() => setSheet("support")}
+            icon={<HubIcon><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")}
+            sub={`exam.coach · v${PKG_VERSION}`}
+            onClick={() => setSheet("aboutMenu")}
+            icon={<HubIcon><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Danger zone", "Небезпечна зона", "Опасная зона", "Zone danger", "Gefahrenzone")}
+            sub={L(lang, "Reset, log out, delete", "Скинути, вийти, видалити", "Сбросить, выйти, удалить", "Reset, quitter, supprimer", "Reset, Abmelden, Löschen")}
+            danger
+            onClick={() => setSheet("danger")}
+            icon={<HubIcon><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></HubIcon>}
+          />
         </div>
-        <div style={{ padding: "4px 16px 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Language", "Мова", "Язык", "Langue", "Sprache")}</div>
-        <div className="settings-flags">
-          {Object.values(window.LANGS || {}).map((l) => (
-            <button key={l.code} type="button" className="settings-flag" data-on={lang === l.code ? "1" : "0"} onClick={() => onLangChange(l.code)}>
-              <span>{l.flag}</span><span>{l.label}</span>
-            </button>
-          ))}
-        </div>
-        <Row label={L(lang, "Country / region", "Країна / регіон", "Страна / регион", "Pays / région", "Land / Region")} value={country || tz.place} chevron onClick={() => setSheet("region")} />
-        <Row label={L(lang, "Dyslexia-friendly", "Зручно при дислексії", "Удобно при дислексии", "Lisibilité dyslexie", "Legasthenie-freundlich")}>
-          <MagToggle on={dyslexiaFont} label="dyslexia" onChange={(v) => { setDyslexiaFont(v); persist({ dyslexiaFont: v }); }} />
-        </Row>
-      </Card>
-
-      <Card icon="🔊" title={L(lang, "Sound & haptics", "Звук і тактильність", "Звук и тактильность", "Son et haptique", "Ton & Haptik")}>
-        <Row label={L(lang, "Sound effects", "Звукові ефекти", "Звуковые эффекты", "Effets sonores", "Soundeffekte")} sub={L(lang, "Off by default", "Тиша за замовчуванням", "По умолчанию выкл.", "Désactivé par défaut", "Standard aus")}>
-          <MagToggle on={soundsEnabled} label="sounds" onChange={(v) => {
-            setSoundsEnabled(v);
-            persist({ soundsEnabled: v });
-            if (v) window.previewSound && window.previewSound("select");
-          }} />
-        </Row>
-        {soundsEnabled && (
-          <div className="settings-row">
-            <span className="settings-row-label"><strong>{L(lang, "Volume", "Гучність", "Громкость", "Volume", "Lautstärke")}</strong></span>
-            <input type="range" min={0} max={1} step={0.05} value={soundVolume}
-              onChange={(e) => { const v = Number(e.target.value); setSoundVolume(v); persist({ soundVolume: v }); }}
-              style={{ width: 120, accentColor: "var(--indigo-600)" }} />
-          </div>
-        )}
-        <Row label={L(lang, "Haptic feedback", "Тактильний відгук", "Тактильный отклик", "Retour haptique", "Haptik")} sub={L(lang, "Vibration where the browser allows it", "Вібрація, якщо браузер вміє", "Вибрация, если браузер умеет", "Vibre si le navigateur le permet", "Vibration, wenn der Browser es kann")}>
-          <MagToggle on={hapticEnabled} label="haptic" onChange={(v) => {
-            setHapticEnabled(v);
-            persist({ hapticEnabled: v });
-            if (v && navigator.vibrate) navigator.vibrate([8, 30, 16, 30, 28]);
-          }} />
-        </Row>
-        <Row label={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} chevron onClick={() => setSheet("sounds")} />
-      </Card>
-
-      <Card icon="🔔" title={L(lang, "Notifications", "Сповіщення", "Уведомления", "Notifications", "Benachrichtigungen")}>
-        <Row label={L(lang, "All notifications", "Усі сповіщення", "Все уведомления", "Toutes les notifications", "Alle Benachrichtigungen")}>
-          <MagToggle on={notifyMaster} label="master notify" onChange={(v) => { setNotifyMaster(v); persist({ notifyMaster: v }); }} />
-        </Row>
-        {notifyMaster && (
-          <>
-            <Row label={t.settings_reminder_send} value={`${String(reminderHour).padStart(2, "0")}:00`}>
-              <MagToggle on={reminderEnabled} label="daily" onChange={setReminderEnabled} />
-            </Row>
-            {reminderEnabled && (
-              <div className="settings-row">
-                <input type="range" min={6} max={22} value={reminderHour} onChange={(e) => setReminderHour(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
-              </div>
-            )}
-            {[
-              { v: notifyExamCountdown, set: setNotifyExamCountdown, k: "notifyExamCountdown",
-                label: L(lang, "Exam approaching", "Іспит наближається", "Экзамен близко", "Examen proche", "Prüfung naht"),
-                sub: L(lang, "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1") },
-              { v: notifyWeeklyDigest, set: setNotifyWeeklyDigest, k: "notifyWeeklyDigest",
-                label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdo", "Wochenüberblick") },
-              { v: notifyStreakDanger, set: setNotifyStreakDanger, k: "notifyStreakDanger",
-                label: L(lang, "Streak in danger", "Серія в небезпеці", "Серия в опасности", "Série en danger", "Serie in Gefahr") },
-              { v: notifyMistakeReview, set: setNotifyMistakeReview, k: "notifyMistakeReview",
-                label: L(lang, "Time to review", "Час повторити", "Пора повторить", "À réviser", "Wiederholen") },
-            ].map((row) => (
-              <Row key={row.k} label={row.label} sub={row.sub}>
-                <MagToggle on={row.v} label={row.k} onChange={row.set} />
-              </Row>
-            ))}
-            <Row label={L(lang, "Quiet hours", "Тихі години", "Тихие часы", "Heures calmes", "Ruhezeiten")}
-              sub={L(lang, "Saved on the profile. The daily cron still fires at 16:00 UTC — Hobby plan has one send window.", "Пишеться в профіль. Крон як і був о 16:00 UTC — на Hobby одне вікно.", "Пишется в профиль. Крон по-прежнему 16:00 UTC.", "Enregistré. Le cron reste 16:00 UTC.", "Gespeichert. Cron bleibt 16:00 UTC.")}>
-              <MagToggle on={quietOn} label="quiet" onChange={setQuietOn} />
-            </Row>
-            {window.isPushSupported && window.isPushSupported() && pushStatus !== "granted" && pushStatus !== "denied" && (
-              <Row label={L(lang, "Enable browser push", "Увімкнути push", "Включить push", "Activer le push", "Push aktivieren")} chevron
-                onClick={async () => setPushStatus(await window.requestPushPermission())} />
-            )}
-          </>
-        )}
-      </Card>
-
-      <Card icon="💳" title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} pulse={!pro}>
-        <Row
-          label={pro ? "Pro" : "Free"}
-          sub={pro
-            ? L(lang, "Second half of each Learn tree unlocked. $4/month after trial.", "Друга половина дерева Learn відкрита. $4/міс після тріалу.", "Вторая половина дерева Learn открыта.", "Seconde moitié de Learn déverrouillée.", "Zweite Hälfte des Learn-Baums offen.")
-            : L(lang, "3-day trial, then $4/month. Card at checkout.", "3 дні тріалу, далі $4/міс. Картка на Checkout.", "3 дня триала, дальше $4/мес.", "3 jours d’essai, puis $4/mois.", "3 Tage Trial, dann $4/Monat.")}
-          value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
-        />
-        {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
-        {!pro && (
-          <div className="settings-row">
-            <button type="button" disabled={billingBusy} onClick={buy}
-              style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
-              {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
-            </button>
-          </div>
-        )}
-        <Row label={L(lang, "Manage subscription", "Керувати підпискою", "Управлять подпиской", "Gérer l’abonnement", "Abo verwalten")}
-          sub={L(lang, "Stripe portal — invoices, cancel, card", "Портал Stripe — рахунки, скасування, картка", "Портал Stripe", "Portail Stripe", "Stripe-Portal")}
-          chevron onClick={portal} />
-        <Row label={L(lang, "Promo code", "Промокод", "Промокод", "Code promo", "Promo-Code")}
-          sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
-          chevron onClick={buy} />
-      </Card>
-
-      <Card icon="🔒" title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")}>
-        <Row label={L(lang, "Export data", "Експортувати дані", "Экспортировать данные", "Exporter les données", "Daten exportieren")}
-          value={exported ? L(lang, "Downloaded", "Завантажено", "Скачано", "Téléchargé", "Heruntergeladen") : "JSON"} chevron
-          onClick={() => { exportPersonalData(); setExported(true); }} />
-        <Row label={L(lang, "Sync", "Синхронізація", "Синхронизация", "Sync", "Sync")} value={lastSyncLabel(lang)} />
-        <Row label={L(lang, "Privacy policy", "Політика конфіденційності", "Политика конфиденциальности", "Confidentialité", "Datenschutz")} chevron onClick={() => setSheet("privacy")} />
-        <Row label={L(lang, "Terms of use", "Умови використання", "Условия использования", "Conditions", "Nutzungsbedingungen")} chevron onClick={() => setSheet("terms")} />
-        <Row label={L(lang, "Who sees my data", "Хто бачить мої дані", "Кто видит мои данные", "Qui voit mes données", "Wer meine Daten sieht")}
-          sub={L(lang, "You. RLS on Supabase. AI calls go through our proxy — the key is not in the browser.", "Ти. RLS у Supabase. AI йде через наш проксі — ключа в браузері немає.", "Ты. RLS в Supabase. AI через наш прокси.", "Toi. RLS sur Supabase. L’IA passe par notre proxy.", "Du. RLS auf Supabase. KI über unseren Proxy.")} />
-      </Card>
-
-      <Card icon="💬" title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")}>
-        <Row label={L(lang, "FAQ", "Питання", "Вопросы", "FAQ", "FAQ")} chevron onClick={() => setSheet("faq")} />
-        <Row label={L(lang, "Write to support", "Написати в підтримку", "Написать в поддержку", "Écrire au support", "Support schreiben")}
-          sub="Telegram · email" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
-        <Row label={L(lang, "Report a bug", "Повідомити про баг", "Сообщить о баге", "Signaler un bug", "Fehler melden")} chevron
-          onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2/issues/new", "_blank", "noopener")} />
-        <Row label={L(lang, "Telegram community", "Telegram-спільнота", "Сообщество Telegram", "Communauté Telegram", "Telegram-Community")} chevron
-          onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
-      </Card>
-
-      <Card icon="ℹ️" title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")}>
-        <Row label="exam.coach" value={`v${PKG_VERSION}`} onClick={() => {
-          const n = egg + 1;
-          setEgg(n);
-          if (n >= 5) setSheet("egg");
-        }} />
-        <Row label={L(lang, "Our story", "Наша історія", "Наша история", "Notre histoire", "Unsere Geschichte")} chevron onClick={() => setSheet("about")} />
-        <Row label={L(lang, "Contact", "Контакт", "Контакт", "Contact", "Kontakt")} value="Hlib Pakhomov" chevron
-          onClick={() => { window.location.href = "mailto:hlibpakh@gmail.com"; }} />
-        <Row label="Telegram" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
-        <Row label="TikTok" chevron onClick={() => window.open("https://www.tiktok.com/@exam.coach", "_blank", "noopener")} />
-        <Row label="GitHub" chevron onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2", "_blank", "noopener")} />
-      </Card>
-
-      <Card icon="⚠️" title={L(lang, "Danger zone", "Небезпечна зона", "Опасная зона", "Zone danger", "Gefahrenzone")} danger>
-        <Row
-          label={confirmErase
-            ? L(lang, `You lose a ${streak}-day streak and ${xp.xp} XP. Tap again.`, `Втратиш серію ${streak} днів і ${xp.xp} XP. Ще раз.`, `Потеряешь серию ${streak} дней и ${xp.xp} XP. Ещё раз.`, `Tu perds ${streak} j de série et ${xp.xp} XP. Encore une fois.`, `Du verlierst ${streak} Tage Serie und ${xp.xp} XP. Nochmal.`)
-            : L(lang, "Reset progress", "Скинути прогрес", "Сбросить прогресс", "Réinitialiser", "Fortschritt zurücksetzen")}
-          chevron
-          onClick={() => {
-            if (!confirmErase) { setConfirmErase(true); return; }
-            try { localStorage.clear(); } catch {}
-            if (onLogout) onLogout();
-          }}
-        />
-        <Row
-          label={confirmLogout ? L(lang, "Tap again to log out", "Ще раз — вийти", "Ещё раз — выйти", "Encore pour quitter", "Nochmal zum Abmelden") : t.nav_logout}
-          chevron
-          onClick={() => {
-            if (!confirmLogout) { setConfirmLogout(true); return; }
-            if (window.clearSession) window.clearSession();
-            if (onLogout) onLogout();
-          }}
-        />
-        <Row
-          label={confirmDelete
-            ? L(lang, "Last tap deletes local data and signs out. Auth purge is not automated yet — email support within 30 days.", "Останній тап чистить локальні дані і виходить. Видалення акаунта на сервері поки руками — напиши в підтримку за 30 днів.", "Последний тап чистит локальные данные. Удаление аккаунта на сервере пока вручную.", "Dernier tap: données locales + déconnexion. Purge auth encore manuelle.", "Letzter Tap: lokale Daten weg. Server-Löschung noch per Support.")
-            : L(lang, "Delete account", "Видалити акаунт", "Удалить аккаунт", "Supprimer le compte", "Konto löschen")}
-          chevron
-          onClick={() => {
-            if (!confirmDelete) { setConfirmDelete(true); return; }
-            persist({ accountDeletedAt: new Date().toISOString() });
-            try { localStorage.clear(); } catch {}
-            if (window.clearSession) window.clearSession();
-            if (onLogout) onLogout();
-          }}
-        />
-      </Card>
-
-      <button type="button" onClick={saveCore}
-        style={{ alignSelf: "flex-start", padding: "12px 20px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-        {t.settings_save}
-      </button>
+      </section>
 
       {sheet === "profile" && (
         <Sheet title={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} onClose={() => setSheet(null)}>
+          <div className="settings-row" style={{ alignItems: "center", borderTop: "none", paddingLeft: 0, paddingRight: 0 }}>
+            <XpAvatar src={avatar} name={fullName} into={xp.into} need={xp.need} />
+            <span className="settings-row-label">
+              <strong>{fullName || L(lang, "Your name", "Твоє ім'я", "Твоё имя", "Ton nom", "Dein Name")}</strong>
+              <em>{email || "—"} · {L(lang, "Level", "Рівень", "Уровень", "Niveau", "Level")} {xp.level} {tier.emoji}</em>
+            </span>
+          </div>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => {
             const f = e.target.files && e.target.files[0];
             if (f) readAvatarFile(f, (data) => { setAvatar(data); persist({ avatarDataUrl: data }); });
@@ -492,12 +381,264 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
         </Sheet>
       )}
 
+      {sheet === "study" && (
+        <Sheet title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")} onClose={() => setSheet(null)}>
+          <Card>
+            {exams.length === 0
+              ? <Row label={L(lang, "No exams yet", "Ще немає іспитів", "Ещё нет экзаменов", "Pas encore d’examens", "Noch keine Prüfungen")} sub={L(lang, "Add one from the Exams tab.", "Додай на вкладці Іспити.", "Добавь на вкладке Экзамены.", "Ajoute-en dans Examens.", "Füge eine unter Prüfungen hinzu.")} chevron onClick={() => onGoToExams && onGoToExams()} />
+              : exams.slice(0, 4).map((e) => (
+                <Row key={e.id} label={e.name} sub={`${e.examDate} · ${L(lang, "target", "ціль", "цель", "objectif", "Ziel")} ${e.targetGrade || "—"}`} chevron onClick={() => onGoToExams && onGoToExams()} />
+              ))}
+            <Row label={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} value={`${hoursPerDay}h`} chevron onClick={() => setSheet("hours")} />
+            <Row label={L(lang, "Current tier", "Поточний рівень", "Текущий тир", "Palier actuel", "Aktuelle Stufe")} value={`${tier.emoji} ${window.tierTitle ? window.tierTitle(tier, lang) : tier.id}`} />
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "appearance" && (
+        <Sheet title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")} onClose={() => setSheet(null)}>
+          <Card>
+            <div className="settings-row">
+              <span className="settings-row-label"><strong>{L(lang, "Theme", "Тема", "Тема", "Thème", "Thema")}</strong></span>
+              <span className="settings-row-value" style={{ gap: 6 }}>
+                {["system", "light", "dark"].map((id) => (
+                  <button key={id} type="button" onClick={() => { setTheme(id); persist({ theme: id }); }}
+                    style={{ padding: "6px 10px", borderRadius: 99, border: theme === id ? "1px solid var(--indigo-500)" : "1px solid var(--border-default)", background: theme === id ? "var(--indigo-50)" : "transparent", color: theme === id ? "var(--indigo-700)" : "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+                    {id === "system" ? L(lang, "System", "Система", "Система", "Système", "System") : id === "light" ? L(lang, "Light", "Світла", "Светлая", "Clair", "Hell") : L(lang, "Dark", "Темна", "Тёмная", "Sombre", "Dunkel")}
+                  </button>
+                ))}
+              </span>
+            </div>
+            <Row label={L(lang, "Show tier background", "Показувати фон рівня", "Показывать фон уровня", "Fond du palier", "Stufen-Hintergrund")}>
+              <MagToggle on={!tierOff} label="tier bg" onChange={(v) => { setTierOff(!v); persist({ tierThemeDisabled: !v }); }} />
+            </Row>
+            <div style={{ padding: "4px 16px 4px", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Accent", "Акцент", "Акцент", "Accent", "Akzent")}</div>
+            <div className="settings-swatches">
+              {ACCENT_OPTIONS.map((name) => (
+                <button key={name} type="button" className="settings-swatch" data-on={accent === name ? "1" : "0"}
+                  style={{ background: ACCENT_COLORS[name] }} aria-label={name}
+                  onClick={() => { setAccent(name); persist({ accent: name }); }} />
+              ))}
+            </div>
+            <div style={{ padding: "4px 16px 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Language", "Мова", "Язык", "Langue", "Sprache")}</div>
+            <div className="settings-flags">
+              {Object.values(window.LANGS || {}).map((l) => (
+                <button key={l.code} type="button" className="settings-flag" data-on={lang === l.code ? "1" : "0"} onClick={() => onLangChange(l.code)}>
+                  <span>{l.flag}</span><span>{l.label}</span>
+                </button>
+              ))}
+            </div>
+            <Row label={L(lang, "Country / region", "Країна / регіон", "Страна / регион", "Pays / région", "Land / Region")} value={country || tz.place} chevron onClick={() => setSheet("region")} />
+            <Row label={L(lang, "Dyslexia-friendly", "Зручно при дислексії", "Удобно при дислексии", "Lisibilité dyslexie", "Legasthenie-freundlich")}>
+              <MagToggle on={dyslexiaFont} label="dyslexia" onChange={(v) => { setDyslexiaFont(v); persist({ dyslexiaFont: v }); }} />
+            </Row>
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "sound" && (
+        <Sheet title={L(lang, "Sound & haptics", "Звук і тактильність", "Звук и тактильность", "Son et haptique", "Ton & Haptik")} onClose={() => setSheet(null)}>
+          <Card>
+            <Row label={L(lang, "Sound effects", "Звукові ефекти", "Звуковые эффекты", "Effets sonores", "Soundeffekte")} sub={L(lang, "Off by default", "Тиша за замовчуванням", "По умолчанию выкл.", "Désactivé par défaut", "Standard aus")}>
+              <MagToggle on={soundsEnabled} label="sounds" onChange={(v) => {
+                setSoundsEnabled(v);
+                persist({ soundsEnabled: v });
+                if (v) window.previewSound && window.previewSound("select");
+              }} />
+            </Row>
+            {soundsEnabled && (
+              <div className="settings-row">
+                <span className="settings-row-label"><strong>{L(lang, "Volume", "Гучність", "Громкость", "Volume", "Lautstärke")}</strong></span>
+                <input type="range" min={0} max={1} step={0.05} value={soundVolume}
+                  onChange={(e) => { const v = Number(e.target.value); setSoundVolume(v); persist({ soundVolume: v }); }}
+                  style={{ width: 120, accentColor: "var(--indigo-600)" }} />
+              </div>
+            )}
+            <Row label={L(lang, "Haptic feedback", "Тактильний відгук", "Тактильный отклик", "Retour haptique", "Haptik")} sub={L(lang, "Vibration where the browser allows it", "Вібрація, якщо браузер вміє", "Вибрация, если браузер умеет", "Vibre si le navigateur le permet", "Vibration, wenn der Browser es kann")}>
+              <MagToggle on={hapticEnabled} label="haptic" onChange={(v) => {
+                setHapticEnabled(v);
+                persist({ hapticEnabled: v });
+                if (v && navigator.vibrate) navigator.vibrate([8, 30, 16, 30, 28]);
+              }} />
+            </Row>
+            <Row label={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} chevron onClick={() => setSheet("sounds")} />
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "notify" && (
+        <Sheet title={L(lang, "Notifications", "Сповіщення", "Уведомления", "Notifications", "Benachrichtigungen")} onClose={() => setSheet(null)}>
+          <Card>
+            <Row label={L(lang, "All notifications", "Усі сповіщення", "Все уведомления", "Toutes les notifications", "Alle Benachrichtigungen")}>
+              <MagToggle on={notifyMaster} label="master notify" onChange={(v) => { setNotifyMaster(v); persist({ notifyMaster: v }); }} />
+            </Row>
+            {notifyMaster && (
+              <>
+                <Row label={t.settings_reminder_send} value={`${String(reminderHour).padStart(2, "0")}:00`}>
+                  <MagToggle on={reminderEnabled} label="daily" onChange={(v) => { setReminderEnabled(v); persist({ reminderEnabled: v }); }} />
+                </Row>
+                {reminderEnabled && (
+                  <div className="settings-row">
+                    <input type="range" min={6} max={22} value={reminderHour} onChange={(e) => {
+                      const h = Number(e.target.value);
+                      setReminderHour(h);
+                      persist({ reminderHour: h });
+                    }} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+                  </div>
+                )}
+                {[
+                  { v: notifyExamCountdown, set: setNotifyExamCountdown, k: "notifyExamCountdown",
+                    label: L(lang, "Exam approaching", "Іспит наближається", "Экзамен близко", "Examen proche", "Prüfung naht"),
+                    sub: L(lang, "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1") },
+                  { v: notifyWeeklyDigest, set: setNotifyWeeklyDigest, k: "notifyWeeklyDigest",
+                    label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdo", "Wochenüberblick") },
+                  { v: notifyStreakDanger, set: setNotifyStreakDanger, k: "notifyStreakDanger",
+                    label: L(lang, "Streak in danger", "Серія в небезпеці", "Серия в опасности", "Série en danger", "Serie in Gefahr") },
+                  { v: notifyMistakeReview, set: setNotifyMistakeReview, k: "notifyMistakeReview",
+                    label: L(lang, "Time to review", "Час повторити", "Пора повторить", "À réviser", "Wiederholen") },
+                ].map((row) => (
+                  <Row key={row.k} label={row.label} sub={row.sub}>
+                    <MagToggle on={row.v} label={row.k} onChange={(v) => { row.set(v); persist({ [row.k]: v }); }} />
+                  </Row>
+                ))}
+                <Row label={L(lang, "Quiet hours", "Тихі години", "Тихие часы", "Heures calmes", "Ruhezeiten")}
+                  sub={L(lang, "Saved on the profile. The daily cron still fires at 16:00 UTC — Hobby plan has one send window.", "Пишеться в профіль. Крон як і був о 16:00 UTC — на Hobby одне вікно.", "Пишется в профиль. Крон по-прежнему 16:00 UTC.", "Enregistré. Le cron reste 16:00 UTC.", "Gespeichert. Cron bleibt 16:00 UTC.")}>
+                  <MagToggle on={quietOn} label="quiet" onChange={(v) => {
+                    setQuietOn(v);
+                    persist({ quietHoursStart: v ? quietStart : null, quietHoursEnd: v ? quietEnd : null });
+                  }} />
+                </Row>
+                {window.isPushSupported && window.isPushSupported() && pushStatus !== "granted" && pushStatus !== "denied" && (
+                  <Row label={L(lang, "Enable browser push", "Увімкнути push", "Включить push", "Activer le push", "Push aktivieren")} chevron
+                    onClick={async () => setPushStatus(await window.requestPushPermission())} />
+                )}
+              </>
+            )}
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "billing" && (
+        <Sheet title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} onClose={() => setSheet(null)}>
+          <Card>
+            <Row
+              label={pro ? "Pro" : "Free"}
+              sub={pro
+                ? L(lang, "Second half of each Learn tree unlocked. $4/month after trial.", "Друга половина дерева Learn відкрита. $4/міс після тріалу.", "Вторая половина дерева Learn открыта.", "Seconde moitié de Learn déverrouillée.", "Zweite Hälfte des Learn-Baums offen.")
+                : L(lang, "3-day trial, then $4/month. Card at checkout.", "3 дні тріалу, далі $4/міс. Картка на Checkout.", "3 дня триала, дальше $4/мес.", "3 jours d’essai, puis $4/mois.", "3 Tage Trial, dann $4/Monat.")}
+              value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
+            />
+            {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
+            {!pro && (
+              <div className="settings-row">
+                <button type="button" disabled={billingBusy} onClick={buy}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
+                  {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
+                </button>
+              </div>
+            )}
+            <Row label={L(lang, "Manage subscription", "Керувати підпискою", "Управлять подпиской", "Gérer l’abonnement", "Abo verwalten")}
+              sub={L(lang, "Stripe portal — invoices, cancel, card", "Портал Stripe — рахунки, скасування, картка", "Портал Stripe", "Portail Stripe", "Stripe-Portal")}
+              chevron onClick={portal} />
+            <Row label={L(lang, "Promo code", "Промокод", "Промокод", "Code promo", "Promo-Code")}
+              sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
+              chevron onClick={buy} />
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "data" && (
+        <Sheet title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")} onClose={() => setSheet(null)}>
+          <Card>
+            <Row label={L(lang, "Export data", "Експортувати дані", "Экспортировать данные", "Exporter les données", "Daten exportieren")}
+              value={exported ? L(lang, "Downloaded", "Завантажено", "Скачано", "Téléchargé", "Heruntergeladen") : "JSON"} chevron
+              onClick={() => { exportPersonalData(); setExported(true); }} />
+            <Row label={L(lang, "Sync", "Синхронізація", "Синхронизация", "Sync", "Sync")} value={lastSyncLabel(lang)} />
+            <Row label={L(lang, "Privacy policy", "Політика конфіденційності", "Политика конфиденциальности", "Confidentialité", "Datenschutz")} chevron onClick={() => setSheet("privacy")} />
+            <Row label={L(lang, "Terms of use", "Умови використання", "Условия использования", "Conditions", "Nutzungsbedingungen")} chevron onClick={() => setSheet("terms")} />
+            <Row label={L(lang, "Who sees my data", "Хто бачить мої дані", "Кто видит мои данные", "Qui voit mes données", "Wer meine Daten sieht")}
+              sub={L(lang, "You. RLS on Supabase. AI calls go through our proxy — the key is not in the browser.", "Ти. RLS у Supabase. AI йде через наш проксі — ключа в браузері немає.", "Ты. RLS в Supabase. AI через наш прокси.", "Toi. RLS sur Supabase. L’IA passe par notre proxy.", "Du. RLS auf Supabase. KI über unseren Proxy.")} />
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "support" && (
+        <Sheet title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")} onClose={() => setSheet(null)}>
+          <Card>
+            <Row label={L(lang, "FAQ", "Питання", "Вопросы", "FAQ", "FAQ")} chevron onClick={() => setSheet("faq")} />
+            <Row label={L(lang, "Write to support", "Написати в підтримку", "Написать в поддержку", "Écrire au support", "Support schreiben")}
+              sub="Telegram · email" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+            <Row label={L(lang, "Report a bug", "Повідомити про баг", "Сообщить о баге", "Signaler un bug", "Fehler melden")} chevron
+              onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2/issues/new", "_blank", "noopener")} />
+            <Row label={L(lang, "Telegram community", "Telegram-спільнота", "Сообщество Telegram", "Communauté Telegram", "Telegram-Community")} chevron
+              onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "aboutMenu" && (
+        <Sheet title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")} onClose={() => setSheet(null)}>
+          <Card>
+            <Row label="exam.coach" value={`v${PKG_VERSION}`} onClick={() => {
+              const n = egg + 1;
+              setEgg(n);
+              if (n >= 5) setSheet("egg");
+            }} />
+            <Row label={L(lang, "Our story", "Наша історія", "Наша история", "Notre histoire", "Unsere Geschichte")} chevron onClick={() => setSheet("about")} />
+            <Row label={L(lang, "Contact", "Контакт", "Контакт", "Contact", "Kontakt")} value="Hlib Pakhomov" chevron
+              onClick={() => { window.location.href = "mailto:hlibpakh@gmail.com"; }} />
+            <Row label="Telegram" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+            <Row label="TikTok" chevron onClick={() => window.open("https://www.tiktok.com/@exam.coach", "_blank", "noopener")} />
+            <Row label="GitHub" chevron onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2", "_blank", "noopener")} />
+          </Card>
+        </Sheet>
+      )}
+
+      {sheet === "danger" && (
+        <Sheet title={L(lang, "Danger zone", "Небезпечна зона", "Опасная зона", "Zone danger", "Gefahrenzone")} onClose={() => setSheet(null)}>
+          <Card danger>
+            <Row
+              label={confirmErase
+                ? L(lang, `You lose a ${streak}-day streak and ${xp.xp} XP. Tap again.`, `Втратиш серію ${streak} днів і ${xp.xp} XP. Ще раз.`, `Потеряешь серию ${streak} дней и ${xp.xp} XP. Ещё раз.`, `Tu perds ${streak} j de série et ${xp.xp} XP. Encore une fois.`, `Du verlierst ${streak} Tage Serie und ${xp.xp} XP. Nochmal.`)
+                : L(lang, "Reset progress", "Скинути прогрес", "Сбросить прогресс", "Réinitialiser", "Fortschritt zurücksetzen")}
+              chevron
+              onClick={() => {
+                if (!confirmErase) { setConfirmErase(true); return; }
+                try { localStorage.clear(); } catch {}
+                if (onLogout) onLogout();
+              }}
+            />
+            <Row
+              label={confirmLogout ? L(lang, "Tap again to log out", "Ще раз — вийти", "Ещё раз — выйти", "Encore pour quitter", "Nochmal zum Abmelden") : t.nav_logout}
+              chevron
+              onClick={() => {
+                if (!confirmLogout) { setConfirmLogout(true); return; }
+                if (window.clearSession) window.clearSession();
+                if (onLogout) onLogout();
+              }}
+            />
+            <Row
+              label={confirmDelete
+                ? L(lang, "Last tap deletes local data and signs out. Auth purge is not automated yet — email support within 30 days.", "Останній тап чистить локальні дані і виходить. Видалення акаунта на сервері поки руками — напиши в підтримку за 30 днів.", "Последний тап чистит локальные данные. Удаление аккаунта на сервере пока вручную.", "Dernier tap: données locales + déconnexion. Purge auth encore manuelle.", "Letzter Tap: lokale Daten weg. Server-Löschung noch per Support.")
+                : L(lang, "Delete account", "Видалити акаунт", "Удалить аккаунт", "Supprimer le compte", "Konto löschen")}
+              chevron
+              onClick={() => {
+                if (!confirmDelete) { setConfirmDelete(true); return; }
+                persist({ accountDeletedAt: new Date().toISOString() });
+                try { localStorage.clear(); } catch {}
+                if (window.clearSession) window.clearSession();
+                if (onLogout) onLogout();
+              }}
+            />
+          </Card>
+        </Sheet>
+      )}
       {sheet === "hours" && (
-        <Sheet title={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} onClose={() => setSheet(null)}>
+        <Sheet title={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} onClose={() => setSheet("study")}>
           <input type="range" min={1} max={8} step={0.5} value={hoursPerDay}
             onChange={(e) => setHoursPerDay(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
           <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-strong)" }}>{hoursPerDay}h</p>
-          <button type="button" onClick={() => { persist({ hoursPerDay }); setSheet(null); }}
+          <button type="button" onClick={() => { persist({ hoursPerDay }); setSheet("study"); }}
             style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
             {t.settings_save}
           </button>
@@ -505,12 +646,12 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
       )}
 
       {sheet === "region" && (
-        <Sheet title={L(lang, "Country / timezone", "Країна / пояс", "Страна / пояс", "Pays / fuseau", "Land / Zone")} onClose={() => setSheet(null)}>
+        <Sheet title={L(lang, "Country / timezone", "Країна / пояс", "Страна / пояс", "Pays / fuseau", "Land / Zone")} onClose={() => setSheet("appearance")}>
           <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder={L(lang, "Ukraine", "Україна", "Украина", "Ukraine", "Ukraine")} style={{ ...inputStyle, marginBottom: 12 }} />
           <select value={tz.id} onChange={(e) => setTz(ZONES.find((z) => z.id === e.target.value) || tz)} style={{ ...inputStyle, appearance: "none" }}>
             {ZONES.map((z) => <option key={z.id} value={z.id}>{z.label} — {z.place}</option>)}
           </select>
-          <button type="button" onClick={() => { persist({ country, timezone: tz.id }); setSheet(null); }}
+          <button type="button" onClick={() => { persist({ country, timezone: tz.id }); setSheet("appearance"); }}
             style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
             {t.settings_save}
           </button>
@@ -518,7 +659,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
       )}
 
       {sheet === "sounds" && (
-        <Sheet title={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} onClose={() => setSheet(null)}>
+        <Sheet title={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} onClose={() => setSheet("sound")}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {(window.SOUND_NAMES || []).map((name) => (
               <button key={name} type="button" onClick={() => window.previewSound && window.previewSound(name)}
@@ -531,13 +672,13 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
       )}
 
       {(sheet === "privacy" || sheet === "terms") && (
-        <Sheet title={t[`legal_${sheet}_title`] || sheet} onClose={() => setSheet(null)}>
-          <Legal page={sheet} t={t} onBack={() => setSheet(null)} />
+        <Sheet title={t[`legal_${sheet}_title`] || sheet} onClose={() => setSheet("data")}>
+          <Legal page={sheet} t={t} onBack={() => setSheet("data")} />
         </Sheet>
       )}
 
       {sheet === "faq" && (
-        <Sheet title={t.land_faq_title || "FAQ"} onClose={() => setSheet(null)}>
+        <Sheet title={t.land_faq_title || "FAQ"} onClose={() => setSheet("support")}>
           {[1, 2, 3, 4, 5, 6, 7].map((n) => (
             <details key={n} style={{ marginBottom: 8 }}>
               <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--text-strong)" }}>{t[`land_faq_${n}_q`]}</summary>
@@ -548,14 +689,14 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
       )}
 
       {sheet === "about" && (
-        <Sheet title={t.land_about_title || "About"} onClose={() => setSheet(null)}>
+        <Sheet title={t.land_about_title || "About"} onClose={() => setSheet("aboutMenu")}>
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p1}</p>
           <p style={{ margin: "12px 0 0", fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p2}</p>
         </Sheet>
       )}
 
       {sheet === "egg" && (
-        <Sheet title="Shipping stats" onClose={() => { setSheet(null); setEgg(0); }}>
+        <Sheet title="Shipping stats" onClose={() => { setSheet("aboutMenu"); setEgg(0); }}>
           <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>
             {L(lang, "Built by Hlib in Ukraine. Coffee: ∞. Beta testers: you.", "Зробив Гліб в Україні. Кави: ∞. Бета: ти.", "Сделал Глеб в Украине. Кофе: ∞.", "Fait par Hlib en Ukraine. Café : ∞.", "Gebaut von Hlib in der Ukraine. Kaffee: ∞.")}
           </p>
