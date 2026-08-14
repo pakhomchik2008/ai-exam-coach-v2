@@ -1,3 +1,6 @@
+import { isProUser } from "../learn/premium";
+import { startProCheckout } from "../../lib/billing";
+
 // AI Exam Coach — Settings screen (i18n-aware)
 //
 // `Field`/`Section` are deliberately at module scope, not nested inside
@@ -62,6 +65,9 @@ function Settings({ t, lang, onLangChange, onLogout }) {
   // "unsupported" | "default" | "granted" | "denied" — real browser
   // permission state, not a profile boolean (see src/lib/push.ts).
   const [pushStatus, setPushStatus] = React.useState("unsupported");
+  const [billingBusy, setBillingBusy] = React.useState(false);
+  const [billingError, setBillingError] = React.useState("");
+  const pro = isProUser();
 
   React.useEffect(() => {
     if (!window.isPushSupported || !window.isPushSupported()) return;
@@ -152,6 +158,35 @@ function Settings({ t, lang, onLangChange, onLogout }) {
             </div>
             <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{t.settings_password_note}</p>
           </Field>
+        </Section>
+
+        <Section title="Pro">
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)", lineHeight: 1.5 }}>
+            {pro
+              ? L(lang, "Pro is on. The second half of each Learn tree is unlocked.", "Pro увімкнено. Друга половина кожного дерева Learn відкрита.", "Pro включён. Вторая половина каждого дерева Learn открыта.", "Pro est actif. La seconde moitié de chaque arbre Learn est déverrouillée.", "Pro ist an. Die zweite Hälfte jedes Learn-Baums ist offen.")
+              : L(lang, "3-day trial, then $4/month. Card at checkout. Unlocks the rest of each Learn tree.", "3 дні тріалу, далі $4/міс. Картка на Checkout. Відкриває решту кожного дерева Learn.", "3 дня триала, дальше $4/мес. Карта на Checkout. Открывает остаток каждого дерева Learn.", "3 jours d’essai, puis $4/mois. Carte au checkout.", "3 Tage Trial, dann $4/Monat. Karte beim Checkout.")}
+          </p>
+          {billingError && <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--red-600)" }}>{billingError}</p>}
+          {!pro && (
+            <Button
+              variant="accent"
+              size="md"
+              disabled={billingBusy}
+              onClick={async () => {
+                setBillingBusy(true);
+                setBillingError("");
+                const result = await startProCheckout();
+                if (result.error) {
+                  setBillingError(result.error);
+                  setBillingBusy(false);
+                }
+              }}
+            >
+              {billingBusy
+                ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
+                : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
+            </Button>
+          )}
         </Section>
 
         <Section title={t.settings_timezone}>
