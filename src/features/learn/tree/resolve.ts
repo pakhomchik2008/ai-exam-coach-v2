@@ -6,7 +6,7 @@
 // rather than silently falling through to math.
 
 import { getTree } from "./index";
-import type { LearnTree } from "./schema";
+import type { LearnNode, LearnTree, LearnUnit } from "./schema";
 
 export type ExamLike = {
   name?: string;
@@ -124,7 +124,7 @@ const MATURA_SLUGS: SlugRow[] = [
   { slug: "matura-eng", re: /angielsk|english|англійськ|английск/i },
   { slug: "matura-wos", re: /\bwos\b|civics|społeczeń|wiedza o/i },
   { slug: "matura-cs", re: /informatyk|computer\s*science|\bcs\b/i },
-  { slug: "matura-lang", re: /niemieck|rosyjsk|französ|spanish|włosk|italian|foreign|іноземн/i },
+  { slug: "matura-lang", re: /niemieck|rosyjsk|francusk|hiszpańsk|französ|spanish|włosk|italian|foreign|іноземн/i },
   { slug: "matura-bio", re: /biolog|біолог|биолог|\bbio\b/i },
   { slug: "matura-chem", re: /chemi|хім|хим|chem/i },
   { slug: "matura-phys", re: /fizyk|фізик|физик|physics/i },
@@ -302,4 +302,25 @@ export function treeKeyForExam(exam: ExamLike | null | undefined): string | null
 export function treeForExam(exam: ExamLike | null | undefined): LearnTree | null {
   const key = treeKeyForExam(exam);
   return key ? getTree(key) : null;
+}
+
+/** Match a dashboard topic name onto a lesson node. Exact title wins. */
+export function findLessonByTitle(
+  tree: LearnTree | null | undefined,
+  topicName: string | null | undefined,
+): { unit: LearnUnit; node: LearnNode } | null {
+  const needle = (topicName || "").trim().toLowerCase();
+  if (!tree || !needle) return null;
+  let fuzzy: { unit: LearnUnit; node: LearnNode } | null = null;
+  for (const unit of tree.units) {
+    for (const node of unit.nodes) {
+      if (node.kind === "boss") continue;
+      const titles = [node.title.en, node.title.uk, node.title.ru, node.title.fr, node.title.de, node.title.pl, node.title.es]
+        .filter((s): s is string => Boolean(s))
+        .map((s) => s.toLowerCase());
+      if (titles.includes(needle)) return { unit, node };
+      if (!fuzzy && titles.some((t) => t.includes(needle) || needle.includes(t))) fuzzy = { unit, node };
+    }
+  }
+  return fuzzy;
 }

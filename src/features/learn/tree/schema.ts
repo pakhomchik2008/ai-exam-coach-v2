@@ -20,6 +20,7 @@ export interface I18nString {
   readonly fr?: string;
   readonly de?: string;
   readonly es?: string;
+  readonly pl?: string;
 }
 
 export interface LearnNode {
@@ -93,6 +94,7 @@ function bossTitle(unit: LearnUnit): I18nString {
     ...(t.ru ? { ru: `${t.ru} — Босс` } : {}),
     ...(t.fr ? { fr: `${t.fr} — Boss` } : {}),
     ...(t.de ? { de: `${t.de} — Boss` } : {}),
+    ...(t.pl ? { pl: `${t.pl} — Boss` } : {}),
   };
 }
 

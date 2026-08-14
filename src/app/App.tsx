@@ -78,6 +78,12 @@ export function App() {
   };
 
   const [chatQuery, setChatQuery] = React.useState<string | null>(null);
+  const [learnLaunch, setLearnLaunch] = React.useState<{
+    examId?: string;
+    examName?: string;
+    topicName?: string;
+    kind?: string;
+  } | null>(null);
   const [planExamIds, setPlanExamIds] = React.useState<string[] | null>(null);
   const [billingNote, setBillingNote] = React.useState<"success" | "cancel" | null>(() => consumeBillingQuery());
 
@@ -226,6 +232,8 @@ export function App() {
     setRoute,
     goToChat,
     goPlanning,
+    learnLaunch,
+    setLearnLaunch,
   });
 
   return (
@@ -312,6 +320,8 @@ interface TabArgs {
   setRoute: (r: Route) => void;
   goToChat: (query?: string) => void;
   goPlanning: (newExams?: ExamLike[] | null) => void;
+  learnLaunch: { examId?: string; examName?: string; topicName?: string; kind?: string } | null;
+  setLearnLaunch: (v: TabArgs["learnLaunch"]) => void;
 }
 
 function renderTab({
@@ -325,6 +335,8 @@ function renderTab({
   setRoute,
   goToChat,
   goPlanning,
+  learnLaunch,
+  setLearnLaunch,
 }: TabArgs) {
   switch (tab) {
     case "chat": {
@@ -335,7 +347,7 @@ function renderTab({
       // StudyHub stays available on
       // /studyhub for one release as a rollback path if LearnMain
       // regresses something in production.
-      return <LearnMain t={t} />;
+      return <LearnMain t={t} launch={learnLaunch} onLaunchConsumed={() => setLearnLaunch(null)} />;
     }
     case "studyhub": {
       return <StudyHub t={t} />;
@@ -379,6 +391,10 @@ function renderTab({
           onGoToChat={goToChat}
           onGoToExams={() => setTab("exams")}
           onGoToSchedule={() => setTab("schedule")}
+          onGoToLearn={(launch: { examId?: string; examName?: string; topicName?: string; kind?: string }) => {
+            setLearnLaunch(launch);
+            setTab("study");
+          }}
           t={t}
         />
       );

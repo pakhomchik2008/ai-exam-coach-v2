@@ -23,6 +23,9 @@ describe("paperLanguageFor", () => {
     expect(paperLanguageFor("alevel")).toBe("en");
     expect(paperLanguageFor("sat")).toBe("en");
     expect(paperLanguageFor("matura")).toBe("pl");
+    expect(paperLanguageFor("matura-math")).toBe("pl");
+    expect(paperLanguageFor("matura-eng")).toBe("en");
+    expect(paperLanguageFor("matura-de")).toBe("de");
     expect(paperLanguageFor("bac")).toBe("fr");
     expect(paperLanguageFor("bac-math")).toBe("fr");
     expect(paperLanguageFor("gre")).toBe("en");
@@ -47,6 +50,14 @@ describe("paperQualForExam", () => {
     expect(paperQualForExam({ qualificationId: "nmt", name: "НМТ Українська мова" })).toBe("nmt");
     expect(paperQualForExam({ qualificationId: "nmt", name: "NMT French" })).toBe("nmt-fr");
   });
+
+  it("keeps Matura English / German as their own paper, not generic matura", () => {
+    expect(paperQualForExam({ qualificationId: "matura", name: "Matura Język angielski" })).toBe("matura-eng");
+    expect(paperQualForExam({ qualificationId: "matura", name: "Matura English" })).toBe("matura-eng");
+    expect(paperQualForExam({ qualificationId: "matura", name: "Matura Język niemiecki" })).toBe("matura-de");
+    expect(paperQualForExam({ qualificationId: "matura", name: "Matura Matematyka" })).toBe("matura");
+    expect(paperQualForExam({ qualificationId: "matura", name: "Matura Język polski" })).toBe("matura");
+  });
 });
 
 describe("copyLangFor", () => {
@@ -60,6 +71,14 @@ describe("copyLangFor", () => {
   it("reads NMT English from the exam name, not the family id", () => {
     expect(copyLangFor(paperQualForExam({ qualificationId: "nmt", name: "NMT Математика" }), "en")).toBe("uk");
     expect(copyLangFor(paperQualForExam({ qualificationId: "nmt", name: "NMT English" }), "uk")).toBe("en");
+  });
+
+  it("uses Polish for Matura, English for Język angielski", () => {
+    expect(copyLangFor("matura", "en")).toBe("pl");
+    expect(copyLangFor("matura-math", "en")).toBe("pl");
+    expect(copyLangFor("matura-eng", "uk")).toBe("en");
+    expect(copyLangFor(paperQualForExam({ qualificationId: "matura", name: "Matura Matematyka" }), "en")).toBe("pl");
+    expect(copyLangFor(paperQualForExam({ qualificationId: "matura", name: "Matura Język angielski" }), "uk")).toBe("en");
   });
 });
 
@@ -95,6 +114,14 @@ describe("coachLanguageDirective", () => {
     expect(coachLanguageDirective("nmt-eng")).toMatch(/English/);
     expect(coachLanguageDirective("nmt-eng")).toMatch(/No Ukrainian/);
     expect(coachLanguageDirective("nmt-de")).toMatch(/German/);
+  });
+
+  it("keeps Matura English in English, not Polish", () => {
+    expect(coachLanguageDirective("matura")).toMatch(/Polish/);
+    expect(coachLanguageDirective("matura-eng")).toMatch(/English/);
+    expect(coachLanguageDirective("matura-eng")).toMatch(/No Polish/);
+    expect(coachLanguageDirective("matura-eng")).not.toMatch(/Respond ENTIRELY in Polish/);
+    expect(paperLanguageDirective("matura-eng")).toMatch(/Do not translate into Polish/);
   });
 });
 

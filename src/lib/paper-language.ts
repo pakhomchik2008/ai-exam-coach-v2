@@ -3,7 +3,8 @@
  * НМТ (math, Ukrainian, history, …) stays Ukrainian even if the app UI
  * is English. NMT English / German / French / Spanish papers stay in
  * that language — qualificationId is just `nmt` for every NMT subject,
- * so we also read the exam name.
+ * so we also read the exam name. Same for Matura: family id is `matura`,
+ * Język angielski must not inherit Polish.
  */
 export type PaperLanguage = "en" | "uk" | "de" | "pl" | "fr" | "es";
 
@@ -36,18 +37,35 @@ const LANGUAGE_NAME: Readonly<Record<PaperLanguage, string>> = {
   es: "Spanish",
 };
 
-// qualificationId on an NMT sitting is always `nmt`. These slugs (Learn
-// tree taxonomy, or inferred from the subject name) pick the paper language.
-const NMT_FOREIGN: readonly { slug: string; lang: PaperLanguage; re: RegExp }[] = [
-  { slug: "nmt-eng", lang: "en", re: /англійськ|английск|english|англ/i },
-  { slug: "nmt-de", lang: "de", re: /німецьк|немецк|german|deutsch/i },
-  { slug: "nmt-fr", lang: "fr", re: /французьк|французск|french|français/i },
-  { slug: "nmt-es", lang: "es", re: /іспанськ|испанск|spanish|español/i },
+type ForeignPaper = {
+  slug: string;
+  lang: PaperLanguage;
+  re: RegExp;
+  family: "NMT" | "Matura";
+  host: PaperLanguage;
+};
+
+// qualificationId on an NMT / Matura sitting is the family. These slugs
+// (Learn tree taxonomy, or inferred from the subject name) pick the paper
+// language so a foreign-language paper does not inherit Ukrainian / Polish.
+const FOREIGN_PAPERS: readonly ForeignPaper[] = [
+  { slug: "nmt-eng", lang: "en", re: /англійськ|английск|english|англ/i, family: "NMT", host: "uk" },
+  { slug: "nmt-de", lang: "de", re: /німецьк|немецк|german|deutsch/i, family: "NMT", host: "uk" },
+  { slug: "nmt-fr", lang: "fr", re: /французьк|французск|french|français/i, family: "NMT", host: "uk" },
+  { slug: "nmt-es", lang: "es", re: /іспанськ|испанск|spanish|español/i, family: "NMT", host: "uk" },
+  { slug: "matura-eng", lang: "en", re: /angielsk|english|англійськ|английск/i, family: "Matura", host: "pl" },
+  { slug: "matura-de", lang: "de", re: /niemieck|german|deutsch|німецьк|немецк/i, family: "Matura", host: "pl" },
+  { slug: "matura-fr", lang: "fr", re: /francusk|french|français|французьк|французск/i, family: "Matura", host: "pl" },
+  { slug: "matura-es", lang: "es", re: /hiszpańsk|spanish|español|іспанськ|испанск/i, family: "Matura", host: "pl" },
 ];
 
-const NMT_FOREIGN_BY_SLUG: Readonly<Record<string, PaperLanguage>> = Object.fromEntries(
-  NMT_FOREIGN.map((row) => [row.slug, row.lang]),
+const FOREIGN_BY_SLUG: Readonly<Record<string, ForeignPaper>> = Object.fromEntries(
+  FOREIGN_PAPERS.map((row) => [row.slug, row]),
 );
+
+function foreignPapers(family: ForeignPaper["family"]): readonly ForeignPaper[] {
+  return FOREIGN_PAPERS.filter((row) => row.family === family);
+}
 
 export function canonicalQualification(qualificationId: string | null | undefined): string | null {
   if (!qualificationId) return null;
@@ -69,7 +87,7 @@ export function canonicalQualification(qualificationId: string | null | undefine
 export function paperLanguageFor(qualificationId: string | null | undefined): PaperLanguage | null {
   if (!qualificationId) return null;
   const id = qualificationId.toLowerCase();
-  if (NMT_FOREIGN_BY_SLUG[id]) return NMT_FOREIGN_BY_SLUG[id];
+  if (FOREIGN_BY_SLUG[id]) return FOREIGN_BY_SLUG[id].lang;
   const canon = canonicalQualification(id);
   if (!canon) return null;
   return PAPER_LANGUAGE[canon] || null;
@@ -84,18 +102,26 @@ export type ExamNameLike = {
 /**
  * Language key for this sitting, not the family. `nmt` + "Англійська мова"
  * → `nmt-eng` so Practice / Speed Round / chat do not inherit Ukrainian.
+ * `matura` + "Język angielski" → `matura-eng` the same way.
  */
 export function paperQualForExam(exam: ExamNameLike | null | undefined): string | null {
   if (!exam) return null;
   const qual = (exam.qualificationId || "").toLowerCase();
-  if (NMT_FOREIGN_BY_SLUG[qual]) return qual;
+  if (FOREIGN_BY_SLUG[qual]) return qual;
   const blob = `${exam.name || ""} ${exam.subject || ""}`;
   const isNmt = qual === "nmt" || qual === "zno" || qual.startsWith("nmt-") || /nmt|зно/i.test(blob);
   if (isNmt) {
-    for (const row of NMT_FOREIGN) {
+    for (const row of foreignPapers("NMT")) {
       if (row.re.test(blob)) return row.slug;
     }
     return qual || "nmt";
+  }
+  const isMatura = qual === "matura" || qual.startsWith("matura-") || /matura/i.test(blob);
+  if (isMatura) {
+    for (const row of foreignPapers("Matura")) {
+      if (row.re.test(blob)) return row.slug;
+    }
+    return qual || "matura";
   }
   return exam.qualificationId || null;
 }
@@ -110,16 +136,24 @@ export function languageNameFor(qualificationId: string | null | undefined): str
   return code ? LANGUAGE_NAME[code] : null;
 }
 
+function foreignNote(qualificationId: string | null | undefined, kind: "paper" | "coach"): string {
+  if (!qualificationId) return "";
+  const foreign = FOREIGN_BY_SLUG[qualificationId.toLowerCase()];
+  if (!foreign) return "";
+  const name = LANGUAGE_NAME[foreign.lang];
+  const host = LANGUAGE_NAME[foreign.host];
+  if (kind === "paper") {
+    return ` This is the ${foreign.family} ${name} paper (foreign language). Stems, options, passages, explanations, JSON string values, action chips — ${name} only. Do not translate into ${host}.`;
+  }
+  return ` ${foreign.family} ${name} as a subject: theory, flashcards, Socratic, chat, hints — ${name} only. No ${host}.`;
+}
+
 export function paperLanguageDirective(qualificationId: string | null | undefined): string {
   const code = paperLanguageFor(qualificationId);
   if (!code) return "";
   const exam = (canonicalQualification(qualificationId) || "exam").toUpperCase();
   const name = LANGUAGE_NAME[code];
-  const foreign = qualificationId ? NMT_FOREIGN_BY_SLUG[qualificationId.toLowerCase()] : undefined;
-  const paperNote = foreign
-    ? ` This is the NMT ${name} paper (foreign language). Stems, options, passages, explanations, JSON string values, action chips — ${name} only. Do not translate into Ukrainian.`
-    : "";
-  return `This is a real ${exam} paper. Write the ENTIRE paper — question stems, options, explanations, topic labels, passages, every JSON string value — in ${name} only. Do not mix languages (no English stem with ${name} answers, or the reverse). The student's app UI may be in another language; ignore it for this paper.${paperNote}`;
+  return `This is a real ${exam} paper. Write the ENTIRE paper — question stems, options, explanations, topic labels, passages, every JSON string value — in ${name} only. Do not mix languages (no English stem with ${name} answers, or the reverse). The student's app UI may be in another language; ignore it for this paper.${foreignNote(qualificationId, "paper")}`;
 }
 
 export function coachLanguageDirective(qualificationId: string | null | undefined): string {
@@ -127,11 +161,7 @@ export function coachLanguageDirective(qualificationId: string | null | undefine
   if (!code) return "";
   const exam = (canonicalQualification(qualificationId) || "exam").toUpperCase();
   const name = LANGUAGE_NAME[code];
-  const foreign = qualificationId ? NMT_FOREIGN_BY_SLUG[qualificationId.toLowerCase()] : undefined;
-  const extra = foreign
-    ? ` NMT ${name} as a subject: theory, flashcards, Socratic, chat, hints — ${name} only. No Ukrainian.`
-    : "";
-  return `This student is preparing for ${exam}. Respond ENTIRELY in ${name} — chat, theory, flashcards, Socratic turns, hints, explanations, action chips, every JSON string. The app UI language does not matter. Do not mix in another language.${extra}`;
+  return `This student is preparing for ${exam}. Respond ENTIRELY in ${name} — chat, theory, flashcards, Socratic turns, hints, explanations, action chips, every JSON string. The app UI language does not matter. Do not mix in another language.${foreignNote(qualificationId, "coach")}`;
 }
 
 export function inferCoachQual(opts: {
