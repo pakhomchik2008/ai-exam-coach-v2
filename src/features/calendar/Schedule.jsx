@@ -123,7 +123,10 @@ function Schedule({ t, embedded }) {
           {selSessions.length === 0
             ? <p style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{t.schedule_no_sessions}</p>
             : <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
-                {selSessions.map((s, i) => (
+                {selSessions.map((s, i) => {
+                  const canStart = s.status !== "completed" && s.type !== "personal";
+                  const Ls = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
+                  return (
                   <div key={i} style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", borderLeft: `4px solid ${s.color}`, padding: "8px 10px" }}>
                     <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.subject}</p>
                     <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-strong)" }}>{s.topic}</p>
@@ -131,8 +134,16 @@ function Schedule({ t, embedded }) {
                       {s.status === "completed" ? "✓ " + t.schedule_completed : t.schedule_pending}
                       {s.durationMin ? ` · ${s.durationMin} ${t.code === "uk" ? "хв" : t.code === "ru" ? "мин" : t.code === "de" ? "Min" : "min"}` : ""}
                     </p>
+                    {canStart && (
+                      <button type="button" onClick={() => window.startStudySession && window.startStudySession(s)} style={{
+                        marginTop: 8, width: "100%", minHeight: 36, border: "none", borderRadius: 8,
+                        background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 12,
+                        cursor: "pointer", fontFamily: "var(--font-sans)",
+                      }}>{Ls("Start session", "Почати сесію", "Начать сессию", "Commencer", "Sitzung starten")}</button>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
           }
           {(EXAM_DATES[selKey] || []).map((ex, i) => (

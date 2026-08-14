@@ -53,6 +53,7 @@ function calNextQuarterHour() {
 }
 
 function StudyCalendar({ t, onGoToExams, embedded }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [weekStart, setWeekStart] = React.useState(() => calMondayOf(new Date()));
   const exams = React.useMemo(() => window.getExams(), [refreshKey]);
@@ -193,6 +194,11 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
   function openFabCreate(type, recurring) {
     setFabOpen(false);
     setCreateSpec({ date: todayKey, startTime: calNextQuarterHour(), type, recurring });
+  }
+
+  function startCalSession(session) {
+    if (session.status === "completed" || session.type === "personal") return;
+    if (window.startStudySession) window.startStudySession(session);
   }
 
   function confirmDelete(id) {
@@ -351,6 +357,16 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
                           <div style={{ fontSize: 9, color: "var(--text-muted)" }}>{s.startTime || "17:00"} · {isPersonal ? (calCatLabel(cat, t) || t?.calendar_event || "Event") : (course?.name || "")}</div>
                           {!completed && (
                             <>
+                              {!isPersonal && (
+                                <button type="button" aria-label={L("Start session", "Почати сесію", "Начать сессию", "Commencer", "Sitzung starten")}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => { e.stopPropagation(); startCalSession(s); }}
+                                  style={{
+                                    position: "absolute", top: 2, right: 18, width: 14, height: 14, lineHeight: "14px", textAlign: "center",
+                                    border: "none", borderRadius: "50%", cursor: "pointer", fontSize: 8, padding: 0,
+                                    background: "rgba(0,0,0,0.12)", color: "var(--text-strong)",
+                                  }}>▶</button>
+                              )}
                               <button onClick={(e) => { e.stopPropagation(); confirmDelete(s.id); }} style={{
                                 position: "absolute", top: 2, right: 2, width: 14, height: 14, lineHeight: "14px", textAlign: "center",
                                 border: "none", borderRadius: "50%", cursor: "pointer", fontSize: 9,

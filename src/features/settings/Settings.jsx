@@ -7,6 +7,7 @@ import { startProCheckout, startBillingPortal } from "../../lib/billing";
 import { applyAppearance } from "../../lib/appearance";
 import { THEME_META, THEMES, resolveThemeId } from "../../styles/themes";
 import { exportPersonalData } from "../../lib/export-data";
+import { deleteAccount } from "../../lib/delete-account";
 import { ACCENT_OPTIONS } from "../../app/tweaks";
 import { Legal } from "../../app/legal/Legal";
 
@@ -145,7 +146,7 @@ function lastSyncLabel(lang) {
 const ACCENT_COLORS = { Indigo: "#4F46E5", Violet: "#7C3AED", Rose: "#E11D48", Amber: "#D97706" };
 const PKG_VERSION = "3.0.0";
 
-function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
+function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, onGoToProgress }) {
   const profile = React.useMemo(() => window.getProfile(), []);
   const [fullName, setFullName] = React.useState(profile.fullName || "");
   const [email, setEmail] = React.useState(profile.email || "");
@@ -190,6 +191,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   const [confirmErase, setConfirmErase] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [deleteBusy, setDeleteBusy] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState("");
   const [egg, setEgg] = React.useState(0);
   const [pushStatus, setPushStatus] = React.useState("unsupported");
   const [exported, setExported] = React.useState(false);
@@ -310,8 +313,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
           <HubCard
             title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")}
             sub={pro
-              ? L(lang, "Second half of each Learn tree unlocked.", "Друга половина дерева Learn відкрита.", "Вторая половина дерева Learn открыта.", "Seconde moitié de Learn déverrouillée.", "Zweite Hälfte des Learn-Baums offen.")
-              : L(lang, "3-day trial, then $4/month.", "3 дні тріалу, далі $4/міс.", "3 дня триала, дальше $4/мес.", "3 jours d’essai, puis $4/mois.", "3 Tage Trial, dann $4/Monat.")}
+              ? L(lang, "Full Learn tree unlocked.", "Все дерево Learn відкрите.", "Всё дерево Learn открыто.", "Arbre Learn complet déverrouillé.", "Ganzer Learn-Baum offen.")
+              : L(lang, "First unit free. 3-day trial, then $4/month.", "Перший юніт безкоштовно. 3 дні тріалу, далі $4/міс.", "Первый юнит бесплатно. 3 дня триала, дальше $4/мес.", "Premier chapitre gratuit. 3 jours d’essai, puis $4/mois.", "Erste Einheit gratis. 3 Tage Trial, dann $4/Monat.")}
             status={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : null}
             cta={pro ? null : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
             pulse={!pro}
@@ -354,6 +357,18 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             status={notifyMaster ? L(lang, "Active", "Активні", "Активны", "Actif", "Aktiv") : null}
             onClick={() => setSheet("notify")}
             icon={<HubIcon><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Study Tools", "Матеріали", "Материалы", "Outils d’étude", "Lernwerkzeuge")}
+            sub={L(lang, "Upload, YouTube, quiz from your files", "Завантаження, YouTube, тест з файлів", "Загрузка, YouTube, тест из файлов", "Import, YouTube, quiz depuis tes fichiers", "Upload, YouTube, Quiz aus Dateien")}
+            onClick={() => onGoToTools && onGoToTools()}
+            icon={<HubIcon><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></HubIcon>}
+          />
+          <HubCard
+            title={L(lang, "Progress", "Прогрес", "Прогресс", "Progrès", "Fortschritt")}
+            sub={L(lang, "Mastery, streak, achievements", "Майстерність, серія, досягнення", "Мастерство, серия, достижения", "Maîtrise, série, succès", "Meisterschaft, Serie, Erfolge")}
+            onClick={() => onGoToProgress && onGoToProgress()}
+            icon={<HubIcon><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></HubIcon>}
           />
         </div>
       </section>
@@ -642,8 +657,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             <Row
               label={pro ? "Pro" : "Free"}
               sub={pro
-                ? L(lang, "Second half of each Learn tree unlocked. $4/month after trial.", "Друга половина дерева Learn відкрита. $4/міс після тріалу.", "Вторая половина дерева Learn открыта.", "Seconde moitié de Learn déverrouillée.", "Zweite Hälfte des Learn-Baums offen.")
-                : L(lang, "3-day trial, then $4/month. Card at checkout.", "3 дні тріалу, далі $4/міс. Картка на Checkout.", "3 дня триала, дальше $4/мес.", "3 jours d’essai, puis $4/mois.", "3 Tage Trial, dann $4/Monat.")}
+                ? L(lang, "Full Learn tree unlocked. $4/month after trial.", "Все дерево Learn відкрите. $4/міс після тріалу.", "Всё дерево Learn открыто. $4/мес после триала.", "Arbre Learn complet. $4/mois après l’essai.", "Ganzer Learn-Baum. $4/Monat nach dem Trial.")
+                : L(lang, "First unit free. Rest unlocks with Pro — 3-day trial, then $4/month. Card at checkout.", "Перший юніт безкоштовно. Решта в Pro — 3 дні тріалу, далі $4/міс. Картка на Checkout.", "Первый юнит бесплатно. Остальное в Pro — 3 дня триала, дальше $4/мес. Карта на Checkout.", "Premier chapitre gratuit. Le reste avec Pro — 3 jours d’essai, puis $4/mois.", "Erste Einheit gratis. Rest mit Pro — 3 Tage Trial, dann $4/Monat.")}
               value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
             />
             {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
@@ -674,6 +689,10 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             <Row label={L(lang, "Sync", "Синхронізація", "Синхронизация", "Sync", "Sync")} value={lastSyncLabel(lang)} />
             <Row label={L(lang, "Privacy policy", "Політика конфіденційності", "Политика конфиденциальности", "Confidentialité", "Datenschutz")} chevron onClick={() => setSheet("privacy")} />
             <Row label={L(lang, "Terms of use", "Умови використання", "Условия использования", "Conditions", "Nutzungsbedingungen")} chevron onClick={() => setSheet("terms")} />
+            <Row label={t.land_foot_eula || "EULA"} chevron onClick={() => setSheet("eula")} />
+            <Row label={t.land_foot_refund || "Refund"} chevron onClick={() => setSheet("refund")} />
+            <Row label={t.land_foot_cookies || "Cookies"} chevron onClick={() => setSheet("cookies")} />
+            <Row label={t.land_foot_children || "13+"} chevron onClick={() => setSheet("children")} />
             <Row label={L(lang, "Who sees my data", "Хто бачить мої дані", "Кто видит мои данные", "Qui voit mes données", "Wer meine Daten sieht")}
               sub={L(lang, "You. RLS on Supabase. AI calls go through our proxy — the key is not in the browser.", "Ти. RLS у Supabase. AI йде через наш проксі — ключа в браузері немає.", "Ты. RLS в Supabase. AI через наш прокси.", "Toi. RLS sur Supabase. L’IA passe par notre proxy.", "Du. RLS auf Supabase. KI über unseren Proxy.")} />
           </Card>
@@ -736,18 +755,29 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
               }}
             />
             <Row
-              label={confirmDelete
-                ? L(lang, "Last tap deletes local data and signs out. Auth purge is not automated yet — email support within 30 days.", "Останній тап чистить локальні дані і виходить. Видалення акаунта на сервері поки руками — напиши в підтримку за 30 днів.", "Последний тап чистит локальные данные. Удаление аккаунта на сервере пока вручную.", "Dernier tap: données locales + déconnexion. Purge auth encore manuelle.", "Letzter Tap: lokale Daten weg. Server-Löschung noch per Support.")
+              label={deleteBusy
+                ? L(lang, "Deleting…", "Видаляю…", "Удаляю…", "Suppression…", "Löschen…")
+                : confirmDelete
+                ? L(lang, "Last tap wipes study data and the account.", "Останній тап стирає навчальні дані і акаунт.", "Последний тап стирает учебные данные и аккаунт.", "Dernier tap: données + compte.", "Letzter Tap: Lern­daten und Konto weg.")
                 : L(lang, "Delete account", "Видалити акаунт", "Удалить аккаунт", "Supprimer le compte", "Konto löschen")}
               chevron
-              onClick={() => {
-                if (!confirmDelete) { setConfirmDelete(true); return; }
-                persist({ accountDeletedAt: new Date().toISOString() });
+              onClick={async () => {
+                if (deleteBusy) return;
+                if (!confirmDelete) { setConfirmDelete(true); setDeleteError(""); return; }
+                setDeleteBusy(true);
+                setDeleteError("");
+                const result = await deleteAccount();
+                if (result.error) {
+                  setDeleteError(result.error);
+                  setDeleteBusy(false);
+                  return;
+                }
                 try { localStorage.clear(); } catch {}
                 if (window.clearSession) window.clearSession();
                 if (onLogout) onLogout();
               }}
             />
+            {deleteError ? <p style={{ margin: "0 16px 12px", fontSize: 12, color: "var(--red-600)" }}>{deleteError}</p> : null}
           </Card>
         </SettingsPage>
       )}
@@ -799,7 +829,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
         </SettingsPage>
       )}
 
-      {(sheet === "privacy" || sheet === "terms") && (
+      {["privacy", "terms", "eula", "refund", "cookies", "children"].includes(sheet) && (
         <SettingsPage backLabel={t.onboard_back} title={t[`legal_${sheet}_title`] || sheet} onClose={() => setSheet("data")}>
           <Legal page={sheet} t={t} />
         </SettingsPage>

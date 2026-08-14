@@ -12,7 +12,7 @@
 import { findLessonByTitle, treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
 import { canOpenNode, isMastered } from "./tree/locks";
-import { freeTopicLimit, topicIsLocked } from "./premium";
+import { freeNodeCount, topicIsLocked } from "./premium";
 import { ProSheet } from "./ProSheet.jsx";
 import { SpeakingDialog } from "./SpeakingDialog.jsx";
 import { isSpeakingTreeNode } from "./speaking";
@@ -76,6 +76,31 @@ function splitDragStem(question) {
 function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function EmptyLearn({ L, onGoToExams, kind }) {
+  const noTree = kind === "no-tree";
+  const title = L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen");
+  const body = noTree
+    ? L("This exam has no topic tree yet. Pick a subject Learn supports — Exams tab.", "Для цього іспиту ще немає дерева тем. Обери предмет, який Learn підтримує — вкладка Іспити.", "Для этого экзамена ещё нет дерева тем. Выбери предмет, который Learn поддерживает — вкладка Экзамены.", "Cet examen n’a pas encore d’arbre. Choisis une matière prise en charge — onglet Examens.", "Für diese Prüfung gibt es noch keinen Themenbaum. Wähle ein unterstütztes Fach — Tab Prüfungen.")
+    : L("Add an exam first — Learn opens a topic tree per exam.", "Спочатку додай іспит — Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen.", "Füge zuerst eine Prüfung hinzu.");
+  const cta = noTree
+    ? L("Go to Exams", "До іспитів", "К экзаменам", "Vers Examens", "Zu Prüfungen")
+    : L("Add an exam", "Додати іспит", "Добавить экзамен", "Ajouter un examen", "Prüfung hinzufügen");
+  return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)", maxWidth: 520 } },
+    React.createElement("h1", { style: { margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, title),
+    React.createElement("p", { style: { margin: "0 0 16px", color: "var(--text-muted)", fontSize: 14, lineHeight: 1.5 } }, body),
+    onGoToExams && React.createElement("button", {
+      type: "button",
+      className: "ux-press",
+      onClick: onGoToExams,
+      style: {
+        minHeight: 44, padding: "12px 16px", borderRadius: 12, border: "none",
+        background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15,
+        cursor: "pointer", fontFamily: "var(--font-sans)",
+      },
+    }, cta + " →"),
+  );
 }
 
 // Best-effort dedup pass for the 3-question Prove batch. Same shape as
@@ -666,7 +691,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
 
 // ─── Main list ────────────────────────────────────────────────────────────────
 
-function LearnMain({ t, launch, onLaunchConsumed }) {
+function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
   const lang = (t && t.code) || "en";
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[lang] || en);
   const exams = window.getExams ? window.getExams() : [];
@@ -724,14 +749,13 @@ function LearnMain({ t, launch, onLaunchConsumed }) {
       const hit = findLessonByTitle(opt.tree, launch.topicName);
       if (hit) {
         const lessons = flattenLessonNodes(opt.tree);
-        const idx = lessons.findIndex((row) => row.node.id === hit.node.id);
         const progress = ((window.getLearn && window.getLearn()) || {})[opt.tree.examTaxonomy] || {};
-        const locked = topicIsLocked(idx, lessons.length, hit.node.id);
+        const locked = topicIsLocked(opt.tree, hit.node.id);
         if (!locked && canOpenNode(opt.tree, progress, hit.node.id)) {
           setRunning({ unit: hit.unit, node: hit.node });
         } else {
-          const first = lessons.find((row, i) =>
-            !topicIsLocked(i, lessons.length, row.node.id)
+          const first = lessons.find((row) =>
+            !topicIsLocked(opt.tree, row.node.id)
             && canOpenNode(opt.tree, progress, row.node.id)
             && !isMastered(progress[row.node.id]?.mastery)
           );
@@ -795,11 +819,9 @@ function LearnMain({ t, launch, onLaunchConsumed }) {
   }
 
   if (options.length === 0) {
-    return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)" } },
-      React.createElement("h1", { style: { margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
-      React.createElement("p", { style: { margin: 0, color: "var(--text-muted)", fontSize: 14 } },
-        L("Add an exam first — Learn opens a topic tree per exam.", "Спочатку додай іспит — Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen.", "Füge zuerst eine Prüfung hinzu.")),
-    );
+    return React.createElement(EmptyLearn, {
+      L, onGoToExams, kind: exams.length > 0 ? "no-tree" : "no-exam",
+    });
   }
 
   if (!tree) {
@@ -856,11 +878,9 @@ function LearnMain({ t, launch, onLaunchConsumed }) {
   const pct = total > 0 ? mastered / total : 0;
   const shouldEnter = enterOnceRef.current;
   const examLabel = selected.label || tree.examTaxonomy.toUpperCase();
-  const lessonFlat = flattenLessonNodes(tree);
-  const lessonTotal = lessonFlat.length;
-  const freeCount = freeTopicLimit(lessonTotal);
+  const lessonTotal = flattenLessonNodes(tree).length;
+  const freeCount = freeNodeCount(tree);
   const proCount = Math.max(0, lessonTotal - freeCount);
-  const indexById = new Map(lessonFlat.map((row) => [row.node.id, row.index]));
   const progressLabel = L(
     `${shownMastered} of ${total} topics mastered · ${examLabel}`,
     `${shownMastered} із ${total} тем засвоєно · ${examLabel}`,
@@ -919,8 +939,7 @@ function LearnMain({ t, launch, onLaunchConsumed }) {
           const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
           const unlockedNow = justUnlocked === node.id;
-          const idx = indexById.has(node.id) ? indexById.get(node.id) : -1;
-          const locked = idx >= 0 && topicIsLocked(idx, lessonTotal, node.id);
+          const locked = topicIsLocked(tree, node.id);
           return React.createElement("button", {
             key: node.id,
             type: "button",

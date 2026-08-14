@@ -25,7 +25,7 @@ import { SpeakingDialog } from "../learn/SpeakingDialog.jsx";
 import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
-import { freeTopicLimit, isProUser, topicIsLocked } from "../learn/premium";
+import { freeNodeCount, isProUser, topicIsLocked } from "../learn/premium";
 import { copyLangFor, inferCoachQual, languageNameFor, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
 
@@ -4274,7 +4274,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
           name: localize(row.node.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
           unitTitle: localize(row.unit.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
           studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
-          premium: topicIsLocked(row.index, flat.length, row.node.id),
+          premium: topicIsLocked(tree, row.node.id),
           index: row.index,
           total: flat.length,
         };
@@ -4302,7 +4302,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         const doneCount = rows.filter((r) => r.studied).length;
         const ordered = treeRows ? rows : [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
         const pct = Math.round((doneCount / Math.max(1, rows.length)) * 100);
-        const freeN = treeRows ? freeTopicLimit(rows.length) : rows.length;
+        const treeForRows = treeRows ? treeForExam(rawExams.find((x) => x.id === e.id)) : null;
+        const freeN = treeForRows ? freeNodeCount(treeForRows) : rows.length;
         const proN = treeRows ? rows.length - freeN : 0;
         return ce("section", { key: e.id || fi, style: { marginBottom: 18, borderRadius: 18, border: "1px solid var(--border-subtle)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" } },
           // Folder header
