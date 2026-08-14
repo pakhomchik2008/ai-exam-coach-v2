@@ -151,7 +151,7 @@ Rules:
 2. ${sayLimit}
 3. If they are wrong, do not say "incorrect". Ask a tighter question.
 4. Catch misconceptions immediately with a counter-example.
-5. Language: ${opts.language}. Warm, respectful, "Ви" in Ukrainian/Russian.
+5. Language: ${opts.language}. Every JSON string (say, formal) is in that language. Warm, respectful, "Ви" in Ukrainian/Russian.
 6. ${hintLine}
 7. ${wrap}
 8. ${mistakesBlock}

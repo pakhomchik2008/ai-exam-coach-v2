@@ -76,7 +76,7 @@ export function SocraticDialog({ topic, onExit, t }) {
     const raw = await Promise.race([
       complete({
         system,
-        messages: history.length ? history : [{ role: "user", content: `Start the dialogue on: ${topic}` }],
+        messages: history.length ? history : [{ role: "user", content: `Start the dialogue on: ${topic}. Reply in ${coachLanguageName(resolved, lang)} only.` }],
         topicContext,
         paperQual: qual,
       }),
