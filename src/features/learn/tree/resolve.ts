@@ -6,7 +6,7 @@
 // rather than silently falling through to math.
 
 import { getTree } from "./index";
-import type { LearnTree } from "./schema";
+import type { LearnNode, LearnTree, LearnUnit } from "./schema";
 
 export type ExamLike = {
   name?: string;
@@ -18,7 +18,7 @@ export type ExamLike = {
 type SlugRow = { slug: string; re: RegExp };
 type Family =
   | "nmt" | "alevel" | "gcse" | "sat" | "act" | "ap" | "ib"
-  | "matura" | "abitur" | "ielts" | "toefl" | "duolingo";
+  | "matura" | "abitur" | "bac" | "ielts" | "toefl" | "duolingo" | "gre" | "gmat" | "pte";
 
 const NMT_SLUGS: SlugRow[] = [
   { slug: "nmt-lit", re: /літератур|литератур|literature|укрліт/i },
@@ -124,7 +124,7 @@ const MATURA_SLUGS: SlugRow[] = [
   { slug: "matura-eng", re: /angielsk|english|англійськ|английск/i },
   { slug: "matura-wos", re: /\bwos\b|civics|społeczeń|wiedza o/i },
   { slug: "matura-cs", re: /informatyk|computer\s*science|\bcs\b/i },
-  { slug: "matura-lang", re: /niemieck|rosyjsk|französ|spanish|włosk|italian|foreign|іноземн/i },
+  { slug: "matura-lang", re: /niemieck|rosyjsk|francusk|hiszpańsk|französ|spanish|włosk|italian|foreign|іноземн/i },
   { slug: "matura-bio", re: /biolog|біолог|биолог|\bbio\b/i },
   { slug: "matura-chem", re: /chemi|хім|хим|chem/i },
   { slug: "matura-phys", re: /fizyk|фізик|физик|physics/i },
@@ -148,9 +148,23 @@ const ABITUR_SLUGS: SlugRow[] = [
   { slug: "abitur-geo", re: /geograph|географ|geography/i },
 ];
 
+const BAC_SLUGS: SlugRow[] = [
+  { slug: "bac-go", re: /grand\s*oral/i },
+  { slug: "bac-hggsp", re: /hggsp|géopolitique|geopolitique|histoire-g[eé]o.*sp[eé]/i },
+  { slug: "bac-hlp", re: /\bhlp\b|humanit[eé]s,\s*litt[eé]rature|litt[eé]rature et philosophie/i },
+  { slug: "bac-pc", re: /physique-chimie|physique\s*chimie/i },
+  { slug: "bac-svt", re: /\bsvt\b|sciences de la vie|vie et de la terre/i },
+  { slug: "bac-nsi", re: /\bnsi\b|num[eé]rique et sciences/i },
+  { slug: "bac-llcer", re: /llcer|anglais\s*sp[eé]|sp[eé]cialit[eé]\s*anglais/i },
+  { slug: "bac-ses", re: /\bses\b|sciences [eé]conomiques|[eé]conomiques et sociales/i },
+  { slug: "bac-philo", re: /philo/i },
+  { slug: "bac-fr", re: /fran[cç]ais|french\s*literature|french\s*lang/i },
+  { slug: "bac-math", re: /math/i },
+];
+
 const FAMILIES: Family[] = [
   "nmt", "alevel", "gcse", "sat", "act", "ap", "ib",
-  "matura", "abitur", "ielts", "toefl", "duolingo",
+  "matura", "abitur", "bac", "ielts", "toefl", "duolingo", "gre", "gmat", "pte",
 ];
 
 function courseBlob(exam: ExamLike): string {
@@ -208,6 +222,10 @@ export function abiturTreeSlug(exam: ExamLike | null | undefined): string | null
   return firstSlug(exam, ABITUR_SLUGS);
 }
 
+export function bacTreeSlug(exam: ExamLike | null | undefined): string | null {
+  return firstSlug(exam, BAC_SLUGS);
+}
+
 function qualificationOf(exam: ExamLike): string | null {
   const fromWindow = typeof window !== "undefined"
     ? (window as Window & { examQualificationId?: (e: ExamLike) => string | null }).examQualificationId
@@ -220,14 +238,21 @@ function familyFromName(exam: ExamLike): Family | null {
   if (/nmt|нмт|зно/i.test(blob)) return "nmt";
   if (/a[\s-]?level/i.test(blob)) return "alevel";
   if (/gcse/i.test(blob)) return "gcse";
+  if (/\bgmat\b/i.test(blob)) return "gmat";
+  if (/\bgre\b/i.test(blob)) return "gre";
   if (/\bsat\b/i.test(blob)) return "sat";
   if (/\bact\b/i.test(blob)) return "act";
   if (/toefl/i.test(blob)) return "toefl";
+  if (/\bpte\b|pearson test of english/i.test(blob)) return "pte";
   if (/duolingo|\bdet\b/i.test(blob)) return "duolingo";
   if (/ielts/i.test(blob)) return "ielts";
   if (/matura/i.test(blob)) return "matura";
   if (/abitur/i.test(blob)) return "abitur";
-  if (/\bib\b|baccalaureate/i.test(blob)) return "ib";
+  // French Bac before IB: "baccalaureate" used to steal "Baccalauréat".
+  if (/(baccalaur[eé]at|\bbac\s*g[eé]n[eé]ral|\bfrench\s*bac\b)/i.test(blob)
+    && !/international/i.test(blob)) return "bac";
+  if (/\bbac\b/i.test(blob) && !/\bib\b|international/i.test(blob)) return "bac";
+  if (/\bib\b|international\s*baccalaureate/i.test(blob)) return "ib";
   if (/\bap\b/i.test(blob)) return "ap";
   return null;
 }
@@ -247,11 +272,15 @@ function keyForFamily(family: Family, exam: ExamLike): string | null {
     case "ib": return ibTreeSlug(exam);
     case "matura": return maturaTreeSlug(exam);
     case "abitur": return abiturTreeSlug(exam);
+    case "bac": return bacTreeSlug(exam);
     case "sat":
     case "act":
     case "ielts":
     case "toefl":
     case "duolingo":
+    case "gre":
+    case "gmat":
+    case "pte":
       return family;
     default:
       return null;
@@ -273,4 +302,25 @@ export function treeKeyForExam(exam: ExamLike | null | undefined): string | null
 export function treeForExam(exam: ExamLike | null | undefined): LearnTree | null {
   const key = treeKeyForExam(exam);
   return key ? getTree(key) : null;
+}
+
+/** Match a dashboard topic name onto a lesson node. Exact title wins. */
+export function findLessonByTitle(
+  tree: LearnTree | null | undefined,
+  topicName: string | null | undefined,
+): { unit: LearnUnit; node: LearnNode } | null {
+  const needle = (topicName || "").trim().toLowerCase();
+  if (!tree || !needle) return null;
+  let fuzzy: { unit: LearnUnit; node: LearnNode } | null = null;
+  for (const unit of tree.units) {
+    for (const node of unit.nodes) {
+      if (node.kind === "boss") continue;
+      const titles = [node.title.en, node.title.uk, node.title.ru, node.title.fr, node.title.de, node.title.pl, node.title.es]
+        .filter((s): s is string => Boolean(s))
+        .map((s) => s.toLowerCase());
+      if (titles.includes(needle)) return { unit, node };
+      if (!fuzzy && titles.some((t) => t.includes(needle) || needle.includes(t))) fuzzy = { unit, node };
+    }
+  }
+  return fuzzy;
 }

@@ -1,7 +1,7 @@
 /**
  * Marketing stand-in for a real Learn screenshot.
  * We do not ship a PNG of the app — this is the medal-list chrome that
- * actually shipped in 3.7a, frozen so the split-scroll has a product
+ * actually shipped in 3.7a. Frozen mock — no logged-in screenshot.
  * surface without photographing a logged-in session.
  */
 
@@ -96,7 +96,7 @@ export function LearnScreen({ lang }: LearnScreenProps) {
   return (
     <div className="land-learn" aria-hidden="true">
       <header className="land-learn-head">
-        <p className="land-learn-kicker">EXAM COACH</p>
+        <p className="land-learn-kicker">Exam Coach</p>
         <h3>{copy.title}</h3>
         <p>{copy.progress}</p>
         <div className="land-learn-bar"><i /></div>

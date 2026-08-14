@@ -46,7 +46,17 @@ export const SCALES = {
   gcse: { min: 1, max: 9, step: 1, targetTop: 7, format: "integer", label: "grade" },
   toefl: { min: 0, max: 120, step: 1, targetTop: 100, format: "integer", label: "" },
   duolingo: { min: 10, max: 160, step: 5, targetTop: 130, format: "integer", label: "" },
+  /** PTE Academic overall and each skill — Pearson uses the same 10–90 for both. */
   pte: { min: 10, max: 90, step: 1, targetTop: 76, format: "integer", label: "" },
+  /** Baccalauréat général. Bulletins print half-points; 16 is mention TB. */
+  bac: { min: 0, max: 20, step: 0.5, targetTop: 16, format: "decimal", label: "/20" },
+  /** GRE General V+Q. ETS prints two 130–170s; students plan against the sum. */
+  gre: { min: 260, max: 340, step: 1, targetTop: 320, format: "integer", label: "V+Q" },
+  gre_section: { min: 130, max: 170, step: 1, targetTop: 160, format: "integer", label: "" },
+  gre_awa: { min: 0, max: 6, step: 0.5, targetTop: 5, format: "decimal", label: "AWA" },
+  /** GMAT Focus total. Tens ending in 5 — classic 200–800 is a different exam. */
+  gmat: { min: 205, max: 805, step: 10, targetTop: 655, format: "integer", label: "Focus" },
+  gmat_section: { min: 60, max: 90, step: 1, targetTop: 82, format: "integer", label: "" },
   act: { min: 1, max: 36, step: 1, targetTop: 32, format: "integer", label: "" },
   ap: { min: 1, max: 5, step: 1, targetTop: 5, format: "integer", label: "" },
   ib: { min: 1, max: 7, step: 1, targetTop: 6, format: "integer", label: "" },
@@ -73,6 +83,9 @@ const TAXONOMY_TO_SCALE: Readonly<Record<string, ScaleId>> = {
   pte: "pte",
   ap: "ap",
   ib: "ib",
+  bac: "bac",
+  gre: "gre",
+  gmat: "gmat",
 };
 
 /** True when the resolved scale is the generic 0–100 stand-in, not a real one. */
@@ -83,7 +96,15 @@ export function isNormalizedFallback(id: ScaleId): boolean {
 /** Resolves a taxonomy to a scale id, falling back to the normalized scale. */
 export function scaleIdForTaxonomy(taxonomy: string | null | undefined): ScaleId {
   if (!taxonomy) return "normalized";
-  return TAXONOMY_TO_SCALE[taxonomy.toLowerCase()] ?? "normalized";
+  const id = taxonomy.toLowerCase();
+  if (TAXONOMY_TO_SCALE[id]) return TAXONOMY_TO_SCALE[id];
+  // Learn trees are `bac-math` / `nmt-ukr`. The scale belongs to the exam.
+  const dash = id.indexOf("-");
+  if (dash > 0) {
+    const family = id.slice(0, dash);
+    if (TAXONOMY_TO_SCALE[family]) return TAXONOMY_TO_SCALE[family];
+  }
+  return "normalized";
 }
 
 export function scaleForTaxonomy(taxonomy: string | null | undefined): Scale {

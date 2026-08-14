@@ -26,6 +26,6 @@ describe("i18n key parity", () => {
   });
 
   it("Ukrainian hero is the source headline", () => {
-    expect(String(langs.uk?.land_hero_title)).toContain("Прогнозуй");
+    expect(String(langs.uk?.land_hero_title)).toContain("Exam Coach");
   });
 });

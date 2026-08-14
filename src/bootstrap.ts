@@ -31,7 +31,7 @@
 import "./lib/globals";
 import "./lib/claude-proxy";
 import "./lib/ds-bundle";
-import "./lib/push"; // registers window.identifyPushUser etc — auth-store calls these on sign-in
+import "./lib/push"; // OneSignal on prod only; preview drops leftover SW so Safari does not whitescreen
 import "./lib/sounds"; // Phase 4 kit — playSound reads getProfile at call time, not init
 
 // ── Tier 0: i18n

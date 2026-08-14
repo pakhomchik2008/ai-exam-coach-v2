@@ -32,6 +32,21 @@ describe("scale definitions match the real exams", () => {
     expect([SCALES.sat_section.min, SCALES.sat_section.max]).toEqual([200, 800]);
   });
 
+  it("GRE composite runs 260–340, a section 130–170, AWA 0–6", () => {
+    expect([SCALES.gre.min, SCALES.gre.max]).toEqual([260, 340]);
+    expect([SCALES.gre_section.min, SCALES.gre_section.max]).toEqual([130, 170]);
+    expect(SCALES.gre_awa.step).toBe(0.5);
+  });
+
+  it("GMAT Focus runs 205–805 in tens, sections 60–90", () => {
+    expect([SCALES.gmat.min, SCALES.gmat.max, SCALES.gmat.step]).toEqual([205, 805, 10]);
+    expect([SCALES.gmat_section.min, SCALES.gmat_section.max]).toEqual([60, 90]);
+  });
+
+  it("PTE Academic runs 10–90", () => {
+    expect([SCALES.pte.min, SCALES.pte.max, SCALES.pte.step]).toEqual([10, 90, 1]);
+  });
+
   it("GCSE runs 1–9", () => {
     expect([SCALES.gcse.min, SCALES.gcse.max]).toEqual([1, 9]);
   });
@@ -53,6 +68,12 @@ describe("scaleForTaxonomy", () => {
     ["gcse", "gcse"],
     ["toefl", "toefl"],
     ["act", "act"],
+    ["bac", "bac"],
+    ["bac-math", "bac"],
+    ["gre", "gre"],
+    ["gmat", "gmat"],
+    ["pte", "pte"],
+    ["nmt-ukr", "nmt_subject"],
   ])("maps %s to the %s scale", (taxonomy, expected) => {
     expect(scaleIdForTaxonomy(taxonomy)).toBe(expected);
   });
@@ -181,6 +202,37 @@ describe("schemeFromExam — exam's own grading, not A-Level letters", () => {
     }
     expect(predictedFromReadiness(50, scheme)).toBe("4.5");
     expect(predictedFromReadiness(39, scheme)).toBe("3.5");
+  });
+
+  it("Bac reports 0–20 with half points", () => {
+    const scheme = schemeFromExam({ qualificationId: "bac" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(50, scheme)).toBe("10.0");
+    expect(predictedFromReadiness(80, scheme)).toBe("16.0");
+  });
+
+  it("GRE reports V+Q 260–340", () => {
+    const scheme = schemeFromExam({ qualificationId: "gre" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(0, scheme)).toBe("260");
+    expect(predictedFromReadiness(50, scheme)).toBe("300");
+    expect(predictedFromReadiness(100, scheme)).toBe("340");
+  });
+
+  it("GMAT Focus reports 205–805, not classic 200–800", () => {
+    const scheme = schemeFromExam({ qualificationId: "gmat" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(0, scheme)).toBe("205");
+    expect(predictedFromReadiness(50, scheme)).toBe("505");
+    expect(predictedFromReadiness(100, scheme)).toBe("805");
+  });
+
+  it("PTE Academic reports 10–90, not IELTS bands", () => {
+    const scheme = schemeFromExam({ qualificationId: "pte" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(0, scheme)).toBe("10");
+    expect(predictedFromReadiness(50, scheme)).toBe("50");
+    expect(predictedFromReadiness(100, scheme)).toBe("90");
   });
 
   it("НМТ reports 100–200", () => {

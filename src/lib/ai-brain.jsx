@@ -118,7 +118,10 @@ function buildLearnerContext(opts = {}) {
   return lines.join("\n");
 }
 
-import { coachLanguageDirective, inferCoachQual, paperLanguageDirective, paperLanguageFor } from "./paper-language";
+import { flattenLessonNodes, localize } from "../features/learn/tree/schema";
+import { treeForExam } from "../features/learn/tree/resolve";
+import { coachLanguageDirective, copyLangFor, inferCoachQual, paperLanguageDirective, paperLanguageFor, paperQualForExam } from "./paper-language";
+import { resolveTopicFromTrees, resolveTopicFromViews } from "./resolve-topic";
 
 // ─── central completion ───────────────────────────────────────────────────────
 
@@ -163,16 +166,23 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   const topicExamQual = topicContext && topicContext.examId && window.getExams
     ? (() => {
       const exam = window.getExams().find((e) => e.id === topicContext.examId);
-      return (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+      const family = (window.examQualificationId && window.examQualificationId(exam)) || (exam && exam.qualificationId) || null;
+      return paperQualForExam({ ...exam, qualificationId: family }) || family;
     })()
     : null;
   const studentQuals = window.getExams
-    ? window.getExams().map((e) => (window.examQualificationId && window.examQualificationId(e)) || e.qualificationId)
+    ? window.getExams().map((e) => {
+      const family = (window.examQualificationId && window.examQualificationId(e)) || e.qualificationId;
+      return paperQualForExam({ ...e, qualificationId: family }) || family;
+    })
     : [];
   const inferred = inferCoachQual({ paperQual, topicExamQual, studentQuals });
-  const langBit = paperQual
-    ? paperLanguageDirective(paperQual)
-    : (inferred && paperLanguageFor(inferred) ? coachLanguageDirective(inferred) : aiLangDirective(langOverride));
+  const qual = paperQual || inferred;
+  // Paper language always beats explainLang / UI. NMT math stays Ukrainian
+  // even if the student set "explain in English"; NMT English stays English.
+  const langBit = paperLanguageFor(qual)
+    ? (paperQual ? paperLanguageDirective(paperQual) : coachLanguageDirective(qual))
+    : aiLangDirective(langOverride);
   const dynamic = [langBit, ctx].filter(Boolean).join("\n\n");
   const systemBlocks = [];
   if (system) systemBlocks.push({ type: "text", text: system, cache_control: { type: "ephemeral" } });
@@ -259,20 +269,39 @@ function commitCoachSession(session) {
   }
 }
 
-// Resolve a topic name to an examId + topicIdx for brain write-back
+// Resolve a topic name to an examId + topicIdx for brain write-back.
+// Learn pickers list tree node titles; examViews used to store `topicName`
+// only — matching `t.name` left Bac/NMT Socratic with no exam, so the
+// coach answered in the UI language.
 function resolveTopicForBrain(topicName) {
-  if (!topicName || !window.getBrain) return null;
-  const b = window.getBrain();
-  const norm = (s) => String(s || "").toLowerCase().trim();
-  const target = norm(topicName);
-  for (const ev of (b.examViews || [])) {
-    for (const t of (ev.topics || [])) {
-      if (norm(t.name) === target || norm(t.name).includes(target) || target.includes(norm(t.name))) {
-        return { examId: ev.id, topicIdx: t.topicIdx, topicName: t.name, examName: ev.name };
-      }
-    }
-  }
-  return null;
+  if (!topicName) return null;
+  const views = (window.getBrain && window.getBrain().examViews) || [];
+  const fromViews = resolveTopicFromViews(topicName, views);
+  if (fromViews) return fromViews;
+  const exams = window.getExams ? window.getExams() : [];
+  const catalogs = exams.map((exam) => {
+    const tree = treeForExam(exam);
+    if (!tree) return null;
+    const family = (window.examQualificationId && window.examQualificationId(exam)) || exam.qualificationId || null;
+    const qual = paperQualForExam({ ...exam, qualificationId: family }) || family || tree.examTaxonomy;
+    const paperLang = copyLangFor(qual, "en");
+    return {
+      examId: exam.id,
+      examName: exam.name || "",
+      nodes: flattenLessonNodes(tree).map((row) => ({
+        index: row.index,
+        titles: [...new Set([
+          localize(row.node.title, paperLang),
+          row.node.title.en,
+          row.node.title.fr,
+          row.node.title.uk,
+          row.node.title.ru,
+          row.node.title.de,
+        ].filter((s) => typeof s === "string" && s.trim()))],
+      })),
+    };
+  }).filter(Boolean);
+  return resolveTopicFromTrees(topicName, catalogs);
 }
 
 // ─── typed operations ────────────────────────────────────────────────────────

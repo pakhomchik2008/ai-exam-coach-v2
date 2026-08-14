@@ -1,37 +1,72 @@
 // AI Exam Coach — OneSignal Web Push glue (Phase 3 §3.5 follow-up).
 //
-// Thin wrapper around the OneSignal SDK, which is loaded as a <script> tag in
-// index.html (must be a real <script> — OneSignal's own init sequence expects
-// `window.OneSignalDeferred` to exist before its bundle runs, which an ES
-// import can't guarantee the ordering of). This module is the only place that
-// touches `window.OneSignalDeferred` — everything else calls the four
-// `window.*` functions exported at the bottom, same window-global pattern as
-// every other store in this codebase (see profile-store.jsx's header).
+// The SDK is injected from here, not from index.html. OneSignal's dashboard
+// is scoped to production; loading it on a preview origin throws
+// "Can only be used on: https://ai-exam-coach-v2.vercel.app" and the leftover
+// service worker intercepts hashed /assets/*.js after a deploy — Safari
+// then whitescreens. Preview/local skip the SDK and drop any worker.
 //
 // `external_id` = the Supabase user id — set via OneSignal.login() on sign-in
-// so api/notifications-cron.js can target a user by id alone, with no
-// separate subscription-storage table on our side (OneSignal already stores
-// the push subscription itself).
+// so api/notifications-cron.js can target a user by id alone.
 
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
+const PROD_PUSH_HOSTS = new Set([
+  "ai-exam-coach-v2.vercel.app",
+  "exam.coach",
+  "www.exam.coach",
+]);
+
+function isProdPushHost(): boolean {
+  return typeof window !== "undefined" && PROD_PUSH_HOSTS.has(window.location.hostname);
+}
+
 function isPushSupported(): boolean {
-  return typeof window !== "undefined" && !!APP_ID && typeof window.OneSignalDeferred !== "undefined";
+  return typeof window !== "undefined" && !!APP_ID && isProdPushHost();
+}
+
+function dropForeignServiceWorkers(): void {
+  if (typeof navigator === "undefined" || !navigator.serviceWorker) return;
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((reg) => { void reg.unregister(); });
+  }).catch(() => {
+    // Safari private mode can reject this — boot must not depend on it.
+  });
 }
 
 // Queues `fn` to run once the OneSignal SDK has finished loading — a no-op
-// (never calls fn) if the SDK script isn't present, e.g. VITE_ONESIGNAL_APP_ID
-// wasn't set at build time. Same graceful-degradation shape as the
-// PGRST205-table-missing pattern elsewhere: missing config disables the
-// feature, never breaks the page around it.
+// if we are not on the production host or the app id is missing.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OneSignal ships no types
 function withOneSignal(fn: (oneSignal: any) => void): void {
   if (!isPushSupported()) return;
-  window.OneSignalDeferred!.push(fn);
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  window.OneSignalDeferred.push(fn);
+}
+
+function loadOneSignalSdk(): void {
+  if (document.querySelector("script[data-onesignal-sdk]")) return;
+  const script = document.createElement("script");
+  script.src = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+  script.async = true;
+  script.dataset.onesignalSdk = "1";
+  document.head.appendChild(script);
 }
 
 function initPush(): void {
-  withOneSignal((OneSignal) => OneSignal.init({ appId: APP_ID }));
+  if (!isProdPushHost()) {
+    dropForeignServiceWorkers();
+    return;
+  }
+  if (!APP_ID) return;
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  loadOneSignalSdk();
+  withOneSignal((OneSignal) => {
+    try {
+      OneSignal.init({ appId: APP_ID });
+    } catch {
+      // Site-URL mismatch must not unmount React.
+    }
+  });
 }
 
 function identifyPushUser(userId: string): void {
@@ -43,8 +78,6 @@ function logoutPushUser(): void {
   withOneSignal((OneSignal) => OneSignal.logout());
 }
 
-// Resolves the OS-level permission string ("granted" | "denied" | "default")
-// so Settings.jsx can show real state, not just "did we ask".
 function requestPushPermission(): Promise<string> {
   return new Promise((resolve) => {
     if (!isPushSupported()) { resolve("unsupported"); return; }
@@ -61,10 +94,6 @@ function requestPushPermission(): Promise<string> {
 
 Object.assign(window, { initPush, identifyPushUser, logoutPushUser, requestPushPermission, isPushSupported });
 
-// Init once at module load — safe to call even when unsupported/unconfigured,
-// see withOneSignal's no-op guard above.
 initPush();
 
-// Module marker — see profile-store.jsx's header for why this file has no
-// real import/export of its own.
 export {};

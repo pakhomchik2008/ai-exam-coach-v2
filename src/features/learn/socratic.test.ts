@@ -19,6 +19,25 @@ describe("parseSocraticTurn", () => {
     expect(turn.kind).toBe("formal");
     expect(turn.formal).toContain("exponent");
   });
+
+  it("pulls say out of fenced JSON with real newlines", () => {
+    const raw = "```json\n{\n  \"say\": \"3 divides 12 when 12 = 3k for a whole k.\\nTry 15 ÷ 3.\\nTry 14 ÷ 3.\",\n  \"kind\": \"formal\",\n  \"formal\": \"a | b iff b = a k\"\n}\n```";
+    const turn = parseSocraticTurn(raw);
+    expect(turn.kind).toBe("formal");
+    expect(turn.say).toContain("3 divides 12");
+    expect(turn.say).toContain("Try 14");
+    expect(turn.formal).toContain("a | b");
+    expect(turn.say).not.toContain("\"kind\"");
+  });
+
+  it("does not dump the raw blob when JSON is broken", () => {
+    const raw = `{"say": "a divides b if there is a whole k
+such that b = a k.", "kind": "formal", "formal": "a | b"}`;
+    const turn = parseSocraticTurn(raw);
+    expect(turn.say).toContain("a divides b");
+    expect(turn.say).not.toMatch(/"kind"/);
+    expect(turn.kind).toBe("formal");
+  });
 });
 
 describe("recentMistakeLines", () => {

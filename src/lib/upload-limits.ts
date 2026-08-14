@@ -47,14 +47,42 @@ export const ACCEPTED_EXTENSIONS = [
   ".doc",
   ".pptx",
   ".ppt",
+  ".xlsx",
+  ".odt",
+  ".odp",
+  ".ods",
   ".txt",
+  ".md",
+  ".csv",
+  ".rtf",
+  ".html",
+  ".htm",
+  ".tex",
   ".jpg",
   ".jpeg",
   ".png",
+  ".webp",
+  ".gif",
+  ".bmp",
+  ".heic",
+  ".heif",
 ] as const;
 
-/** Ready-made value for an `<input type="file" accept=...>`. */
-export const ACCEPT_ATTRIBUTE = ACCEPTED_EXTENSIONS.join(",");
+/**
+ * Ready-made value for an `<input type="file" accept=...>`. MIME wildcards
+ * sit next to the extensions so a phone share-sheet PDF with no filename
+ * suffix still shows up in the picker.
+ */
+export const ACCEPT_ATTRIBUTE = [
+  ...ACCEPTED_EXTENSIONS,
+  "application/pdf",
+  "image/*",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "text/html",
+  "application/rtf",
+].join(",");
 
 export type RejectionReason =
   | "too-many-files"
@@ -77,6 +105,8 @@ export interface ValidationResult {
 export interface FileLike {
   readonly name: string;
   readonly size: number;
+  /** MIME type when the filename has no usable extension (phone share sheets). */
+  readonly type?: string;
 }
 
 function extensionOf(name: string): string {
@@ -84,8 +114,17 @@ function extensionOf(name: string): string {
   return dot === -1 ? "" : name.slice(dot).toLowerCase();
 }
 
-export function isAcceptedType(name: string): boolean {
-  return (ACCEPTED_EXTENSIONS as readonly string[]).includes(extensionOf(name));
+export function isAcceptedType(name: string, mime = ""): boolean {
+  if ((ACCEPTED_EXTENSIONS as readonly string[]).includes(extensionOf(name))) return true;
+  const m = mime.toLowerCase().split(";")[0]?.trim() ?? "";
+  if (!m) return false;
+  if (m === "application/pdf" || m === "application/rtf") return true;
+  if (m.startsWith("image/") && m !== "image/svg+xml") return true;
+  if (m.startsWith("text/") && m !== "text/javascript" && m !== "text/css") return true;
+  if (m.includes("wordprocessingml") || m.includes("presentationml") || m.includes("spreadsheetml")) return true;
+  if (m.includes("opendocument")) return true;
+  if (m === "application/msword" || m.includes("ms-powerpoint") || m.includes("ms-excel")) return true;
+  return false;
 }
 
 /**
@@ -109,7 +148,7 @@ export function validateFiles(
   let total = existing.reduce((sum, f) => sum + f.size, 0);
 
   for (const file of incoming) {
-    if (!isAcceptedType(file.name)) {
+    if (!isAcceptedType(file.name, file.type ?? "")) {
       rejected.push({ file, reason: "unsupported-type" });
       continue;
     }

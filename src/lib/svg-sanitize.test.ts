@@ -35,4 +35,11 @@ describe("sanitizeSvg", () => {
     expect(sanitizeSvg(null)).toBeNull();
     expect(sanitizeSvg(undefined)).toBeNull();
   });
+
+  it("pulls the svg out of a markdown fence or prose wrapper", () => {
+    const inner = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>';
+    const out = sanitizeSvg("Here is the figure:\n```svg\n" + inner + "\n```");
+    expect(out).toContain("<svg");
+    expect(out).toContain("circle");
+  });
 });

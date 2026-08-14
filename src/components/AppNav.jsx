@@ -59,9 +59,9 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
       backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
     }}>
       <div style={{ maxWidth: "var(--container-app)", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "9px", fontWeight: "var(--weight-bold)", color: "var(--text-strong)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", fontSize: "var(--text-lg)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 600, color: "var(--text-strong)", fontFamily: "var(--font-brand)", letterSpacing: "-0.03em", fontSize: "1.2rem" }}>
           <NavLogoMark />
-          <span>AI Exam Coach</span>
+          <span>Exam Coach</span>
         </div>
 
         <div className="app-nav-links">

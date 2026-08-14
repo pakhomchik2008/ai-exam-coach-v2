@@ -3,7 +3,7 @@
 // Shared upload limits — the same 20 files / 25 MB / 200 MB rules the exam
 // wizard enforces, so the two surfaces cannot drift apart.
 import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upload-limits";
-import { resizeImageFile } from "../../lib/image-resize";
+import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { renderCoachMarkdown } from "../../lib/math-render";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
@@ -162,56 +162,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   };
 
   /* ─── FILE HANDLING ───────────────────────────────────────── */
-  // Extracts one file into a descriptor. Returns null and throws nothing on an
-  // unsupported type — the caller reports it alongside every other rejection so
-  // one bad file in a batch of twenty cannot abort the whole drop.
-  const extractFile = async (file) => {
-    const name = file.name || 'file';
-    const ext = name.split('.').pop().toLowerCase();
-    const mime = file.type;
-
-    {
-      if (mime.startsWith('image/')) {
-        // Resized to Claude's own 1568px recommended ceiling before it becomes
-        // base64. A raw phone photo is 2-5 MB (3-7 MB once base64-encoded);
-        // two of those in one request were blowing past both our own payload
-        // guard AND Vercel's ~4.5 MB hard request-body limit in production,
-        // which is what "Analysis failed" actually was.
-        const resized = await resizeImageFile(file);
-        return { kind: 'image', base64: resized.base64, mimeType: resized.mimeType, dataUrl: resized.dataUrl, name };
-      }
-      if (ext === 'pdf' || mime === 'application/pdf') {
-        const ab = await file.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-        return { kind: 'pdf', base64: b64, name };
-      }
-      if (['pptx', 'ppt', 'docx', 'doc'].includes(ext) || mime.includes('presentationml') || mime.includes('wordprocessingml') || mime.includes('powerpoint') || mime.includes('msword')) {
-        const JSZip = window.JSZip;
-        if (!JSZip) throw new Error(L('JSZip not ready — try refreshing.','JSZip не готовий — оновіть сторінку.','JSZip не готов — обновите страницу.','JSZip pas prêt — actualisez la page.','JSZip nicht bereit — Seite neu laden.'));
-        const ab = await file.arrayBuffer();
-        const zip = await JSZip.loadAsync(ab);
-        let text = '';
-        if (['pptx', 'ppt'].includes(ext) || mime.includes('presentationml') || mime.includes('powerpoint')) {
-          const slides = Object.keys(zip.files).filter(f => /ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a, b) => { const na = parseInt(a.match(/\d+/g).pop()), nb = parseInt(b.match(/\d+/g).pop()); return na - nb; });
-          for (const s of slides.slice(0, 25)) { const xml = await zip.files[s].async('string'); const d = document.createElement('div'); d.innerHTML = xml.replace(/<\/a:t>/g, ' ').replace(/<[^>]+>/g, ''); text += d.textContent.replace(/\s+/g, ' ').trim() + '\n'; }
-        } else {
-          const doc = zip.files['word/document.xml'];
-          if (doc) { const xml = await doc.async('string'); const d = document.createElement('div'); d.innerHTML = xml.replace(/<\/w:t>/g, ' ').replace(/<[^>]+>/g, ''); text = d.textContent.replace(/\s+/g, ' ').trim(); }
-        }
-        if (!text.trim()) throw new Error(L('no text','no text','no text','no text','no text'));
-        return { kind: 'doc', text: text.substring(0, 5000), name, ext };
-      }
-      if (mime === 'text/plain' || ext === 'txt') {
-        const text = await file.text();
-        return { kind: 'doc', text: text.substring(0, 5000), name, ext: 'txt' };
-      }
-      return null;
-    }
-  };
-
-  // Reads a whole batch: shared limits first (20 files / 25 MB each / 200 MB
-  // total), then extraction, accumulating onto whatever is already attached.
-  // Failures are collected per file rather than aborting the batch.
+  // Shared extractor (src/lib/extract-study-file.ts). PDFs used to die here
+  // on a RangeError from spreading the whole file into fromCharCode.
   const readFiles = async (list) => {
     const incoming = Array.from(list || []);
     if (!incoming.length) return;
@@ -231,11 +183,9 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     const extracted = [];
     for (const file of accepted) {
       try {
-        const descriptor = await extractFile(file);
-        if (descriptor) extracted.push(descriptor);
-        else problems.push(L(`${file.name} — unsupported file type`, `${file.name} — непідтримуваний тип файлу`, `${file.name} — неподдерживаемый тип файла`, `${file.name} — type non pris en charge`, `${file.name} — nicht unterstützter Dateityp`));
-      } catch {
-        problems.push(L(`${file.name} — could not be read`, `${file.name} — не вдалося прочитати`, `${file.name} — не удалось прочитать`, `${file.name} — lecture impossible`, `${file.name} — nicht lesbar`));
+        extracted.push(...(await extractStudyFile(file)));
+      } catch (err) {
+        problems.push(describeStudyFileError(err, file.name, lang));
       }
     }
 
@@ -255,10 +205,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     // built from the whole batch. Previously only the single stored file was
     // sent, whichever slot happened to be filled.
     if (files && files.length) {
-      const blocks = files.map((f) =>
-        f.kind === 'image' ? { type: 'image', source: { type: 'base64', media_type: f.mimeType, data: f.base64 } }
-        : f.kind === 'pdf' ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 } }
-        : { type: 'text', text: `Document "${f.name}":\n\n${f.text}` });
+      const blocks = toClaudeBlocks(files);
       const fallback = files.length === 1
         ? 'Generate study materials based on this content.'
         : `Generate one combined set of study materials covering all ${files.length} attached documents.`;
@@ -323,7 +270,9 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   /* ─── ELEMENT BUILDERS ────────────────────────────────────── */
   const buildDropZoneEl = (isDragOver, isExtracting, handlers) => {
     const label = isExtracting ? L('Extracting…','Витягую…','Извлекаю…','Extraction…','Extrahiere…') : isDragOver ? L('Drop it!','Відпускайте!','Отпускайте!','Lâchez !','Loslassen!') : L('Drop a file','Перетягніть файл','Перетащите файл','Déposez un fichier','Datei ablegen');
-    const sub = isExtracting ? L('Reading your file…','Читаю файл…','Читаю файл…','Lecture du fichier…','Lese Datei…') : 'Image · PDF · PPTX · DOCX · TXT';
+    const sub = isExtracting
+      ? L('Reading your file…','Читаю файл…','Читаю файл…','Lecture du fichier…','Lese Datei…')
+      : L('PDF, Word, PowerPoint, Excel, images, notes — drop anything','PDF, Word, PowerPoint, Excel, зображення, нотатки — закидай будь-що','PDF, Word, PowerPoint, Excel, изображения, заметки — кидай что угодно','PDF, Word, PowerPoint, Excel, images, notes — déposez tout','PDF, Word, PowerPoint, Excel, Bilder, Notizen — alles ablegen');
     const icon = isExtracting ? '⏳' : isDragOver ? '📂' : '☁️';
     return React.createElement('div', {
       onDragOver: handlers.onDragOver, onDragLeave: handlers.onDragLeave, onDrop: handlers.onDrop, onClick: isExtracting ? null : handlers.onClick,
@@ -334,7 +283,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('div', { style: { fontSize: '15px', fontWeight: 700, color: isDragOver ? 'var(--indigo-600)' : 'var(--slate-700)', marginBottom: '3px' } }, label),
         React.createElement('div', { style: { fontSize: '12px', color: 'var(--slate-400)' } }, sub)
       ),
-      !isExtracting && React.createElement('div', { style: { padding: '6px 18px', background: 'var(--indigo-500)', color: 'var(--white)', borderRadius: '20px', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(34,124,99,0.28)' } }, '📁 ' + L('Browse Files','Огляд файлів','Обзор файлов','Parcourir','Dateien wählen'))
+      !isExtracting && React.createElement('div', { style: { padding: '6px 18px', background: 'var(--indigo-500)', color: 'var(--white)', borderRadius: '20px', fontSize: '12px', fontWeight: 700, boxShadow: '0 2px 8px rgba(79,70,229,0.28)' } }, '📁 ' + L('Browse Files','Огляд файлів','Обзор файлов','Parcourir','Dateien wählen'))
     );
   };
 
@@ -349,9 +298,11 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
     const meta = (f) =>
       f.kind === 'image' ? { icon: '🖼️', color: 'var(--indigo-500)', preview: L('Image ready','Зображення готове','Изображение готово','Image prête','Bild bereit') }
-      : f.kind === 'pdf' ? { icon: '📄', color: 'var(--red-500)', preview: L('PDF ready — Claude will read the full document','PDF готовий — Claude прочитає весь документ','PDF готов — Claude прочитает весь документ','PDF prêt — Claude lira tout le document','PDF bereit — Claude liest das ganze Dokument') }
-      : { icon: f.ext === 'pptx' || f.ext === 'ppt' ? '📊' : f.ext === 'txt' ? '📃' : '📝',
-          color: f.ext === 'pptx' || f.ext === 'ppt' ? 'var(--amber-500)' : f.ext === 'txt' ? 'var(--slate-500)' : 'var(--sky-500)',
+      : f.kind === 'pdf' || f.ext === 'pdf' ? { icon: '📄', color: 'var(--red-500)', preview: f.text
+        ? (f.text.substring(0, 100).replace(/\n/g, ' ') + '…')
+        : L('PDF ready — Claude will read the document','PDF готовий — Claude прочитає документ','PDF готов — Claude прочитает документ','PDF prêt — Claude lira le document','PDF bereit — Claude liest das Dokument') }
+      : { icon: f.ext === 'pptx' || f.ext === 'ppt' ? '📊' : f.ext === 'xlsx' || f.ext === 'csv' ? '📊' : f.ext === 'txt' || f.ext === 'md' ? '📃' : '📝',
+          color: f.ext === 'pptx' || f.ext === 'ppt' ? 'var(--amber-500)' : f.ext === 'txt' || f.ext === 'md' ? 'var(--slate-500)' : 'var(--sky-500)',
           preview: (f.text || '').substring(0, 100).replace(/\n/g, ' ') + '…' };
 
     return React.createElement('div', { style: { marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' } },
@@ -401,7 +352,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const buildStartBtnEl = (hasInput, isExtracting, onClick) => {
     const active = hasInput && !isExtracting;
-    return React.createElement('button', { onClick, style: { width: '100%', padding: '15px', background: active ? 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))' : 'var(--slate-200)', color: active ? 'var(--white)' : 'var(--slate-400)', border: 'none', borderRadius: '16px', fontSize: '15px', fontWeight: 800, cursor: active ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', boxShadow: active ? '0 4px 20px rgba(34,124,99,0.35)' : 'none', transition: 'all 0.2s' } },
+    return React.createElement('button', { onClick, style: { width: '100%', padding: '15px', background: active ? 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))' : 'var(--slate-200)', color: active ? 'var(--white)' : 'var(--slate-400)', border: 'none', borderRadius: '16px', fontSize: '15px', fontWeight: 800, cursor: active ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', boxShadow: active ? '0 4px 20px rgba(79,70,229,0.35)' : 'none', transition: 'all 0.2s' } },
       isExtracting ? L('Reading file…','Читаю файл…','Читаю файл…','Lecture…','Lese Datei…') : L('Get Started','Почати','Начать','Commencer','Loslegen'),
       !isExtracting && React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round', style: { flexShrink: 0 } }, React.createElement('line', { x1: '5', y1: '12', x2: '19', y2: '12' }), React.createElement('polyline', { points: '12 5 19 12 12 19' }))
     );
@@ -441,7 +392,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
           React.createElement('p', { style: { fontSize: '16px', fontWeight: 700, color: 'var(--slate-900)', lineHeight: 1.45, margin: '0 0 16px' } }, card.front),
           React.createElement('div', { style: { fontSize: '11px', color: 'var(--slate-400)', fontWeight: 600 } }, L('Tap to reveal','Торкніться, щоб відкрити','Нажмите, чтобы открыть','Touchez pour révéler','Zum Aufdecken tippen'))
         ),
-        React.createElement('div', { style: { ...base, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', boxShadow: '0 6px 28px rgba(34,124,99,0.35)', transform: 'rotateY(180deg)' } },
+        React.createElement('div', { style: { ...base, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', boxShadow: '0 6px 28px rgba(79,70,229,0.35)', transform: 'rotateY(180deg)' } },
           React.createElement('div', { style: { fontSize: '30px', marginBottom: '12px' } }, '✅'),
           React.createElement('p', { style: { fontSize: '16px', fontWeight: 700, color: 'var(--white)', lineHeight: 1.5, margin: 0 } }, card.back)
         )
@@ -463,7 +414,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('div', { style: { fontSize: '48px', fontWeight: 900, color: 'var(--slate-900)', lineHeight: 1, marginBottom: '6px' } }, `${pct}%`),
         React.createElement('div', { style: { fontSize: '16px', fontWeight: 700, color: 'var(--slate-700)', marginBottom: '5px' } }, pct >= 80 ? L('Excellent!','Чудово!','Отлично!','Excellent !','Ausgezeichnet!') : pct >= 60 ? L('Good job!','Гарна робота!','Хорошая работа!','Bien joué !','Gut gemacht!') : L('Keep going!','Продовжуйте!','Продолжайте!','Continuez !','Weiter so!')),
         React.createElement('div', { style: { fontSize: '13px', color: 'var(--slate-500)', marginBottom: '24px' } }, `${score} of ${quiz.length} correct`),
-        React.createElement('button', { onClick: () => setState({ quizAnswers: {} }), style: { padding: '12px 28px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', color: 'var(--white)', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(34,124,99,0.3)' } }, '↺ ' + L('Try Again','Спробувати ще','Попробовать ещё','Réessayer','Nochmal'))
+        React.createElement('button', { onClick: () => setState({ quizAnswers: {} }), style: { padding: '12px 28px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', color: 'var(--white)', border: 'none', borderRadius: '14px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 14px rgba(79,70,229,0.3)' } }, '↺ ' + L('Try Again','Спробувати ще','Попробовать ещё','Réessayer','Nochmal'))
       );
     }
     const L = ['A', 'B', 'C', 'D'];
@@ -550,7 +501,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
         React.createElement('div', { style: { display: 'flex', gap: '10px', marginBottom: '24px' } },
           React.createElement('button', { onClick: () => setState({ currentCard: Math.max(0, currentCard - 1), flippedCards: {} }), disabled: currentCard === 0, style: { flex: 1, padding: '12px', background: 'var(--surface-card)', border: '1.5px solid var(--slate-200)', borderRadius: '14px', fontSize: '13px', fontWeight: 700, color: currentCard === 0 ? 'var(--slate-300)' : 'var(--slate-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: currentCard === 0 ? 'default' : 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' } },
             React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '15 18 9 12 15 6' })), L('Prev','Назад','Назад','Préc.','Zurück')),
-          React.createElement('button', { onClick: () => setState({ currentCard: Math.min(flashcards.length - 1, currentCard + 1), flippedCards: {} }), disabled: currentCard >= flashcards.length - 1, style: { flex: 1, padding: '12px', background: currentCard >= flashcards.length - 1 ? 'var(--slate-200)' : 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '14px', fontSize: '13px', fontWeight: 700, color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: currentCard >= flashcards.length - 1 ? 'default' : 'pointer', boxShadow: currentCard >= flashcards.length - 1 ? 'none' : '0 4px 12px rgba(34,124,99,0.3)' } },
+          React.createElement('button', { onClick: () => setState({ currentCard: Math.min(flashcards.length - 1, currentCard + 1), flippedCards: {} }), disabled: currentCard >= flashcards.length - 1, style: { flex: 1, padding: '12px', background: currentCard >= flashcards.length - 1 ? 'var(--slate-200)' : 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '14px', fontSize: '13px', fontWeight: 700, color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', cursor: currentCard >= flashcards.length - 1 ? 'default' : 'pointer', boxShadow: currentCard >= flashcards.length - 1 ? 'none' : '0 4px 12px rgba(79,70,229,0.3)' } },
             L('Next','Далі','Далее','Suiv.','Weiter'), React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '9 18 15 12 9 6' })))
         ),
         React.createElement('p', { style: { fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--slate-400)', margin: '0 0 10px' } }, L('All Cards','Усі картки','Все карточки','Toutes les cartes','Alle Karten')),
@@ -597,7 +548,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const chatInputBarEl = React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--slate-50)', border: '1.5px solid var(--slate-200)', borderRadius: '22px', padding: '6px 6px 6px 14px' } },
     React.createElement('input', { value: chatInput, onChange: (e) => setState({ chatInput: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } }, placeholder: L('Ask Claude anything about this topic…','Запитайте Claude будь-що про цю тему…','Спросите Claude что угодно об этой теме…','Demandez tout à Claude sur ce sujet…','Frag Claude alles zu diesem Thema…'), style: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: 'var(--slate-900)', background: 'none' } }),
-    React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(34,124,99,0.3)', flexShrink: 0 } },
+    React.createElement('button', { onClick: sendChat, style: { width: '30px', height: '30px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(79,70,229,0.3)', flexShrink: 0 } },
       React.createElement('svg', { width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none', stroke: 'var(--white)', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('line', { x1: '22', y1: '2', x2: '11', y2: '13' }), React.createElement('polygon', { points: '22 2 15 22 11 13 2 9 22 2' })))
   );
   const hasInput = !!(inputText.trim() || (files && files.length) || youtubeData);
@@ -605,7 +556,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     React.createElement('div', { style: { padding: '20px 20px 14px', flexShrink: 0 } },
       React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
-        React.createElement('div', { style: { width: '46px', height: '46px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0, boxShadow: '0 4px 14px rgba(34,124,99,0.3)' } }, '🧠'),
+        React.createElement('div', { style: { width: '46px', height: '46px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0, boxShadow: '0 4px 14px rgba(79,70,229,0.3)' } }, '🧠'),
         React.createElement('div', null,
           React.createElement('div', { style: { fontWeight: 800, fontSize: '19px', color: 'var(--slate-900)', lineHeight: 1.1 } }, L('AI Study Tool','AI-інструмент навчання','AI-инструмент обучения','Outil d\'étude IA','KI-Lernwerkzeug')),
           React.createElement('div', { style: { fontSize: '12px', color: 'var(--slate-500)', marginTop: '2px' } }, L('Powered by Claude AI','На базі Claude AI','На базе Claude AI','Propulsé par Claude AI','Unterstützt von Claude AI'))
@@ -615,11 +566,11 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '0 18px 32px' } },
       React.createElement('div', { style: { marginBottom: '20px', animation: 'fadeUp 0.35s ease-out both' } },
         React.createElement('h1', { style: { fontSize: '26px', fontWeight: 900, color: 'var(--slate-900)', lineHeight: 1.2, margin: '0 0 8px', letterSpacing: '-0.5px' } }, L('Drop anything.','Закиньте будь-що.','Закиньте что угодно.','Déposez n\'importe quoi.','Leg alles ab.'), React.createElement('br'), L('Learn everything.','Вивчіть усе.','Изучите всё.','Apprenez tout.','Lerne alles.')),
-        React.createElement('p', { style: { fontSize: '13px', color: 'var(--slate-500)', margin: 0, lineHeight: 1.7 } }, L('Image · PDF · PPTX · DOCX · YouTube link · or just type a topic. Claude builds your study set instantly.','Зображення · PDF · PPTX · DOCX · YouTube-посилання · або просто введіть тему. Claude миттєво збере ваш навчальний набір.','Изображение · PDF · PPTX · DOCX · ссылка YouTube · или просто введите тему. Claude мгновенно соберёт ваш учебный набор.','Image · PDF · PPTX · DOCX · lien YouTube · ou tapez un sujet. Claude crée votre kit d\'étude instantanément.','Bild · PDF · PPTX · DOCX · YouTube-Link · oder einfach ein Thema eingeben. Claude erstellt sofort dein Lernset.'))
+        React.createElement('p', { style: { fontSize: '13px', color: 'var(--slate-500)', margin: 0, lineHeight: 1.7 } }, L('PDF, Word, PowerPoint, Excel, images, notes, YouTube — or type a topic. Claude builds your study set.','PDF, Word, PowerPoint, Excel, зображення, нотатки, YouTube — або введіть тему. Claude збере навчальний набір.','PDF, Word, PowerPoint, Excel, изображения, заметки, YouTube — или введите тему. Claude соберёт учебный набор.','PDF, Word, PowerPoint, Excel, images, notes, YouTube — ou tapez un sujet. Claude crée votre kit.','PDF, Word, PowerPoint, Excel, Bilder, Notizen, YouTube — oder ein Thema eingeben. Claude erstellt dein Lernset.'))
       ),
       React.createElement('input', { type: 'file', id: 'study-file-input', multiple: true, accept: ACCEPT_ATTRIBUTE, onChange: (e) => { readFiles(e.target.files); e.target.value = ''; }, style: { display: 'none' } }),
       buildDropZoneEl(isDragOver, isExtractingFile, {
-        onDragOver: (e) => { e.preventDefault(); setState({ isDragOver: true }); },
+        onDragOver: (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setState({ isDragOver: true }); },
         onDragLeave: () => setState({ isDragOver: false }),
         onDrop: (e) => { e.preventDefault(); handleDrop(e); },
         onClick: () => { const el = document.getElementById('study-file-input'); if (el) el.click(); },
@@ -657,7 +608,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   );
 
   const loadingScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '22px', padding: '40px', textAlign: 'center', animation: 'fadeUp 0.3s ease-out both' } },
-    React.createElement('div', { style: { width: '76px', height: '76px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', boxShadow: '0 10px 32px rgba(34,124,99,0.35)', animation: 'pulse 2s ease-in-out infinite' } }, '🧠'),
+    React.createElement('div', { style: { width: '76px', height: '76px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', boxShadow: '0 10px 32px rgba(79,70,229,0.35)', animation: 'pulse 2s ease-in-out infinite' } }, '🧠'),
     React.createElement('div', null,
       React.createElement('div', { style: { fontSize: '20px', fontWeight: 800, color: 'var(--slate-900)', marginBottom: '8px' } }, L('Building your study set','Збираю ваш навчальний набір','Собираю ваш учебный набор','Création de votre kit d\'étude','Erstelle dein Lernset')),
       React.createElement('div', { style: { fontSize: '14px', color: 'var(--slate-500)', lineHeight: 1.65, minHeight: '42px' } }, loadingMsg)

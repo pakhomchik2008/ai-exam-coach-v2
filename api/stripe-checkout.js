@@ -69,6 +69,7 @@ export default async function handler(req, res) {
     client_reference_id: user.id,
     success_url: `${base}/?billing=success`,
     cancel_url: `${base}/?billing=cancel`,
+    allow_promotion_codes: "true",
   };
   if (customerId) fields.customer = customerId;
   else fields.customer_email = email;

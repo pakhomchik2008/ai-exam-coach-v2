@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alevelTreeSlug, nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
+import { alevelTreeSlug, findLessonByTitle, nmtTreeSlug, treeForExam, treeKeyForExam } from "./resolve";
 import { availableTaxonomies, getTree } from "./index";
 
 describe("nmtTreeSlug", () => {
@@ -36,6 +36,15 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "ACT", qualificationId: "act" })).toBe("act");
     expect(treeKeyForExam({ name: "TOEFL", qualificationId: "toefl" })).toBe("toefl");
     expect(treeKeyForExam({ name: "Duolingo", qualificationId: "duolingo" })).toBe("duolingo");
+    expect(treeKeyForExam({ name: "GRE", qualificationId: "gre" })).toBe("gre");
+    expect(treeKeyForExam({ name: "GRE Verbal", qualificationId: "gre" })).toBe("gre");
+    expect(getTree("gre")?.examTaxonomy).toBe("gre");
+    expect(treeKeyForExam({ name: "GMAT Focus", qualificationId: "gmat" })).toBe("gmat");
+    expect(treeKeyForExam({ name: "GMAT Quant", qualificationId: "gmat" })).toBe("gmat");
+    expect(getTree("gmat")?.examTaxonomy).toBe("gmat");
+    expect(treeKeyForExam({ name: "PTE Academic", qualificationId: "pte" })).toBe("pte");
+    expect(treeKeyForExam({ name: "PTE Speaking", qualificationId: "pte" })).toBe("pte");
+    expect(getTree("pte")?.examTaxonomy).toBe("pte");
   });
 
   it("splits GCSE / AP / Matura subjects", () => {
@@ -44,11 +53,32 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "AP Calculus BC", qualificationId: "ap" })).toBe("ap-calc-bc");
     expect(treeKeyForExam({ name: "AP Calculus AB", qualificationId: "ap" })).toBe("ap-calc-ab");
     expect(treeKeyForExam({ name: "Matura Matematyka", qualificationId: "matura" })).toBe("matura-math");
+    expect(treeKeyForExam({ name: "Matura Język francuski", qualificationId: "matura" })).toBe("matura-lang");
     expect(treeKeyForExam({ name: "Abitur Deutsch", qualificationId: "abitur" })).toBe("abitur-de");
+    expect(treeKeyForExam({ name: "Bac Mathématiques", qualificationId: "bac" })).toBe("bac-math");
+    expect(treeKeyForExam({ name: "Baccalauréat Français", qualificationId: "bac" })).toBe("bac-fr");
+    expect(treeKeyForExam({ name: "Bac Philosophie", qualificationId: "bac" })).toBe("bac-philo");
+    expect(treeKeyForExam({ name: "Bac Grand oral", qualificationId: "bac" })).toBe("bac-go");
+    expect(treeKeyForExam({ name: "Bac Physique-Chimie", qualificationId: "bac" })).toBe("bac-pc");
   });
 
   it("still finds SAT when the stored qualificationId is a stale GCSE", () => {
     expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "gcse" })).toBe("sat");
+  });
+
+  it("does not treat PTE as IELTS", () => {
+    expect(treeKeyForExam({ name: "PTE Academic", qualificationId: "custom" })).toBe("pte");
+    expect(treeKeyForExam({ name: "IELTS Academic", qualificationId: "custom" })).toBe("ielts");
+  });
+
+  it("does not treat GMAT as GRE", () => {
+    expect(treeKeyForExam({ name: "GMAT Focus", qualificationId: "custom" })).toBe("gmat");
+    expect(treeKeyForExam({ name: "GRE General Test", qualificationId: "custom" })).toBe("gre");
+  });
+
+  it("does not treat French Bac as IB", () => {
+    expect(treeKeyForExam({ name: "Baccalauréat Mathématiques", qualificationId: "ib" })).toBe("bac-math");
+    expect(treeKeyForExam({ name: "International Baccalaureate Mathematics AA", qualificationId: "ib" })).toBe("ib-aa");
   });
 
   it("still finds NMT language when the stored qualificationId is a stale GCSE", () => {
@@ -108,12 +138,27 @@ describe("treeForExam", () => {
     expect(math).not.toBe(chem);
   });
 
+  it("finds a Further Maths lesson from the dashboard topic name", () => {
+    const tree = treeForExam({ name: "A-Level Further Mathematics", qualificationId: "alevel" });
+    expect(findLessonByTitle(tree, "Complex Numbers")?.node.title.en).toBe("Complex Numbers");
+    expect(findLessonByTitle(tree, "no such topic")).toBeNull();
+  });
+
+  it("shows Polish-medium Matura trees in Polish, English paper in English", () => {
+    const math = getTree("matura-math");
+    expect(math?.units[0]?.title.pl).toBe("Matematyka");
+    expect(math?.units[0]?.nodes[0]?.title.en).toBe("Liczby rzeczywiste");
+    expect(getTree("matura-pl")?.units[0]?.nodes[0]?.title.en).toBe("Czytanie ze zrozumieniem");
+    expect(getTree("matura-eng")?.units[0]?.nodes[0]?.title.en).toBe("Reading Comprehension");
+  });
+
   it("does not register a bare subject-split qualification key", () => {
     expect(getTree("gcse")).toBeNull();
     expect(getTree("ap")).toBeNull();
     expect(getTree("ib")).toBeNull();
     expect(getTree("matura")).toBeNull();
     expect(getTree("abitur")).toBeNull();
+    expect(getTree("bac")).toBeNull();
   });
 
   it("keeps node ids unique inside every registered tree", () => {
