@@ -1,4 +1,4 @@
-// Settings hub — tile grid (OneSignal-style). Detail lives in sheets so
+// Settings hub — tile grid (OneSignal-style). Detail is an in-tab page so
 // the tab stays one route. Helpers stay at module scope: Field/Section
 // used to remount inputs; Card/Row would too.
 
@@ -67,14 +67,14 @@ function MagToggle({ on, onChange, label }) {
   );
 }
 
-function Sheet({ title, onClose, children }) {
+function SettingsPage({ title, onClose, backLabel, children }) {
   return (
-    <div className="settings-sheet ux-overlay" onClick={onClose} role="presentation">
-      <div className="settings-sheet-panel ux-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div aria-hidden="true" style={{ width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" }} />
-        <h3 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>{title}</h3>
-        {children}
-      </div>
+    <div className="settings-page">
+      <header className="settings-page-head">
+        <button type="button" className="settings-page-back" onClick={onClose} aria-label={backLabel || "Back"}>‹</button>
+        <h1>{title}</h1>
+      </header>
+      <div className="settings-page-body">{children}</div>
     </div>
   );
 }
@@ -258,6 +258,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
 
   return (
     <div className="settings-hub" style={{ backgroundImage: tierOff ? "none" : tierWash, margin: "-8px -4px 0", padding: "8px 4px 0" }}>
+      {!sheet && (
+        <>
       <h1>{t.settings_title}</h1>
 
       <section className="settings-hub-section">
@@ -350,9 +352,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
           />
         </div>
       </section>
+        </>
+      )}
 
       {sheet === "profile" && (
-        <Sheet title={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Edit profile", "Редагувати профіль", "Редактировать профиль", "Modifier le profil", "Profil bearbeiten")} onClose={() => setSheet(null)}>
           <div className="settings-row" style={{ alignItems: "center", borderTop: "none", paddingLeft: 0, paddingRight: 0 }}>
             <XpAvatar src={avatar} name={fullName} into={xp.into} need={xp.need} />
             <span className="settings-row-label">
@@ -383,11 +387,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
             {t.settings_save}
           </button>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "study" && (
-        <Sheet title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")} onClose={() => setSheet(null)}>
           <Card>
             {exams.length === 0
               ? <Row label={L(lang, "No exams yet", "Ще немає іспитів", "Ещё нет экзаменов", "Pas encore d’examens", "Noch keine Prüfungen")} sub={L(lang, "Add one from the Exams tab.", "Додай на вкладці Іспити.", "Добавь на вкладке Экзамены.", "Ajoute-en dans Examens.", "Füge eine unter Prüfungen hinzu.")} chevron onClick={() => onGoToExams && onGoToExams()} />
@@ -397,11 +401,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             <Row label={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} value={`${hoursPerDay}h`} chevron onClick={() => setSheet("hours")} />
             <Row label={L(lang, "Current tier", "Поточний рівень", "Текущий тир", "Palier actuel", "Aktuelle Stufe")} value={`${tier.emoji} ${window.tierTitle ? window.tierTitle(tier, lang) : tier.id}`} />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "appearance" && (
-        <Sheet title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")} onClose={() => {
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Personalization", "Персоналізація", "Персонализация", "Personnalisation", "Personalisierung")} onClose={() => {
           applyAppearance(window.getProfile());
           setTheme(resolveThemeId(window.getProfile().theme));
           setSheet(null);
@@ -440,6 +444,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
                 {t.settings_save}
               </button>
             </div>
+          </Card>
+          <Card>
             <Row label={L(lang, "Show tier background", "Показувати фон рівня", "Показывать фон уровня", "Fond du palier", "Stufen-Hintergrund")}>
               <MagToggle on={!tierOff} label="tier bg" onChange={(v) => { setTierOff(!v); persist({ tierThemeDisabled: !v }); }} />
             </Row>
@@ -451,6 +457,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
                   onClick={() => { setAccent(name); persist({ accent: name }); }} />
               ))}
             </div>
+          </Card>
+          <Card>
             <div style={{ padding: "4px 16px 0", fontSize: "var(--text-xs)", color: "var(--text-faint)" }}>{L(lang, "Language", "Мова", "Язык", "Langue", "Sprache")}</div>
             <div className="settings-flags">
               {Object.values(window.LANGS || {}).map((l) => (
@@ -464,11 +472,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
               <MagToggle on={dyslexiaFont} label="dyslexia" onChange={(v) => { setDyslexiaFont(v); persist({ dyslexiaFont: v }); }} />
             </Row>
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "sound" && (
-        <Sheet title={L(lang, "Sound & haptics", "Звук і тактильність", "Звук и тактильность", "Son et haptique", "Ton & Haptik")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Sound & haptics", "Звук і тактильність", "Звук и тактильность", "Son et haptique", "Ton & Haptik")} onClose={() => setSheet(null)}>
           <Card>
             <Row label={L(lang, "Sound effects", "Звукові ефекти", "Звуковые эффекты", "Effets sonores", "Soundeffekte")} sub={L(lang, "Off by default", "Тиша за замовчуванням", "По умолчанию выкл.", "Désactivé par défaut", "Standard aus")}>
               <MagToggle on={soundsEnabled} label="sounds" onChange={(v) => {
@@ -494,11 +502,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             </Row>
             <Row label={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} chevron onClick={() => setSheet("sounds")} />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "notify" && (
-        <Sheet title={L(lang, "Notifications", "Сповіщення", "Уведомления", "Notifications", "Benachrichtigungen")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Notifications", "Сповіщення", "Уведомления", "Notifications", "Benachrichtigungen")} onClose={() => setSheet(null)}>
           <Card>
             <Row label={L(lang, "All notifications", "Усі сповіщення", "Все уведомления", "Toutes les notifications", "Alle Benachrichtigungen")}>
               <MagToggle on={notifyMaster} label="master notify" onChange={(v) => { setNotifyMaster(v); persist({ notifyMaster: v }); }} />
@@ -517,40 +525,44 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
                     }} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
                   </div>
                 )}
-                {[
-                  { v: notifyExamCountdown, set: setNotifyExamCountdown, k: "notifyExamCountdown",
-                    label: L(lang, "Exam approaching", "Іспит наближається", "Экзамен близко", "Examen proche", "Prüfung naht"),
-                    sub: L(lang, "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1") },
-                  { v: notifyWeeklyDigest, set: setNotifyWeeklyDigest, k: "notifyWeeklyDigest",
-                    label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdo", "Wochenüberblick") },
-                  { v: notifyStreakDanger, set: setNotifyStreakDanger, k: "notifyStreakDanger",
-                    label: L(lang, "Streak in danger", "Серія в небезпеці", "Серия в опасности", "Série en danger", "Serie in Gefahr") },
-                  { v: notifyMistakeReview, set: setNotifyMistakeReview, k: "notifyMistakeReview",
-                    label: L(lang, "Time to review", "Час повторити", "Пора повторить", "À réviser", "Wiederholen") },
-                ].map((row) => (
-                  <Row key={row.k} label={row.label} sub={row.sub}>
-                    <MagToggle on={row.v} label={row.k} onChange={(v) => { row.set(v); persist({ [row.k]: v }); }} />
-                  </Row>
-                ))}
-                <Row label={L(lang, "Quiet hours", "Тихі години", "Тихие часы", "Heures calmes", "Ruhezeiten")}
-                  sub={L(lang, "Saved on the profile. The daily cron still fires at 16:00 UTC — Hobby plan has one send window.", "Пишеться в профіль. Крон як і був о 16:00 UTC — на Hobby одне вікно.", "Пишется в профиль. Крон по-прежнему 16:00 UTC.", "Enregistré. Le cron reste 16:00 UTC.", "Gespeichert. Cron bleibt 16:00 UTC.")}>
-                  <MagToggle on={quietOn} label="quiet" onChange={(v) => {
-                    setQuietOn(v);
-                    persist({ quietHoursStart: v ? quietStart : null, quietHoursEnd: v ? quietEnd : null });
-                  }} />
-                </Row>
-                {window.isPushSupported && window.isPushSupported() && pushStatus !== "granted" && pushStatus !== "denied" && (
-                  <Row label={L(lang, "Enable browser push", "Увімкнути push", "Включить push", "Activer le push", "Push aktivieren")} chevron
-                    onClick={async () => setPushStatus(await window.requestPushPermission())} />
-                )}
               </>
             )}
           </Card>
-        </Sheet>
+          {notifyMaster && (
+            <Card>
+              {[
+                { v: notifyExamCountdown, set: setNotifyExamCountdown, k: "notifyExamCountdown",
+                  label: L(lang, "Exam approaching", "Іспит наближається", "Экзамен близко", "Examen proche", "Prüfung naht"),
+                  sub: L(lang, "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1") },
+                { v: notifyWeeklyDigest, set: setNotifyWeeklyDigest, k: "notifyWeeklyDigest",
+                  label: L(lang, "Weekly digest", "Тижневий підсумок", "Еженедельный итог", "Récap hebdo", "Wochenüberblick") },
+                { v: notifyStreakDanger, set: setNotifyStreakDanger, k: "notifyStreakDanger",
+                  label: L(lang, "Streak in danger", "Серія в небезпеці", "Серия в опасности", "Série en danger", "Serie in Gefahr") },
+                { v: notifyMistakeReview, set: setNotifyMistakeReview, k: "notifyMistakeReview",
+                  label: L(lang, "Time to review", "Час повторити", "Пора повторить", "À réviser", "Wiederholen") },
+              ].map((row) => (
+                <Row key={row.k} label={row.label} sub={row.sub}>
+                  <MagToggle on={row.v} label={row.k} onChange={(v) => { row.set(v); persist({ [row.k]: v }); }} />
+                </Row>
+              ))}
+              <Row label={L(lang, "Quiet hours", "Тихі години", "Тихие часы", "Heures calmes", "Ruhezeiten")}
+                sub={L(lang, "Saved on the profile. The daily cron still fires at 16:00 UTC — Hobby plan has one send window.", "Пишеться в профіль. Крон як і був о 16:00 UTC — на Hobby одне вікно.", "Пишется в профиль. Крон по-прежнему 16:00 UTC.", "Enregistré. Le cron reste 16:00 UTC.", "Gespeichert. Cron bleibt 16:00 UTC.")}>
+                <MagToggle on={quietOn} label="quiet" onChange={(v) => {
+                  setQuietOn(v);
+                  persist({ quietHoursStart: v ? quietStart : null, quietHoursEnd: v ? quietEnd : null });
+                }} />
+              </Row>
+              {window.isPushSupported && window.isPushSupported() && pushStatus !== "granted" && pushStatus !== "denied" && (
+                <Row label={L(lang, "Enable browser push", "Увімкнути push", "Включить push", "Activer le push", "Push aktivieren")} chevron
+                  onClick={async () => setPushStatus(await window.requestPushPermission())} />
+              )}
+            </Card>
+          )}
+        </SettingsPage>
       )}
 
       {sheet === "billing" && (
-        <Sheet title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} onClose={() => setSheet(null)}>
           <Card>
             <Row
               label={pro ? "Pro" : "Free"}
@@ -575,11 +587,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
               sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
               chevron onClick={buy} />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "data" && (
-        <Sheet title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")} onClose={() => setSheet(null)}>
           <Card>
             <Row label={L(lang, "Export data", "Експортувати дані", "Экспортировать данные", "Exporter les données", "Daten exportieren")}
               value={exported ? L(lang, "Downloaded", "Завантажено", "Скачано", "Téléchargé", "Heruntergeladen") : "JSON"} chevron
@@ -590,11 +602,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             <Row label={L(lang, "Who sees my data", "Хто бачить мої дані", "Кто видит мои данные", "Qui voit mes données", "Wer meine Daten sieht")}
               sub={L(lang, "You. RLS on Supabase. AI calls go through our proxy — the key is not in the browser.", "Ти. RLS у Supabase. AI йде через наш проксі — ключа в браузері немає.", "Ты. RLS в Supabase. AI через наш прокси.", "Toi. RLS sur Supabase. L’IA passe par notre proxy.", "Du. RLS auf Supabase. KI über unseren Proxy.")} />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "support" && (
-        <Sheet title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")} onClose={() => setSheet(null)}>
           <Card>
             <Row label={L(lang, "FAQ", "Питання", "Вопросы", "FAQ", "FAQ")} chevron onClick={() => setSheet("faq")} />
             <Row label={L(lang, "Write to support", "Написати в підтримку", "Написать в поддержку", "Écrire au support", "Support schreiben")}
@@ -604,11 +616,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             <Row label={L(lang, "Telegram community", "Telegram-спільнота", "Сообщество Telegram", "Communauté Telegram", "Telegram-Community")} chevron
               onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "aboutMenu" && (
-        <Sheet title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")} onClose={() => setSheet(null)}>
           <Card>
             <Row label="exam.coach" value={`v${PKG_VERSION}`} onClick={() => {
               const n = egg + 1;
@@ -622,11 +634,11 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
             <Row label="TikTok" chevron onClick={() => window.open("https://www.tiktok.com/@exam.coach", "_blank", "noopener")} />
             <Row label="GitHub" chevron onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2", "_blank", "noopener")} />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
 
       {sheet === "danger" && (
-        <Sheet title={L(lang, "Danger zone", "Небезпечна зона", "Опасная зона", "Zone danger", "Gefahrenzone")} onClose={() => setSheet(null)}>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Danger zone", "Небезпечна зона", "Опасная зона", "Zone danger", "Gefahrenzone")} onClose={() => setSheet(null)}>
           <Card danger>
             <Row
               label={confirmErase
@@ -662,77 +674,99 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
               }}
             />
           </Card>
-        </Sheet>
+        </SettingsPage>
       )}
       {sheet === "hours" && (
-        <Sheet title={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} onClose={() => setSheet("study")}>
-          <input type="range" min={1} max={8} step={0.5} value={hoursPerDay}
-            onChange={(e) => setHoursPerDay(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
-          <p style={{ fontSize: 20, fontWeight: 700, color: "var(--text-strong)" }}>{hoursPerDay}h</p>
-          <button type="button" onClick={() => { persist({ hoursPerDay }); setSheet("study"); }}
-            style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-            {t.settings_save}
-          </button>
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Hours per day", "Годин на день", "Часов в день", "Heures / jour", "Stunden / Tag")} onClose={() => setSheet("study")}>
+          <Card>
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 16 }}>
+              <input type="range" min={1} max={8} step={0.5} value={hoursPerDay}
+                onChange={(e) => setHoursPerDay(Number(e.target.value))} style={{ width: "100%", accentColor: "var(--indigo-600)" }} />
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "var(--text-strong)" }}>{hoursPerDay}h</p>
+              <button type="button" onClick={() => { persist({ hoursPerDay }); setSheet("study"); }}
+                style={{ width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                {t.settings_save}
+              </button>
+            </div>
+          </Card>
+        </SettingsPage>
       )}
 
       {sheet === "region" && (
-        <Sheet title={L(lang, "Country / timezone", "Країна / пояс", "Страна / пояс", "Pays / fuseau", "Land / Zone")} onClose={() => setSheet("appearance")}>
-          <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder={L(lang, "Ukraine", "Україна", "Украина", "Ukraine", "Ukraine")} style={{ ...inputStyle, marginBottom: 12 }} />
-          <select value={tz.id} onChange={(e) => setTz(ZONES.find((z) => z.id === e.target.value) || tz)} style={{ ...inputStyle, appearance: "none" }}>
-            {ZONES.map((z) => <option key={z.id} value={z.id}>{z.label} — {z.place}</option>)}
-          </select>
-          <button type="button" onClick={() => { persist({ country, timezone: tz.id }); setSheet("appearance"); }}
-            style={{ marginTop: 16, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
-            {t.settings_save}
-          </button>
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Country / timezone", "Країна / пояс", "Страна / пояс", "Pays / fuseau", "Land / Zone")} onClose={() => setSheet("appearance")}>
+          <Card>
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
+              <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder={L(lang, "Ukraine", "Україна", "Украина", "Ukraine", "Ukraine")} style={inputStyle} />
+              <select value={tz.id} onChange={(e) => setTz(ZONES.find((z) => z.id === e.target.value) || tz)} style={{ ...inputStyle, appearance: "none" }}>
+                {ZONES.map((z) => <option key={z.id} value={z.id}>{z.label} — {z.place}</option>)}
+              </select>
+              <button type="button" onClick={() => { persist({ country, timezone: tz.id }); setSheet("appearance"); }}
+                style={{ marginTop: 4, width: "100%", padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer" }}>
+                {t.settings_save}
+              </button>
+            </div>
+          </Card>
+        </SettingsPage>
       )}
 
       {sheet === "sounds" && (
-        <Sheet title={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} onClose={() => setSheet("sound")}>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {(window.SOUND_NAMES || []).map((name) => (
-              <button key={name} type="button" onClick={() => window.previewSound && window.previewSound(name)}
-                style={{ border: "1px solid var(--border-default)", background: "var(--surface-muted)", color: "var(--text-body)", borderRadius: 99, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
-                {name}
-              </button>
-            ))}
-          </div>
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title={L(lang, "Preview sounds", "Прослухати звуки", "Прослушать звуки", "Écouter les sons", "Sounds anhören")} onClose={() => setSheet("sound")}>
+          <Card>
+            <div className="settings-row" style={{ flexWrap: "wrap", gap: 8 }}>
+              {(window.SOUND_NAMES || []).map((name) => (
+                <button key={name} type="button" onClick={() => window.previewSound && window.previewSound(name)}
+                  style={{ border: "1px solid var(--border-default)", background: "var(--surface-muted)", color: "var(--text-body)", borderRadius: 99, padding: "8px 14px", fontSize: 13, cursor: "pointer" }}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          </Card>
+        </SettingsPage>
       )}
 
       {(sheet === "privacy" || sheet === "terms") && (
-        <Sheet title={t[`legal_${sheet}_title`] || sheet} onClose={() => setSheet("data")}>
-          <Legal page={sheet} t={t} onBack={() => setSheet("data")} />
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title={t[`legal_${sheet}_title`] || sheet} onClose={() => setSheet("data")}>
+          <Legal page={sheet} t={t} />
+        </SettingsPage>
       )}
 
       {sheet === "faq" && (
-        <Sheet title={t.land_faq_title || "FAQ"} onClose={() => setSheet("support")}>
-          {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-            <details key={n} style={{ marginBottom: 8 }}>
-              <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--text-strong)" }}>{t[`land_faq_${n}_q`]}</summary>
-              <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 }}>{t[`land_faq_${n}_a`]}</p>
-            </details>
-          ))}
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title={t.land_faq_title || "FAQ"} onClose={() => setSheet("support")}>
+          <Card>
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 12 }}>
+              {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                <details key={n}>
+                  <summary style={{ cursor: "pointer", fontWeight: 600, color: "var(--text-strong)" }}>{t[`land_faq_${n}_q`]}</summary>
+                  <p style={{ margin: "8px 0 0", fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 }}>{t[`land_faq_${n}_a`]}</p>
+                </details>
+              ))}
+            </div>
+          </Card>
+        </SettingsPage>
       )}
 
       {sheet === "about" && (
-        <Sheet title={t.land_about_title || "About"} onClose={() => setSheet("aboutMenu")}>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p1}</p>
-          <p style={{ margin: "12px 0 0", fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p2}</p>
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title={t.land_about_title || "About"} onClose={() => setSheet("aboutMenu")}>
+          <Card>
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p1}</p>
+              <p style={{ margin: "12px 0 0", fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>{t.land_about_p2}</p>
+            </div>
+          </Card>
+        </SettingsPage>
       )}
 
       {sheet === "egg" && (
-        <Sheet title="Shipping stats" onClose={() => { setSheet("aboutMenu"); setEgg(0); }}>
-          <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>
-            {L(lang, "Built by Hlib in Ukraine. Coffee: ∞. Beta testers: you.", "Зробив Гліб в Україні. Кави: ∞. Бета: ти.", "Сделал Глеб в Украине. Кофе: ∞.", "Fait par Hlib en Ukraine. Café : ∞.", "Gebaut von Hlib in der Ukraine. Kaffee: ∞.")}
-          </p>
-          <p style={{ margin: "12px 0 0", fontSize: 13, color: "var(--text-faint)" }}>exam.coach v{PKG_VERSION}</p>
-        </Sheet>
+        <SettingsPage backLabel={t.onboard_back} title="Shipping stats" onClose={() => { setSheet("aboutMenu"); setEgg(0); }}>
+          <Card>
+            <div className="settings-row" style={{ flexDirection: "column", alignItems: "stretch" }}>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>
+                {L(lang, "Built by Hlib in Ukraine. Coffee: ∞. Beta testers: you.", "Зробив Гліб в Україні. Кави: ∞. Бета: ти.", "Сделал Глеб в Украине. Кофе: ∞.", "Fait par Hlib en Ukraine. Café : ∞.", "Gebaut von Hlib in der Ukraine. Kaffee: ∞.")}
+              </p>
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: "var(--text-faint)" }}>exam.coach v{PKG_VERSION}</p>
+            </div>
+          </Card>
+        </SettingsPage>
       )}
 
       <div style={{

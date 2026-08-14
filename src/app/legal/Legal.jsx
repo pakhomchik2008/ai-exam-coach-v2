@@ -12,7 +12,7 @@ export function Legal({ page, t, onBack }) {
   const body = t[`legal_${key}_body`];
   return (
     <article className="land-legal" id="content">
-      <button type="button" className="land-legal-back" onClick={onBack}>{t.legal_back}</button>
+      {onBack ? <button type="button" className="land-legal-back" onClick={onBack}>{t.legal_back}</button> : null}
       <p className="land-legal-stub">{t.legal_stub}</p>
       <h1>{title}</h1>
       <p>{body}</p>
