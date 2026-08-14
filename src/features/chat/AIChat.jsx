@@ -4230,11 +4230,11 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
           treeRows && proN > 0 && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
             L(`${freeN} free · ${proN} Pro`, `${freeN} безкоштовно · ${proN} Pro`, `${freeN} бесплатно · ${proN} Pro`, `${freeN} gratuits · ${proN} Pro`, `${freeN} gratis · ${proN} Pro`)),
-          // Tree lists stay open so Pro topics are visible. Coarse exam.topics still collapse.
           (() => {
-            const COLLAPSE_N = treeRows ? rows.length : 5;
+            const PREVIEW_N = 3;
             const expanded = !!expandedFolders[e.id];
-            const visible = expanded || rows.length <= COLLAPSE_N ? ordered : ordered.slice(0, COLLAPSE_N);
+            const visible = expanded || ordered.length <= PREVIEW_N ? ordered : ordered.slice(0, PREVIEW_N);
+            const hidden = Math.max(0, ordered.length - PREVIEW_N);
             return ce("div", { style: { display: "flex", flexDirection: "column" } },
               ...visible.map((r, ri) => ce("button", {
                 key: ri,
@@ -4250,13 +4250,13 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
                 r.premium
                   ? ce("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999, flexShrink: 0 } }, "Pro")
                   : (r.tp ? statusPill(r.tp) : (r.studied ? ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--emerald-700)" } }, "✓") : null)))),
-              (!treeRows && rows.length > COLLAPSE_N) && ce("button", {
+              (ordered.length > PREVIEW_N) && ce("button", {
                 onClick: () => setExpandedFolders((m) => ({ ...m, [e.id]: !expanded })),
                 style: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px 16px", background: "transparent", border: "none", borderTop: "1px solid var(--border-subtle)", cursor: "pointer", fontFamily: "var(--font-sans)", width: "100%", fontSize: 13, fontWeight: 700, color: "var(--indigo-600)" }
               },
                 expanded
                   ? L("Show less ↑", "Згорнути ↑", "Свернуть ↑", "Réduire ↑", "Weniger ↑")
-                  : L(`Show all ${rows.length} topics ↓`, `Показати всі ${rows.length} тем ↓`, `Показать все ${rows.length} тем ↓`, `Voir les ${rows.length} sujets ↓`, `Alle ${rows.length} Themen ↓`)),
+                  : L(`View ${hidden} more ↓`, `Ще ${hidden} ↓`, `Ещё ${hidden} ↓`, `Voir ${hidden} de plus ↓`, `${hidden} weitere ↓`)),
               // Student-proposed topic → added to the course and taught by AI.
               customTopicFor === e.id
                 ? ce("div", { style: { display: "flex", gap: 8, padding: "10px 16px", borderTop: "1px solid var(--border-subtle)", alignItems: "center" } },
