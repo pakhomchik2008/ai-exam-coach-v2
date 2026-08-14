@@ -18,7 +18,7 @@ import { isSpeakingTreeNode } from "./speaking";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
 import { renderCoachMarkdown } from "../../lib/math-render";
-import { languageNameFor } from "../../lib/paper-language";
+import { copyLangFor, languageNameFor } from "../../lib/paper-language";
 import {
   buildDrillSystem,
   buildExplainSystem,
@@ -682,6 +682,9 @@ function LearnMain({ t }) {
   ));
   const selected = options.find((o) => o.exam.id === pickedId) || null;
   const tree = selected ? selected.tree : null;
+  // Topic titles follow the paper, not the app UI: NMT math stays
+  // Ukrainian, NMT English stays English, even if the chrome is the other.
+  const copyLang = tree ? copyLangFor(tree.examTaxonomy, lang) : lang;
 
   const learnState = window.getLearn ? window.getLearn() : {};
   const nodeState = (tree && learnState[tree.examTaxonomy]) || {};
@@ -806,7 +809,7 @@ function LearnMain({ t }) {
   if (running) {
     if (isSpeakingTreeNode(running.node.id)) {
       return React.createElement(SpeakingDialog, {
-        topic: localize(running.node.title, lang),
+        topic: localize(running.node.title, copyLang),
         t,
         onExit: () => exitRunner(null),
         onPassed: () => {
@@ -815,7 +818,7 @@ function LearnMain({ t }) {
       });
     }
     return React.createElement(NodeRunner, {
-      tree, unit: running.unit, node: running.node, lang, t,
+      tree, unit: running.unit, node: running.node, lang: copyLang, t,
       skipToProve: !!running.skipToProve,
       onExit: exitRunner,
     });
@@ -881,7 +884,7 @@ function LearnMain({ t }) {
       className: "learn-unit",
       style: { marginBottom: 28, "--learn-i": String(ui) },
     },
-      React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" } }, localize(unit.title, lang)),
+      React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)", textTransform: "uppercase", letterSpacing: "0.06em" } }, localize(unit.title, copyLang)),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...unit.nodes.map((node) => {
           const st = nodeState[node.id] || { mastery: "unlocked", attempts: 0 };
@@ -902,7 +905,7 @@ function LearnMain({ t }) {
               "aria-label": locked ? "Pro" : masteryAria(st.mastery),
             }, locked ? "🔒" : style.label),
             React.createElement("div", { style: { flex: 1 } },
-              React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, lang)),
+              React.createElement("div", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-strong)" } }, localize(node.title, copyLang)),
               React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
             ),
             locked && React.createElement("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999 } }, "Pro"),
@@ -927,9 +930,9 @@ function LearnMain({ t }) {
         "aria-hidden": "true",
         style: { width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" },
       }),
-      React.createElement("h3", { id: "learn-sheet-title", style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, lang)),
+      React.createElement("h3", { id: "learn-sheet-title", style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, copyLang)),
       React.createElement("p", { style: { margin: "4px 0 16px", fontSize: 12, color: "var(--text-muted)" } },
-        `${localize(openNode.unit.title, lang)} · complexity ${openNode.node.complexity}/5 · ~${openNode.node.estimatedMinutes} min`),
+        `${localize(openNode.unit.title, copyLang)} · complexity ${openNode.node.complexity}/5 · ~${openNode.node.estimatedMinutes} min`),
       React.createElement("button", {
         ref: startBtnRef,
         type: "button",

@@ -26,6 +26,7 @@ import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
 import { freeTopicLimit, topicIsLocked } from "../learn/premium";
+import { copyLangFor, inferCoachQual, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
 
 /**
@@ -39,6 +40,11 @@ import { ProSheet } from "../learn/ProSheet.jsx";
 function _qualificationOf(exam) {
   if (!exam) return null;
   return (window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId) || null;
+}
+
+function _paperQualOf(exam) {
+  if (!exam) return null;
+  return paperQualForExam({ ...exam, qualificationId: _qualificationOf(exam) }) || _qualificationOf(exam);
 }
 
 /** Academic vs GT + which paper — asked every sitting, never stored. */
@@ -381,7 +387,7 @@ RULES:
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Taking too long — try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 55000));
         const raw = await Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext }),
+          complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext, paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null) }),
           timeout,
         ]);
         const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -699,6 +705,10 @@ function QuickCheckEngine({ topic, onExit, t }) {
     const exam = window.getExams().find((e) => e.id === resolved.examId);
     return exam ? _qualificationOf(exam) : null;
   }, [resolved]);
+  const listenPaperQual = React.useMemo(() => {
+    if (!resolved || !window.getExams) return null;
+    return _paperQualOf(window.getExams().find((e) => e.id === resolved.examId));
+  }, [resolved]);
   const listenMode = isIeltsListeningTopic(topic, listenQual);
   const readMode = isIeltsReadingTopic(topic, listenQual);
   const writeMode = isIeltsWritingTopic(topic, listenQual);
@@ -774,7 +784,7 @@ RULES:
         // the whole {questions, sessionTitle} envelope for the first call, and
         // `regenerate` returns only the inner questions array on retry.
         const complete1 = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenQual }),
+          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenPaperQual || listenQual }),
           timeout,
         ]).then((raw) => window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
         const parsed = await complete1();
@@ -1091,8 +1101,16 @@ RULES:
 - Spread questions across the given topics evenly`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
+        const namesForRound = chosenTopics.length > 0 ? chosenTopics : allTopics.map((tp) => tp.name);
+        const examsById = new Map((window.getExams ? window.getExams() : []).map((e) => [e.id, e]));
+        const roundQuals = namesForRound.map((name) => {
+          const row = allTopics.find((tp) => tp.name === name);
+          return _paperQualOf(examsById.get(row?.examId));
+        }).filter(Boolean);
+        const roundLangs = [...new Set(roundQuals.map((q) => paperLanguageFor(q)).filter(Boolean))];
+        const speedPaperQual = roundLangs.length === 1 ? roundQuals[0] : _paperQualOf(examsById.get(examViews[0]?.id));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examViews[0]?.id) : null) }),
+          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: speedPaperQual }),
           timeout,
         ]).then((raw) => {
           const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -1411,7 +1429,7 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
       : (examViews.length === 1 && window.getExams
         ? window.getExams().find((e) => e.id === examViews[0].id)
         : null);
-    return _qualificationOf(exam);
+    return _paperQualOf(exam);
   }, [config.examId, examViews]);
   const ieltsOn = isIeltsQual(practiceQual);
 
@@ -1901,7 +1919,7 @@ OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
 RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.`;
           const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: examQual }), to])
+          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
             .then((raw) => {
               const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
               return Array.isArray(p && p.questions) ? p.questions : [];
@@ -2127,7 +2145,7 @@ function saveDiffVote(topicKey, vote) {
 // (most-recent 60) keeps localStorage from growing without limit. Bumping
 // LESSON_CACHE_VER invalidates every cached plan at once when the prompt changes.
 const LESSON_CACHE_KEY = "brain_lessoncache_v1";
-const LESSON_CACHE_VER = 1;
+const LESSON_CACHE_VER = 2;
 const LESSON_CACHE_MAX = 60;
 function lessonCacheKey({ mode, topic, examId, vote, lang, ui }) {
   return `${LESSON_CACHE_VER}::${mode}::${topic}::${examId || "any"}::v${vote ?? 0}::${lang || "ui"}::${ui || "en"}`;
@@ -2151,16 +2169,22 @@ function saveCachedLesson(key, plan) {
 // already in flight when the student clicks). Keyed by cacheKey → Promise.
 const _lessonInFlight = new Map();
 
+function lessonPaperOpts(resolved) {
+  const exam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
+  const paperQual = _paperQualOf(exam);
+  const langOverride = paperLanguageFor(paperQual) ? undefined : (exam && exam.explainLang ? exam.explainLang : undefined);
+  return { exam, paperQual, langOverride, cacheLang: paperLanguageFor(paperQual) || exam?.explainLang };
+}
+
 // Builds (or returns cached) a lesson plan for a topic. Pure of React so both
 // LessonEngine and the topic picker's hover-prefetch can call it. `force`
 // bypasses the cache to regenerate on an explicit retry.
 async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
-  const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
+  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
   const topicKey = `${topic}::${resolved?.examId || "any"}`;
   const priorVote = getDiffVote(topicKey);
-  const cacheKey = lessonCacheKey({ mode, topic, examId: resolved?.examId, vote: priorVote, lang: _lessonExam?.explainLang, ui: tcode });
+  const cacheKey = lessonCacheKey({ mode, topic, examId: resolved?.examId, vote: priorVote, lang: cacheLang, ui: tcode });
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
@@ -2271,7 +2295,7 @@ ${STEP_TYPES}`;
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
     const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride }),
+      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
     const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -2309,8 +2333,8 @@ const THEORY_MODE_TAG = "theory";
 
 async function generateTheoryReader({ topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
-  const cacheKey = lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: _lessonExam?.explainLang, ui: tcode });
+  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
+  const cacheKey = lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: cacheLang, ui: tcode });
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
@@ -2319,7 +2343,6 @@ async function generateTheoryReader({ topic, resolved, tcode, force }) {
   const run = (async () => {
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-    const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
     const system = `You are the best exam-prep teacher in the world. Write ONE excellent, self-contained theory page for the topic "${topic}". No questions, no drills — just pure, clear teaching a student can read once and remember.
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
@@ -2365,7 +2388,7 @@ DIAGRAM PLAYBOOK — pick the shape by topic type:
 - Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
     const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride }),
+      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
     const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -2612,8 +2635,8 @@ const FLASHCARDS_MODE_TAG = "flashcards";
 
 async function generateFlashcards({ topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const _lessonExam = resolved && window.getExams ? window.getExams().find((e) => e.id === resolved.examId) : null;
-  const cacheKey = lessonCacheKey({ mode: FLASHCARDS_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: _lessonExam?.explainLang, ui: tcode });
+  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
+  const cacheKey = lessonCacheKey({ mode: FLASHCARDS_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: cacheLang, ui: tcode });
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
@@ -2622,7 +2645,6 @@ async function generateFlashcards({ topic, resolved, tcode, force }) {
   const run = (async () => {
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
-    const langOverride = _lessonExam && _lessonExam.explainLang ? _lessonExam.explainLang : undefined;
     const system = `You are the best exam-prep teacher in the world. Break the topic "${topic}" into a small deck of concept cards — each card is ONE clear idea a student can absorb in under 30 seconds.
 
 OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
@@ -2644,7 +2666,7 @@ RULES:
 - Skip filler like "in this card we will…" — get straight to the point.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
     const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride }),
+      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
     const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
@@ -3276,6 +3298,8 @@ function LessonEngine({ topic, mode, onExit, t }) {
         const reply = await complete({
           system: `You are grading a student's explanation. They were asked: "${s.prompt}". The ideal answer covers: ${s.ideal}. Grade their attempt — be encouraging but honest. If they missed key points, name them specifically. If they nailed it, tell them what was good. 2-3 sentences max. End with a score: ⭐ (weak), ⭐⭐ (okay), ⭐⭐⭐ (great).`,
           messages: [{ role: "user", content: explainInput }],
+          topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
+          paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null),
         });
         setExplainFeedback(reply);
         const stars = (reply.match(/⭐/g) || []).length;
@@ -3505,6 +3529,8 @@ function LessonEngine({ topic, mode, onExit, t }) {
                 (window.brainComplete || ((a) => window.claude.complete(a)))({
                   system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                   messages: [{ role: "user", content: q }],
+                  topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
+                  paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null),
                 }).then((r) => { setAskReply(r); setAskLoading(false); })
                   .catch(() => { setAskReply(L("Couldn't get an answer right now — try again.", "Не вдалося отримати відповідь зараз — спробуйте ще раз.", "Не удалось получить ответ сейчас — попробуйте ещё раз.", "Impossible d'obtenir une réponse pour le moment — réessayez.", "Antwort konnte gerade nicht abgerufen werden — versuche es erneut.")); setAskLoading(false); });
               }
@@ -3521,6 +3547,8 @@ function LessonEngine({ topic, mode, onExit, t }) {
               (window.brainComplete || ((a) => window.claude.complete(a)))({
                 system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                 messages: [{ role: "user", content: q }],
+                topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
+                paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null),
               }).then((r) => { setAskReply(r); setAskLoading(false); })
                 .catch(() => { setAskReply(L("Couldn't get an answer right now — try again.", "Не вдалося отримати відповідь зараз — спробуйте ще раз.", "Не удалось получить ответ сейчас — попробуйте ещё раз.", "Impossible d'obtenir une réponse pour le moment — réessayez.", "Antwort konnte gerade nicht abgerufen werden — versuche es erneut.")); setAskLoading(false); });
             },
@@ -3725,6 +3753,9 @@ FORMATTING:
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
         messages: historyRef.current,
+        paperQual: inferCoachQual({
+          studentQuals: (window.getExams ? window.getExams() : []).map((e) => _paperQualOf(e)),
+        }),
       });
       setTyping(false);
       // Parse actions from response
@@ -4191,8 +4222,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       return flat.map((row) => {
         const mastery = nodeState[row.node.id] && nodeState[row.node.id].mastery;
         return {
-          name: localize(row.node.title, t?.code || "en"),
-          unitTitle: localize(row.unit.title, t?.code || "en"),
+          name: localize(row.node.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
+          unitTitle: localize(row.unit.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
           studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
           premium: topicIsLocked(row.index, flat.length, row.node.id),
           index: row.index,

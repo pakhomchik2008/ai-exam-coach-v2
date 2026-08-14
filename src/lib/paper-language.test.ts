@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalQualification,
   coachLanguageDirective,
+  copyLangFor,
   inferCoachQual,
   paperLanguageDirective,
   paperLanguageFor,
+  paperQualForExam,
 } from "./paper-language";
 
 describe("paperLanguageFor", () => {
@@ -12,6 +14,10 @@ describe("paperLanguageFor", () => {
     expect(paperLanguageFor("nmt")).toBe("uk");
     expect(paperLanguageFor("nmt-ukr")).toBe("uk");
     expect(paperLanguageFor("nmt-math")).toBe("uk");
+    expect(paperLanguageFor("nmt-eng")).toBe("en");
+    expect(paperLanguageFor("nmt-de")).toBe("de");
+    expect(paperLanguageFor("nmt-fr")).toBe("fr");
+    expect(paperLanguageFor("nmt-es")).toBe("es");
     expect(paperLanguageFor("abitur")).toBe("de");
     expect(paperLanguageFor("ielts")).toBe("en");
     expect(paperLanguageFor("alevel")).toBe("en");
@@ -23,6 +29,27 @@ describe("paperLanguageFor", () => {
     expect(paperLanguageFor("NMT")).toBe("uk");
     expect(paperLanguageFor("custom")).toBeNull();
     expect(paperLanguageFor(null)).toBeNull();
+  });
+});
+
+describe("paperQualForExam", () => {
+  it("keeps NMT English / German as their own paper, not generic nmt", () => {
+    expect(paperQualForExam({ qualificationId: "nmt", name: "NMT Англійська мова" })).toBe("nmt-eng");
+    expect(paperQualForExam({ qualificationId: "nmt", name: "NMT English" })).toBe("nmt-eng");
+    expect(paperQualForExam({ qualificationId: "nmt", name: "НМТ Німецька мова" })).toBe("nmt-de");
+    expect(paperQualForExam({ qualificationId: "nmt", name: "NMT Deutsch" })).toBe("nmt-de");
+    expect(paperQualForExam({ qualificationId: "nmt", name: "NMT Математика" })).toBe("nmt");
+    expect(paperQualForExam({ qualificationId: "nmt", name: "НМТ Українська мова" })).toBe("nmt");
+    expect(paperQualForExam({ qualificationId: "nmt", name: "NMT French" })).toBe("nmt-fr");
+  });
+});
+
+describe("copyLangFor", () => {
+  it("uses the paper language, not the UI, for NMT trees", () => {
+    expect(copyLangFor("nmt", "en")).toBe("uk");
+    expect(copyLangFor("nmt-eng", "uk")).toBe("en");
+    expect(copyLangFor("nmt-de", "en")).toBe("de");
+    expect(copyLangFor(null, "fr")).toBe("fr");
   });
 });
 
@@ -48,6 +75,12 @@ describe("coachLanguageDirective", () => {
     expect(coachLanguageDirective("nmt")).toMatch(/Ukrainian/);
     expect(coachLanguageDirective("nmt")).toMatch(/chat/i);
   });
+
+  it("keeps NMT English / German in the paper language", () => {
+    expect(coachLanguageDirective("nmt-eng")).toMatch(/English/);
+    expect(coachLanguageDirective("nmt-eng")).toMatch(/No Ukrainian/);
+    expect(coachLanguageDirective("nmt-de")).toMatch(/German/);
+  });
 });
 
 describe("inferCoachQual", () => {
@@ -55,7 +88,14 @@ describe("inferCoachQual", () => {
     expect(inferCoachQual({ paperQual: "sat", topicExamQual: "nmt", studentQuals: ["nmt"] })).toBe("sat");
     expect(inferCoachQual({ topicExamQual: "nmt", studentQuals: ["ielts"] })).toBe("nmt");
     expect(inferCoachQual({ studentQuals: ["nmt", "nmt"] })).toBe("nmt");
-    expect(inferCoachQual({ studentQuals: ["nmt-ukr", "nmt-math"] })).toBe("nmt");
+    expect(inferCoachQual({ studentQuals: ["nmt-ukr", "nmt-math"] })).toBe("nmt-ukr");
     expect(inferCoachQual({ studentQuals: ["nmt", "ielts"] })).toBeNull();
+  });
+
+  it("does not force Ukrainian onto NMT English when the student also has NMT math", () => {
+    expect(inferCoachQual({ studentQuals: ["nmt", "nmt-eng"] })).toBeNull();
+    expect(inferCoachQual({ topicExamQual: "nmt-eng", studentQuals: ["nmt", "nmt-eng"] })).toBe("nmt-eng");
+    expect(inferCoachQual({ studentQuals: ["nmt-eng"] })).toBe("nmt-eng");
+    expect(inferCoachQual({ studentQuals: ["nmt-de"] })).toBe("nmt-de");
   });
 });
