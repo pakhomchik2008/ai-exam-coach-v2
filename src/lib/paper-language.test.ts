@@ -25,6 +25,7 @@ describe("paperLanguageFor", () => {
     expect(paperLanguageFor("matura")).toBe("pl");
     expect(paperLanguageFor("bac")).toBe("fr");
     expect(paperLanguageFor("bac-math")).toBe("fr");
+    expect(paperLanguageFor("gre")).toBe("en");
   });
 
   it("is case-insensitive and ignores unknown quals", () => {
@@ -65,6 +66,7 @@ describe("canonicalQualification", () => {
     expect(canonicalQualification("nmt-ukr")).toBe("nmt");
     expect(canonicalQualification("alevel-chem")).toBe("alevel");
     expect(canonicalQualification("bac-math")).toBe("bac");
+    expect(canonicalQualification("gre")).toBe("gre");
   });
 });
 

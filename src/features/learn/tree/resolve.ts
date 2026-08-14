@@ -18,7 +18,7 @@ export type ExamLike = {
 type SlugRow = { slug: string; re: RegExp };
 type Family =
   | "nmt" | "alevel" | "gcse" | "sat" | "act" | "ap" | "ib"
-  | "matura" | "abitur" | "bac" | "ielts" | "toefl" | "duolingo";
+  | "matura" | "abitur" | "bac" | "ielts" | "toefl" | "duolingo" | "gre";
 
 const NMT_SLUGS: SlugRow[] = [
   { slug: "nmt-lit", re: /літератур|литератур|literature|укрліт/i },
@@ -164,7 +164,7 @@ const BAC_SLUGS: SlugRow[] = [
 
 const FAMILIES: Family[] = [
   "nmt", "alevel", "gcse", "sat", "act", "ap", "ib",
-  "matura", "abitur", "bac", "ielts", "toefl", "duolingo",
+  "matura", "abitur", "bac", "ielts", "toefl", "duolingo", "gre",
 ];
 
 function courseBlob(exam: ExamLike): string {
@@ -238,6 +238,7 @@ function familyFromName(exam: ExamLike): Family | null {
   if (/nmt|нмт|зно/i.test(blob)) return "nmt";
   if (/a[\s-]?level/i.test(blob)) return "alevel";
   if (/gcse/i.test(blob)) return "gcse";
+  if (/\bgre\b/i.test(blob) && !/\bgmat\b/i.test(blob)) return "gre";
   if (/\bsat\b/i.test(blob)) return "sat";
   if (/\bact\b/i.test(blob)) return "act";
   if (/toefl/i.test(blob)) return "toefl";
@@ -275,6 +276,7 @@ function keyForFamily(family: Family, exam: ExamLike): string | null {
     case "ielts":
     case "toefl":
     case "duolingo":
+    case "gre":
       return family;
     default:
       return null;

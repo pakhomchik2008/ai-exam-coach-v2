@@ -32,6 +32,12 @@ describe("scale definitions match the real exams", () => {
     expect([SCALES.sat_section.min, SCALES.sat_section.max]).toEqual([200, 800]);
   });
 
+  it("GRE composite runs 260–340, a section 130–170, AWA 0–6", () => {
+    expect([SCALES.gre.min, SCALES.gre.max]).toEqual([260, 340]);
+    expect([SCALES.gre_section.min, SCALES.gre_section.max]).toEqual([130, 170]);
+    expect(SCALES.gre_awa.step).toBe(0.5);
+  });
+
   it("GCSE runs 1–9", () => {
     expect([SCALES.gcse.min, SCALES.gcse.max]).toEqual([1, 9]);
   });
@@ -55,6 +61,7 @@ describe("scaleForTaxonomy", () => {
     ["act", "act"],
     ["bac", "bac"],
     ["bac-math", "bac"],
+    ["gre", "gre"],
     ["nmt-ukr", "nmt_subject"],
   ])("maps %s to the %s scale", (taxonomy, expected) => {
     expect(scaleIdForTaxonomy(taxonomy)).toBe(expected);
@@ -191,6 +198,14 @@ describe("schemeFromExam — exam's own grading, not A-Level letters", () => {
     expect(scheme.kind).toBe("score");
     expect(predictedFromReadiness(50, scheme)).toBe("10.0");
     expect(predictedFromReadiness(80, scheme)).toBe("16.0");
+  });
+
+  it("GRE reports V+Q 260–340", () => {
+    const scheme = schemeFromExam({ qualificationId: "gre" });
+    expect(scheme.kind).toBe("score");
+    expect(predictedFromReadiness(0, scheme)).toBe("260");
+    expect(predictedFromReadiness(50, scheme)).toBe("300");
+    expect(predictedFromReadiness(100, scheme)).toBe("340");
   });
 
   it("НМТ reports 100–200", () => {

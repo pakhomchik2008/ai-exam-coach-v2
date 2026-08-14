@@ -36,6 +36,9 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "ACT", qualificationId: "act" })).toBe("act");
     expect(treeKeyForExam({ name: "TOEFL", qualificationId: "toefl" })).toBe("toefl");
     expect(treeKeyForExam({ name: "Duolingo", qualificationId: "duolingo" })).toBe("duolingo");
+    expect(treeKeyForExam({ name: "GRE", qualificationId: "gre" })).toBe("gre");
+    expect(treeKeyForExam({ name: "GRE Verbal", qualificationId: "gre" })).toBe("gre");
+    expect(getTree("gre")?.examTaxonomy).toBe("gre");
   });
 
   it("splits GCSE / AP / Matura subjects", () => {
@@ -54,6 +57,10 @@ describe("treeKeyForExam", () => {
 
   it("still finds SAT when the stored qualificationId is a stale GCSE", () => {
     expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "gcse" })).toBe("sat");
+  });
+
+  it("does not treat GMAT as GRE", () => {
+    expect(treeKeyForExam({ name: "GMAT Focus", qualificationId: "custom" })).not.toBe("gre");
   });
 
   it("does not treat French Bac as IB", () => {

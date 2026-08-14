@@ -39,6 +39,9 @@ const EXAM_TYPES = [
     grade: { kind: "scale", options: ["1.0","1.3","1.7","2.0","2.3","2.7","3.0"], current: "2.3", target: "1.3" } },
   { id: "bac",    label: "Bac",        emoji: "🇫🇷", blurb: { en: "0–20 · mentions", uk: "0–20 · mentions", ru: "0–20 · mentions", fr: "0–20 · mentions", de: "0–20 · Mentions" }, board: "Éducation nationale", educationSystemId: "k12",
     grade: { kind: "score", min: 0, max: 20, step: 0.5, current: 12, target: 16 } },
+  { id: "gre",    label: "GRE",        emoji: "🇺🇸", blurb: { en: "V+Q 260–340", uk: "V+Q 260–340", ru: "V+Q 260–340", fr: "V+Q 260–340", de: "V+Q 260–340" }, board: "ETS", educationSystemId: "higher-ed",
+    sectionBased: true, enMedium: true,
+    grade: { kind: "score", min: 260, max: 340, step: 1, current: 305, target: 320 } },
   { id: "uni",    label: "University", emoji: "🎓", blurb: { en: "Degree classifications", uk: "Класифікації ступенів", ru: "Классификации степеней", fr: "Classifications de diplôme", de: "Abschlussklassen" }, board: "Custom modules", educationSystemId: "higher-ed",
     grade: { kind: "scale", options: ["1st","2:1","2:2","3rd","Pass"], current: "2:1", target: "1st" } },
   { id: "custom", label: "Custom",     emoji: "✏️", blurb: { en: "Set your own", uk: "Налаштуйте самі", ru: "Настройте сами", fr: "Personnalisé", de: "Selbst festlegen" }, board: "Any exam", educationSystemId: null,
@@ -79,7 +82,7 @@ function examType(id) { return resolveExamType(EXAM_TYPES, id); }
 function isSectionBasedExam(id) {
   const e = examType(id);
   if (typeof e.sectionBased === "boolean") return e.sectionBased;
-  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo";
+  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo" || id === "gre";
 }
 
 /** Add-exam default: last exam's qual, then country, never a silent GCSE. */
@@ -93,6 +96,7 @@ function suggestedQualificationId(lastExam, profile) {
   if (/toefl/i.test(blob)) return "toefl";
   if (/duolingo/i.test(blob)) return "duolingo";
   if (/(baccalaur[eé]at|\bbac\b)/i.test(blob) && !/international/i.test(blob)) return "bac";
+  if (/\bgre\b/i.test(blob) && !/\bgmat\b/i.test(blob)) return "gre";
   if (/(nmt|нmt|зно)/i.test(blob)) return "nmt";
   const country = profile && profile.country && COUNTRY_TO_EXAM_TYPE[profile.country];
   if (country) return country;
@@ -331,6 +335,7 @@ const SUBJECT_PRESETS = {
   matura: ["Matematyka","Język polski","Język angielski","Biologia","Chemia","Fizyka","Historia","Geografia","Informatyka","Wiedza o społeczeństwie","Język niemiecki","Język rosyjski"],
   abitur: ["Mathematik","Deutsch","Englisch","Biologie","Chemie","Physik","Geschichte","Geographie","Informatik","Sozialkunde","Französisch","Kunst","Musik","Sport","Wirtschaft"],
   bac: ["Français","Philosophie","Grand oral","Mathématiques","Physique-Chimie","SVT","SES","NSI","HGGSP","HLP","LLCER Anglais"],
+  gre: ["Verbal Reasoning","Quantitative Reasoning","Analytical Writing"],
   uni: ["Mathematics","Physics","Chemistry","Biology","Computer Science","Economics","Psychology","History","English Literature","Philosophy","Sociology","Political Science","Law","Business Administration","Accounting","Finance","Marketing","Engineering","Medicine","Nursing","Architecture","Statistics","Linguistics","Geography","Environmental Science","Art History","Music"],
   custom: [],
 };
