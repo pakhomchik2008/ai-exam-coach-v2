@@ -3592,7 +3592,10 @@ function LessonEngine({ topic, mode, onExit, t }) {
 // ─── CHAT MODE (freeform) ────────────────────────────────────────────────────
 
 function ChatMode({ onExit, initialQuery, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const studentQuals = (window.getExams ? window.getExams() : []).map((e) => _paperQualOf(e));
+  const coachQual = inferCoachQual({ studentQuals });
+  const copy = copyLangFor(coachQual, t?.code || "en");
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   // v2 keys — old chat sessions cached a generic greeting bubble that has
   // no place in the dashboard-first layout, so this intentionally starts fresh
   // instead of resurrecting stale messages from the pre-dashboard chat.
@@ -3774,9 +3777,7 @@ FORMATTING:
 After your answer, on a NEW line write "---ACTIONS---" followed by a JSON array of 2-3 follow-up actions the student can take, like: [{"text":"Practice this","icon":"🎯"},{"text":"Explain simpler","icon":"💡"}]
 If no actions fit, omit the ACTIONS line entirely.`,
         messages: historyRef.current,
-        paperQual: inferCoachQual({
-          studentQuals: (window.getExams ? window.getExams() : []).map((e) => _paperQualOf(e)),
-        }),
+        paperQual: coachQual,
       });
       setTyping(false);
       // Parse actions from response

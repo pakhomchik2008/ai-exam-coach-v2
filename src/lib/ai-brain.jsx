@@ -118,7 +118,10 @@ function buildLearnerContext(opts = {}) {
   return lines.join("\n");
 }
 
-import { coachLanguageDirective, inferCoachQual, paperLanguageDirective, paperLanguageFor, paperQualForExam } from "./paper-language";
+import { flattenLessonNodes, localize } from "../features/learn/tree/schema";
+import { treeForExam } from "../features/learn/tree/resolve";
+import { coachLanguageDirective, copyLangFor, inferCoachQual, paperLanguageDirective, paperLanguageFor, paperQualForExam } from "./paper-language";
+import { resolveTopicFromTrees, resolveTopicFromViews } from "./resolve-topic";
 
 // ─── central completion ───────────────────────────────────────────────────────
 
@@ -266,20 +269,39 @@ function commitCoachSession(session) {
   }
 }
 
-// Resolve a topic name to an examId + topicIdx for brain write-back
+// Resolve a topic name to an examId + topicIdx for brain write-back.
+// Learn pickers list tree node titles; examViews used to store `topicName`
+// only — matching `t.name` left Bac/NMT Socratic with no exam, so the
+// coach answered in the UI language.
 function resolveTopicForBrain(topicName) {
-  if (!topicName || !window.getBrain) return null;
-  const b = window.getBrain();
-  const norm = (s) => String(s || "").toLowerCase().trim();
-  const target = norm(topicName);
-  for (const ev of (b.examViews || [])) {
-    for (const t of (ev.topics || [])) {
-      if (norm(t.name) === target || norm(t.name).includes(target) || target.includes(norm(t.name))) {
-        return { examId: ev.id, topicIdx: t.topicIdx, topicName: t.name, examName: ev.name };
-      }
-    }
-  }
-  return null;
+  if (!topicName) return null;
+  const views = (window.getBrain && window.getBrain().examViews) || [];
+  const fromViews = resolveTopicFromViews(topicName, views);
+  if (fromViews) return fromViews;
+  const exams = window.getExams ? window.getExams() : [];
+  const catalogs = exams.map((exam) => {
+    const tree = treeForExam(exam);
+    if (!tree) return null;
+    const family = (window.examQualificationId && window.examQualificationId(exam)) || exam.qualificationId || null;
+    const qual = paperQualForExam({ ...exam, qualificationId: family }) || family || tree.examTaxonomy;
+    const paperLang = copyLangFor(qual, "en");
+    return {
+      examId: exam.id,
+      examName: exam.name || "",
+      nodes: flattenLessonNodes(tree).map((row) => ({
+        index: row.index,
+        titles: [...new Set([
+          localize(row.node.title, paperLang),
+          row.node.title.en,
+          row.node.title.fr,
+          row.node.title.uk,
+          row.node.title.ru,
+          row.node.title.de,
+        ].filter((s) => typeof s === "string" && s.trim()))],
+      })),
+    };
+  }).filter(Boolean);
+  return resolveTopicFromTrees(topicName, catalogs);
 }
 
 // ─── typed operations ────────────────────────────────────────────────────────
