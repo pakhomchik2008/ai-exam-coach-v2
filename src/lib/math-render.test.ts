@@ -25,6 +25,13 @@ describe("renderMathText", () => {
     expect(html).toContain("katex-display");
   });
 
+  it("does not send an English paragraph wrapped in $$ to KaTeX", () => {
+    const html = renderCoachMarkdown("$$a divides a number b (written a | b) if there exists a whole number k such that b = a k. Notation: a | b.$$");
+    expect(html).toContain("a divides a number b");
+    expect(html).not.toContain("katex-display");
+    expect(html).not.toContain("coach-md-math-block");
+  });
+
   it("treats a lone dollar sign as literal text (currency case)", () => {
     const html = renderMathText("costs $5 total");
     expect(html).toContain("costs $5 total");

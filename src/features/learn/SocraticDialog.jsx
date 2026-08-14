@@ -214,9 +214,11 @@ export function SocraticDialog({ topic, onExit, t }) {
       React.createElement("button", {
         type: "button",
         onClick: surrender,
-        disabled: loading,
-        style: { padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border-default)", background: "transparent", cursor: loading ? "default" : "pointer", fontFamily: "var(--font-sans)", fontSize: 13, color: "var(--text-muted)" },
-      }, L("I give up — show me", "Здаюсь, покажи", "Сдаюсь, покажи", "J’abandonne", "Zeig es mir")),
+        disabled: surrendered || loading,
+        style: { padding: "8px 12px", borderRadius: 10, border: "1px solid var(--border-default)", background: "transparent", cursor: surrendered || loading ? "default" : "pointer", fontFamily: "var(--font-sans)", fontSize: 13, color: surrendered ? "var(--text-faint)" : "var(--text-muted)" },
+      }, surrendered
+        ? L("Shown", "Показано", "Показано", "Affiché", "Gezeigt")
+        : L("I give up — show me", "Здаюсь, покажи", "Сдаюсь, покажи", "J’abandonne", "Zeig es mir")),
     ),
     done
       ? (marked

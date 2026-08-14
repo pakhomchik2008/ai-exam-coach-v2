@@ -20,6 +20,13 @@ import katex from "katex";
 // through as literal text since the KaTeX call would 404 the render anyway.
 export type MathSegment = { kind: "text" | "inline" | "block"; value: string };
 
+function looksLikeProseMath(value: string): boolean {
+  const words = value.trim().split(/\s+/).filter(Boolean).length;
+  if (words <= 8) return false;
+  const tex = /\\[a-zA-Z]+/.test(value);
+  return words > 20 || (words > 8 && !tex);
+}
+
 export function tokenizeMath(input: string): MathSegment[] {
   const out: MathSegment[] = [];
   let i = 0;
@@ -28,7 +35,10 @@ export function tokenizeMath(input: string): MathSegment[] {
     if (input[i] === "$" && input[i + 1] === "$") {
       const end = input.indexOf("$$", i + 2);
       if (end === -1) { out.push({ kind: "text", value: input.slice(i) }); break; }
-      out.push({ kind: "block", value: input.slice(i + 2, end) });
+      const inner = input.slice(i + 2, end);
+      // A whole English paragraph wrapped in $$ makes KaTeX stack glyphs
+      // on top of each other (Socratic "I give up" dump). Keep it as prose.
+      out.push(looksLikeProseMath(inner) ? { kind: "text", value: inner } : { kind: "block", value: inner });
       i = end + 2;
       continue;
     }

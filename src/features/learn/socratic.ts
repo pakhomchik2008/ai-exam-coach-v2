@@ -13,29 +13,82 @@ export type SocraticTurn = {
 
 const KINDS: readonly SocraticKind[] = ["question", "nudge", "formal", "done"];
 
-export function parseSocraticTurn(raw: string): SocraticTurn {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end <= start) {
-    const say = raw.trim();
-    if (!say) throw new Error("empty socratic turn");
-    return { say, kind: "question" };
+function unwrapFences(raw: string): string {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(raw);
+  return (fenced?.[1] ?? raw).trim();
+}
+
+function readJsonString(blob: string, quoteAt: number): string | undefined {
+  if (blob[quoteAt] !== "\"") return undefined;
+  let i = quoteAt + 1;
+  let raw = "";
+  while (i < blob.length) {
+    const c = blob[i];
+    if (c === "\\") {
+      raw += c + (blob[i + 1] ?? "");
+      i += 2;
+      continue;
+    }
+    if (c === "\"") {
+      try {
+        return JSON.parse(`"${raw.replace(/\n/g, "\\n").replace(/\r/g, "\\r")}"`) as string;
+      } catch {
+        return raw.replace(/\\n/g, "\n").replace(/\\"/g, "\"").replace(/\\\\/g, "\\");
+      }
+    }
+    raw += c;
+    i += 1;
   }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw.slice(start, end + 1));
-  } catch {
-    const say = raw.trim();
-    if (!say) throw new Error("empty socratic turn");
-    return { say, kind: "question" };
+  return undefined;
+}
+
+function extractJsonFields(blob: string): { say?: string; kind?: string; formal?: string } {
+  const out: { say?: string; kind?: string; formal?: string } = {};
+  for (const key of ["say", "kind", "formal"] as const) {
+    const re = new RegExp(`"${key}"\\s*:\\s*"`);
+    const hit = re.exec(blob);
+    if (!hit || hit.index == null) continue;
+    const value = readJsonString(blob, hit.index + hit[0].length - 1);
+    if (value != null && value.trim()) out[key] = value.trim();
   }
-  if (!parsed || typeof parsed !== "object") throw new Error("invalid socratic turn");
-  const row = parsed as { say?: unknown; kind?: unknown; formal?: unknown };
+  return out;
+}
+
+function turnFromFields(row: { say?: unknown; kind?: unknown; formal?: unknown }): SocraticTurn | null {
   const say = typeof row.say === "string" ? row.say.trim() : "";
-  if (!say) throw new Error("socratic turn missing say");
+  if (!say) return null;
   const kind = KINDS.includes(row.kind as SocraticKind) ? (row.kind as SocraticKind) : "question";
   const formal = typeof row.formal === "string" && row.formal.trim() ? row.formal.trim() : undefined;
   return formal ? { say, kind, formal } : { say, kind };
+}
+
+export function parseSocraticTurn(raw: string): SocraticTurn {
+  const text = unwrapFences(raw);
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    const slice = text.slice(start, end + 1);
+    try {
+      const parsed = JSON.parse(slice) as { say?: unknown; kind?: unknown; formal?: unknown };
+      const turn = turnFromFields(parsed);
+      if (turn) return turn;
+    } catch {
+      // Surrender answers are 4–8 sentences; models often leave real
+      // newlines inside "say", which is invalid JSON. Pull fields by hand
+      // so the raw blob never hits the markdown renderer (that path paints
+      // a fenced JSON block and overlapping KaTeX).
+    }
+    const turn = turnFromFields(extractJsonFields(slice));
+    if (turn) return turn;
+  }
+  const loose = turnFromFields(extractJsonFields(text));
+  if (loose) return loose;
+  const say = text.trim();
+  if (!say) throw new Error("empty socratic turn");
+  if (/^\s*\{/.test(say) && /"kind"\s*:/.test(say)) {
+    throw new Error("invalid socratic turn");
+  }
+  return { say, kind: "question" };
 }
 
 export function recentMistakeLines(
