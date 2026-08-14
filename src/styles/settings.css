@@ -63,15 +63,14 @@
   font: inherit;
   color: inherit;
   background: var(--surface-card);
-  border: 1px solid var(--border-default);
+  border: none;
   border-radius: 16px;
   box-shadow: none;
-  transition: border-color 160ms ease, box-shadow 160ms ease;
+  transition: background 180ms var(--ease-out), transform 180ms var(--ease-out);
 }
 
 .settings-hub-card:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
+  background: color-mix(in srgb, var(--theme-text) 5%, var(--surface-card));
 }
 
 .settings-hub-card:focus {
@@ -177,6 +176,16 @@
 
 .settings-card > .settings-row:first-child {
   border-top: none;
+}
+
+@keyframes settings-view-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.settings-hub-home,
+.settings-page {
+  animation: settings-view-in 360ms var(--ease-out) both;
 }
 
 .settings-page {
@@ -333,7 +342,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .settings-sub-free { animation: none; }
+  .settings-sub-free,
+  .settings-hub-home,
+  .settings-page { animation: none; }
   .settings-toggle, .settings-toggle i { transition: none; }
 }
 

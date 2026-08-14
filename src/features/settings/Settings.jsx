@@ -259,7 +259,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
   return (
     <div className="settings-hub" style={{ backgroundImage: tierOff ? "none" : tierWash, margin: "-8px -4px 0", padding: "8px 4px 0" }}>
       {!sheet && (
-        <>
+        <div className="settings-hub-home">
       <h1>{t.settings_title}</h1>
 
       <section className="settings-hub-section">
@@ -352,7 +352,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams }) {
           />
         </div>
       </section>
-        </>
+        </div>
       )}
 
       {sheet === "profile" && (
