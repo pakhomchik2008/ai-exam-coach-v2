@@ -4,7 +4,7 @@
 
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
-import { languageNameFor, paperQualForExam } from "../../lib/paper-language";
+import { copyLangFor, languageNameFor, paperQualForExam } from "../../lib/paper-language";
 import { hiddenIndexes, parseFadePlan, stepMatches } from "./fading";
 
 function md(text) {
@@ -29,7 +29,8 @@ OUTPUT ONLY valid JSON:
 
 Rules:
 - 4 or 5 steps, each answer a short phrase / number / formula a student can type.
-- accept lists every reasonable equivalent (2x+2 and 2(x+1) if both valid).
+- accept lists every reasonable equivalent AND common paraphrases (divisible by 3, 3 divides it, sum is a multiple of 3).
+- hint is a nudge after a miss — not the question itself. reveal is the step instruction the student sees while filling.
 - Language: ${lang}. Math as LaTeX in problem/reveal only — answers are plain/LaTeX short.`;
   const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
   const raw = await Promise.race([
@@ -41,25 +42,26 @@ Rules:
 }
 
 export function FadingDialog({ topic, onExit, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const resolved = React.useMemo(
+    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
+    [topic],
+  );
+  const copy = copyLangFor(examQual(resolved), t?.code || "en");
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
   const [plan, setPlan] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [level, setLevel] = React.useState(1);
   const [fills, setFills] = React.useState({});
   const [checked, setChecked] = React.useState({});
-  const [firstTry, setFirstTry] = React.useState({});
+  const [tries, setTries] = React.useState({});
   const [marked, setMarked] = React.useState(false);
   const grantedRef = React.useRef(false);
-  const resolved = React.useMemo(
-    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
-    [topic],
-  );
 
   React.useEffect(() => {
     let cancelled = false;
     setLoading(true); setError(null);
-    generateFadePlan({ topic, resolved, tcode: t?.code })
+    generateFadePlan({ topic, resolved, tcode: copy })
       .then((p) => { if (!cancelled) { setPlan(p); setLoading(false); } })
       .catch((e) => { if (!cancelled) { setError(e.message || "fail"); setLoading(false); } });
     return () => { cancelled = true; };
@@ -68,28 +70,27 @@ export function FadingDialog({ topic, onExit, t }) {
   const hidden = plan ? hiddenIndexes(level, plan.steps.length) : [];
   const hiddenSet = new Set(hidden);
   const allHiddenOk = hidden.every((i) => checked[i]);
-  const firstTryRate = hidden.length
-    ? hidden.filter((i) => firstTry[i] === true).length / hidden.length
-    : 1;
   const maxLevel = plan ? Math.min(5, plan.steps.length + 1) : 5;
   const isLast = level >= maxLevel;
 
   function checkStep(i) {
     if (!plan || checked[i]) return;
-    const ok = stepMatches(fills[i] || "", plan.steps[i]);
-    setFirstTry((prev) => (i in prev ? prev : { ...prev, [i]: ok }));
-    if (ok) setChecked((prev) => ({ ...prev, [i]: true }));
+    const text = (fills[i] || "").trim();
+    if (!text) return;
+    const ok = stepMatches(text, plan.steps[i]);
+    const nextTries = (tries[i] || 0) + 1;
+    setTries((prev) => ({ ...prev, [i]: (prev[i] || 0) + 1 }));
+    // Two misses: show the step. Leaving them in an input with a dead Check
+    // is how "I can't press send" happens — Next level stays disabled until
+    // every hidden fill is marked checked.
+    if (ok || nextTries >= 2) setChecked((prev) => ({ ...prev, [i]: true }));
   }
 
   function nextLevel() {
     if (!allHiddenOk && hidden.length) return;
-    if (level > 1 && firstTryRate < 0.8) {
-      setFills({}); setChecked({}); setFirstTry({});
-      return;
-    }
     if (isLast) return;
     setLevel((n) => n + 1);
-    setFills({}); setChecked({}); setFirstTry({});
+    setFills({}); setChecked({}); setTries({});
   }
 
   function markAsRead() {
@@ -111,7 +112,7 @@ export function FadingDialog({ topic, onExit, t }) {
       L("Step by step", "Крок за кроком", "Шаг за шагом", "Étape par étape", "Schritt für Schritt")),
   );
 
-  if (loading) return wrap([header, React.createElement(WaitPress, { key: "l", title: L("Building the example…", "Готуємо приклад…", "Готовим пример…", "Préparation…", "Beispiel…"), lang: t?.code, compact: true })]);
+  if (loading) return wrap([header, React.createElement(WaitPress, { key: "l", title: L("Building the example…", "Готуємо приклад…", "Готовим пример…", "Préparation…", "Beispiel…"), lang: copy, compact: true })]);
   if (error || !plan) return wrap([header, React.createElement("p", { key: "e", style: { color: "var(--red-600)" } }, error || "—")]);
 
   return wrap([
@@ -124,7 +125,8 @@ export function FadingDialog({ topic, onExit, t }) {
       ...plan.steps.map((step, i) => {
         const hide = hiddenSet.has(i);
         const ok = checked[i];
-        const missed = i in firstTry && firstTry[i] === false && !ok;
+        const missCount = tries[i] || 0;
+        const empty = !(fills[i] || "").trim();
         return React.createElement("div", {
           key: i,
           style: { padding: "14px 16px", borderRadius: 12, border: `1px solid ${ok ? "var(--emerald-400)" : "var(--border-default)"}`, background: "var(--surface-card)" },
@@ -132,7 +134,7 @@ export function FadingDialog({ topic, onExit, t }) {
           React.createElement("div", { style: { fontSize: 12, color: "var(--text-faint)", marginBottom: 6 } }, `${i + 1}.`),
           hide && !ok
             ? React.createElement("div", null,
-                React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", marginBottom: 8 }, dangerouslySetInnerHTML: { __html: md(step.hint || L("Fill this step", "Заповніть крок", "Заполните шаг", "Complète cette étape", "Fülle diesen Schritt")) } }),
+                React.createElement("div", { style: { fontSize: 15, fontWeight: 600, color: "var(--text-strong)", marginBottom: 8 }, dangerouslySetInnerHTML: { __html: md(step.reveal) } }),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                   React.createElement("input", {
                     value: fills[i] || "",
@@ -142,12 +144,16 @@ export function FadingDialog({ topic, onExit, t }) {
                   }),
                   React.createElement("button", {
                     type: "button",
+                    disabled: empty,
                     onClick: () => checkStep(i),
-                    style: { padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" },
+                    style: { padding: "10px 14px", borderRadius: 10, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: empty ? "not-allowed" : "pointer", opacity: empty ? 0.5 : 1, fontFamily: "var(--font-sans)" },
                   }, L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen")),
                 ),
-                missed && React.createElement("p", { style: { margin: "8px 0 0", fontSize: 13, color: "var(--text-muted)" } },
-                  L("Not yet. Hint stays. Try again.", "Ще ні. Підказка лишається. Спробуйте ще.", "Ещё нет. Подсказка остаётся.", "Pas encore.", "Noch nicht.")),
+                missCount > 0 && step.hint && React.createElement("div", { style: { margin: "10px 0 0", fontSize: 14, lineHeight: 1.5, color: "var(--text-body)" } },
+                  React.createElement("strong", { style: { color: "var(--indigo-700)", marginRight: 6 } }, L("Hint", "Підказка", "Подсказка", "Indice", "Hinweis")),
+                  React.createElement("span", { dangerouslySetInnerHTML: { __html: md(step.hint) } })),
+                missCount > 0 && !step.hint && React.createElement("p", { style: { margin: "8px 0 0", fontSize: 13, color: "var(--text-muted)" } },
+                  L("Not yet. Try again.", "Ще ні. Спробуйте ще.", "Ещё нет. Попробуй ещё.", "Pas encore.", "Noch nicht.")),
               )
             : React.createElement("div", { dangerouslySetInnerHTML: { __html: md(`${step.reveal} — **${step.answer}**`) } }),
         );

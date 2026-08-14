@@ -5,7 +5,7 @@
 
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
-import { languageNameFor, paperQualForExam } from "../../lib/paper-language";
+import { copyLangFor, languageNameFor, paperQualForExam } from "../../lib/paper-language";
 import { buildSocraticSystem, parseSocraticTurn, recentMistakeLines } from "./socratic";
 
 function md(text) {
@@ -29,8 +29,13 @@ function mistakeSnippet(topic) {
 }
 
 export function SocraticDialog({ topic, onExit, t }) {
-  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const lang = t?.code || "en";
+  const resolved = React.useMemo(
+    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
+    [topic],
+  );
+  const copy = copyLangFor(examQual(resolved), t?.code || "en");
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[copy] || en);
+  const lang = copy;
   const [turns, setTurns] = React.useState([]);
   const [input, setInput] = React.useState("");
   const [loading, setLoading] = React.useState(true);
@@ -42,10 +47,6 @@ export function SocraticDialog({ topic, onExit, t }) {
   const grantedRef = React.useRef(false);
   const threadRef = React.useRef([]);
   const bottomRef = React.useRef(null);
-  const resolved = React.useMemo(
-    () => (window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null),
-    [topic],
-  );
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });

@@ -38,15 +38,51 @@ export function parseFadePlan(raw: unknown): FadePlan {
   return { title, problem, steps };
 }
 
+const STOP = new Set([
+  "the", "a", "an", "of", "is", "are", "to", "by", "that", "this", "so", "any",
+  "and", "or", "for", "in", "on", "it", "its", "be", "as", "with", "then",
+]);
+
 export function normalizeAnswer(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, "").replace(/[·*×⋅]/g, "").replace(/^\(+|\)+$/g, "");
+  return value
+    .toLowerCase()
+    .replace(/\$/g, "")
+    .replace(/\s+/g, "")
+    .replace(/[·*×⋅]/g, "")
+    .replace(/^\(+|\)+$/g, "");
+}
+
+function contentTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .replace(/\$/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 0 && !STOP.has(t));
+}
+
+function tokenFits(got: string, want: string): boolean {
+  if (got === want) return true;
+  const [short, long] = got.length <= want.length ? [got, want] : [want, got];
+  return short.length >= 3 && long.startsWith(short);
+}
+
+function phraseMatches(input: string, expected: string): boolean {
+  const got = normalizeAnswer(input);
+  const want = normalizeAnswer(expected);
+  if (!got || !want) return false;
+  if (got === want) return true;
+  if (want.length >= 8 && (got.includes(want) || want.includes(got))) return true;
+  const wantTokens = contentTokens(expected);
+  const gotTokens = contentTokens(input);
+  if (wantTokens.length === 0 || gotTokens.length === 0) return false;
+  // Formulas stay exact. Phrase mode only when the key has a real word.
+  if (!wantTokens.some((t) => /[a-z]{3,}/.test(t))) return false;
+  return wantTokens.every((w) => gotTokens.some((g) => tokenFits(g, w)));
 }
 
 export function stepMatches(input: string, step: FadeStep): boolean {
-  const got = normalizeAnswer(input);
-  if (!got) return false;
-  if (got === normalizeAnswer(step.answer)) return true;
-  return step.accept.some((alt) => normalizeAnswer(alt) === got);
+  if (phraseMatches(input, step.answer)) return true;
+  return step.accept.some((alt) => phraseMatches(input, alt));
 }
 
 // Level 1 = all revealed. Each next level hides one more step from the end.
