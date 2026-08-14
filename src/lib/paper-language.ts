@@ -62,6 +62,7 @@ export function canonicalQualification(qualificationId: string | null | undefine
   if (id === "bac" || id.startsWith("bac-")) return "bac";
   if (id === "gre" || id.startsWith("gre-")) return "gre";
   if (id === "gmat" || id.startsWith("gmat-")) return "gmat";
+  if (id === "pte" || id.startsWith("pte-")) return "pte";
   return id;
 }
 

@@ -41,6 +41,13 @@ function gmatRow(subject, aliases, names) {
     topics: bacTopics(names), source: "official",
   };
 }
+function pteRow(subject, aliases, names) {
+  return {
+    countryId: "", educationSystemId: "language", qualificationId: "pte",
+    board: null, specVersion: "academic-2025", subject, aliases,
+    topics: bacTopics(names), source: "official",
+  };
+}
 
 const CURRICULUM_SEED = [
   {
@@ -1924,6 +1931,36 @@ const CURRICULUM_SEED = [
     "Two-Part Analysis",
     "On-screen calculator (DI only)",
     "Pacing: 20 questions / 45 minutes",
+  ]),
+  pteRow("Speaking", ["PTE Speaking", "Speaking"], [
+    "Read Aloud",
+    "Repeat Sentence",
+    "Describe Image",
+    "Re-tell Lecture",
+    "Answer Short Question",
+    "Summarize Group Discussion",
+    "Respond to a Situation",
+  ]),
+  pteRow("Writing", ["PTE Writing", "Writing"], [
+    "Summarize Written Text",
+    "Write Essay",
+  ]),
+  pteRow("Reading", ["PTE Reading", "Reading"], [
+    "Reading: multiple choice (single)",
+    "Reading: multiple choice (multiple)",
+    "Re-order Paragraphs",
+    "Reading: Fill in the Blanks",
+    "Reading & Writing: Fill in the Blanks",
+  ]),
+  pteRow("Listening", ["PTE Listening", "Listening"], [
+    "Summarize Spoken Text",
+    "Listening: multiple choice (single)",
+    "Listening: multiple choice (multiple)",
+    "Listening: Fill in the Blanks",
+    "Highlight Correct Summary",
+    "Select Missing Word",
+    "Highlight Incorrect Words",
+    "Write from Dictation",
   ]),
 ];
 

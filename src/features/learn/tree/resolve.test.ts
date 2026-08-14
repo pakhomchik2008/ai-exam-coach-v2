@@ -42,6 +42,9 @@ describe("treeKeyForExam", () => {
     expect(treeKeyForExam({ name: "GMAT Focus", qualificationId: "gmat" })).toBe("gmat");
     expect(treeKeyForExam({ name: "GMAT Quant", qualificationId: "gmat" })).toBe("gmat");
     expect(getTree("gmat")?.examTaxonomy).toBe("gmat");
+    expect(treeKeyForExam({ name: "PTE Academic", qualificationId: "pte" })).toBe("pte");
+    expect(treeKeyForExam({ name: "PTE Speaking", qualificationId: "pte" })).toBe("pte");
+    expect(getTree("pte")?.examTaxonomy).toBe("pte");
   });
 
   it("splits GCSE / AP / Matura subjects", () => {
@@ -60,6 +63,11 @@ describe("treeKeyForExam", () => {
 
   it("still finds SAT when the stored qualificationId is a stale GCSE", () => {
     expect(treeKeyForExam({ name: "SAT Mathematics", qualificationId: "gcse" })).toBe("sat");
+  });
+
+  it("does not treat PTE as IELTS", () => {
+    expect(treeKeyForExam({ name: "PTE Academic", qualificationId: "custom" })).toBe("pte");
+    expect(treeKeyForExam({ name: "IELTS Academic", qualificationId: "custom" })).toBe("ielts");
   });
 
   it("does not treat GMAT as GRE", () => {

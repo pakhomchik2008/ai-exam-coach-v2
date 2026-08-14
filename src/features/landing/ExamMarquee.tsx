@@ -17,6 +17,7 @@ export const EXAM_CHIPS: readonly ExamChip[] = [
   { id: "sat", mark: "SA", name: "SAT" },
   { id: "gcse", mark: "GC", name: "GCSE" },
   { id: "toefl", mark: "TO", name: "TOEFL" },
+  { id: "pte", mark: "PT", name: "PTE" },
   { id: "act", mark: "AC", name: "ACT" },
   { id: "ap", mark: "AP", name: "AP" },
   { id: "abitur", mark: "AB", name: "Abitur" },

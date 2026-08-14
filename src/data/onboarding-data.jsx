@@ -33,6 +33,9 @@ const EXAM_TYPES = [
   { id: "duolingo", label: "Duolingo", emoji: "🦉", blurb: { en: "DET 10–160", uk: "DET 10–160", ru: "DET 10–160", fr: "DET 10–160", de: "DET 10–160" }, board: null, educationSystemId: "language",
     sectionBased: true,
     grade: { kind: "score", min: 10, max: 160, step: 5, current: 105, target: 130 } },
+  { id: "pte",     label: "PTE",        emoji: "🌐", blurb: { en: "10–90", uk: "10–90", ru: "10–90", fr: "10–90", de: "10–90" }, board: "Pearson", educationSystemId: "language",
+    sectionBased: true,
+    grade: { kind: "score", min: 10, max: 90, step: 1, current: 50, target: 65 } },
   { id: "matura", label: "Matura",     emoji: "🇵🇱", blurb: { en: "0–100%", uk: "0–100%", ru: "0–100%", fr: "0–100%", de: "0–100%" }, board: "CKE", educationSystemId: "k12",
     grade: { kind: "score", min: 0, max: 100, step: 1, suffix: "%", current: 60, target: 85 } },
   { id: "abitur", label: "Abitur",     emoji: "🇩🇪", blurb: { en: "1.0 best → 4.0", uk: "1.0 найкраще → 4.0", ru: "1.0 лучшее → 4.0", fr: "1.0 meilleur → 4.0", de: "1,0 beste → 4,0" }, board: "KMK", educationSystemId: "k12",
@@ -85,7 +88,7 @@ function examType(id) { return resolveExamType(EXAM_TYPES, id); }
 function isSectionBasedExam(id) {
   const e = examType(id);
   if (typeof e.sectionBased === "boolean") return e.sectionBased;
-  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo" || id === "gre" || id === "gmat";
+  return id === "sat" || id === "act" || id === "ielts" || id === "toefl" || id === "duolingo" || id === "gre" || id === "gmat" || id === "pte";
 }
 
 /** Add-exam default: last exam's qual, then country, never a silent GCSE. */
@@ -98,6 +101,7 @@ function suggestedQualificationId(lastExam, profile) {
   if (/ielts/i.test(blob)) return "ielts";
   if (/toefl/i.test(blob)) return "toefl";
   if (/duolingo/i.test(blob)) return "duolingo";
+  if (/\bpte\b/i.test(blob)) return "pte";
   if (/(baccalaur[eé]at|\bbac\b)/i.test(blob) && !/international/i.test(blob)) return "bac";
   if (/\bgmat\b/i.test(blob)) return "gmat";
   if (/\bgre\b/i.test(blob)) return "gre";
@@ -336,6 +340,7 @@ const SUBJECT_PRESETS = {
   ielts: ["Listening","Reading","Writing"],
   toefl: ["Reading","Listening","Speaking","Writing"],
   duolingo: ["Literacy","Comprehension","Conversation","Production"],
+  pte: ["Speaking","Writing","Reading","Listening"],
   matura: ["Matematyka","Język polski","Język angielski","Biologia","Chemia","Fizyka","Historia","Geografia","Informatyka","Wiedza o społeczeństwie","Język niemiecki","Język rosyjski"],
   abitur: ["Mathematik","Deutsch","Englisch","Biologie","Chemie","Physik","Geschichte","Geographie","Informatik","Sozialkunde","Französisch","Kunst","Musik","Sport","Wirtschaft"],
   bac: ["Français","Philosophie","Grand oral","Mathématiques","Physique-Chimie","SVT","SES","NSI","HGGSP","HLP","LLCER Anglais"],

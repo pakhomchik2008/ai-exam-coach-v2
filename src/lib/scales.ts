@@ -46,6 +46,7 @@ export const SCALES = {
   gcse: { min: 1, max: 9, step: 1, targetTop: 7, format: "integer", label: "grade" },
   toefl: { min: 0, max: 120, step: 1, targetTop: 100, format: "integer", label: "" },
   duolingo: { min: 10, max: 160, step: 5, targetTop: 130, format: "integer", label: "" },
+  /** PTE Academic overall and each skill — Pearson uses the same 10–90 for both. */
   pte: { min: 10, max: 90, step: 1, targetTop: 76, format: "integer", label: "" },
   /** Baccalauréat général. Bulletins print half-points; 16 is mention TB. */
   bac: { min: 0, max: 20, step: 0.5, targetTop: 16, format: "decimal", label: "/20" },
