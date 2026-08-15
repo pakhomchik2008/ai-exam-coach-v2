@@ -31,7 +31,7 @@ bias anyway.
 
 | Reason | Rule | Why not stricter |
 |---|---|---|
-| `length-bias` | Correct is the longest AND ≥35% above the distractor mean AND ≥12 chars above it | A flat ±25% corridor rejects legitimate maths where "no real solutions" sits next to `$x=2$` |
+| `length-bias` | Correct is the longest AND (≥15% above the *second*-longest OR ≥8 chars above it). Short formula packs abstain unless the answer is an essay (≥40 chars) | Mean×1.35 let a tight pack through (70/68/65 vs 82). A flat ±25% corridor still rejects `$x=2$` vs "No real solutions" |
 | `catch-all-option` | "all/none of the above", "both A and B", plus uk/ru/fr/de forms | Free marks; no real paper uses them |
 | `duplicate-option` | Two options equal after light normalization | Cannot reuse `normalizeQuestionText` — it strips signs, so `$x=2$` and `$x=-2$` collapse |
 | `explanation-echo` | Levenshtein similarity ≥0.85 between explanation and correct option | Whole-string, not containment: a good explanation quotes the answer, a useless one *is* the answer |
@@ -124,6 +124,7 @@ Numbering continues after `phase-5-billing-tiers-plan.md`, which reaches #86.
 | 97 | Weak teach-backs fail locally, before the grader | The model praises "idk". A prompt rule is a request; `isWeakTeachBack` is the guarantee CI can enforce without a key |
 | 98 | Explicit `pass: false` wins over score >= 6 | `parseExplainGrade` used to OR them, so a fail with score 6 still passed |
 | 99 | Remaining `claude.complete` sites converted, not left as a fallback | A `brainComplete` fallback to `claude.complete` still skipped repair; the last StudyHub / Burnout / Recap / curriculum / enrichment / onboarding callers were that pattern |
+| 100 | Length bias vs second-longest, not the mean | Three medium distractors pull the mean down; a student still clicks the longest. 1.15× / +8 chars is the visible tell. Short packs still abstain |
 
 ## What could break silently
 
