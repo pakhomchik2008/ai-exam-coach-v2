@@ -161,9 +161,9 @@ import { resolveTopicFromTrees, resolveTopicFromViews } from "./resolve-topic";
 // since nothing ever told Claude what language to use.
 const AI_LANG_NAMES = { en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" };
 
-// Shared by every AI call site in the app (not just brainComplete) so a
-// direct window.claude.complete() caller — StudyHub.jsx, BurnoutAlert.jsx —
-// can prepend the same directive without duplicating the language map.
+// Shared language map. Live callers go through brainComplete, which
+// prepends this itself; the function stays public so a prompt that
+// already inlines it (legacy enrichment strings) can stay in sync.
 // `override` forces a specific language regardless of the interface — used
 // for English-medium exams (SAT/AP/A-Level/…) where the student may want the
 // lesson in English even though their app is in another language. When an

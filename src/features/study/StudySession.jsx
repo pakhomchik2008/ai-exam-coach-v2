@@ -167,7 +167,7 @@ Rules:
 
       // Send only real user+AI turns to the API (skip the static opener)
       const apiHistory = newMsgs.filter((m) => m.role === "user" || m._real);
-      const complete = window.brainComplete ? (a) => window.brainComplete(a) : (a) => window.claude.complete(a);
+      const complete = window.brainComplete;
       const reply = await complete({ system, messages: apiHistory });
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply, _real: true }]);
     } catch {

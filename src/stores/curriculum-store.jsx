@@ -364,8 +364,9 @@ function searchCurriculumSubjects(countryId, qualificationId, board, query) {
 }
 
 // ── AI-backed fetch-and-cache — only called when getCurriculum() returned
-//    null for a subject the user committed to. Reuses window.claude.complete
-//    exactly like ai-enrichment.jsx's requestTopicNames — no new transport. ──
+//    null for a subject the user committed to. Goes through
+//    brainCompleteJSON with includeContext:false so learner mastery cannot
+//    bias an official syllabus. ──
 // context is freeform, user-supplied (e.g. "University of Warwick, Computer
 // Systems Engineering, Year 1") — NOT a lookup against any institution
 // database (we don't have one, and won't fabricate one). It only sharpens
@@ -413,11 +414,11 @@ async function fetchAndCacheCurriculum(countryId, qualificationId, board, subjec
 
   let data;
   try {
-    const raw = await window.claude.complete({ system, messages: [{ role: "user", content: prompt }] });
-    data = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    data = await window.brainCompleteJSON({ system, messages: [{ role: "user", content: prompt }], includeContext: false }, null);
   } catch {
     return null;
   }
+  if (!data) return null;
   const rawTopics = Array.isArray(data && data.topics) ? data.topics : [];
   const topics = rawTopics
     .filter((t) => t && typeof t.name === "string" && t.name.trim())
@@ -482,11 +483,11 @@ async function extractTopicsFromText(subject, text) {
   const prompt = `Subject: ${subject || "(unspecified)"}\n\nPage content:\n${text.slice(0, 12000)}`;
   let data;
   try {
-    const raw = await window.claude.complete({ system, messages: [{ role: "user", content: prompt }] });
-    data = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    data = await window.brainCompleteJSON({ system, messages: [{ role: "user", content: prompt }], includeContext: false }, null);
   } catch {
     return null;
   }
+  if (!data) return null;
   const topics = (Array.isArray(data && data.topics) ? data.topics : [])
     .filter((t) => t && typeof t.name === "string" && t.name.trim())
     .map((t) => ({
