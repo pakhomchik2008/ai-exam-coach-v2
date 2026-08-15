@@ -44,13 +44,16 @@ export type LintResult = { ok: boolean; reasons: LintReason[] };
 export type Rng = () => number;
 
 /**
- * A fixed ±N% corridor rejects legitimate maths, where "no real solutions"
- * sits next to "$x=2$" and the ratio is meaningless. Both conditions have to
- * hold: clearly longer in relative terms AND long enough in absolute terms
- * that a student could see it across the room.
+ * Students click the longest option. Compare to the *second* longest, not
+ * the mean: three medium distractors + a slightly longer key used to pass
+ * 1.35×mean. Short formula packs (`$x=2$` vs "No real solutions") abstain —
+ * character ratio is meaningless there. An essay next to one-word
+ * distractors still fails even if every distractor is short.
  */
-export const LENGTH_BIAS_RATIO = 1.35;
-export const LENGTH_BIAS_MIN_CHARS = 12;
+export const LENGTH_BIAS_RATIO = 1.15;
+export const LENGTH_BIAS_MIN_CHARS = 8;
+export const LENGTH_BIAS_SHORT_PACK = 16;
+export const LENGTH_BIAS_ESSAY = 40;
 
 /**
  * Whole-string similarity, not containment. A good explanation naturally
@@ -199,12 +202,12 @@ function hasLengthBias(options: readonly string[], correct: number): boolean {
   if (options.length < 3) return false;
   const answer = (options[correct] ?? "").trim();
   const distractors = options.filter((_, i) => i !== correct).map((o) => o.trim());
-  const longestDistractor = Math.max(...distractors.map((o) => o.length));
-  if (answer.length <= longestDistractor) return false;
-  const mean = distractors.reduce((sum, o) => sum + o.length, 0) / distractors.length;
-  if (mean <= 0) return false;
-  return answer.length >= mean * LENGTH_BIAS_RATIO
-    && answer.length - mean >= LENGTH_BIAS_MIN_CHARS;
+  const second = Math.max(...distractors.map((o) => o.length));
+  if (answer.length <= second) return false;
+  const shortPack = distractors.every((o) => o.length < LENGTH_BIAS_SHORT_PACK);
+  if (shortPack && answer.length < LENGTH_BIAS_ESSAY) return false;
+  return answer.length >= second * LENGTH_BIAS_RATIO
+    || answer.length - second >= LENGTH_BIAS_MIN_CHARS;
 }
 
 export function lintMcq(
@@ -350,7 +353,7 @@ export function mcqRulesBlock(plan: readonly number[]): string {
   const positions = plan.length
     ? `- Put the correct answer at these 0-based indices, in question order: ${plan.join(", ")}. Do not deviate.\n`
     : "";
-  return `${positions}- All options within a question must be within a few words of the same length. Never make the correct one the most detailed.
+  return `${positions}- All four options must share the same syntactic shape (all noun phrases, or all clauses) and stay within ±2 words of each other. Never make the correct one the longest or the most detailed.
 - No "all of the above", "none of the above", or "both A and B".
 - Every distractor must be a real misconception a student holds, not filler.
 - The explanation teaches WHY the answer is right; it must not just repeat the option text.`;
