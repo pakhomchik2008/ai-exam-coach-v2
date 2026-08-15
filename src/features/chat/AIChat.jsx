@@ -7,6 +7,7 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+import { filterMcqBatch, mcqRulesBlock, planCorrectIndices, reportRejections } from "../../lib/question-lint";
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
@@ -1043,6 +1044,7 @@ function SpeedRoundEngine({ examViews, onExit, t }) {
   const [chosenTopics, setChosenTopics] = React.useState([]);
   const [aiTopics, setAiTopics] = React.useState(null);
   const [aiLoading, setAiLoading] = React.useState(false);
+  const [dropped, setDropped] = React.useState(0);
   const timerRef = React.useRef(null);
   const summaryXpRef = React.useRef(false);
   const totalQ = 20;
@@ -1098,7 +1100,8 @@ RULES:
 - 4 options each, exactly one correct, "correct" is 0-based index
 - Questions should be clear and direct — no ambiguity
 - Mix easy (40%), medium (40%), hard (20%)
-- Spread questions across the given topics evenly`;
+- Spread questions across the given topics evenly
+${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
         const namesForRound = chosenTopics.length > 0 ? chosenTopics : allTopics.map((tp) => tp.name);
@@ -1110,12 +1113,15 @@ RULES:
         const roundLangs = [...new Set(roundQuals.map((q) => paperLanguageFor(q)).filter(Boolean))];
         const speedPaperQual = roundLangs.length === 1 ? roundQuals[0] : _paperQualOf(examsById.get(examViews[0]?.id));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: speedPaperQual }),
+          window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: speedPaperQual }),
           timeout,
-        ]).then((raw) => {
-          const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        ]).then((p) => {
           if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-          return p.questions;
+          const { kept, rejected } = filterMcqBatch(p.questions, { language: paperLanguageFor(speedPaperQual) });
+          reportRejections("speed-round", rejected);
+          setDropped((n) => n + rejected.length);
+          if (!kept.length) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return kept;
         });
         const rawQuestions = await generate();
         // Speed Round can span topics from MULTIPLE exams (aiTopics picks
@@ -1306,6 +1312,8 @@ RULES:
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${earnedXp}`),
           React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP"))),
+
+      dropped > 0 && React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: "0 0 12px" } }, L(`${dropped} question(s) failed the quality check and were skipped.`, `${dropped} питання не пройшли перевірку якості — пропущено.`, `${dropped} вопрос(ов) не прошли проверку качества — пропущены.`, `${dropped} question(s) recalée(s) au contrôle qualité.`, `${dropped} Frage(n) haben die Qualitätsprüfung nicht bestanden.`)),
 
       timedOut > 0 && React.createElement("p", { style: { fontSize: 13, color: "var(--amber-700)", margin: "0 0 12px" } }, L(`⏰ ${timedOut} ${timedOut === 1 ? "question" : "questions"} timed out`, `⏰ Час вичерпано на ${timedOut} ${timedOut === 1 ? "питанні" : "питаннях"}`, `⏰ Время истекло на ${timedOut} ${timedOut === 1 ? "вопросе" : "вопросах"}`, `⏰ ${timedOut} question(s) — temps écoulé`, `⏰ Bei ${timedOut} Frage(n) die Zeit abgelaufen`)),
 
@@ -1514,16 +1522,19 @@ RULES:
 - Each question has exactly 4 options, "correct" is 0-based index
 - explanation should teach WHY the right answer is right AND why the chosen wrong one is wrong
 - Spread questions evenly across the listed topics
-- No duplicate concepts`;
+- No duplicate concepts
+${mcqRulesBlock(planCorrectIndices(n, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }], paperQual: practiceQual }),
+          window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }], paperQual: practiceQual }),
           timeout,
-        ]).then((r) => {
-          const p = window.parseJSON ? window.parseJSON(r) : JSON.parse(r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1));
+        ]).then((p) => {
           if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-          return p.questions;
+          const { kept, rejected } = filterMcqBatch(p.questions, { language: paperLanguageFor(practiceQual) });
+          reportRejections("practice-exam", rejected);
+          if (!kept.length) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return kept;
         });
 
         const rawQuestions = await generate();
@@ -1807,6 +1818,7 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const [timeLeft, setTimeLeft] = React.useState(0);
   const [timeLimitSec, setTimeLimitSec] = React.useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = React.useState(false);
+  const [droppedCount, setDroppedCount] = React.useState(0);
   const [autoSubmitted, setAutoSubmitted] = React.useState(false);
   const [startedAt, setStartedAt] = React.useState(null);
   const finishedRef = React.useRef(false);
@@ -1917,18 +1929,25 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
           const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
-RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.`;
+RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.
+${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
           const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
-            .then((raw) => {
-              const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-              return Array.isArray(p && p.questions) ? p.questions : [];
-            })
-            .catch(() => []);
+          return Promise.race([window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
+            .then((p) => (Array.isArray(p && p.questions) ? p.questions : []))
+            // A dead chunk must not kill the paper, but it must not vanish
+            // either — the recap counts what is missing.
+            .catch((err) => { console.warn("exam-sim: chunk failed —", err.message || err); return []; });
         };
         const chunks = await Promise.all(chunkTopics.map(makeChunk));
-        // Merge, validate shape, cap at target count.
-        const rawAll = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
+        // Merge, lint, cap at target count. Lint runs before the slice so a
+        // rejected question is replaced by a spare from another chunk rather
+        // than shortening the paper.
+        const merged = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number");
+        const examPaperQual = _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null);
+        const linted = filterMcqBatch(merged, { language: paperLanguageFor(examPaperQual) });
+        reportRejections("exam-sim", linted.rejected);
+        setDroppedCount(linted.rejected.length);
+        const rawAll = linted.kept.slice(0, questionCount);
         if (rawAll.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
         // Novelty pass across the whole assembled paper. Retry regenerates
         // one extra chunk covering all topics — cheaper than another
@@ -2053,6 +2072,7 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
         { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
         { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
         { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
+        ...(droppedCount > 0 ? [{ val: String(droppedCount), label: L("Failed quality check", "Не пройшли перевірку", "Не прошли проверку", "Recalées au contrôle", "Qualitätsprüfung nicht bestanden"), color: "var(--text-faint)" }] : []),
       ],
       // The per-question breakdown stays — it is the most-used part of a mock
       // recap and has no equivalent anywhere else in the app.

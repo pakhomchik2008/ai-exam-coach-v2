@@ -19,7 +19,13 @@ import { isSpeakingTreeNode } from "./speaking";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
 import { WaitPress } from "../../components/WaitPress";
 import { renderCoachMarkdown } from "../../lib/math-render";
-import { copyLangFor, languageNameFor } from "../../lib/paper-language";
+import { copyLangFor, languageNameFor, paperLanguageFor } from "../../lib/paper-language";
+import {
+  filterMcqBatch,
+  mcqRulesBlock,
+  planCorrectIndices,
+  reportRejections,
+} from "../../lib/question-lint";
 import {
   buildDrillSystem,
   buildExplainSystem,
@@ -157,12 +163,30 @@ function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   const [proveResults, setProveResults] = React.useState([]);
   const [proveTimeLeft, setProveTimeLeft] = React.useState(node.estimatedMinutes * 60);
   const [finalMastery, setFinalMastery] = React.useState(null);
+  const [droppedCount, setDroppedCount] = React.useState(0);
+  const paperLang = paperLanguageFor(tree.examTaxonomy);
+
+  // A shorter drill than promised is now explained rather than silent.
+  function droppedNote(key) {
+    if (!droppedCount) return null;
+    return React.createElement("p", {
+      key,
+      style: { margin: "0 0 10px", fontSize: 11, color: "var(--text-faint)" },
+    }, L(
+      `${droppedCount} question(s) failed the quality check and were skipped.`,
+      `${droppedCount} питання не пройшли перевірку якості — пропущено.`,
+      `${droppedCount} вопрос(ов) не прошли проверку качества — пропущены.`,
+      `${droppedCount} question(s) recalée(s) au contrôle qualité.`,
+      `${droppedCount} Frage(n) haben die Qualitätsprüfung nicht bestanden.`,
+    ));
+  }
 
   const nodeTitle = localize(node.title, lang);
   const unitTitle = localize(unit.title, lang);
 
-  // Teach: one Sonnet call, cached in local state for the life of this
-  // component (no persistence — MVP doesn't need "resume mid-lesson").
+  // Teach: one AI call (Haiku until the Phase 5 router ships), cached in local
+  // state for the life of this component (no persistence — MVP doesn't need
+  // "resume mid-lesson").
   React.useEffect(() => {
     if (phase !== "teach" || teach || teachError) return;
     const complete = window.brainComplete || ((a) => window.claude.complete(a));
@@ -184,36 +208,53 @@ RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX 
   // item does not blank the whole set.
   React.useEffect(() => {
     if (phase !== "drill" || drillQs || drillError) return;
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const system = buildDrillSystem(nodeTitle, tree.examTaxonomy, node.complexity);
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
-    Promise.race([complete({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
-      .then((raw) => {
-        const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-        const qs = normalizeDrillQuestions(p && p.questions).slice(0, 5);
-        if (!qs.length) throw new Error("Invalid drill response");
-        setDrillQs(qs);
-        setDrillDraft(draftForQuestion(qs[0]));
+    Promise.race([window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Drill me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
+      .then((p) => {
+        // Only the mcq entries have options to lint; match/order/drag_drop keep
+        // their place in the sequence so the drill still mixes types.
+        const normalized = normalizeDrillQuestions(p && p.questions);
+        const rejected = [];
+        const qs = [];
+        normalized.forEach((question, index) => {
+          if (question.type !== "mcq") { qs.push(question); return; }
+          const result = filterMcqBatch([question], { language: paperLang });
+          if (result.kept.length) qs.push(result.kept[0]);
+          else rejected.push({ index, reasons: result.rejected[0].reasons });
+        });
+        reportRejections("learn-drill", rejected);
+        setDroppedCount(rejected.length);
+        const trimmed = qs.slice(0, 5);
+        if (!trimmed.length) throw new Error("Invalid drill response");
+        setDrillQs(trimmed);
+        setDrillDraft(draftForQuestion(trimmed[0]));
       })
       .catch((e) => setDrillError(e.message || "Failed to load"));
-  }, [phase, drillQs, drillError, nodeTitle, tree.examTaxonomy, node.complexity]);
+  }, [phase, drillQs, drillError, nodeTitle, tree.examTaxonomy, node.complexity, paperLang]);
 
   // Prove: 3 exam-style Qs, dedup-checked, on a timer.
   React.useEffect(() => {
     if (phase !== "prove" || proveQs || proveError) return;
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
-    const system = `Generate exactly 3 real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
+    // Asks for 4 to keep 3: a question the lint rejects is cheaper to discard
+    // from a spare than to regenerate, which would cost a second 30 s race.
+    const plan = planCorrectIndices(4, 4);
+    const system = `Generate exactly 4 real-exam-style MCQ questions for "${nodeTitle}" (${tree.examTaxonomy.toUpperCase()}).
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"${nodeTitle}"}]}
-RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
+RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.
+${mcqRulesBlock(plan)}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
     const generate = () => Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }),
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Test me on: ${nodeTitle}` }], paperQual: tree.examTaxonomy }),
       timeout,
-    ]).then((raw) => {
-      const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    ]).then((p) => {
       if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error("Invalid prove response");
-      return p.questions.slice(0, 3);
+      const { kept, rejected } = filterMcqBatch(p.questions.slice(0, 4), { language: paperLang });
+      reportRejections("learn-prove", rejected);
+      setDroppedCount((n) => n + rejected.length);
+      if (!kept.length) throw new Error("Invalid prove response");
+      return kept.slice(0, 3);
     });
     (async () => {
       try {
@@ -222,7 +263,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
         setProveQs(deduped);
       } catch (e) { setProveError(e.message || "Failed to load"); }
     })();
-  }, [phase, proveQs, proveError, nodeTitle, tree.examTaxonomy]);
+  }, [phase, proveQs, proveError, nodeTitle, tree.examTaxonomy, paperLang]);
 
   // Prove timer runs down live; hitting 0 auto-submits whatever we've got.
   React.useEffect(() => {
@@ -464,6 +505,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
     return wrap([
       header,
       React.createElement("div", { key: "prog", style: { fontSize: 12, color: "var(--text-faint)", marginBottom: 10 } }, `${drillIdx + 1} / ${drillQs.length}`),
+      droppedNote("dropped-drill"),
       q.type !== "drag_drop" && React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       q.type === "mcq" && React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
@@ -629,6 +671,7 @@ RULES: exam-difficulty, no warm-ups; 4 options, "correct" is 0-based index.`;
         React.createElement("span", null, `${proveIdx + 1} / ${proveQs.length}`),
         React.createElement("span", { style: { fontVariantNumeric: "tabular-nums" } }, `⏱ ${mm}:${ss}`),
       ),
+      droppedNote("dropped-prove"),
       React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {

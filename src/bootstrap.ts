@@ -123,6 +123,8 @@ export const REQUIRED_GLOBALS = [
   "getCurriculum",
   // AI layer
   "brainComplete",
+  "brainCompleteJSON",
+  "parseJSON",
   "claude",
   // components + screens
   "useTweaks",
