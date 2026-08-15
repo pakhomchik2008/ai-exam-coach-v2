@@ -217,7 +217,7 @@ function mistakeReviewEmail(count) {
 function trialEndEmail() {
   return {
     subject: "Your Pro trial ends tomorrow",
-    html: `<p>Your 3-day Pro trial ends tomorrow. The $4/month charge starts then. Cancel from the Stripe email if you do not want to continue.</p>`,
+    html: `<p>Your 3-day Pro trial ends tomorrow. The $5.99/month charge starts then. Cancel from the Stripe email if you do not want to continue.</p>`,
   };
 }
 
