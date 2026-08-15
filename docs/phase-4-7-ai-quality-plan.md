@@ -23,7 +23,7 @@ bias anyway.
 | Live prompt eval | `src/lib/ai-quality.eval.ts`, `npm run eval` |
 | Visible drop count | Learn Drill/Prove, Speed Round summary, Exam Sim recap |
 | Every failed JSON parse names itself | `reportParseFailure()` in `ai-brain.jsx` |
-| One repair round-trip on malformed JSON | `brainCompleteJSON()`, Teach / Drill / Prove / theory / flashcards / Socratic / Feynman / Fading / IELTS / StudyHub / StudySession |
+| One repair round-trip on malformed JSON | `brainCompleteJSON()` — every structured AI caller, including curriculum, enrichment, onboarding hours, Speaking, study guide, Quick Check |
 | Weak teach-back fail-closed | `src/lib/weak-transcript.ts` — 5 golden transcripts, no model |
 | Language lint on theory + flashcards | `mixedLanguage` / `filterFlashcards` |
 
@@ -120,8 +120,10 @@ Numbering continues after `phase-5-billing-tiers-plan.md`, which reaches #86.
 | 93 | Dropped questions are shown to the student | A short drill with no explanation reads as a bug in the app, which it was |
 | 94 | Exactly one repair round-trip, not a retry loop | A model that fails twice will fail a third time, and the caller is holding a 30-45 s race |
 | 95 | Generators call `brainCompleteJSON` instead of parsing by hand | Repair and reporting live in one place; five copies of the fenceless-slice pattern cannot each grow a retry |
+| 96 | Official syllabus / hours / topic-name calls set `includeContext: false` | Learner mastery must not rewrite an exam board's topic list |
 | 97 | Weak teach-backs fail locally, before the grader | The model praises "idk". A prompt rule is a request; `isWeakTeachBack` is the guarantee CI can enforce without a key |
 | 98 | Explicit `pass: false` wins over score >= 6 | `parseExplainGrade` used to OR them, so a fail with score 6 still passed |
+| 99 | Remaining `claude.complete` sites converted, not left as a fallback | A `brainComplete` fallback to `claude.complete` still skipped repair; the last StudyHub / Burnout / Recap / curriculum / enrichment / onboarding callers were that pattern |
 
 ## What could break silently
 

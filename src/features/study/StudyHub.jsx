@@ -10,9 +10,8 @@ import { filterMcqBatch, filterFlashcards, reportRejections } from "../../lib/qu
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
-// instead of taking the full viewport, since it already called
-// window.claude.complete directly (no client-side API key, unlike the older
-// "AI Study Tool.html" this replaces).
+// instead of taking the full viewport. AI calls go through brainComplete /
+// brainCompleteJSON so repair and language context are not bypassed.
 // Module-scope (not nested in StudyHub) so its identity stays stable across
 // the parent's re-renders while loadingMsg rotates — otherwise this would
 // remount and its 5s timer would never fire.
@@ -540,7 +539,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       const ctx = flashcards.slice(0, 5).map(f => `• ${f.front}: ${f.back}`).join('\n');
       const history = nextMessages.map((m) => ({ role: m.role, content: m.text }));
       const chatLangHint = window.aiLangDirective ? window.aiLangDirective() : '';
-      const answer = await window.claude.complete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}${chatLangHint ? `\n\n${chatLangHint}` : ''}`, messages: history });
+      const answer = await window.brainComplete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}${chatLangHint ? `\n\n${chatLangHint}` : ''}`, messages: history });
       setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: answer }], isChatLoading: false }));
     } catch {
       setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: L('Sorry, something went wrong. Please try again.','Вибачте, щось пішло не так. Спробуйте ще раз.','Извините, что-то пошло не так. Попробуйте ещё раз.','Désolé, une erreur est survenue. Réessayez.','Entschuldigung, etwas ist schiefgelaufen. Versuche es erneut.') }], isChatLoading: false }));
