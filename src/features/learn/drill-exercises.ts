@@ -285,9 +285,13 @@ export function parseExplainGrade(raw: unknown): ExplainGrade {
   if (row) {
     const feedback = asString(row.feedback) || asString(row.comment) || asString(row.text);
     const score = clampScore(row.score ?? row.clarity ?? row.completeness);
-    const passFlag = row.pass === true || row.correct === true;
+    const passExplicit = row.pass === false || row.correct === false
+      ? false
+      : row.pass === true || row.correct === true
+        ? true
+        : null;
     if (feedback) {
-      return { score, pass: passFlag || score >= 6, feedback };
+      return { score, pass: passExplicit === null ? score >= 6 : passExplicit, feedback };
     }
   }
   if (typeof raw === "string" && raw.trim()) {
@@ -333,7 +337,7 @@ ${checks}
 Rules:
 - pass is true when score >= 6.
 - Quote what they got right. Name what they skipped.
-- Gibberish or off-topic still gets a real grade.
+- Gibberish, "I don't know", a single word, or anything under one real sentence: score <= 2 AND pass false. Do not praise it.
 - Language: ${language}.
 - Math as LaTeX $...$. In JSON, write every backslash twice (\\\\frac not \\frac).`;
 }

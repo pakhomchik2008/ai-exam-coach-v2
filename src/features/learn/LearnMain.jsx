@@ -23,6 +23,7 @@ import { copyLangFor, languageNameFor, paperLanguageFor } from "../../lib/paper-
 import {
   filterMcqBatch,
   mcqRulesBlock,
+  mixedLanguage,
   planCorrectIndices,
   reportRejections,
 } from "../../lib/question-lint";
@@ -35,6 +36,7 @@ import {
   scoreDrill,
   shuffled,
 } from "./drill-exercises";
+import { failClosedExplain, isWeakTeachBack } from "../../lib/weak-transcript";
 
 function mdHtml(text) {
   return { __html: renderCoachMarkdown(text) };
@@ -189,20 +191,21 @@ function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
   // "resume mid-lesson").
   React.useEffect(() => {
     if (phase !== "teach" || teach || teachError) return;
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const system = `You are teaching a student the concept "${nodeTitle}" (unit: ${unitTitle}) for the ${tree.examTaxonomy.toUpperCase()} exam.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"hook":"3-sentence engaging hook","example":{"prompt":"a worked example","steps":["step 1","step 2","..."],"answer":"final answer"},"takeaway":"one-line rule to remember"}
 RULES: pitch to exam level, keep steps short, use plain math notation (no LaTeX for now — v2).`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 30000));
-    Promise.race([complete({ system, messages: [{ role: "user", content: `Teach me: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
-      .then((raw) => {
-        const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+    Promise.race([window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Teach me: ${nodeTitle}` }], paperQual: tree.examTaxonomy }), timeout])
+      .then((p) => {
         if (!p || !p.hook) throw new Error("Invalid teach response");
+        const surfaces = [p.hook, p.takeaway, p.example && p.example.prompt, p.example && p.example.answer]
+          .concat((p.example && p.example.steps) || []);
+        if (mixedLanguage(surfaces, paperLang)) throw new Error("Invalid teach response");
         setTeach(p);
       })
       .catch((e) => setTeachError(e.message || "Failed to load"));
-  }, [phase, teach, teachError, nodeTitle, unitTitle, tree.examTaxonomy]);
+  }, [phase, teach, teachError, nodeTitle, unitTitle, tree.examTaxonomy, paperLang]);
 
   // Drill: 5 mixed types. Normalize drops junk so a bad match/order
   // item does not blank the whole set.
@@ -297,21 +300,27 @@ ${mcqRulesBlock(plan)}`;
     const text = (drillDraft.explain || "").trim();
     if (!text) return;
     setDrillGrading(true);
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
+    if (isWeakTeachBack(text, nodeTitle)) {
+      const grade = failClosedExplain();
+      setDrillGrade(grade);
+      setDrillRevealed(true);
+      setDrillResults((r) => [...r, { correct: false }]);
+      setDrillGrading(false);
+      return;
+    }
     const lang = languageNameFor(tree.examTaxonomy)
       || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[t?.code] || "English");
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("Took too long")), 45000));
     try {
-      const raw = await Promise.race([
-        complete({
+      const parsed = await Promise.race([
+        window.brainCompleteJSON({
           system: buildExplainSystem(nodeTitle, q.rubric || [], lang),
           messages: [{ role: "user", content: text }],
           paperQual: tree.examTaxonomy,
         }),
         timeout,
       ]);
-      const parsed = window.parseJSON ? window.parseJSON(raw) : raw;
-      const grade = parseExplainGrade(parsed ?? raw);
+      const grade = parseExplainGrade(parsed);
       setDrillGrade(grade);
       setDrillRevealed(true);
       setDrillResults((r) => [...r, { correct: grade.pass }]);

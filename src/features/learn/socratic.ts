@@ -3,6 +3,8 @@
 // Lives outside AIChat.jsx so the "never explain first" contract is
 // unit-tested. The dialog UI calls these, then window.brainComplete.
 
+import { isWeakTeachBack } from "../../lib/weak-transcript";
+
 export type SocraticKind = "question" | "nudge" | "formal" | "done";
 
 export type SocraticTurn = {
@@ -91,6 +93,19 @@ export function parseSocraticTurn(raw: string): SocraticTurn {
   return { say, kind: "question" };
 }
 
+/**
+ * The model closes the chat when it is feeling generous. A shrug, an empty
+ * opening turn, or a one-word restatement of the topic is not mastery — rewrite
+ * `done` to `question` so the student cannot collect +50 XP for "idk".
+ */
+export function refusePrematureDone(studentText: string, turn: SocraticTurn, topic = ""): SocraticTurn {
+  if (turn.kind !== "done") return turn;
+  if (isWeakTeachBack(studentText, topic)) {
+    return { say: turn.say, kind: "question", ...(turn.formal ? { formal: turn.formal } : {}) };
+  }
+  return turn;
+}
+
 export function recentMistakeLines(
   mistakes: readonly { topic?: string; question?: string }[],
   topic: string,
@@ -155,5 +170,6 @@ Rules:
 6. ${hintLine}
 7. ${wrap}
 8. ${mistakesBlock}
-9. Math in say/formal as LaTeX: $x^2$, $$\\log_2 8=3$$.`;
+9. Math in say/formal as LaTeX: $x^2$, $$\\log_2 8=3$$.
+10. NEVER set kind to done if the student's last message is empty, "I don't know", a single word, or shorter than one real sentence. Stay on question or nudge.`;
 }

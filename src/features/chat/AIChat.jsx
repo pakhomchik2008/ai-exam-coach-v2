@@ -7,7 +7,7 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
-import { filterMcqBatch, mcqRulesBlock, planCorrectIndices, reportRejections } from "../../lib/question-lint";
+import { filterMcqBatch, filterFlashcards, mcqRulesBlock, mixedLanguage, planCorrectIndices, reportRejections } from "../../lib/question-lint";
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
@@ -2218,7 +2218,6 @@ async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
     if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
   const run = (async () => {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const DIFF_NOTE = priorVote == null || priorVote === 0 ? "" :
       priorVote >= 2  ? "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student said this topic was WAY too easy last time. Skip basics entirely. Use only hard questions, complex applications, tricky edge cases. Assume solid prior knowledge." :
@@ -2321,11 +2320,10 @@ ${STEP_TYPES}`;
 
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
-    const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride, paperQual }),
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error(L("Invalid lesson plan", "Недійсний план уроку", "Недействительный план урока", "Plan de leçon invalide", "Ungültiger Lektionsplan"));
     saveCachedLesson(cacheKey, parsed);
     return parsed;
@@ -2368,7 +2366,6 @@ async function generateTheoryReader({ topic, resolved, tcode, force }) {
     if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
   const run = (async () => {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const system = `You are the best exam-prep teacher in the world. Write ONE excellent, self-contained theory page for the topic "${topic}". No questions, no drills — just pure, clear teaching a student can read once and remember.
 
@@ -2433,12 +2430,20 @@ SHAPE BY TOPIC:
 - Procedure / algorithm / grammar / essay structure → numbered nodes on a path with arrows (a sentence skeleton, a paragraph map) — not a list of tips.
 - IELTS Listening/Reading → the map, flow, or table skeleton the task actually uses.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
-    const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     if (!parsed || !parsed.title || !Array.isArray(parsed.concepts)) throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
+    const theoryLang = paperLanguageFor(paperQual);
+    const theorySurfaces = [parsed.title, parsed.tldr, parsed.diagramCaption]
+      .concat((parsed.concepts || []).flatMap((c) => [c.heading, c.body]))
+      .concat((parsed.examples || []).flatMap((ex) => [ex.prompt, ex.answer].concat(ex.steps || [])))
+      .concat(parsed.pitfalls || [])
+      .concat(parsed.cheatsheet || []);
+    if (mixedLanguage(theorySurfaces, theoryLang)) {
+      throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
+    }
     saveCachedLesson(cacheKey, parsed);
     _lessonInFlight.delete(cacheKey);
     return parsed;
@@ -2687,7 +2692,6 @@ async function generateFlashcards({ topic, resolved, tcode, force }) {
     if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
   const run = (async () => {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const langName = languageNameFor(paperQual);
     const system = `You are the best exam-prep teacher in the world. Break the topic "${topic}" into a small deck of concept cards — each card is ONE clear idea a student can absorb in under 30 seconds.
@@ -2710,15 +2714,15 @@ RULES:
 - **Bold** the single key term on each card.
 - Skip filler like "in this card we will…" — get straight to the point.${langName ? `\n- Write EVERY JSON string (title, heading, body, example) in ${langName} only. The app UI may be in another language — ignore it.` : ""}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
-    const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     if (!parsed || !Array.isArray(parsed.cards) || parsed.cards.length === 0) throw new Error(L("Invalid deck", "Некоректна колода", "Некорректная колода", "Deck invalide", "Ungültiges Deck"));
-    // Clamp defensively — the prompt says 6-10 but a rogue call could still
-    // return more/less. Truncating past 10 keeps the UX contract.
-    parsed.cards = parsed.cards.slice(0, 10);
+    const linted = filterFlashcards(parsed.cards.slice(0, 10), paperLanguageFor(paperQual));
+    reportRejections("learn-flashcards", linted.rejected);
+    parsed.cards = linted.kept;
+    if (!parsed.cards.length) throw new Error(L("Invalid deck", "Некоректна колода", "Некорректная колода", "Deck invalide", "Ungültiges Deck"));
     saveCachedLesson(cacheKey, parsed);
     _lessonInFlight.delete(cacheKey);
     return parsed;
