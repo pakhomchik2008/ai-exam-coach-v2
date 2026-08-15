@@ -11,3 +11,4 @@ Full rationale lives in `docs/phase-4-plan.md`.
 | 51 | Legal stubs now, counsel pass in Phase 6. |
 | 52 | No Framer Motion. Split-scroll is CSS + scroll progress. New dep rejected. |
 | 53 | First paint: centered type + exam marquee. Predictor + Learn mock arrive on scroll. |
+| 54 | Hero slit: ink doors + gold hairline, 900ms, once per tab. No Framer. Reduced-motion skips. |

@@ -15,6 +15,17 @@ const CTA_DAYS = [
   ["47", "land_cta_d47"],
 ];
 
+const SLIT_KEY = "land_slit_seen";
+
+function shouldPlaySlit() {
+  try {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+    return sessionStorage.getItem(SLIT_KEY) !== "1";
+  } catch {
+    return false;
+  }
+}
+
 const FAQ_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
@@ -43,12 +54,21 @@ function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const [annual, setAnnual] = React.useState(true);
+  const [slit, setSlit] = React.useState(shouldPlaySlit);
   const landRef = React.useRef(null);
   React.useEffect(() => {
     let stop = () => undefined;
     startLenis().then((fn) => { stop = fn; });
     return () => stop();
   }, []);
+  React.useEffect(() => {
+    if (!slit) return undefined;
+    const id = window.setTimeout(() => {
+      try { sessionStorage.setItem(SLIT_KEY, "1"); } catch { /* private mode */ }
+      setSlit(false);
+    }, 1100);
+    return () => window.clearTimeout(id);
+  }, [slit]);
   const langs = Object.values(window.LANGS || {});
   const headlineLines = (t.land_hero_title || "").split(/(?<=[.?])\s+/).filter(Boolean);
 
@@ -67,8 +87,17 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
     };
   }
 
+  const slitHold = slit ? 520 : 0;
+
   return (
-    <div className="land energy" ref={landRef} onMouseMove={onGlow}>
+    <div className={`land energy${slit ? " is-slitting" : ""}`} ref={landRef} onMouseMove={onGlow}>
+      {slit && (
+        <div className="land-slit" aria-hidden="true">
+          <div className="land-slit-pane is-left" />
+          <div className="land-slit-pane is-right" />
+          <span className="land-slit-line" />
+        </div>
+      )}
       <a className="land-skip" href="#content">{t.land_skip}</a>
 
       <header className="land-nav">
@@ -124,7 +153,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
               <p className="land-kicker">{t.land_kicker}</p>
               <h1 className="land-headline" id="content">
                 {headlineLines.map((line, i) => (
-                  <span key={`${line}-${i}`} style={{ animationDelay: `${90 + i * 120}ms` }}>{line}</span>
+                  <span key={`${line}-${i}`} style={{ animationDelay: `${slitHold + 90 + i * 120}ms` }}>{line}</span>
                 ))}
               </h1>
               <p className="land-sub">{t.land_hero_sub}</p>

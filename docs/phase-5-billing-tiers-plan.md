@@ -58,7 +58,7 @@ locked” means Coach **Practice Engine**, not Learn’s Teach→Drill→Prove.
 - Quota is 400 `complete`/day per signed-in user, not 5 chat messages.
 - Journal, calendar drag, predictor number, exam-slot cap, weekly Exam
   Sim: ungated.
-- Stripe Checkout: one Price, `trial_period_days: 3` ($0).
+- Stripe Checkout: one Pro Price (`STRIPE_PRICE_ID`), `trial_period_days: 3` ($0). Live copy matches that. Max $9.99 is listed; there is no Max Price yet.
 - Apple IAP / Capacitor: not in this app yet. Web Stripe first.
 - PostHog: not installed.
 - Referral “1 week Pro per friend”: named in this spec, not coded.
@@ -204,6 +204,7 @@ copy cannot disagree with Checkout.
 | 83 | Social proof is a live count, hidden below 50 | A fake “1,240” is a dark pattern we will not ship. |
 | 84 | Cancel stays one visible tap | Apple Guideline. Win-back is information, not a maze. |
 | 85 | Referral is 5h, not 5a | Money path must work before we give away weeks of Pro. |
+| 100 | Live offer is a $0 3-day **Pro** trial, then $5.99/mo | Reverses #78 for launch. Checkout already uses `trial_period_days: 3`. $1.99 / $2.99 Sprint copy was a third price story. Max stays $9.99 on the page; Checkout is still one Pro Price until 5d |
 
 ## Reversibility
 

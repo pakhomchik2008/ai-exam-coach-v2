@@ -314,7 +314,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")}
             sub={pro
               ? L(lang, "Full Learn tree unlocked.", "Все дерево Learn відкрите.", "Всё дерево Learn открыто.", "Arbre Learn complet déverrouillé.", "Ganzer Learn-Baum offen.")
-              : L(lang, "First unit free. 3-day trial, then $4/month.", "Перший юніт безкоштовно. 3 дні тріалу, далі $4/міс.", "Первый юнит бесплатно. 3 дня триала, дальше $4/мес.", "Premier chapitre gratuit. 3 jours d’essai, puis $4/mois.", "Erste Einheit gratis. 3 Tage Trial, dann $4/Monat.")}
+              : L(lang, "First unit free. 3 days of Pro free, then $5.99/month.", "Перший юніт безкоштовно. 3 дні Pro безкоштовно, далі $5.99/міс.", "Первый юнит бесплатно. 3 дня Pro бесплатно, дальше $5.99/мес.", "Premier chapitre gratuit. 3 jours de Pro gratuits, puis $5.99/mois.", "Erste Einheit gratis. 3 Tage Pro kostenlos, dann $5.99/Monat.")}
             status={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : null}
             cta={pro ? null : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
             pulse={!pro}
@@ -657,8 +657,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             <Row
               label={pro ? "Pro" : "Free"}
               sub={pro
-                ? L(lang, "Full Learn tree unlocked. $4/month after trial.", "Все дерево Learn відкрите. $4/міс після тріалу.", "Всё дерево Learn открыто. $4/мес после триала.", "Arbre Learn complet. $4/mois après l’essai.", "Ganzer Learn-Baum. $4/Monat nach dem Trial.")
-                : L(lang, "First unit free. Rest unlocks with Pro — 3-day trial, then $4/month. Card at checkout.", "Перший юніт безкоштовно. Решта в Pro — 3 дні тріалу, далі $4/міс. Картка на Checkout.", "Первый юнит бесплатно. Остальное в Pro — 3 дня триала, дальше $4/мес. Карта на Checkout.", "Premier chapitre gratuit. Le reste avec Pro — 3 jours d’essai, puis $4/mois.", "Erste Einheit gratis. Rest mit Pro — 3 Tage Trial, dann $4/Monat.")}
+                ? L(lang, "Full Learn tree unlocked. $5.99/month after trial.", "Все дерево Learn відкрите. $5.99/міс після тріалу.", "Всё дерево Learn открыто. $5.99/мес после триала.", "Arbre Learn complet. $5.99/mois après l’essai.", "Ganzer Learn-Baum. $5.99/Monat nach dem Trial.")
+                : L(lang, "First unit free. Rest unlocks with Pro — 3 days free, then $5.99/month. Card at checkout.", "Перший юніт безкоштовно. Решта в Pro — 3 дні безкоштовно, далі $5.99/міс. Картка на Checkout.", "Первый юнит бесплатно. Остальное в Pro — 3 дня бесплатно, дальше $5.99/мес. Карта на Checkout.", "Premier chapitre gratuit. Le reste avec Pro — 3 jours gratuits, puis $5.99/mois.", "Erste Einheit gratis. Rest mit Pro — 3 Tage kostenlos, dann $5.99/Monat.")}
               value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
             />
             {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
