@@ -6,7 +6,7 @@ import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upl
 import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { renderCoachMarkdown } from "../../lib/math-render";
-import { filterMcqBatch, reportRejections } from "../../lib/question-lint";
+import { filterMcqBatch, filterFlashcards, reportRejections } from "../../lib/question-lint";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
@@ -227,9 +227,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
     try {
       const content1 = buildUserContent('Generate study materials from this content.');
-      const raw1 = await window.claude.complete({ system: SYSTEM_CARDS, messages: [{ role: 'user', content: content1 }] });
-      const j1 = raw1.slice(raw1.indexOf('{'), raw1.lastIndexOf('}') + 1);
-      const d1 = JSON.parse(j1);
+      const d1 = await window.brainCompleteJSON({ system: SYSTEM_CARDS, messages: [{ role: 'user', content: content1 }] });
+      if (!d1) throw new Error('Invalid study materials');
 
       const quizRaw = (d1.quiz || []).map(q => ({
         question: q.question || q.q || '',
@@ -240,13 +239,16 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       const lintedQuiz = filterMcqBatch(quizRaw);
       reportRejections('study-tools-quiz', lintedQuiz.rejected);
       const quiz = lintedQuiz.kept;
+      const uiLang = (window.getProfile && window.getProfile().lang) || undefined;
+      const lintedCards = filterFlashcards(d1.flashcards || [], uiLang);
+      reportRejections('study-tools-cards', lintedCards.rejected);
 
       clearInterval(iv);
       setState({
         mode: 'results', activeTab: 'flashcards',
         topic: d1.topic || 'Study Topic',
         topicEmoji: d1.emoji || '📚',
-        flashcards: d1.flashcards || [],
+        flashcards: lintedCards.kept,
         quiz,
         videos: [], videosLoading: true,
         currentCard: 0, flippedCards: {}, quizAnswers: {},
@@ -254,10 +256,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
       try {
         const topicForVideos = d1.topic || inputText.trim() || 'this topic';
-        const raw2 = await window.claude.complete({ system: SYSTEM_VIDEOS, messages: [{ role: 'user', content: `Recommend YouTube study videos for: "${topicForVideos}"` }] });
-        const j2 = raw2.slice(raw2.indexOf('{'), raw2.lastIndexOf('}') + 1);
-        const d2 = JSON.parse(j2);
-        setState({ videos: d2.videos || [], videosLoading: false });
+        const d2 = await window.brainCompleteJSON({ system: SYSTEM_VIDEOS, messages: [{ role: 'user', content: `Recommend YouTube study videos for: "${topicForVideos}"` }] });
+        setState({ videos: (d2 && d2.videos) || [], videosLoading: false });
       } catch {
         setState({ videosLoading: false, videos: [] });
       }

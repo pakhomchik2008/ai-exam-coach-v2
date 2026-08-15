@@ -86,7 +86,7 @@ OUTPUT ONLY valid JSON — no markdown fences, no prose around it:
 Rules:
 - Be specific. Quote what they got right. Name what they skipped.
 - If they have a misconception, say what is actually true.
-- Gibberish or off-topic still gets a real grade: low scores, honest feedback.
+- Gibberish, "I don't know", a single word, or anything under one real sentence: scores <= 2, honest feedback, no praise.
 - Language: ${language}.
 - Math as LaTeX $...$. In JSON, write every backslash twice (\\\\frac not \\frac).`;
 }

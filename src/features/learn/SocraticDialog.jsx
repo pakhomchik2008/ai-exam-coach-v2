@@ -6,7 +6,7 @@
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { WaitPress } from "../../components/WaitPress";
 import { copyLangFor, languageNameFor, paperQualForExam } from "../../lib/paper-language";
-import { buildSocraticSystem, parseSocraticTurn, recentMistakeLines } from "./socratic";
+import { buildSocraticSystem, parseSocraticTurn, recentMistakeLines, refusePrematureDone } from "./socratic";
 
 function md(text) {
   return renderCoachMarkdown(text);
@@ -53,7 +53,6 @@ export function SocraticDialog({ topic, onExit, t }) {
   }, [turns, loading]);
 
   async function askCoach(userText, flags = {}) {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const nextHint = flags.hintUsed ?? hintUsed;
     const nextSurrender = flags.surrendered ?? surrendered;
     const history = threadRef.current.concat(
@@ -73,8 +72,8 @@ export function SocraticDialog({ topic, onExit, t }) {
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(
       L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."),
     )), 45000));
-    const raw = await Promise.race([
-      complete({
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({
         system,
         messages: history.length ? history : [{ role: "user", content: `Start the dialogue on: ${topic}. Reply in ${coachLanguageName(resolved, lang)} only.` }],
         topicContext,
@@ -82,7 +81,8 @@ export function SocraticDialog({ topic, onExit, t }) {
       }),
       timeout,
     ]);
-    const turn = parseSocraticTurn(raw);
+    if (!parsed) throw new Error(L("Failed to load", "Не вдалося завантажити", "Не удалось загрузить", "Échec du chargement", "Fehler beim Laden"));
+    const turn = refusePrematureDone(userText, parseSocraticTurn(JSON.stringify(parsed)), topic);
     threadRef.current = history.concat([{ role: "assistant", content: turn.say }]);
     return turn;
   }

@@ -284,6 +284,43 @@ export function filterMcqBatch<T extends LintableMcq>(
   return { kept, rejected };
 }
 
+/** True when any surface is written in the wrong paper language. */
+export function mixedLanguage(
+  texts: readonly (string | null | undefined)[],
+  language?: string | null,
+): boolean {
+  return texts.some((text) => typeof text === "string" && languageMismatch(text, language));
+}
+
+export type FlashcardLike = {
+  heading?: string;
+  body?: string;
+  example?: string;
+  front?: string;
+  back?: string;
+};
+
+/**
+ * Drop cards that mix languages. Same contract as `filterMcqBatch`: rejections
+ * are returned, never swallowed.
+ */
+export function filterFlashcards<T extends FlashcardLike>(
+  cards: readonly T[],
+  language?: string | null,
+): BatchResult<T> {
+  const kept: T[] = [];
+  const rejected: BatchRejection[] = [];
+  cards.forEach((card, index) => {
+    const surfaces = [card.heading, card.body, card.example, card.front, card.back];
+    if (mixedLanguage(surfaces, language)) {
+      rejected.push({ index, reasons: ["language-mix"] });
+      return;
+    }
+    kept.push(card);
+  });
+  return { kept, rejected };
+}
+
 /**
  * A dropped question must never be invisible. Before this pass the generators
  * ended in `.filter(...)`, so a batch that came back malformed just rendered

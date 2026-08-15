@@ -109,12 +109,9 @@ Rules: EXACTLY 2 quiz questions. 4 options each, "correct" is the index of the r
 Subject: ${s.subject}
 Topic: ${s.topic}
 ${examBoard ? `Exam board: ${examBoard}\n` : ""}Difficulty (1=easy,3=hard): ${s.difficulty || 2}${kbContext}`;
-        const complete = window.brainComplete ? (a) => window.brainComplete(a) : (a) => window.claude.complete(a);
-        const raw = await complete({ system, messages: [{ role: "user", content: userPrompt }] });
+        const parsed = await window.brainCompleteJSON({ system, messages: [{ role: "user", content: userPrompt }] });
         if (cancelled) return;
-        const j = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-        const parsed = JSON.parse(j);
-        const list = (parsed.quiz || []).slice(0, 2).map((q) => ({
+        const list = ((parsed && parsed.quiz) || []).slice(0, 2).map((q) => ({
           question: q.question || "", options: Array.isArray(q.options) ? q.options : [],
           correct: typeof q.correct === "number" ? q.correct : 0, explanation: q.explanation || "",
         })).filter((q) => q.question && q.options.length === 4);

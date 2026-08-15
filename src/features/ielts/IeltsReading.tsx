@@ -26,12 +26,6 @@ type ReadingQ = {
 
 type Passage = { title: string; text: string; questions: ReadingQ[] };
 
-function parseJson(raw: string): unknown {
-  const w = window as unknown as { parseJSON?: (s: string) => unknown };
-  if (w.parseJSON) return w.parseJSON(raw);
-  return JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-}
-
 function L(t: { code?: string } | undefined, en: string, uk: string, ru: string, fr: string, de: string): string {
   return ({ en, uk, ru, fr, de } as Record<string, string>)[t?.code || "en"] || en;
 }
@@ -62,7 +56,7 @@ export function IeltsReading({
     let dead = false;
     (async () => {
       try {
-        const complete = (window as unknown as { brainComplete: (a: unknown) => Promise<string> }).brainComplete;
+        const completeJson = (window as unknown as { brainCompleteJSON: (a: unknown) => Promise<unknown> }).brainCompleteJSON;
         const per = mode === "exam" ? [13, 13, 14] : [spec.questions];
         const jobs = per.map((n, i) => {
           const system = readingPrompt({
@@ -70,12 +64,12 @@ export function IeltsReading({
           });
           const to = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
           return Promise.race([
-            complete({ system, messages: [{ role: "user", content: `Write passage ${i + 1}.` }], paperQual: "ielts" }),
+            completeJson({ system, messages: [{ role: "user", content: `Write passage ${i + 1}.` }], paperQual: "ielts" }),
             to,
-          ]).then((raw) => {
-            const p = parseJson(raw) as Passage;
-            if (!p || !p.text || !Array.isArray(p.questions) || !p.questions.length) throw new Error("bad passage");
-            return p;
+          ]).then((p) => {
+            const passage = p as Passage;
+            if (!passage || !passage.text || !Array.isArray(passage.questions) || !passage.questions.length) throw new Error("bad passage");
+            return passage;
           });
         });
         const got = (await Promise.all(jobs)).filter(Boolean);

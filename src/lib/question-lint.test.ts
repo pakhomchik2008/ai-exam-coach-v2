@@ -9,10 +9,12 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  filterFlashcards,
   filterMcqBatch,
   languageMismatch,
   lintMcq,
   mcqRulesBlock,
+  mixedLanguage,
   planCorrectIndices,
   shuffleMcq,
   similarity,
@@ -330,5 +332,24 @@ describe("mcqRulesBlock", () => {
     const block = mcqRulesBlock([]);
     expect(block).not.toContain("0-based indices");
     expect(block).toContain("none of the above");
+  });
+});
+
+describe("filterFlashcards", () => {
+  it("drops a Ukrainian card that leaked Russian", () => {
+    const { kept, rejected } = filterFlashcards([
+      { heading: "Площа", body: "Половина основи на висоту." },
+      { heading: "Площадь", body: "Основание на высоту пополам." },
+    ], "uk");
+    expect(kept).toHaveLength(1);
+    expect(kept[0]?.heading).toBe("Площа");
+    expect(rejected[0]?.reasons).toEqual(["language-mix"]);
+  });
+});
+
+describe("mixedLanguage", () => {
+  it("flags a theory hook that switched script", () => {
+    expect(mixedLanguage(["Площа трикутника — половина добутку."], "uk")).toBe(false);
+    expect(mixedLanguage(["The area of a triangle is half the base times height."], "uk")).toBe(true);
   });
 });
