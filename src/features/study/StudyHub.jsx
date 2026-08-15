@@ -6,6 +6,7 @@ import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upl
 import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { renderCoachMarkdown } from "../../lib/math-render";
+import { filterMcqBatch, reportRejections } from "../../lib/question-lint";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
@@ -230,12 +231,15 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       const j1 = raw1.slice(raw1.indexOf('{'), raw1.lastIndexOf('}') + 1);
       const d1 = JSON.parse(j1);
 
-      const quiz = (d1.quiz || []).map(q => ({
+      const quizRaw = (d1.quiz || []).map(q => ({
         question: q.question || q.q || '',
         options: q.options || q.o || [],
         correct: q.correct !== undefined ? q.correct : (q.c !== undefined ? q.c : 0),
         explanation: q.explanation || q.e || '',
       }));
+      const lintedQuiz = filterMcqBatch(quizRaw);
+      reportRejections('study-tools-quiz', lintedQuiz.rejected);
+      const quiz = lintedQuiz.kept;
 
       clearInterval(iv);
       setState({

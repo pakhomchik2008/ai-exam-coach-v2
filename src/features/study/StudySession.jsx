@@ -3,6 +3,7 @@
 // passively read), and passes the conversation to the recap so every session
 // leaves a real record of what was discussed.
 import { renderCoachMarkdown } from "../../lib/math-render";
+import { filterMcqBatch, reportRejections } from "../../lib/question-lint";
 
 function StudySession({ session, startedAt, onDone, onCancel, t }) {
   // Timer is anchored to startedAt (from session-store) — surviving remounts,
@@ -117,7 +118,9 @@ ${examBoard ? `Exam board: ${examBoard}\n` : ""}Difficulty (1=easy,3=hard): ${s.
           question: q.question || "", options: Array.isArray(q.options) ? q.options : [],
           correct: typeof q.correct === "number" ? q.correct : 0, explanation: q.explanation || "",
         })).filter((q) => q.question && q.options.length === 4);
-        if (!cancelled) setQuizzes(list);
+        const linted = filterMcqBatch(list);
+        reportRejections("study-session-quiz", linted.rejected);
+        if (!cancelled) setQuizzes(linted.kept);
       } catch (err) {
         console.error("StudySession quiz generation failed:", err);
         if (!cancelled) setQuizzes([]);
