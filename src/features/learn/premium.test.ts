@@ -1,21 +1,38 @@
-import { describe, expect, it } from "vitest";
-import { freeTopicLimit, isPremiumIndex, topicIsLocked } from "./premium";
+import { afterEach, describe, expect, it } from "vitest";
+import { freeNodeCount, isPremiumNode, topicIsLocked } from "./premium";
+import NMT_MATH from "./tree/nmt-math";
+import IELTS from "./tree/ielts";
 
-describe("freeTopicLimit", () => {
-  it("gives NMT math 23 free of 47", () => {
-    expect(freeTopicLimit(47)).toBe(23);
-    expect(isPremiumIndex(22, 47)).toBe(false);
-    expect(isPremiumIndex(23, 47)).toBe(true);
+afterEach(() => {
+  delete (window as unknown as { getProfile?: unknown }).getProfile;
+});
+
+describe("first-unit free gate", () => {
+  it("opens NMT math Numbers (7 nodes), locks Algebra onward", () => {
+    expect(freeNodeCount(NMT_MATH)).toBe(7);
+    expect(isPremiumNode(NMT_MATH, "nm-07")).toBe(false);
+    expect(isPremiumNode(NMT_MATH, "al-01")).toBe(true);
+    expect(topicIsLocked(NMT_MATH, "nm-01")).toBe(false);
+    expect(topicIsLocked(NMT_MATH, "al-01")).toBe(true);
   });
 
-  it("locks only the second half when the student is not Pro", () => {
-    expect(topicIsLocked(0, 47)).toBe(false);
-    expect(topicIsLocked(23, 47)).toBe(true);
-    expect(isPremiumIndex(5, 10)).toBe(true);
+  it("opens IELTS Listening, locks Reading and Speaking", () => {
+    expect(freeNodeCount(IELTS)).toBe(10);
+    expect(topicIsLocked(IELTS, "l-01")).toBe(false);
+    expect(topicIsLocked(IELTS, "r-01")).toBe(true);
+    expect(topicIsLocked(IELTS, "s-01")).toBe(true);
   });
 
-  it("never locks a Speaking node — the unit is last in the tree", () => {
-    expect(topicIsLocked(37, 38, "s-01")).toBe(false);
-    expect(topicIsLocked(20, 24, "tf-speak-02")).toBe(false);
+  it("unlocks later units when the student is Pro", () => {
+    (window as unknown as { getProfile: () => { pro: boolean } }).getProfile = () => ({ pro: true });
+    expect(topicIsLocked(NMT_MATH, "al-01")).toBe(false);
+    expect(topicIsLocked(IELTS, "s-01")).toBe(false);
+  });
+
+  it("fails closed on an empty tree or unknown node", () => {
+    const empty = { examTaxonomy: "x", units: [] as const };
+    expect(freeNodeCount(empty)).toBe(0);
+    expect(topicIsLocked(empty, "nm-01")).toBe(true);
+    expect(topicIsLocked(NMT_MATH, "no-such-node")).toBe(true);
   });
 });

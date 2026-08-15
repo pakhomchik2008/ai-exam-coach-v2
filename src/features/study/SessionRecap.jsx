@@ -38,9 +38,7 @@ function SessionRecap({ data, onClose, t }) {
         .filter((m) => m.role === "user" || m._real)
         .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content}`)
         .join("\n");
-      const complete = window.brainComplete
-        ? (a) => window.brainComplete(a)
-        : (a) => window.claude.complete(a);
+      const complete = window.brainComplete;
       const reply = await complete({
         system: "You summarise a study tutoring session in exactly 3 bullet points (each starting with •). Cover: what the student demonstrated they understand, what gaps or misconceptions were revealed, and one specific thing to review next time. Be concrete, max 15 words per bullet. Output ONLY the 3 bullets, nothing else.",
         messages: [{ role: "user", content: `Topic: ${d.topic}\nSubject: ${d.subject}\n\nConversation:\n${transcript}\n\nSummarise:` }],

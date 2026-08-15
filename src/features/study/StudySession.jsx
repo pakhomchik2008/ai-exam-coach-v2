@@ -3,6 +3,7 @@
 // passively read), and passes the conversation to the recap so every session
 // leaves a real record of what was discussed.
 import { renderCoachMarkdown } from "../../lib/math-render";
+import { filterMcqBatch, reportRejections } from "../../lib/question-lint";
 
 function StudySession({ session, startedAt, onDone, onCancel, t }) {
   // Timer is anchored to startedAt (from session-store) — surviving remounts,
@@ -108,16 +109,15 @@ Rules: EXACTLY 2 quiz questions. 4 options each, "correct" is the index of the r
 Subject: ${s.subject}
 Topic: ${s.topic}
 ${examBoard ? `Exam board: ${examBoard}\n` : ""}Difficulty (1=easy,3=hard): ${s.difficulty || 2}${kbContext}`;
-        const complete = window.brainComplete ? (a) => window.brainComplete(a) : (a) => window.claude.complete(a);
-        const raw = await complete({ system, messages: [{ role: "user", content: userPrompt }] });
+        const parsed = await window.brainCompleteJSON({ system, messages: [{ role: "user", content: userPrompt }] });
         if (cancelled) return;
-        const j = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-        const parsed = JSON.parse(j);
-        const list = (parsed.quiz || []).slice(0, 2).map((q) => ({
+        const list = ((parsed && parsed.quiz) || []).slice(0, 2).map((q) => ({
           question: q.question || "", options: Array.isArray(q.options) ? q.options : [],
           correct: typeof q.correct === "number" ? q.correct : 0, explanation: q.explanation || "",
         })).filter((q) => q.question && q.options.length === 4);
-        if (!cancelled) setQuizzes(list);
+        const linted = filterMcqBatch(list);
+        reportRejections("study-session-quiz", linted.rejected);
+        if (!cancelled) setQuizzes(linted.kept);
       } catch (err) {
         console.error("StudySession quiz generation failed:", err);
         if (!cancelled) setQuizzes([]);
@@ -167,7 +167,7 @@ Rules:
 
       // Send only real user+AI turns to the API (skip the static opener)
       const apiHistory = newMsgs.filter((m) => m.role === "user" || m._real);
-      const complete = window.brainComplete ? (a) => window.brainComplete(a) : (a) => window.claude.complete(a);
+      const complete = window.brainComplete;
       const reply = await complete({ system, messages: apiHistory });
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply, _real: true }]);
     } catch {

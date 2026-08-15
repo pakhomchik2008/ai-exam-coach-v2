@@ -8,6 +8,7 @@
  * date formatting, Monday week-start across both 2026 DST transitions, and
  * minute/snap round-trips.
  */
+import { readFileSync } from "node:fs";
 import { describe, it, expect, beforeAll } from "vitest";
 import "../../bootstrap";
 
@@ -129,6 +130,13 @@ describe("time parsing and formatting", () => {
     for (let m = 0; m < 24 * 60; m += 15) {
       expect(cal.calMinutesOf(cal.calHHMM(m))).toBe(m);
     }
+  });
+});
+
+describe("prod bundle", () => {
+  it("does not load calendar-tests.jsx", () => {
+    const src = readFileSync("src/bootstrap.ts", "utf8");
+    expect(src).not.toContain("calendar-tests");
   });
 });
 

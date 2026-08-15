@@ -35,7 +35,7 @@ an App Store, or an image model.
 | App Store review | No native binary. Row hidden on web. |
 | Quiet hours vs cron | Hobby cron is 16:00 UTC once a day. Quiet hours are saved; they cannot retarget send time. |
 | Dark mode holes | ~246 hardcoded colour literals. Semantic tokens flip; some screens stay light. Same caveat as Legend tier. |
-| Delete-account 30-day grace | Flags the profile and signs out. Auth user purge is a follow-up (needs admin API + cron). |
+| Delete account | `POST /api/delete-account` cancels Stripe (best-effort) then hard-deletes `auth.users`. Rows with `ON DELETE CASCADE` go with it. |
 | Payment history | Portal shows it. No in-app invoice table. |
 
 ## Decision Log

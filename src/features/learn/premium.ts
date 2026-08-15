@@ -1,18 +1,24 @@
 // Free vs Pro split for Learn trees.
 //
-// Coach used to list exam.topics (default 10). The skill tree has the
-// real syllabus (47 for NMT math). Same list everywhere; first half free,
-// the rest visible but locked. Stripe (3.7i) flips profile.pro via the
-// webhook; isProUser() still reads that cache so a missing table does not
-// lock everyone.
+// Free = the first unit, every lesson in it. Later units stay visible but
+// locked. Sequential unit 1 is a real lesson; the old half-tree split
+// skipped the end of unit 1 and unlocked random later nodes (Decision #76,
+// reverses #63). Stripe (3.7i) flips profile.pro via the webhook;
+// isProUser() still reads that cache so a missing table does not lock
+// everyone.
 
-export function freeTopicLimit(total: number): number {
-  if (!Number.isFinite(total) || total <= 0) return 0;
-  return Math.floor(total / 2);
+import { lessonNodes, type LearnTree } from "./tree/schema";
+
+export function freeNodeCount(tree: LearnTree): number {
+  const unit = tree.units[0];
+  if (!unit) return 0;
+  return lessonNodes(unit).length;
 }
 
-export function isPremiumIndex(index: number, total: number): boolean {
-  return index >= freeTopicLimit(total);
+export function isPremiumNode(tree: LearnTree, nodeId: string): boolean {
+  const unit = tree.units[0];
+  if (!unit) return true;
+  return !unit.nodes.some((n) => n.id === nodeId);
 }
 
 export function isProUser(): boolean {
@@ -21,9 +27,6 @@ export function isProUser(): boolean {
   return w.getProfile?.().pro === true;
 }
 
-export function topicIsLocked(index: number, total: number, nodeId?: string): boolean {
-  // Speaking just shipped (3.7g). It sits at the end of the IELTS tree, so
-  // the half-split would lock the entire paper. Leave it free until billing.
-  if (nodeId && /^(s-|tf-speak-)/.test(nodeId)) return false;
-  return isPremiumIndex(index, total) && !isProUser();
+export function topicIsLocked(tree: LearnTree, nodeId: string): boolean {
+  return isPremiumNode(tree, nodeId) && !isProUser();
 }

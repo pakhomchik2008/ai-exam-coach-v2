@@ -33,24 +33,22 @@ type Band = {
   improve: string[];
 };
 
-function parseJson(raw: string): unknown {
-  const w = window as unknown as { parseJSON?: (s: string) => unknown };
-  if (w.parseJSON) return w.parseJSON(raw);
-  return JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-}
-
 function L(t: { code?: string } | undefined, en: string, uk: string, ru: string, fr: string, de: string): string {
   return ({ en, uk, ru, fr, de } as Record<string, string>)[t?.code || "en"] || en;
 }
 
+type Win = Window & {
+  brainCompleteJSON: (a: unknown) => Promise<unknown>;
+};
+
 async function completeJson(system: string, user: string, ms = 45000): Promise<unknown> {
-  const complete = (window as unknown as { brainComplete: (a: unknown) => Promise<string> }).brainComplete;
   const to = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
-  const raw = await Promise.race([
-    complete({ system, messages: [{ role: "user", content: user }], paperQual: "ielts" }),
+  return Promise.race([
+    (window as unknown as Win).brainCompleteJSON({
+      system, messages: [{ role: "user", content: user }], paperQual: "ielts",
+    }),
     to,
   ]);
-  return parseJson(raw);
 }
 
 export function IeltsWriting({

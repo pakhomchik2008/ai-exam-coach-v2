@@ -7,6 +7,8 @@ import { validateFiles, rejectionSummary, CHAT_LIMITS, ACCEPT_ATTRIBUTE } from "
 import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
+import { filterMcqBatch, filterFlashcards, mcqRulesBlock, mixedLanguage, planCorrectIndices, reportRejections } from "../../lib/question-lint";
+import { failClosedExplain, isWeakTeachBack } from "../../lib/weak-transcript";
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
@@ -25,7 +27,7 @@ import { SpeakingDialog } from "../learn/SpeakingDialog.jsx";
 import { recommendLearnMethod } from "../learn/recommend";
 import { treeForExam } from "../learn/tree/resolve";
 import { flattenLessonNodes, localize } from "../learn/tree/schema";
-import { freeTopicLimit, isProUser, topicIsLocked } from "../learn/premium";
+import { freeNodeCount, isProUser, topicIsLocked } from "../learn/premium";
 import { copyLangFor, inferCoachQual, languageNameFor, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
 
@@ -347,7 +349,6 @@ function LearnEngine({ topic, onExit, t }) {
     setLoading(true); setError(null); setPlan(null); setPhase("roadmap"); setSecIdx(0); setResults([]);
     (async () => {
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
 
         const system = `You are an expert teacher creating a focused study guide. The student is learning this topic for the FIRST TIME.
@@ -386,11 +387,10 @@ RULES:
 - Adapt to subject: math → formulas + worked numbers; history → key dates + causation; programming → code; science → mechanisms.`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Taking too long — try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 55000));
-        const raw = await Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext, paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null) }),
+        const parsed = await Promise.race([
+          window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Create a comprehensive study guide on: ${topic}` }], topicContext, paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === resolved?.examId) : null) }),
           timeout,
         ]);
-        const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
         if (!parsed || !Array.isArray(parsed.sections) || parsed.sections.length === 0) throw new Error(L("Invalid study guide", "Недійсний навчальний посібник", "Недействительное учебное пособие", "Guide d'étude invalide", "Ungültiger Lernleitfaden"));
         setPlan(parsed); setLoading(false);
       } catch (e) {
@@ -738,7 +738,6 @@ function QuickCheckEngine({ topic, onExit, t }) {
     if (readMode || writeMode) { setLoading(false); return; }
     (async () => {
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
         const system = listenMode
           ? `You are building an IELTS LISTENING Quick Check. The student HEARS a short recording — they must not be able to answer by reading the question alone.
@@ -784,9 +783,9 @@ RULES:
         // the whole {questions, sessionTitle} envelope for the first call, and
         // `regenerate` returns only the inner questions array on retry.
         const complete1 = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenPaperQual || listenQual }),
+          window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate a Quick Check on: ${topic}` }], topicContext, paperQual: listenPaperQual || listenQual }),
           timeout,
-        ]).then((raw) => window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)));
+        ]);
         const parsed = await complete1();
         if (!parsed || !Array.isArray(parsed.questions) || parsed.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
         // taxonomy = resolved.examId is what ai_question_bank partitions by;
@@ -1043,6 +1042,7 @@ function SpeedRoundEngine({ examViews, onExit, t }) {
   const [chosenTopics, setChosenTopics] = React.useState([]);
   const [aiTopics, setAiTopics] = React.useState(null);
   const [aiLoading, setAiLoading] = React.useState(false);
+  const [dropped, setDropped] = React.useState(0);
   const timerRef = React.useRef(null);
   const summaryXpRef = React.useRef(false);
   const totalQ = 20;
@@ -1063,11 +1063,10 @@ function SpeedRoundEngine({ examViews, onExit, t }) {
     setAiLoading(true);
     try {
       const weak = [...allTopics].sort((a, b) => (a.retention || 0) - (b.retention || 0)).slice(0, 12);
-      const complete = window.brainComplete || ((a) => window.claude.complete(a));
       const system = `You are a study coach. Pick the 5 BEST topics for a speed round drill from this list. Prioritise topics the student is weakest at. Return ONLY a JSON array of topic names — no explanation, no markdown.\n\nTopics (name → retention%):\n${weak.map((t) => `- ${t.name} (${Math.round((t.retention || 0) * 100)}%)`).join("\n")}`;
-      const raw = await complete({ system, messages: [{ role: "user", content: "Pick 5 topics for my speed round" }] });
-      const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw);
-      const names = Array.isArray(parsed) ? parsed : (parsed.topics || []);
+      const parsed = await window.brainCompleteJSON({ system, messages: [{ role: "user", content: "Pick 5 topics for my speed round" }] }, null);
+      const names = Array.isArray(parsed) ? parsed : (parsed && parsed.topics) || [];
+      if (!names.length) throw new Error("no topics");
       setAiTopics(names.slice(0, 5).map(String));
     } catch {
       setAiTopics(allTopics.sort((a, b) => (a.retention || 0) - (b.retention || 0)).slice(0, 5).map((t) => t.name));
@@ -1086,7 +1085,6 @@ function SpeedRoundEngine({ examViews, onExit, t }) {
     if (phase !== "loading") return;
     (async () => {
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicList = chosenTopics.length > 0 ? chosenTopics.join(", ") : (allTopics.length > 0 ? allTopics.sort(() => Math.random() - 0.5).slice(0, 6).map((t) => t.name).join(", ") : "general knowledge");
         const system = `Generate exactly ${totalQ} rapid-fire multiple-choice questions for a SPEED ROUND exam drill. Focus on these topics: ${topicList}. Each question must be answerable in under 30 seconds — no complex calculations.
 
@@ -1098,7 +1096,8 @@ RULES:
 - 4 options each, exactly one correct, "correct" is 0-based index
 - Questions should be clear and direct — no ambiguity
 - Mix easy (40%), medium (40%), hard (20%)
-- Spread questions across the given topics evenly`;
+- Spread questions across the given topics evenly
+${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
         const namesForRound = chosenTopics.length > 0 ? chosenTopics : allTopics.map((tp) => tp.name);
@@ -1110,12 +1109,15 @@ RULES:
         const roundLangs = [...new Set(roundQuals.map((q) => paperLanguageFor(q)).filter(Boolean))];
         const speedPaperQual = roundLangs.length === 1 ? roundQuals[0] : _paperQualOf(examsById.get(examViews[0]?.id));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: speedPaperQual }),
+          window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate ${totalQ} speed round questions` }], paperQual: speedPaperQual }),
           timeout,
-        ]).then((raw) => {
-          const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
+        ]).then((p) => {
           if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-          return p.questions;
+          const { kept, rejected } = filterMcqBatch(p.questions, { language: paperLanguageFor(speedPaperQual) });
+          reportRejections("speed-round", rejected);
+          setDropped((n) => n + rejected.length);
+          if (!kept.length) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return kept;
         });
         const rawQuestions = await generate();
         // Speed Round can span topics from MULTIPLE exams (aiTopics picks
@@ -1307,6 +1309,8 @@ RULES:
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: "var(--indigo-600)", margin: 0 } }, `+${earnedXp}`),
           React.createElement("p", { style: { fontSize: 11, color: "var(--text-muted)", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: "0.06em" } }, "XP"))),
 
+      dropped > 0 && React.createElement("p", { style: { fontSize: 12, color: "var(--text-faint)", margin: "0 0 12px" } }, L(`${dropped} question(s) failed the quality check and were skipped.`, `${dropped} питання не пройшли перевірку якості — пропущено.`, `${dropped} вопрос(ов) не прошли проверку качества — пропущены.`, `${dropped} question(s) recalée(s) au contrôle qualité.`, `${dropped} Frage(n) haben die Qualitätsprüfung nicht bestanden.`)),
+
       timedOut > 0 && React.createElement("p", { style: { fontSize: 13, color: "var(--amber-700)", margin: "0 0 12px" } }, L(`⏰ ${timedOut} ${timedOut === 1 ? "question" : "questions"} timed out`, `⏰ Час вичерпано на ${timedOut} ${timedOut === 1 ? "питанні" : "питаннях"}`, `⏰ Время истекло на ${timedOut} ${timedOut === 1 ? "вопросе" : "вопросах"}`, `⏰ ${timedOut} question(s) — temps écoulé`, `⏰ Bei ${timedOut} Frage(n) die Zeit abgelaufen`)),
 
       // Post-session insight — repeated misses
@@ -1495,7 +1499,6 @@ function PracticeEngine({ examViews, onExit, seed, t }) {
       setStartedAt(Date.now());
       setPhase("session"); setLoading(true); setError(null);
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topicList = selectedTopics.join(", ");
         const n = config.length;
         const diffNote = config.difficulty === "adaptive"
@@ -1514,16 +1517,19 @@ RULES:
 - Each question has exactly 4 options, "correct" is 0-based index
 - explanation should teach WHY the right answer is right AND why the chosen wrong one is wrong
 - Spread questions evenly across the listed topics
-- No duplicate concepts`;
+- No duplicate concepts
+${mcqRulesBlock(planCorrectIndices(n, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
         const generate = () => Promise.race([
-          complete({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }], paperQual: practiceQual }),
+          window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate a ${config.difficulty} practice exam on: ${topicList}` }], paperQual: practiceQual }),
           timeout,
-        ]).then((r) => {
-          const p = window.parseJSON ? window.parseJSON(r) : JSON.parse(r.slice(r.indexOf("{"), r.lastIndexOf("}") + 1));
+        ]).then((p) => {
           if (!p || !Array.isArray(p.questions) || p.questions.length === 0) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
-          return p.questions;
+          const { kept, rejected } = filterMcqBatch(p.questions, { language: paperLanguageFor(practiceQual) });
+          reportRejections("practice-exam", rejected);
+          if (!kept.length) throw new Error(L("Invalid questions", "Недійсні запитання", "Недействительные вопросы", "Questions invalides", "Ungültige Fragen"));
+          return kept;
         });
 
         const rawQuestions = await generate();
@@ -1807,6 +1813,7 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const [timeLeft, setTimeLeft] = React.useState(0);
   const [timeLimitSec, setTimeLimitSec] = React.useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = React.useState(false);
+  const [droppedCount, setDroppedCount] = React.useState(0);
   const [autoSubmitted, setAutoSubmitted] = React.useState(false);
   const [startedAt, setStartedAt] = React.useState(null);
   const finishedRef = React.useRef(false);
@@ -1903,7 +1910,6 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
       // each finish quickly, run concurrently, and a chunk that fails just
       // trims the paper instead of failing the whole exam.
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
         const topics = examTopics.length > 0 ? examTopics : [selectedExam.name];
         const CHUNK = 6;
         const numChunks = Math.max(1, Math.ceil(questionCount / CHUNK));
@@ -1917,18 +1923,25 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
           const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
-RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.`;
+RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.
+${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
           const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([complete({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
-            .then((raw) => {
-              const p = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
-              return Array.isArray(p && p.questions) ? p.questions : [];
-            })
-            .catch(() => []);
+          return Promise.race([window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
+            .then((p) => (Array.isArray(p && p.questions) ? p.questions : []))
+            // A dead chunk must not kill the paper, but it must not vanish
+            // either — the recap counts what is missing.
+            .catch((err) => { console.warn("exam-sim: chunk failed —", err.message || err); return []; });
         };
         const chunks = await Promise.all(chunkTopics.map(makeChunk));
-        // Merge, validate shape, cap at target count.
-        const rawAll = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number").slice(0, questionCount);
+        // Merge, lint, cap at target count. Lint runs before the slice so a
+        // rejected question is replaced by a spare from another chunk rather
+        // than shortening the paper.
+        const merged = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number");
+        const examPaperQual = _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null);
+        const linted = filterMcqBatch(merged, { language: paperLanguageFor(examPaperQual) });
+        reportRejections("exam-sim", linted.rejected);
+        setDroppedCount(linted.rejected.length);
+        const rawAll = linted.kept.slice(0, questionCount);
         if (rawAll.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
         // Novelty pass across the whole assembled paper. Retry regenerates
         // one extra chunk covering all topics — cheaper than another
@@ -2053,6 +2066,7 @@ RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty;
         { val: `${answeredCount}/${total}`, label: L("Answered", "Відповіли", "Ответили", "Répondu", "Beantwortet"), color: "var(--indigo-600)" },
         { val: mmss(timeUsed), label: L("Time used", "Витрачено часу", "Затрачено времени", "Temps utilisé", "Verbrauchte Zeit"), color: "var(--text-strong)" },
         { val: `+${xpEarned}`, label: "XP", color: "var(--indigo-600)" },
+        ...(droppedCount > 0 ? [{ val: String(droppedCount), label: L("Failed quality check", "Не пройшли перевірку", "Не прошли проверку", "Recalées au contrôle", "Qualitätsprüfung nicht bestanden"), color: "var(--text-faint)" }] : []),
       ],
       // The per-question breakdown stays — it is the most-used part of a mock
       // recap and has no equivalent anywhere else in the app.
@@ -2198,7 +2212,6 @@ async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
     if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
   const run = (async () => {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const DIFF_NOTE = priorVote == null || priorVote === 0 ? "" :
       priorVote >= 2  ? "\n\n⚠️ DIFFICULTY FEEDBACK (important): The student said this topic was WAY too easy last time. Skip basics entirely. Use only hard questions, complex applications, tricky edge cases. Assume solid prior knowledge." :
@@ -2301,11 +2314,10 @@ ${STEP_TYPES}`;
 
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error(L("Taking too long — please try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 45000));
-    const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride, paperQual }),
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate a structured lesson on: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     if (!parsed || !Array.isArray(parsed.steps) || parsed.steps.length === 0) throw new Error(L("Invalid lesson plan", "Недійсний план уроку", "Недействительный план урока", "Plan de leçon invalide", "Ungültiger Lektionsplan"));
     saveCachedLesson(cacheKey, parsed);
     return parsed;
@@ -2348,7 +2360,6 @@ async function generateTheoryReader({ topic, resolved, tcode, force }) {
     if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
   const run = (async () => {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const system = `You are the best exam-prep teacher in the world. Write ONE excellent, self-contained theory page for the topic "${topic}". No questions, no drills — just pure, clear teaching a student can read once and remember.
 
@@ -2413,12 +2424,20 @@ SHAPE BY TOPIC:
 - Procedure / algorithm / grammar / essay structure → numbered nodes on a path with arrows (a sentence skeleton, a paragraph map) — not a list of tips.
 - IELTS Listening/Reading → the map, flow, or table skeleton the task actually uses.`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
-    const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     if (!parsed || !parsed.title || !Array.isArray(parsed.concepts)) throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
+    const theoryLang = paperLanguageFor(paperQual);
+    const theorySurfaces = [parsed.title, parsed.tldr, parsed.diagramCaption]
+      .concat((parsed.concepts || []).flatMap((c) => [c.heading, c.body]))
+      .concat((parsed.examples || []).flatMap((ex) => [ex.prompt, ex.answer].concat(ex.steps || [])))
+      .concat(parsed.pitfalls || [])
+      .concat(parsed.cheatsheet || []);
+    if (mixedLanguage(theorySurfaces, theoryLang)) {
+      throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
+    }
     saveCachedLesson(cacheKey, parsed);
     _lessonInFlight.delete(cacheKey);
     return parsed;
@@ -2667,7 +2686,6 @@ async function generateFlashcards({ topic, resolved, tcode, force }) {
     if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
   const run = (async () => {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const langName = languageNameFor(paperQual);
     const system = `You are the best exam-prep teacher in the world. Break the topic "${topic}" into a small deck of concept cards — each card is ONE clear idea a student can absorb in under 30 seconds.
@@ -2690,15 +2708,15 @@ RULES:
 - **Bold** the single key term on each card.
 - Skip filler like "in this card we will…" — get straight to the point.${langName ? `\n- Write EVERY JSON string (title, heading, body, example) in ${langName} only. The app UI may be in another language — ignore it.` : ""}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
-    const raw = await Promise.race([
-      complete({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Build the flashcard deck for: ${topic}` }], topicContext, langOverride, paperQual }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
     if (!parsed || !Array.isArray(parsed.cards) || parsed.cards.length === 0) throw new Error(L("Invalid deck", "Некоректна колода", "Некорректная колода", "Deck invalide", "Ungültiges Deck"));
-    // Clamp defensively — the prompt says 6-10 but a rogue call could still
-    // return more/less. Truncating past 10 keeps the UX contract.
-    parsed.cards = parsed.cards.slice(0, 10);
+    const linted = filterFlashcards(parsed.cards.slice(0, 10), paperLanguageFor(paperQual));
+    reportRejections("learn-flashcards", linted.rejected);
+    parsed.cards = linted.kept;
+    if (!parsed.cards.length) throw new Error(L("Invalid deck", "Некоректна колода", "Некорректная колода", "Deck invalide", "Ungültiges Deck"));
     saveCachedLesson(cacheKey, parsed);
     _lessonInFlight.delete(cacheKey);
     return parsed;
@@ -3322,8 +3340,14 @@ function LessonEngine({ topic, mode, onExit, t }) {
       if (!explainInput.trim() || explainLoading) return;
       setExplainLoading(true);
       try {
-        const complete = window.brainComplete || ((a) => window.claude.complete(a));
-        const reply = await complete({
+        if (isWeakTeachBack(explainInput, s.prompt)) {
+          const fail = failClosedExplain();
+          setExplainFeedback(fail.feedback + " ⭐");
+          setXp((x) => x + 10);
+          setExplainLoading(false);
+          return;
+        }
+        const reply = await window.brainComplete({
           system: `You are grading a student's explanation. They were asked: "${s.prompt}". The ideal answer covers: ${s.ideal}. Grade their attempt — be encouraging but honest. If they missed key points, name them specifically. If they nailed it, tell them what was good. 2-3 sentences max. End with a score: ⭐ (weak), ⭐⭐ (okay), ⭐⭐⭐ (great).`,
           messages: [{ role: "user", content: explainInput }],
           topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
@@ -3554,7 +3578,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
                 const q = askInput.trim();
                 setAskInput(""); setAskReply(null); setAskLoading(true);
                 const stepCtx = s ? `Current step: ${JSON.stringify({ type: s.type, title: s.title, question: s.question || s.statement || s.prompt || "", body: s.body || "" })}` : "";
-                (window.brainComplete || ((a) => window.claude.complete(a)))({
+                window.brainComplete({
                   system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                   messages: [{ role: "user", content: q }],
                   topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
@@ -3572,7 +3596,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
               if (!q || askLoading) return;
               setAskInput(""); setAskReply(null); setAskLoading(true);
               const stepCtx = s ? `Current step: ${JSON.stringify({ type: s.type, title: s.title, question: s.question || s.statement || s.prompt || "", body: s.body || "" })}` : "";
-              (window.brainComplete || ((a) => window.claude.complete(a)))({
+              window.brainComplete({
                 system: `You're a tutor answering a quick question DURING a lesson on "${topic}". ${stepCtx}\nBe concise — 2-4 sentences max. Use **bold** for key terms. Don't repeat what the step already says; add new insight.`,
                 messages: [{ role: "user", content: q }],
                 topicContext: resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined,
@@ -3754,15 +3778,9 @@ function ChatMode({ onExit, initialQuery, t }) {
     setAttachError("");
     setTyping(true);
     try {
-      const complete = window.brainComplete || ((a) => window.claude.complete(a));
       const prof = window.getProfile ? window.getProfile() : {};
       const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education: ${prof.educationLevel}`, prof.currentYear && `year: ${prof.currentYear}`].filter(Boolean).join(", ");
-      // Exam/readiness/weakest-topic context is NOT built here — brainComplete()
-      // already injects a fresher, richer version via buildLearnerContext()
-      // (ai-brain.jsx). A second copy used to be hand-built from a `brain`
-      // snapshot memoized once at mount, so it could silently go stale and
-      // disagree with the live one inside the same prompt.
-      const reply = await complete({
+      const reply = await window.brainComplete({
         system: `You are a brilliant, warm personal tutor.${profileCtx ? ` Student profile: ${profileCtx}.` : ""}
 Answer clearly. Use **bold** for key terms. Keep it under 150 words unless the student explicitly asks for depth. Do NOT output JSON — just natural text.
 
@@ -3787,7 +3805,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
         mainText = reply.slice(0, actIdx).trim();
         try {
           const actRaw = reply.slice(actIdx + 13).trim();
-          actions = JSON.parse(actRaw.slice(actRaw.indexOf("["), actRaw.lastIndexOf("]") + 1));
+          actions = window.parseJSON ? window.parseJSON(actRaw, null, "chat-actions") : JSON.parse(actRaw.slice(actRaw.indexOf("["), actRaw.lastIndexOf("]") + 1));
         } catch {}
       }
       pushAI(mainText, actions);
@@ -4274,7 +4292,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
           name: localize(row.node.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
           unitTitle: localize(row.unit.title, copyLangFor(tree.examTaxonomy, t?.code || "en")),
           studied: ["bronze", "silver", "gold", "legendary"].includes(mastery),
-          premium: topicIsLocked(row.index, flat.length, row.node.id),
+          premium: topicIsLocked(tree, row.node.id),
           index: row.index,
           total: flat.length,
         };
@@ -4302,7 +4320,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         const doneCount = rows.filter((r) => r.studied).length;
         const ordered = treeRows ? rows : [...rows.filter((r) => !r.studied), ...rows.filter((r) => r.studied)];
         const pct = Math.round((doneCount / Math.max(1, rows.length)) * 100);
-        const freeN = treeRows ? freeTopicLimit(rows.length) : rows.length;
+        const treeForRows = treeRows ? treeForExam(rawExams.find((x) => x.id === e.id)) : null;
+        const freeN = treeForRows ? freeNodeCount(treeForRows) : rows.length;
         const proN = treeRows ? rows.length - freeN : 0;
         return ce("section", { key: e.id || fi, style: { marginBottom: 18, borderRadius: 18, border: "1px solid var(--border-subtle)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" } },
           // Folder header

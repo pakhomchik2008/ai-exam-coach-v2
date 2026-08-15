@@ -139,7 +139,7 @@ export async function checkAndRecordQuestion(
 
     const inserted = await sb
       .from(TABLE_BANK)
-      .insert({ exam_taxonomy: examTaxonomy, topic, question_hash: hash, question_text: questionText })
+      .insert({ exam_taxonomy: examTaxonomy, topic, question_hash: hash, question_text: questionText, created_by: userId })
       .select("id")
       .single();
     if (inserted.error) {

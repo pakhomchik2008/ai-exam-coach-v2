@@ -349,9 +349,8 @@ function AiHoursModal({ subjects, examLabel, onApply, onClose, copy }) {
     try {
       const subjList = subjects.filter((s) => s.name.trim()).map((s) => `${s.name} (current ${s.current}, target ${s.target})`).join("; ") || "no subjects entered yet";
       const prompt = `Student preparing for ${examLabel}. Subjects: ${subjList}. Their week, in their own words: "${weekDescription.trim() || "not specified"}". Recommend a realistic number of study hours per week (a single integer between 2 and 40). Reply ONLY with JSON, no markdown: {"hours":N}`;
-      const raw = await window.claude.complete(prompt);
-      const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-      const parsed = JSON.parse(clean);
+      const parsed = await window.brainCompleteJSON({ prompt, includeContext: false }, null);
+      if (!parsed) throw new Error("no hours");
       const hours = Math.max(2, Math.min(40, Math.round(Number(parsed.hours)) || 12));
       onApply(hours);
     } catch {

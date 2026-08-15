@@ -6,6 +6,7 @@ import { WaitPress } from "../../components/WaitPress";
 import { copyLangFor, languageNameFor, paperQualForExam } from "../../lib/paper-language";
 import { describeAiError } from "../../lib/ai-error";
 import { buildFeynmanSystem, parseFeynmanGrade } from "./feynman";
+import { failClosedFeynman, isWeakTeachBack } from "../../lib/weak-transcript";
 
 function md(text) {
   return renderCoachMarkdown(text);
@@ -69,13 +70,17 @@ export function FeynmanDialog({ topic, onExit, t }) {
     const text = draft.trim();
     if (!text || loading) return;
     setLoading(true); setError(null); setGrade(null);
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
+    if (isWeakTeachBack(text, topic)) {
+      setGrade(failClosedFeynman());
+      setLoading(false);
+      return;
+    }
     const lang = languageNameFor(qual) || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[copy] || "English");
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
     try {
-      const raw = await Promise.race([
-        complete({
+      const parsed = await Promise.race([
+        window.brainCompleteJSON({
           system: buildFeynmanSystem(topic, lang),
           messages: [{ role: "user", content: text }],
           topicContext,
@@ -83,8 +88,7 @@ export function FeynmanDialog({ topic, onExit, t }) {
         }),
         timeout,
       ]);
-      const parsed = window.parseJSON ? window.parseJSON(raw) : null;
-      setGrade(parseFeynmanGrade(parsed ?? raw));
+      setGrade(parseFeynmanGrade(parsed));
     } catch (e) {
       const timedOut = e && e.message === "timeout";
       const fromServer = e && typeof e.status === "number" ? describeAiError(e, copy) : null;
