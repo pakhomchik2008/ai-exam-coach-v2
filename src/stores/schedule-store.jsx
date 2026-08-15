@@ -634,14 +634,14 @@ function buildScheduleView(schedule, courses) {
       // these are managed, but Schedule.jsx's month view shouldn't just
       // silently drop them).
       (sessionsByDay[s.date] = sessionsByDay[s.date] || []).push({
-        id: s.id, subject: s.topic, color: s.personalColor || "var(--slate-500)", topic: s.topic, status: s.status,
+        id: s.id, type: "personal", subject: s.topic, color: s.personalColor || "var(--slate-500)", topic: s.topic, status: s.status,
       });
       return;
     }
     const c = courseById.get(s.examId);
     if (!c) return; // exam fully deleted (incl. its completed history)
     (sessionsByDay[s.date] = sessionsByDay[s.date] || []).push({
-      id: s.id, subject: c.name, color: c.color, topic: s.topic, status: s.status,
+      id: s.id, examId: s.examId, type: s.type || "study", subject: c.name, color: c.color, topic: s.topic, status: s.status,
       // Duration belongs to the SESSION, not to a global setting: a 60-min
       // session stays 60 even if the profile default is 45. Legacy sessions
       // saved before durationMin existed fall back to the profile default.

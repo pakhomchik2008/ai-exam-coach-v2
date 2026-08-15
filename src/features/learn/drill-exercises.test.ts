@@ -162,11 +162,16 @@ describe("shuffled", () => {
 });
 
 describe("parseExplainGrade", () => {
-  it("passes at 6 and repairs LaTeX slashes", () => {
+  it("repairs LaTeX slashes and respects an explicit fail", () => {
     const g = parseExplainGrade('{"score":6,"pass":false,"feedback":"Use $a \\cdot b$"}');
-    expect(g.pass).toBe(true);
+    expect(g.pass).toBe(false);
     expect(g.score).toBe(6);
     expect(g.feedback).toContain("cdot");
+  });
+
+  it("passes on score >= 6 when the model omitted pass", () => {
+    const g = parseExplainGrade({ score: 7, feedback: "Named the rule and an example." });
+    expect(g.pass).toBe(true);
   });
 
   it("salvages raw prose so the student still sees a grade", () => {

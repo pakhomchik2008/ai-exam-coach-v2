@@ -4,6 +4,8 @@
 // Keep every scorer here so Vitest can hit them without mounting LearnMain.
 // The model lies about JSON shape; normalize is the contract, not the prompt.
 
+import { mcqRulesBlock, planCorrectIndices } from "../../lib/question-lint";
+
 export type McqQuestion = {
   type: "mcq";
   question: string;
@@ -283,9 +285,13 @@ export function parseExplainGrade(raw: unknown): ExplainGrade {
   if (row) {
     const feedback = asString(row.feedback) || asString(row.comment) || asString(row.text);
     const score = clampScore(row.score ?? row.clarity ?? row.completeness);
-    const passFlag = row.pass === true || row.correct === true;
+    const passExplicit = row.pass === false || row.correct === false
+      ? false
+      : row.pass === true || row.correct === true
+        ? true
+        : null;
     if (feedback) {
-      return { score, pass: passFlag || score >= 6, feedback };
+      return { score, pass: passExplicit === null ? score >= 6 : passExplicit, feedback };
     }
   }
   if (typeof raw === "string" && raw.trim()) {
@@ -308,7 +314,8 @@ RULES:
 - One of each type above, in any order. fill is also allowed instead of mcq.
 - match: 3-5 pairs. order: 3-5 items in the CORRECT sequence. drag_drop: 1-3 blanks written as ___ in the question; answers[i] fills blank i; bank includes the answers plus 1-2 distractors.
 - explain rubric has 2-4 concrete checks. Difficulty matches complexity ${complexity}/5.
-- Every string the student sees is in the exam paper language.`;
+- Every string the student sees is in the exam paper language.
+${mcqRulesBlock(planCorrectIndices(1, 4))}`;
 }
 
 export function buildExplainSystem(
@@ -330,7 +337,7 @@ ${checks}
 Rules:
 - pass is true when score >= 6.
 - Quote what they got right. Name what they skipped.
-- Gibberish or off-topic still gets a real grade.
+- Gibberish, "I don't know", a single word, or anything under one real sentence: score <= 2 AND pass false. Do not praise it.
 - Language: ${language}.
 - Math as LaTeX $...$. In JSON, write every backslash twice (\\\\frac not \\frac).`;
 }

@@ -9,18 +9,47 @@
 
 // ─── robust JSON ─────────────────────────────────────────────────────────────
 
-function parseJSON(raw, fallback = null) {
-  if (typeof raw !== "string") return fallback;
+// A failed parse used to return the fallback and say nothing, which is the
+// worst shape a bug can take here: the student sees a lesson with no quiz, or
+// a drill one question short, and there is no way to tell that from content
+// the model legitimately chose not to produce. Every failure now names itself.
+function reportParseFailure(where, reason, raw) {
+  const sample = typeof raw === "string" ? raw.slice(0, 200) : String(raw);
+  const msg = `ai-brain: ${where} returned unparseable JSON (${reason}) — ${sample}`;
+  if (window.Sentry) window.Sentry.captureMessage(msg, "warning");
+  else console.warn(msg);
+}
+
+function parseJSON(raw, fallback = null, where = "parseJSON") {
+  if (typeof raw !== "string") {
+    reportParseFailure(where, "not a string", raw);
+    return fallback;
+  }
   let s = raw.trim();
   s = s.replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
   const start = s.search(/[[{]/);
-  if (start === -1) return fallback;
+  if (start === -1) {
+    reportParseFailure(where, "no JSON in response", raw);
+    return fallback;
+  }
   const open = s[start];
   const close = open === "{" ? "}" : "]";
   const end = s.lastIndexOf(close);
-  if (end <= start) return fallback;
-  try { return JSON.parse(s.slice(start, end + 1)); } catch { return fallback; }
+  if (end <= start) {
+    reportParseFailure(where, "unterminated JSON", raw);
+    return fallback;
+  }
+  try {
+    return JSON.parse(s.slice(start, end + 1));
+  } catch (err) {
+    reportParseFailure(where, err.message || "JSON.parse threw", raw);
+    return fallback;
+  }
 }
+
+// Sentinel so a legitimate `null` from the model is not mistaken for a
+// parse failure — `parseJSON(raw, null)` cannot tell those two apart.
+const PARSE_FAILED = Symbol("parse-failed");
 
 // ─── learner context ─────────────────────────────────────────────────────────
 
@@ -132,9 +161,9 @@ import { resolveTopicFromTrees, resolveTopicFromViews } from "./resolve-topic";
 // since nothing ever told Claude what language to use.
 const AI_LANG_NAMES = { en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" };
 
-// Shared by every AI call site in the app (not just brainComplete) so a
-// direct window.claude.complete() caller — StudyHub.jsx, BurnoutAlert.jsx —
-// can prepend the same directive without duplicating the language map.
+// Shared language map. Live callers go through brainComplete, which
+// prepends this itself; the function stays public so a prompt that
+// already inlines it (legacy enrichment strings) can stay in sync.
 // `override` forces a specific language regardless of the interface — used
 // for English-medium exams (SAT/AP/A-Level/…) where the student may want the
 // lesson in English even though their app is in another language. When an
@@ -191,9 +220,39 @@ async function brainComplete({ system, messages, prompt, includeContext = true, 
   return window.claude.complete({ system: systemBlocks.length ? systemBlocks : undefined, messages: msgs });
 }
 
+// One repair round-trip before giving up. Models that wrap JSON in prose, or
+// truncate a closing brace, almost always fix it when handed back their own
+// output — and the extra call only happens when something is already broken,
+// so the happy path costs nothing. Exactly one retry: a model that fails twice
+// is not going to succeed on the third, and the caller is holding a timeout.
+const REPAIR_INSTRUCTION = "That was not valid JSON. Reply with the JSON only — "
+  + "no prose, no markdown fences, nothing before the opening brace or after the closing one.";
+
 async function brainCompleteJSON(opts, fallback = null) {
   const raw = await brainComplete(opts);
-  return parseJSON(raw, fallback);
+  const parsed = parseJSON(raw, PARSE_FAILED, "brainCompleteJSON");
+  if (parsed !== PARSE_FAILED) return parsed;
+  // An empty or non-string reply gives the model nothing to repair, and an
+  // empty assistant turn is rejected by the API outright.
+  if (typeof raw !== "string" || !raw.trim()) return fallback;
+
+  const prior = (opts && opts.messages) || [{ role: "user", content: (opts && opts.prompt) || "" }];
+  let repairedRaw;
+  try {
+    repairedRaw = await brainComplete({
+      ...opts,
+      messages: [
+        ...prior,
+        { role: "assistant", content: raw },
+        { role: "user", content: REPAIR_INSTRUCTION },
+      ],
+    });
+  } catch (err) {
+    reportParseFailure("brainCompleteJSON repair", err.message || "repair call failed", raw);
+    return fallback;
+  }
+  const repaired = parseJSON(repairedRaw, PARSE_FAILED, "brainCompleteJSON repair");
+  return repaired === PARSE_FAILED ? fallback : repaired;
 }
 
 // ─── coach session tracker ──────────────────────────────────────────────────

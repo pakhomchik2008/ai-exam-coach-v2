@@ -46,17 +46,15 @@ async function requestAiEnrichment(examIds, context) {
         content = `No files were uploaded. Student is preparing to study: ${subjList}. They selected these material types they own: ${materials.join(", ") || "none"}.`;
       }
       const system = `You are reviewing material a student provided while setting up an exam-prep app. Output ONLY valid JSON, no markdown: {"lines":["short finding","short finding","short finding","short finding"]}. Each line under 8 words. Be honest — if the content isn't study material, say that plainly instead of inventing topics or numbers.${window.aiLangDirective ? ` ${window.aiLangDirective()}` : ""}`;
-      const raw = await window.claude.complete({ system, messages: [{ role: "user", content }] });
-      const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-      const parsed = JSON.parse(clean);
-      analysisLines = Array.isArray(parsed.lines) && parsed.lines.length ? parsed.lines : null;
+      const parsed = await window.brainCompleteJSON({ system, messages: [{ role: "user", content }], includeContext: false }, null);
+      analysisLines = parsed && Array.isArray(parsed.lines) && parsed.lines.length ? parsed.lines : null;
     } catch { analysisLines = null; }
 
     const subjList = subjects.filter((s) => s.name && s.name.trim()).map((s) => `${s.name}: ${s.current} → ${s.target}`).join("; ") || "no subjects named";
     const prof = window.getProfile ? window.getProfile() : {};
     const profileCtx = [prof.country && `country: ${prof.country}`, prof.educationLevel && `education level: ${prof.educationLevel}`, prof.currentYear && `year/grade: ${prof.currentYear}`].filter(Boolean).join(", ");
     const prompt = `Write a short (3-4 sentence), encouraging, specific study plan opener for a student preparing for ${examLabel || "their exam"}.${profileCtx ? ` Student profile: ${profileCtx}.` : ""} Subjects and grade goals: ${subjList}. They can study ${weeklyHours} hours/week. Materials they have: ${materials.join(", ") || "none"}. Preferred study methods: ${prefs.join(", ") || "none"}. Be concrete about what to prioritise first. Do not invent specific percentages or exam dates — there's no study history yet.${window.aiLangDirective ? ` ${window.aiLangDirective()}` : ""}`;
-    const summary = await window.claude.complete(prompt);
+    const summary = await window.brainComplete({ prompt });
     const finalSummary = analysisLines ? `${analysisLines.join(" · ")}\n\n${summary}` : summary;
     examIds.forEach((id) => patchExamAi(id, { aiPlanStatus: "ready", aiPlanSummary: finalSummary }));
   } catch {
@@ -90,9 +88,8 @@ async function requestTopicNames(examId, exam, files) {
     // hour-budget scheduler can weight study time per topic instead of
     // splitting it evenly.
     const system = `You are listing real syllabus topics for an exam-prep app. Output ONLY valid JSON, no markdown: {"topics":[{"name":"topic name","difficulty":N,"importance":N}]}. Exactly ${count} items, each name under 5 words, most foundational first. difficulty = how conceptually hard this topic typically is for students (1 easy – 10 hard). importance = how central this topic is to the overall exam / how often it's tested (1 minor – 10 core). Both integers.${window.aiLangDirective ? ` ${window.aiLangDirective()}` : ""}`;
-    const raw = await window.claude.complete({ system, messages: [{ role: "user", content }] });
-    const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-    const parsed = JSON.parse(clean);
+    const parsed = await window.brainCompleteJSON({ system, messages: [{ role: "user", content }], includeContext: false }, null);
+    if (!parsed) throw new Error("no topics returned");
     const items = (Array.isArray(parsed.topics) ? parsed.topics : [])
       .filter((t) => t && typeof t.name === "string" && t.name.trim())
       .slice(0, count);
@@ -165,10 +162,8 @@ async function validateManualTopics(lines) {
     'Output ONLY valid JSON, no markdown: {"results":[{"valid":true|false,"reason":"short reason if invalid, else null"}]}. One result per input line, same order, no extra items.';
   const prompt = lines.map((l, i) => `${i + 1}. ${l}`).join("\n");
   try {
-    const raw = await window.claude.complete({ system, messages: [{ role: "user", content: prompt }] });
-    const clean = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
-    const parsed = JSON.parse(clean);
-    const results = Array.isArray(parsed.results) ? parsed.results : [];
+    const parsed = await window.brainCompleteJSON({ system, messages: [{ role: "user", content: prompt }], includeContext: false }, null);
+    const results = parsed && Array.isArray(parsed.results) ? parsed.results : [];
     const valid = [], rejected = [];
     lines.forEach((line, i) => {
       const r = results[i];

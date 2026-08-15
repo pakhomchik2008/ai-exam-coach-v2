@@ -25,11 +25,8 @@
 //   CRON_SECRET                Vercel Project Settings → Cron Jobs auto-sets
 //                               this and sends it as `Authorization: Bearer …`
 //                               on every invocation — see Vercel's "Securing
-//                               Cron Jobs" doc. Without it set, this endpoint
-//                               refuses to run outside a manual `?dryRun=1` GET
-//                               done by a signed-in admin (there is no admin
-//                               check here yet, so treat this as trusted only
-//                               once CRON_SECRET is configured).
+//                               Cron Jobs" doc. Required: missing secret → 401,
+//                               including `?dryRun=1`.
 //
 // Known limits, honest not hidden:
 //   - One fixed daily run (Vercel Hobby's cron ceiling) means "remind me at
@@ -233,12 +230,14 @@ async function fetchTrialing(headers) {
 
 export default async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = req.headers.authorization || "";
-    if (auth !== `Bearer ${cronSecret}`) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
+  if (!cronSecret) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const auth = req.headers.authorization || "";
+  if (auth !== `Bearer ${cronSecret}`) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
 
   const resendKey = process.env.RESEND_API_KEY;

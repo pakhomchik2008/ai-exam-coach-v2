@@ -138,7 +138,7 @@ function ExamRecap({
     let cancelled = false;
     (async () => {
       try {
-        const complete = window.brainComplete ? (a) => window.brainComplete(a) : (a) => window.claude.complete(a);
+        const complete = window.brainComplete;
         const deltaLine = delta === null
           ? "This is their first recorded attempt at this exam."
           : `Their previous attempt scored ${previous.scorePct}%, so this is a change of ${delta > 0 ? "+" : ""}${delta} points.`;

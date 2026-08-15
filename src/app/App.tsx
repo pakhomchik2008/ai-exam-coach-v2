@@ -8,13 +8,7 @@
  */
 import React from "react";
 import { legacyComponent, legacyFn, legacyOptional } from "../lib/legacy";
-import {
-  TWEAK_DEFAULTS,
-  applyTweaks,
-  ACCENT_OPTIONS,
-  DENSITY_OPTIONS,
-  DEPTH_OPTIONS,
-} from "./tweaks";
+import { TWEAK_DEFAULTS, applyTweaks } from "./tweaks";
 import { remountKeyFor, isTrackedKey } from "./data-version";
 import { QuickOnboarding } from "../features/onboarding/QuickOnboarding";
 import { consumeBillingQuery, refreshProStatus } from "../lib/billing";
@@ -38,9 +32,6 @@ const Landing = legacyComponent<AnyProps>("Landing");
 const AIPlan = legacyComponent<AnyProps>("AIPlan");
 const AppNav = legacyComponent<AnyProps>("AppNav");
 const StudyLayer = legacyComponent<AnyProps>("StudyLayer");
-const TweaksPanel = legacyComponent<AnyProps>("TweaksPanel");
-const TweakSection = legacyComponent<AnyProps>("TweakSection");
-const TweakRadio = legacyComponent<AnyProps>("TweakRadio");
 const AIChat = legacyComponent<AnyProps>("AIChat");
 const StudyHub = legacyComponent<AnyProps>("StudyHub");
 const LearnMain = legacyComponent<AnyProps>("LearnMain");
@@ -61,7 +52,7 @@ export function App() {
   const hasProfile = legacyFn<() => boolean>("hasProfile");
   const clearSession = legacyFn<() => void>("clearSession");
 
-  const [tw, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tw] = useTweaks(TWEAK_DEFAULTS);
   const [route, setRoute] = React.useState<Route>(() => (getSession() ? "app" : "landing"));
   const [tab, setTab] = React.useState("dashboard");
 
@@ -279,32 +270,6 @@ export function App() {
           Rendered ABOVE whatever tab is open, so switching tabs can never lose a
           running session. */}
       <StudyLayer t={t} />
-
-      <TweaksPanel>
-        <TweakSection label="Accent colour" />
-        <TweakRadio
-          label="Palette"
-          value={tw.accent}
-          options={ACCENT_OPTIONS}
-          onChange={(v: string) => setTweak("accent", v)}
-        />
-
-        <TweakSection label="Density" />
-        <TweakRadio
-          label="Spacing"
-          value={tw.density}
-          options={DENSITY_OPTIONS}
-          onChange={(v: string) => setTweak("density", v)}
-        />
-
-        <TweakSection label="Card depth" />
-        <TweakRadio
-          label="Elevation"
-          value={tw.depth}
-          options={DEPTH_OPTIONS}
-          onChange={(v: string) => setTweak("depth", v)}
-        />
-      </TweaksPanel>
     </div>
   );
 }
@@ -347,7 +312,7 @@ function renderTab({
       // StudyHub stays available on
       // /studyhub for one release as a rollback path if LearnMain
       // regresses something in production.
-      return <LearnMain t={t} launch={learnLaunch} onLaunchConsumed={() => setLearnLaunch(null)} />;
+      return <LearnMain t={t} launch={learnLaunch} onLaunchConsumed={() => setLearnLaunch(null)} onGoToExams={() => setTab("exams")} />;
     }
     case "studyhub": {
       return <StudyHub t={t} />;
@@ -358,6 +323,7 @@ function renderTab({
           t={t}
           onGoToChat={goToChat}
           onGoToDashboard={() => setTab("dashboard")}
+          onGoToCalendar={() => setTab("calendar")}
         />
       );
     }
@@ -381,6 +347,8 @@ function renderTab({
           onLangChange={setLang}
           onLogout={() => setRoute("landing")}
           onGoToExams={() => setTab("exams")}
+          onGoToTools={() => setTab("studyhub")}
+          onGoToProgress={() => setTab("progress")}
         />
       );
     }

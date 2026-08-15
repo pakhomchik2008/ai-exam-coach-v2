@@ -48,10 +48,9 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
   const canRecord = typeof navigator !== "undefined" && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
 
   async function loadCue() {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
-    const raw = await Promise.race([
-      complete({
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({
         system: buildSpeakingCueSystem(topic, qual),
         messages: [{ role: "user", content: `Cue card for: ${topic}` }],
         paperQual: qual,
@@ -59,8 +58,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
       }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : raw;
-    return parseSpeakingCue(parsed ?? raw);
+    return parseSpeakingCue(parsed);
   }
 
   function cueFailMessage(e) {
@@ -121,10 +119,9 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
   }
 
   async function gradeOnce(text, cueTitle) {
-    const complete = window.brainComplete || ((a) => window.claude.complete(a));
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
-    const raw = await Promise.race([
-      complete({
+    const parsed = await Promise.race([
+      window.brainCompleteJSON({
         system: buildSpeakingGradeSystem(topic, qual),
         messages: [{ role: "user", content: buildSpeakingGradeUser(text, cueTitle) }],
         paperQual: qual,
@@ -132,8 +129,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
       }),
       timeout,
     ]);
-    const parsed = window.parseJSON ? window.parseJSON(raw) : raw;
-    return parseSpeakingBand(parsed ?? raw);
+    return parseSpeakingBand(parsed);
   }
 
   async function gradeBlob(blob) {

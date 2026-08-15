@@ -6,12 +6,12 @@ import { validateFiles, rejectionMessage, ACCEPT_ATTRIBUTE } from "../../lib/upl
 import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../lib/extract-study-file";
 import { describeAiError } from "../../lib/ai-error";
 import { renderCoachMarkdown } from "../../lib/math-render";
+import { filterMcqBatch, filterFlashcards, reportRejections } from "../../lib/question-lint";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
-// instead of taking the full viewport, since it already called
-// window.claude.complete directly (no client-side API key, unlike the older
-// "AI Study Tool.html" this replaces).
+// instead of taking the full viewport. AI calls go through brainComplete /
+// brainCompleteJSON so repair and language context are not bypassed.
 // Module-scope (not nested in StudyHub) so its identity stays stable across
 // the parent's re-renders while loadingMsg rotates — otherwise this would
 // remount and its 5s timer would never fire.
@@ -226,23 +226,28 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
     try {
       const content1 = buildUserContent('Generate study materials from this content.');
-      const raw1 = await window.claude.complete({ system: SYSTEM_CARDS, messages: [{ role: 'user', content: content1 }] });
-      const j1 = raw1.slice(raw1.indexOf('{'), raw1.lastIndexOf('}') + 1);
-      const d1 = JSON.parse(j1);
+      const d1 = await window.brainCompleteJSON({ system: SYSTEM_CARDS, messages: [{ role: 'user', content: content1 }] });
+      if (!d1) throw new Error('Invalid study materials');
 
-      const quiz = (d1.quiz || []).map(q => ({
+      const quizRaw = (d1.quiz || []).map(q => ({
         question: q.question || q.q || '',
         options: q.options || q.o || [],
         correct: q.correct !== undefined ? q.correct : (q.c !== undefined ? q.c : 0),
         explanation: q.explanation || q.e || '',
       }));
+      const lintedQuiz = filterMcqBatch(quizRaw);
+      reportRejections('study-tools-quiz', lintedQuiz.rejected);
+      const quiz = lintedQuiz.kept;
+      const uiLang = (window.getProfile && window.getProfile().lang) || undefined;
+      const lintedCards = filterFlashcards(d1.flashcards || [], uiLang);
+      reportRejections('study-tools-cards', lintedCards.rejected);
 
       clearInterval(iv);
       setState({
         mode: 'results', activeTab: 'flashcards',
         topic: d1.topic || 'Study Topic',
         topicEmoji: d1.emoji || '📚',
-        flashcards: d1.flashcards || [],
+        flashcards: lintedCards.kept,
         quiz,
         videos: [], videosLoading: true,
         currentCard: 0, flippedCards: {}, quizAnswers: {},
@@ -250,10 +255,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
       try {
         const topicForVideos = d1.topic || inputText.trim() || 'this topic';
-        const raw2 = await window.claude.complete({ system: SYSTEM_VIDEOS, messages: [{ role: 'user', content: `Recommend YouTube study videos for: "${topicForVideos}"` }] });
-        const j2 = raw2.slice(raw2.indexOf('{'), raw2.lastIndexOf('}') + 1);
-        const d2 = JSON.parse(j2);
-        setState({ videos: d2.videos || [], videosLoading: false });
+        const d2 = await window.brainCompleteJSON({ system: SYSTEM_VIDEOS, messages: [{ role: 'user', content: `Recommend YouTube study videos for: "${topicForVideos}"` }] });
+        setState({ videos: (d2 && d2.videos) || [], videosLoading: false });
       } catch {
         setState({ videosLoading: false, videos: [] });
       }
@@ -536,7 +539,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
       const ctx = flashcards.slice(0, 5).map(f => `• ${f.front}: ${f.back}`).join('\n');
       const history = nextMessages.map((m) => ({ role: m.role, content: m.text }));
       const chatLangHint = window.aiLangDirective ? window.aiLangDirective() : '';
-      const answer = await window.claude.complete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}${chatLangHint ? `\n\n${chatLangHint}` : ''}`, messages: history });
+      const answer = await window.brainComplete({ system: `You are a concise study assistant for "${topic}". Answer in 2-3 sentences using the key facts.\n\n${ctx}${chatLangHint ? `\n\n${chatLangHint}` : ''}`, messages: history });
       setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: answer }], isChatLoading: false }));
     } catch {
       setState((s) => ({ chatMessages: [...s.chatMessages, { role: 'assistant', text: L('Sorry, something went wrong. Please try again.','Вибачте, щось пішло не так. Спробуйте ще раз.','Извините, что-то пошло не так. Попробуйте ещё раз.','Désolé, une erreur est survenue. Réessayez.','Entschuldigung, etwas ist schiefgelaufen. Versuche es erneut.') }], isChatLoading: false }));

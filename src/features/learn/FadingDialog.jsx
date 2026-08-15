@@ -19,7 +19,6 @@ function examQual(resolved) {
 }
 
 async function generateFadePlan({ topic, resolved, tcode }) {
-  const complete = window.brainComplete || ((a) => window.claude.complete(a));
   const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
   const lang = languageNameFor(examQual(resolved)) || ({ en: "English", uk: "Ukrainian", ru: "Russian", fr: "French", de: "German" }[tcode] || "English");
   const system = `Build a fading worked example for "${topic}".
@@ -33,11 +32,10 @@ Rules:
 - hint is a nudge after a miss — not the question itself. reveal is the step instruction the student sees while filling.
 - Language: ${lang}. Math as LaTeX in problem/reveal only — answers are plain/LaTeX short.`;
   const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 45000));
-  const raw = await Promise.race([
-    complete({ system, messages: [{ role: "user", content: `Fade this topic: ${topic}` }], topicContext, paperQual: examQual(resolved) }),
+  const parsed = await Promise.race([
+    window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Fade this topic: ${topic}` }], topicContext, paperQual: examQual(resolved) }),
     timeout,
   ]);
-  const parsed = window.parseJSON ? window.parseJSON(raw) : JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1));
   return parseFadePlan(parsed);
 }
 

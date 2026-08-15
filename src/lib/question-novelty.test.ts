@@ -38,7 +38,7 @@ describe("hashQuestionText", () => {
 type RpcMatch = (params: { p_exam_taxonomy: string; p_text: string }) => string | null;
 
 function makeFakeSupabase(
-  bank: Map<string, { id: string; hash: string; text: string; taxonomy: string }>,
+  bank: Map<string, { id: string; hash: string; text: string; taxonomy: string; created_by?: string }>,
   seen: Set<string>,
   rpcMatch?: RpcMatch,
 ) {
@@ -68,6 +68,7 @@ function makeFakeSupabase(
                   hash: row.question_hash as string,
                   text: row.question_text as string,
                   taxonomy: row.exam_taxonomy as string,
+                  created_by: row.created_by as string,
                 });
                 return { data: { id }, error: null };
               },
@@ -111,6 +112,14 @@ describe("checkAndRecordQuestion", () => {
     expect(bank.size).toBe(1);
   });
 
+  it("stamps created_by as the calling user", async () => {
+    const bank = new Map();
+    const seen = new Set<string>();
+    const sb = makeFakeSupabase(bank, seen);
+    await checkAndRecordQuestion(sb, "user-9", "ielts", "Reading", "What is 2+2?");
+    expect(Array.from(bank.values())[0]?.created_by).toBe("user-9");
+  });
+
   it("flags a second, reworded submission of the same question as a duplicate", async () => {
     const bank = new Map();
     const seen = new Set<string>();
@@ -143,7 +152,7 @@ describe("checkAndRecordQuestion", () => {
   });
 
   it("flags a paraphrased question via pg_trgm rpc as duplicate (no hash match, similarity match)", async () => {
-    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string }>();
+    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string; created_by?: string }>();
     const seen = new Set<string>();
     // Seed the bank the normal way, then set up an rpc mock that returns
     // its id for any query targeting that exam.
@@ -164,7 +173,7 @@ describe("checkAndRecordQuestion", () => {
   });
 
   it("does not flag a genuinely different question even when rpc runs", async () => {
-    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string }>();
+    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string; created_by?: string }>();
     const seen = new Set<string>();
     const seedSb = makeFakeSupabase(bank, seen);
     await checkAndRecordQuestion(seedSb, "user-1", "ielts", "algebra", "Solve for x: 3x + 5 = 20");
@@ -177,7 +186,7 @@ describe("checkAndRecordQuestion", () => {
   });
 
   it("degrades to not-a-duplicate when the rpc function isn't deployed yet (PGRST202)", async () => {
-    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string }>();
+    const bank = new Map<string, { id: string; hash: string; text: string; taxonomy: string; created_by?: string }>();
     const seen = new Set<string>();
     // makeFakeSupabase's rpc without rpcMatch returns [] for match_similar_question
     // — simulate the harsher "function not found" via a custom sb where rpc errors.
