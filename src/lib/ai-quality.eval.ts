@@ -50,7 +50,11 @@ async function complete(system: string, user: string): Promise<string> {
 function parseQuestions(raw: string): LintableMcq[] {
   const body = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
   const parsed = JSON.parse(body) as { questions?: LintableMcq[] };
-  return Array.isArray(parsed.questions) ? parsed.questions : [];
+  if (!Array.isArray(parsed.questions)) return [];
+  // Drill mixes match/order/explain in the same batch. Those have no
+  // options — linting them as MCQ would fail `shape` and hide the real rate.
+  return parsed.questions.filter((q) =>
+    q && Array.isArray(q.options) && Number.isInteger(q.correct));
 }
 
 const MCQ_PROMPTS = [
