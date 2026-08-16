@@ -1999,7 +1999,10 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
           // not 18 four-option MCQs. A dead section trims that form only.
           const parts = await Promise.all(sitting.sections.map(async (section) => {
             try {
-              const system = sectionGenerationPrompt({ examName: selectedExam.name, styleNote, topics, section });
+              const system = sectionGenerationPrompt({
+                examName: selectedExam.name, styleNote, topics, section,
+                difficulty: paperShape && paperShape.difficulty,
+              });
               const raw = await raceJson(system, `Generate ${section.count} ${section.kind} items.`);
               const rows = Array.isArray(raw && raw.questions) ? raw.questions : [];
               return rows.map((row) => normalizeSimQuestion(row, section.kind)).filter(Boolean).slice(0, section.count);

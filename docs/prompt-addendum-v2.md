@@ -77,3 +77,4 @@ See #100–103 in `docs/phase-5-billing-tiers-plan.md`.
 | 111 | App chrome uses landing paper/ink. Do not restyle AIChat / KaTeX | The cover is the product. Coach is a room inside it |
 | 112 | One public price. Today = recommendNextAction. Miss → dated calendar block | Copy honesty without new Checkout. The loop ChatGPT cannot fake |
 | 113 | Exam Sim sits official public paper shapes per subject. #37 stays — no third-party banks. File optional | УЦОЯО / College Board / AQA характеристики, original items. Family-level "18 GCSE MCQs" was a lie |
+| 114 | Exam Sim difficulty is calibrated from official public demos, not a generic "genuine exam" line | УЦОЯО 2023–2026 sittings + Bluebook 1–5 + ETS/GMAC samples. Curve only — do not store those items |
