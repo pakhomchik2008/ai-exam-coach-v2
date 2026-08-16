@@ -115,7 +115,7 @@ async function dedupeAgainstQuestionBank(questions, examTaxonomy, regenerate) {
 
 const COACH_MODES = [
   { id: "learn", emoji: "🧠",
-    label: { en: "Learn", uk: "Навчання", ru: "Обучение", fr: "Apprendre", de: "Lernen" },
+    label: { en: "Lesson", uk: "Урок", ru: "Урок", fr: "Leçon", de: "Lektion" },
     desc: { en: "Structured lesson", uk: "Структурований урок", ru: "Структурированный урок", fr: "Leçon structurée", de: "Strukturierte Lektion" } },
   { id: "review", emoji: "⚡",
     label: { en: "Quick Check", uk: "Швидка перевірка", ru: "Быстрая проверка", fr: "Vérification rapide", de: "Schnellcheck" },
