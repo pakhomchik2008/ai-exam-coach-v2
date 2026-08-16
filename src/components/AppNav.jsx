@@ -1,5 +1,5 @@
-// Examik — seven tabs on the bar. Overflow sheet is gone.
-// Tools and Progress stay under Settings.
+// Examik — tabs on the bar. Overflow sheet is gone.
+// Progress stays under Settings. Tools is a first-class tab (file → quiz).
 
 import { BrandLockup, BrandMark } from "../brand/BrandMark";
 
@@ -32,6 +32,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     { id: "dashboard", label: t.nav_today },
     { id: "chat", label: t.nav_chat },
     { id: "study", label: t.nav_study },
+    { id: "studyhub", label: t.nav_tools },
     { id: "journal", label: t.nav_journal },
     { id: "calendar", label: t.nav_calendar },
     { id: "exams", label: t.nav_exams },

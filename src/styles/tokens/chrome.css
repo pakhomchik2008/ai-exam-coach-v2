@@ -251,7 +251,7 @@
   background: var(--chrome-paper);
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1040px) {
   .app-nav-links { display: none; }
   .app-nav-hamburger { display: flex; }
   .app-nav-mobile-panel.is-open { display: flex; }

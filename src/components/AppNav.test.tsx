@@ -1,5 +1,5 @@
 /**
- * Seven tabs on the bar. More sheet must not come back.
+ * Tabs on the bar, including Tools. More sheet must not come back.
  */
 import { readFileSync } from "node:fs";
 import { render, screen } from "@testing-library/react";
@@ -16,7 +16,7 @@ const AppNav = (window as unknown as {
   }) => React.ReactElement;
 }).AppNav;
 
-describe("AppNav seven tabs", () => {
+describe("AppNav tabs", () => {
   const src = readFileSync("src/components/AppNav.jsx", "utf8");
 
   it("logo is the horizontal lockup, not a framed tile", () => {
@@ -29,7 +29,7 @@ describe("AppNav seven tabs", () => {
     expect(src).toMatch(/app-nav-hamburger/);
   });
 
-  it("renders Today Coach Learn Journal Calendar Exams Settings", () => {
+  it("renders Today Coach Learn Tools Journal Calendar Exams Settings", () => {
     render(
       <AppNav
         current="dashboard"
@@ -39,7 +39,7 @@ describe("AppNav seven tabs", () => {
         onLangChange={() => {}}
       />,
     );
-    for (const name of ["Today", "Coach", "Learn", "Journal", "Calendar", "Exams", "Settings"]) {
+    for (const name of ["Today", "Coach", "Learn", "Tools", "Journal", "Calendar", "Exams", "Settings"]) {
       expect(screen.getAllByRole("button", { name }).length).toBeGreaterThan(0);
     }
     expect(screen.queryByRole("dialog")).toBeNull();

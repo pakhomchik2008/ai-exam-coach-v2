@@ -15,7 +15,7 @@ describe("remountKeyFor", () => {
   });
 
   it("never collides between tabs at the same version", () => {
-    const tabs = ["dashboard", "progress", "journal", "calendar", "exams", "settings", "chat", "study"];
+    const tabs = ["dashboard", "progress", "journal", "calendar", "exams", "settings", "chat", "study", "studyhub"];
     const keys = tabs.map((tab) => remountKeyFor(tab, 3));
     expect(new Set(keys).size).toBe(tabs.length);
   });
