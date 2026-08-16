@@ -63,7 +63,7 @@ src/
   bootstrap.ts                   Ordered load of every legacy module — DO NOT REORDER
   main.tsx                       React entry
   app/App.tsx                    Route switch (case "study" → LearnMain, etc.)
-  components/AppNav.jsx          Nav — id must match App.tsx case
+  components/AppNav.jsx          Four rooms: Today / Learn / Coach / More. Overflow is a sheet. Route ids still match App.tsx case.
   features/
     chat/AIChat.jsx              THE big one. AI Coach modes, Practice Engine, Speed Round, Exam Sim, Learn (theory reader + flashcards)
     dashboard/                   Home

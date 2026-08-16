@@ -367,6 +367,7 @@ function renderTab({
             setLearnLaunch(launch);
             setTab("study");
           }}
+          onGoToJournal={() => setTab("journal")}
           t={t}
         />
       );

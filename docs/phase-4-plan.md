@@ -67,6 +67,7 @@ dead and crawlers have a page.
 | 51 | Legal pages are stubs with a Phase-6 banner | Footer must not 404. Counsel-grade policy is a later pass |
 | 52 | No Framer Motion for the split-scroll | New dependency for one effect. CSS custom property + scroll listener. Reduced-motion skips the track |
 | 53 | First paint is centered type + exam marquee. Predictor and Learn mock arrive on scroll | Headline is strong enough alone. Geometry wallpaper fought it |
+| 108 | App bar is Today / Learn / Coach / More. Calendar is not a fifth room | Calendar is a lookup tool. Today's CTA is the block; grid is one tap in More. Plan-tab alternative rejected |
 
 ## Reversibility
 

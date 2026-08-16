@@ -261,6 +261,10 @@
   font-size: 1rem;
   padding: 14px 22px;
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 .land-btn-primary {
   background: var(--land-ink);
@@ -928,7 +932,7 @@
 }
 .land-plans {
   display: grid;
-  grid-template-columns: 0.9fr 1.15fr;
+  grid-template-columns: 1fr 1.12fr 1fr;
   gap: 14px;
   align-items: stretch;
 }
