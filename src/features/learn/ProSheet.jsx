@@ -78,9 +78,9 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "var(--red-600)" } }, error) : null,
     React.createElement("button", {
       type: "button",
+      className: "app-btn app-btn-primary app-btn-block",
       disabled: busy,
       onClick: upgrade,
-      style: { width: "100%", padding: "14px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: busy ? "wait" : "pointer", fontFamily: "var(--font-sans)", opacity: busy ? 0.7 : 1 },
     }, busy
       ? L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
       : L5(t, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")),

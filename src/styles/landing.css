@@ -114,7 +114,6 @@
 .land-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
   color: inherit;
   text-decoration: none;
 }
@@ -253,28 +252,7 @@
 .land-cta-primary {
   position: relative;
 }
-.land-btn {
-  border: 0;
-  cursor: pointer;
-  font-family: var(--font-sans);
-  font-weight: 650;
-  font-size: 1rem;
-  padding: 14px 22px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-.land-btn-primary {
-  background: var(--land-ink);
-  color: var(--land-paper);
-}
-.land-btn-ghost {
-  background: transparent;
-  color: inherit;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
-}
+/* .land-btn / primary / ghost live in tokens/chrome.css — same drawing as in-app Start. */
 .land-btn-amber {
   background: var(--land-amber);
   color: var(--land-ink);
@@ -932,7 +910,7 @@
 }
 .land-plans {
   display: grid;
-  grid-template-columns: 1fr 1.12fr 1fr;
+  grid-template-columns: 1fr 1.12fr;
   gap: 14px;
   align-items: stretch;
 }
@@ -1039,16 +1017,12 @@
 }
 .land-about-panel {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: 0;
-  background: var(--land-teal);
+  padding: 48px 32px;
+  background: var(--land-paper);
+  border: 1px solid var(--land-line);
   border-radius: 28px;
-  overflow: hidden;
-}
-.land-about-panel svg {
-  display: block;
-  width: min(240px, 100%);
-  height: auto;
 }
 
 /* —— footer / legal —— */

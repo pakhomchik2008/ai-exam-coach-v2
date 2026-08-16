@@ -15,6 +15,8 @@ interface Session {
   date: string;
   startTime: string;
   manual?: boolean;
+  notes?: string;
+  topic?: string;
 }
 
 interface Exam {
@@ -30,6 +32,8 @@ type Store = {
   deleteSession: (id: string) => void;
   getExams: () => Exam[];
   saveExams: (exams: Exam[]) => void;
+  scheduleReviewFromMistake: (entry: Record<string, unknown>) => Session | null;
+  fmtDateKey: (d: Date) => string;
 };
 
 const store = window as unknown as Store;
@@ -108,5 +112,32 @@ describe("reconcileSchedule", () => {
     expect(after, "manual session should survive the replan").toBeDefined();
     expect(after!.date).toBe("2026-06-10");
     expect(after!.startTime).toBe("14:00");
+  });
+});
+
+describe("scheduleReviewFromMistake", () => {
+  afterEach(() => {
+    store.getSchedule().sessions
+      .filter((s) => s.notes === "mistake-review")
+      .forEach((s) => store.deleteSession(s.id));
+  });
+
+  it("moves the same block when nextReviewAt changes", () => {
+    const later = Date.now() + 3 * 86_400_000;
+    store.scheduleReviewFromMistake({
+      topic: "Logs",
+      examId: EXAM_ID,
+      nextReviewAt: Date.now() + 86_400_000,
+      status: "pending",
+    });
+    store.scheduleReviewFromMistake({
+      topic: "Logs",
+      examId: EXAM_ID,
+      nextReviewAt: later,
+      status: "pending",
+    });
+    const hits = store.getSchedule().sessions.filter((s) => s.notes === "mistake-review" && s.topic === "Review: Logs");
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.date).toBe(store.fmtDateKey(new Date(later)));
   });
 });

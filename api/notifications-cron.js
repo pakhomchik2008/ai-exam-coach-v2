@@ -136,6 +136,18 @@ async function markSent(headers, userId, triggerKey, dedupeKey) {
   });
 }
 
+function brandLockupHtml() {
+  const origin = APP_URL.replace(/\/$/, "");
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px 0;border-collapse:collapse">
+  <tr>
+    <td style="vertical-align:middle;padding:0 3px 0 0">
+      <img src="${origin}/brand/mark-48.png" width="14" height="24" alt="" style="display:block;border:0;outline:none"/>
+    </td>
+    <td style="vertical-align:middle;padding:0;font-family:'Iowan Old Style',Palatino,Georgia,'Times New Roman',serif;font-weight:600;font-size:20px;letter-spacing:-0.03em;color:#141822;line-height:1">Examik</td>
+  </tr>
+</table>`;
+}
+
 function unsubscribeFooter(userId, lang) {
   const url = `${APP_URL}/api/unsubscribe?u=${userId}`;
   const label = { uk: "Відписатися від сповіщень", ru: "Отписаться от уведомлений" }[lang] || "Unsubscribe from these emails";
@@ -148,7 +160,7 @@ async function sendEmail(resendKey, to, subject, html) {
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
-    body: JSON.stringify({ from: RESEND_FROM, to, subject, html }),
+    body: JSON.stringify({ from: RESEND_FROM, to, subject, html: brandLockupHtml() + html }),
   });
   return resp.ok;
 }

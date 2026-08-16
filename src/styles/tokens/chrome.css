@@ -1,0 +1,213 @@
+/* App chrome — same drawing as the landing cover.
+   Nav, page title, primary button, empty state. Not Coach, not KaTeX. */
+
+:root {
+  --chrome-paper: #F7F5F0;
+  --chrome-ink: #141822;
+  --chrome-line: rgba(20, 24, 34, 0.12);
+  --chrome-purple: #8921F5;
+  --chrome-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--chrome-paper);
+  color: var(--chrome-ink);
+}
+
+.app-main {
+  max-width: var(--container-app);
+  margin: 0 auto;
+  padding: 20px 16px calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-main[data-room="chat"] {
+  padding-top: 12px;
+}
+
+@media (min-width: 720px) {
+  .app-main {
+    padding: 28px 20px 48px;
+  }
+}
+
+/* —— buttons: landing CTA and in-app Start are the same drawing —— */
+.app-btn,
+.land-btn {
+  border: 0;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-weight: 650;
+  font-size: 1rem;
+  padding: 14px 22px;
+  min-height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  line-height: 1;
+  transition: transform 140ms var(--chrome-ease), filter 140ms var(--chrome-ease);
+}
+
+.app-btn-primary,
+.land-btn-primary {
+  background: var(--chrome-ink);
+  color: var(--chrome-paper);
+}
+
+.app-btn-ghost,
+.land-btn-ghost {
+  background: transparent;
+  color: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.app-btn:disabled,
+.land-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.app-btn-primary:active,
+.land-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.app-btn-block {
+  width: 100%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-btn-primary:hover,
+  .land-btn-primary:hover {
+    filter: brightness(1.04);
+  }
+}
+
+/* —— one page header: title + exactly one action —— */
+.app-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin: 0 0 22px;
+}
+
+.app-page-heading {
+  min-width: 0;
+}
+
+.app-page-kicker {
+  margin: 0 0 4px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--chrome-ink) 48%, var(--chrome-paper));
+}
+
+.app-page-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--chrome-ink);
+  text-wrap: balance;
+}
+
+.app-page-action {
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .app-page-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .app-page-action {
+    width: 100%;
+  }
+
+  .app-page-action .app-btn {
+    width: 100%;
+  }
+}
+
+/* —— empty: names the next tap —— */
+.app-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 36rem;
+}
+
+.app-empty-body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: color-mix(in srgb, var(--chrome-ink) 62%, var(--chrome-paper));
+}
+
+/* —— nav: paper bar, no glass leftover —— */
+.app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--chrome-paper);
+  border-bottom: 1px solid var(--chrome-line);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.app-nav-bar {
+  max-width: var(--container-app);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 16px;
+}
+
+.app-nav-room {
+  border: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 8px 13px;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  font-weight: var(--weight-medium);
+  background: transparent;
+  color: color-mix(in srgb, var(--chrome-ink) 55%, var(--chrome-paper));
+  white-space: nowrap;
+  transition: background 140ms var(--chrome-ease), color 140ms var(--chrome-ease);
+}
+
+.app-nav-room[aria-current] {
+  background: var(--chrome-ink);
+  color: var(--chrome-paper);
+  font-weight: var(--weight-semibold);
+}
+
+.app-nav-room.is-open:not([aria-current]) {
+  box-shadow: inset 0 0 0 1.5px var(--chrome-ink);
+  color: var(--chrome-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.app-nav-more-sheet {
+  background: var(--chrome-paper);
+}
+
+.app-nav-lang {
+  border: 1px solid var(--chrome-line);
+  background: var(--chrome-paper);
+  color: var(--chrome-ink);
+  min-height: 44px;
+}

@@ -52,3 +52,17 @@
   --type-body:    var(--weight-normal) var(--text-base)/var(--leading-normal) var(--font-sans);
   --type-meta:    var(--weight-semibold) var(--text-xs)/var(--leading-snug) var(--font-sans);
 }
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  line-height: 1;
+}
+
+.brand-lockup-word {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-transform: none;
+}

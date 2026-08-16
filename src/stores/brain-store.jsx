@@ -688,7 +688,7 @@ function recommendNextAction() {
   return {
     kind: !t.lastSeen ? "learn" : "review",
     examId: e.id, topicIdx: t.topicIdx, topicName: t.topicName,
-    examName: e.name, color: e.color,
+    examName: e.name, color: e.color, examDate: e.examDate, daysAway: days,
     reasons, estMinutes: 45,
     readinessGain: gain, readinessNow: e.readiness,
     readinessProjected: Math.min(100, e.readiness + gain),
