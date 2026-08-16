@@ -90,7 +90,7 @@ function EmptyLearn({ L, onGoToExams, kind }) {
   const noTree = kind === "no-tree";
   const title = L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen");
   const body = noTree
-    ? L("This exam has no topic tree yet. Pick a subject Learn supports — Exams tab.", "Для цього іспиту ще немає дерева тем. Обери предмет, який Learn підтримує — вкладка Іспити.", "Для этого экзамена ещё нет дерева тем. Выбери предмет, который Learn поддерживает — вкладка Экзамены.", "Cet examen n’a pas encore d’arbre. Choisis une matière prise en charge — onglet Examens.", "Für diese Prüfung gibt es noch keinen Themenbaum. Wähle ein unterstütztes Fach — Tab Prüfungen.")
+    ? L("This exam has no topic tree yet. Pick a subject Learn supports — More → Exams.", "Для цього іспиту ще немає дерева тем. Обери предмет, який Learn підтримує — Ще → Іспити.", "Для этого экзамена ещё нет дерева тем. Выбери предмет, который Learn поддерживает — Ещё → Экзамены.", "Cet examen n’a pas encore d’arbre. Choisis une matière prise en charge — Plus → Examens.", "Für diese Prüfung gibt es noch keinen Themenbaum. Wähle ein unterstütztes Fach — Mehr → Prüfungen.")
     : L("Add an exam first — Learn opens a topic tree per exam.", "Спочатку додай іспит — Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen.", "Füge zuerst eine Prüfung hinzu.");
   const cta = noTree
     ? L("Go to Exams", "До іспитів", "К экзаменам", "Vers Examens", "Zu Prüfungen")

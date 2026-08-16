@@ -1,6 +1,8 @@
-// Examik — Dashboard: plan-centric design with "Today's AI Plan" hero,
-// adaptive scheduling, TodaysMission briefing, and projected outcomes.
-function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGoToLearn, t }) {
+// Examik — Today room: next action + exam countdown. Absorbs the dashboard
+// hero, due journal, and today's calendar block. Full calendar lives in More.
+import { isProUser } from "../learn/premium";
+
+function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGoToLearn, onGoToJournal, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
   const today = new Date().toLocaleDateString(t.code === "uk" ? "uk-UA" : t.code === "ru" ? "ru-RU" : t.code === "fr" ? "fr-FR" : t.code === "de" ? "de-DE" : "en-GB", { weekday: "long", day: "numeric", month: "long" });
@@ -331,6 +333,38 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         )}
       </section>
 
+      {/* Due journal — Today absorbs the queue; full list is one tap in More. */}
+      {(() => {
+        if (!isProUser() || !window.computeMistakeSummary) return null;
+        const summary = window.computeMistakeSummary();
+        const due = (summary.overdueCount || 0) + (summary.dueTodayCount || 0);
+        if (due === 0) return null;
+        return (
+          <button
+            type="button"
+            onClick={() => onGoToJournal && onGoToJournal()}
+            style={{
+              display: "flex", alignItems: "center", gap: "var(--space-3)",
+              width: "100%", textAlign: "left", cursor: "pointer",
+              borderRadius: "var(--radius-xl)", padding: "12px 16px",
+              border: "1px solid var(--amber-200)", background: "var(--amber-50)",
+              fontFamily: "var(--font-sans)",
+            }}
+          >
+            <span style={{ flex: 1, fontSize: "var(--text-sm)", color: "var(--amber-800)", fontWeight: "var(--weight-medium)" }}>
+              {L(
+                `${due} in Journal to review`,
+                `${due} у журналі на повтор`,
+                `${due} в журнале на повтор`,
+                `${due} à revoir dans le journal`,
+                `${due} im Journal fällig`
+              )}
+            </span>
+            <span style={{ fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--amber-700)" }}>{t.nav_journal} →</span>
+          </button>
+        );
+      })()}
+
       {/* End-of-week rollover — offered when pending sessions no longer reach
           past the next ~3 days. One tap regenerates the same weekly plan for
           the next 7 days; "no thanks" dismisses this session (returns next
@@ -394,6 +428,18 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
       {/* ── Week strip — hours/goal numbers already live in the stats row,
               so this is just the tappable day-by-day view, no duplicate bar */}
       <section style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid var(--border-default)", padding: "var(--space-3) var(--space-4)", overflowX: "auto" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
+          <span style={{ fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>
+            {t.dash_this_week}
+          </span>
+          <button
+            type="button"
+            onClick={() => onGoToSchedule && onGoToSchedule()}
+            style={{ border: "none", background: "transparent", cursor: "pointer", padding: 0, fontFamily: "var(--font-sans)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", color: "var(--indigo-600)" }}
+          >
+            {t.nav_calendar} →
+          </button>
+        </div>
         <WeekStrip
           days={weekData}
           onDayClick={(d, i) => setDayDetail({ day: d, dayIndex: i })}

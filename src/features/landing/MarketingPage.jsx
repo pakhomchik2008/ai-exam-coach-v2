@@ -31,8 +31,11 @@ function CtaTrio({ t, tap, onSignup, onLogin, onDemo }) {
   );
 }
 
+const MAX_WAITLIST = "mailto:hlibpakh@gmail.com?subject=Examik%20Max%20waitlist";
+
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const [slit, setSlit] = React.useState(shouldPlaySlit);
+  const [yearly, setYearly] = React.useState(false);
   const landRef = React.useRef(null);
   React.useEffect(() => {
     let stop = () => undefined;
@@ -152,6 +155,10 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         <div className="land-wrap">
           <h2 id="land-price-title">{t.land_price_title}</h2>
           <p className="land-lede">{t.land_price_sub}</p>
+          <div className="land-bill" role="group" aria-label={t.land_nav_pricing}>
+            <button type="button" className={yearly ? "" : "is-on"} onClick={() => setYearly(false)}>{t.land_price_bill_month}</button>
+            <button type="button" className={yearly ? "is-on" : ""} onClick={() => setYearly(true)}>{t.land_price_bill_year}</button>
+          </div>
           <div className="land-plans">
             <article className="land-plan">
               <h3>{t.land_price_free_name}</h3>
@@ -162,11 +169,20 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
             <article className="land-plan is-featured">
               <h3>{t.land_price_pro_name}</h3>
               <p className="land-plan-price">
-                {t.land_price_pro_month}
-                <span>{t.land_price_per_month}</span>
+                {yearly ? t.land_price_pro_year : t.land_price_pro_month}
+                <span>{yearly ? t.land_price_per_year : t.land_price_per_month}</span>
               </p>
               <p>{t.land_price_pro_body}</p>
               <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_price_cta}</button>
+            </article>
+            <article className="land-plan is-ink">
+              <h3>{t.land_price_max_name}</h3>
+              <p className="land-plan-price">
+                {yearly ? t.land_price_max_year : t.land_price_max_month}
+                <span>{yearly ? t.land_price_per_year : t.land_price_per_month}</span>
+              </p>
+              <p>{t.land_price_max_body}</p>
+              <a className="land-btn land-btn-ghost" href={MAX_WAITLIST}>{t.land_price_max_cta}</a>
             </article>
           </div>
           <p className="land-price-note">{t.land_price_note}</p>

@@ -208,6 +208,7 @@ copy cannot disagree with Checkout.
 | 101 | Max = unlimited Sonnet + unlimited Socratic/Feynman + Weekly Deep Report, $9.99/mo | Not “the same app on Sonnet”. Yearly 35–40% off, A/B after launch. Hidden from the public page until 5c + 5d + the report ship. Do not advertise Sonnet on Pro until the router exists |
 | 102 | Free public copy = 1 exam, first unit of each subject, calendar + journal locked | Matches code. Half-tree (#63) stays reversed. An addendum “половина тем” was a misread of the repo |
 | 103 | No Max card, no SAT/A-Level as live trees | Copy-drift kills App Store reviews. Live trees are NMT + IELTS. Max keys stay in i18n unused |
+| 109 | Public page lists Max $9.99/$90 and Pro yearly $54 (−25%). Max CTA is waitlist, not Checkout | Reverses the “hide Max” half of #103. Yearly math is #86 (5.99×12×0.75→54, 9.99×12×0.75→90), not the later “35–40% TBD” in #101. Live charge stays $5.99/mo trial until Hlib adds Stripe Price ids |
 
 ## Reversibility
 

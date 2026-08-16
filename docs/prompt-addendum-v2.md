@@ -19,9 +19,11 @@ Wordmark, hero, footer, Settings, emails, legal: **Examik**.
 - Privacy / Terms / EULA / Refund / Cookies / Children name Examik.
 - Live Learn trees in public copy: **NMT + IELTS only**. Do not list
   SAT / A-Level / GCSE as live trees.
-- No Max card on the public page until 5c + 5d + Weekly Deep Report.
-- Honest bits stay: no fake reviews, card at Checkout, 3 days Pro free
-  then $5.99/mo.
+- Max card is on the public page as a list price: $9.99/mo or $90/yr (−25%).
+  CTA is waitlist, not Checkout, until 5c + 5d + Weekly Deep Report.
+- Pro yearly list price is $54 (−25%). Live charge is still the 3-day
+  trial then $5.99/mo until the yearly Stripe Price exists.
+- Honest bits stay: no fake reviews, card at Checkout.
 - Do not claim Sonnet in public copy until the model router ships.
 
 Nav/IA (not this cut): Today / Learn / Coach / More.

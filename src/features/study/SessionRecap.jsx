@@ -230,7 +230,7 @@ function SessionRecap({ data, onClose, t }) {
         )}
 
         <div style={{ marginTop: "var(--space-6)" }}>
-          <Button variant="primary" size="lg" fullWidth onClick={onClose}>{L("Back to Dashboard", "На головну", "На главную", "Retour au tableau", "Zurück")} →</Button>
+          <Button variant="primary" size="lg" fullWidth onClick={onClose}>{L("Back to Today", "На сьогодні", "На сегодня", "Retour à aujourd'hui", "Zurück zu Heute")} →</Button>
         </div>
       </div>
     </div>

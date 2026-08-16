@@ -466,7 +466,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Study", "Навчання", "Учёба", "Études", "Lernen")} onClose={() => setSheet(null)}>
           <Card>
             {exams.length === 0
-              ? <Row label={L(lang, "No exams yet", "Ще немає іспитів", "Ещё нет экзаменов", "Pas encore d’examens", "Noch keine Prüfungen")} sub={L(lang, "Add one from the Exams tab.", "Додай на вкладці Іспити.", "Добавь на вкладке Экзамены.", "Ajoute-en dans Examens.", "Füge eine unter Prüfungen hinzu.")} chevron onClick={() => onGoToExams && onGoToExams()} />
+              ? <Row label={L(lang, "No exams yet", "Ще немає іспитів", "Ещё нет экзаменов", "Pas encore d’examens", "Noch keine Prüfungen")} sub={L(lang, "Add one from More → Exams.", "Додай у Ще → Іспити.", "Добавь в Ещё → Экзамены.", "Ajoute-en dans Plus → Examens.", "Füge eine unter Mehr → Prüfungen hinzu.")} chevron onClick={() => onGoToExams && onGoToExams()} />
               : exams.slice(0, 4).map((e) => (
                 <Row key={e.id} label={e.name} sub={`${e.examDate} · ${L(lang, "target", "ціль", "цель", "objectif", "Ziel")} ${e.targetGrade || "—"}`} chevron onClick={() => onGoToExams && onGoToExams()} />
               ))}
