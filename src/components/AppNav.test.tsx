@@ -29,7 +29,7 @@ describe("AppNav tabs", () => {
     expect(src).toMatch(/app-nav-hamburger/);
   });
 
-  it("renders Today Coach Learn Tools Journal Calendar Exams Settings", () => {
+  it("renders Dashboard Coach Learn Tools Journal Calendar Exams Settings", () => {
     render(
       <AppNav
         current="dashboard"
@@ -39,7 +39,7 @@ describe("AppNav tabs", () => {
         onLangChange={() => {}}
       />,
     );
-    for (const name of ["Today", "Coach", "Learn", "Tools", "Journal", "Calendar", "Exams", "Settings"]) {
+    for (const name of ["Dashboard", "Coach", "Learn", "Tools", "Journal", "Calendar", "Exams", "Settings"]) {
       expect(screen.getAllByRole("button", { name }).length).toBeGreaterThan(0);
     }
     expect(screen.queryByRole("dialog")).toBeNull();
