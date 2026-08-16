@@ -169,6 +169,152 @@ function gcseModernLanguage(opts: {
   };
 }
 
+/** College Board AP: one exam day, two (or three) timed sections. Picker sits each section. */
+function apMcqFrq(opts: {
+  id: string;
+  title: string;
+  source: string;
+  year: number;
+  note: string;
+  mix: string;
+  do: string;
+  dont?: string;
+  mcq: { count: number; minutes: number; note?: string };
+  frq: { count: number; minutes: number; maxRaw: number; note: string };
+}): PaperShape {
+  const slug = opts.id.replace("ap-", "");
+  return {
+    id: opts.id,
+    qualification: "ap",
+    source: opts.source,
+    year: opts.year,
+    note: opts.note,
+    difficulty: cal(opts.mix, opts.do, opts.dont || "Do not copy College Board FRQs, CED examples, or AP Classroom items."),
+    papers: [
+      sitting(`ap-${slug}-mcq`, "Section I · Multiple choice", opts.mcq.minutes, opts.mcq.count, [
+        mcq(opts.mcq.count, 4, 1, opts.mcq.note || "Four-option MCQ. Stimulus sets MAY share a figureBrief."),
+      ]),
+      sitting(`ap-${slug}-frq`, "Section II · Free response", opts.frq.minutes, opts.frq.maxRaw, [
+        written(opts.frq.count, Math.round(opts.frq.maxRaw / opts.frq.count), opts.frq.note),
+      ]),
+    ],
+  };
+}
+
+function apHistory(opts: {
+  id: string;
+  title: string;
+  source: string;
+  span: string;
+  dbqSpan: string;
+}): PaperShape {
+  const slug = opts.id.replace("ap-", "");
+  return {
+    id: opts.id,
+    qualification: "ap",
+    source: opts.source,
+    year: 2017,
+    note: `College Board ${opts.title}: 3h15. Section IA 55 MCQ / 55 min / 40%, IB 3 SAQ / 40 min / 20%, II DBQ+LEQ / 100 min / 40%. Sources are original plates — do not ingest AP images.`,
+    difficulty: cal(
+      `Stimulus MCQ sets, then 3 required SAQ (${opts.span}), then one DBQ (${opts.dbqSpan}) and one LEQ. HIPP + thesis + evidence.`,
+      "Every stimulus set / SAQ / DBQ MUST set figureBrief (original cartoon, map, table, or short source plate). Seven DBQ docs are original, not AP released.",
+      "Do not copy College Board documents or SAQ stems.",
+    ),
+    papers: [
+      sitting(`ap-${slug}-mcq`, "Section IA · Multiple choice", 55, 55, [
+        mcq(55, 4, 1, "Sets of 3–4 on one stimulus. figureBrief required on each set."),
+      ]),
+      sitting(`ap-${slug}-saq`, "Section IB · Short answer", 40, 9, [
+        written(3, 3, `Three required SAQ (${opts.span}). At least two with a source figure.`),
+      ]),
+      sitting(`ap-${slug}-frq`, "Section II · DBQ and LEQ", 100, 13, [
+        written(1, 7, `DBQ, 7 original documents (${opts.dbqSpan}). Figure on each doc plate.`),
+        written(1, 6, "LEQ — thesis + evidence, no documents."),
+      ]),
+    ],
+  };
+}
+
+function apWorldLanguage(opts: { id: string; language: string; source: string }): PaperShape {
+  const slug = opts.id.replace("ap-", "");
+  return {
+    id: opts.id,
+    qualification: "ap",
+    source: opts.source,
+    year: 2027,
+    note: `College Board AP ${opts.language} Language and Culture (~2h30). New digital form: Section I free response (project presentation + Q&A + argumentative essay) then Section II 55 MCQ (25 listen / 30 read). Listening is a printed transcript. Speaking is a timed written script. Project research is not sat here — invent an original project brief.`,
+    difficulty: cal(
+      `Presentational and interpersonal ${opts.language}, then interpretive listen+read. Argumentative essay uses print + audio-as-transcript sources.`,
+      `Listen items MUST set figureBrief (transcript plate). Essay sources are original. Responses in ${opts.language}.`,
+      `Do not copy College Board audio, project topics, or AP Classroom items. No dictionary.`,
+    ),
+    papers: [
+      sitting(`ap-${slug}-frq`, "Section I · Free response (written mock)", 70, 50, [
+        written(1, 20, "Project presentation script (3 min spoken → written)."),
+        written(1, 15, "Project Q&A — four short replies."),
+        written(1, 15, "Argumentative essay, 55 min, print + transcript sources. Figures required."),
+      ]),
+      sitting(`ap-${slug}-mcq`, "Section II · Interpretive", 80, 55, [
+        mcq(25, 4, 1, "Listening from a printed transcript (40 min). figureBrief for each clip."),
+        mcq(30, 4, 1, "Reading (40 min). figureBrief for each extract."),
+      ]),
+    ],
+  };
+}
+
+function ibMathHl(opts: { id: string; course: string; source: string }): PaperShape {
+  return {
+    id: opts.id,
+    qualification: "ib",
+    source: opts.source,
+    year: 2021,
+    note: `IB ${opts.course} HL (first assessment 2021): Paper 1 2h / 110 no tech, Paper 2 2h / 110 tech, Paper 3 1h / 55 two problem-solving questions. SL is shorter (1h30 / 80, no Paper 3) — this mock sits HL. IA exploration 20% not sat. IBO has announced a later mark cut to 100/100/50; clocks on the public subject brief stay 2h/2h/1h.`,
+    difficulty: cal(
+      `${opts.course} HL: short then extended. Paper 1 algebraic / proof. Paper 2 modelling with tech. Paper 3 two long connected problems.`,
+      "Graph / diagram items MUST set figureBrief. Exact notation. Working required.",
+      "Do not copy IB specimen or past papers. No SL-only demand on Paper 3. IA is not sat here.",
+    ),
+    papers: [
+      sitting(`${opts.id}-p1`, "Paper 1 · No technology", 120, 110, [
+        short(8, 5, "Section A short-response"),
+        written(4, 17, "Section B extended. At least two figures."),
+      ]),
+      sitting(`${opts.id}-p2`, "Paper 2 · Technology", 120, 110, [
+        short(8, 5, "Section A short-response. Several with figures."),
+        written(4, 17, "Section B extended. Modelling + figure."),
+      ]),
+      sitting(`${opts.id}-p3`, "Paper 3 · Problem solving", 60, 55, [
+        written(2, 27, "Two compulsory extended problem-solving questions. Figure on both."),
+      ]),
+    ],
+  };
+}
+
+function ibScienceHl(opts: { id: string; subject: string; source: string }): PaperShape {
+  return {
+    id: opts.id,
+    qualification: "ib",
+    source: opts.source,
+    year: 2025,
+    note: `IB ${opts.subject} HL (first assessment 2025): Paper 1 2h / 60 (1A 40 MCQ + 1B data) / 36%, Paper 2 2h30 / 90 / 44%. SL is 1h30+1h30. Scientific investigation IA 20% not sat. No Paper 3 / options.`,
+    difficulty: cal(
+      "Paper 1A rapid apply, 1B data/uncertainty/experimental, Paper 2 short + extended. HL depth on AHL content.",
+      "Data / apparatus items MUST set figureBrief (original table, graph, setup). Units and uncertainty matter.",
+      "Do not copy IB specimens. IA is not sat here. No pre-2025 Paper 3 options.",
+    ),
+    papers: [
+      sitting(`${opts.id}-p1`, "Paper 1 · MCQ and data", 120, 60, [
+        mcq(40, 4, 1, "Paper 1A multiple choice. Several with figures."),
+        short(5, 4, "Paper 1B data / experimental. figureBrief required."),
+      ]),
+      sitting(`${opts.id}-p2`, "Paper 2 · Short and extended", 150, 90, [
+        short(10, 3, "Short-response. Several with figures."),
+        written(6, 10, "Extended. At least two figures."),
+      ]),
+    ],
+  };
+}
+
 const NMT_INDEX = "https://testportal.gov.ua/skladnyky-nmt-2026/";
 
 export const PAPER_SHAPES: readonly PaperShape[] = [
@@ -1662,6 +1808,524 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
       ]),
     ],
   },
+  {
+    id: "gcse-electronics",
+    qualification: "gcse",
+    source: "https://www.eduqas.co.uk/qualifications/electronics-gcse/",
+    year: 2017,
+    note: "AQA does not offer GCSE Electronics. Eduqas C490: Component 1 Discovering Electronics 1h30 / 80 / 40%, Component 2 Application of Electronics 1h30 / 80 / 40%, Component 3 NEA 20% not sat. Board is Eduqas — say so in the picker.",
+    difficulty: cal(
+      "Systems, sensing, switching, timing, sequential logic, then applied systems (audio, comms, control). Circuit + calculation.",
+      "Circuit / timing-diagram items MUST set figureBrief (original schematic, not a copyrighted datasheet drawing).",
+      "Do not copy Eduqas SAMs. NEA system build is not sat here.",
+    ),
+    papers: [
+      sitting("gcse-el-c1", "Component 1 · Discovering Electronics", 90, 80, [
+        short(10, 4, "Short / calculate. Several with circuit figures."),
+        written(4, 10, "Structured / synoptic. At least one figure."),
+      ]),
+      sitting("gcse-el-c2", "Component 2 · Application of Electronics", 90, 80, [
+        short(10, 4, "Short / calculate. Several with figures."),
+        written(4, 10, "Applied system. Figure = the system."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-electronics",
+    qualification: "alevel",
+    source: "https://www.eduqas.co.uk/qualifications/electronics-asa-level/",
+    year: 2017,
+    note: "AQA does not offer A-level Electronics. Eduqas A490: Component 1 Principles 2h45 / 140 / 40%, Component 2 Application 2h45 / 140 / 40%, Component 3 NEA 20% not sat. Board is Eduqas — say so in the picker.",
+    difficulty: cal(
+      "DC circuits, semiconductors, timing, sequential, MCHP, then comms, instrumentation, power. Calculation + system design.",
+      "Schematic / timing / Bode items MUST set figureBrief. Original component values.",
+      "Do not copy Eduqas SAMs. NEA extended system is not sat here.",
+    ),
+    papers: [
+      sitting("al-el-c1", "Component 1 · Principles of Electronics", 165, 140, [
+        short(10, 6, "Short / calculate. Several with figures."),
+        written(4, 20, "Extended / QER. At least two figures."),
+      ]),
+      sitting("al-el-c2", "Component 2 · Application of Electronics", 165, 140, [
+        short(10, 6, "Short / calculate. Several with figures."),
+        written(4, 20, "Applied system. Figure = the system."),
+      ]),
+    ],
+  },
+  apMcqFrq({
+    id: "ap-calc-ab",
+    title: "AP Calculus AB",
+    source: "https://apstudents.collegeboard.org/courses/ap-calculus-ab/assessment",
+    year: 2025,
+    note: "College Board AP Calculus AB: 3h10 hybrid. Section I 42 MCQ / 100 min (29 no-calc + 13 calc), Section II 6 FRQ / 90 min (2 calc + 4 no-calc). Same clock as BC; AB content only.",
+    mix: "Limit, derivative, integral, FTC, DE, applications. Graphical / tabular / analytic / verbal.",
+    do: "Graph and table items MUST set figureBrief. Exact AP-style notation. Show the setup, not only the answer.",
+    mcq: { count: 42, minutes: 100, note: "Part A 29 no calculator, Part B 13 calculator. Several with figures." },
+    frq: { count: 6, minutes: 90, maxRaw: 54, note: "Six FRQ (typically 9 points). At least two real-world. Figures on graph items." },
+  }),
+  apMcqFrq({
+    id: "ap-calc-bc",
+    title: "AP Calculus BC",
+    source: "https://apstudents.collegeboard.org/courses/ap-calculus-bc/assessment",
+    year: 2025,
+    note: "College Board AP Calculus BC: same 3h10 clock as AB (42 MCQ / 100, 6 FRQ / 90) plus BC topics (series, parametrics, polar, more integration).",
+    mix: "AB content plus series, polar/parametric, advanced integration. Same four representations.",
+    do: "Graph / series-visual items MUST set figureBrief. BC depth — not an AB paper with extra time.",
+    mcq: { count: 42, minutes: 100, note: "Part A 29 no calculator, Part B 13 calculator. Include BC topics." },
+    frq: { count: 6, minutes: 90, maxRaw: 54, note: "Six FRQ. At least one series or polar/parametric. Figures on graph items." },
+  }),
+  apMcqFrq({
+    id: "ap-stats",
+    title: "AP Statistics",
+    source: "https://apstudents.collegeboard.org/courses/ap-statistics/assessment",
+    year: 2025,
+    note: "College Board AP Statistics: 3h digital. Section I 42 MCQ / 90 min / 50%, Section II 4 FRQ × 10 / 90 min / 50% (inference is Q3).",
+    mix: "Explore, sample, probability, inference. All four statistical practices.",
+    do: "Plot / table items MUST set figureBrief. Original numbers. State hypotheses and conditions.",
+    mcq: { count: 42, minutes: 90 },
+    frq: { count: 4, minutes: 90, maxRaw: 40, note: "Four 10-point FRQ. Q3 is inference. Data figures required." },
+  }),
+  apMcqFrq({
+    id: "ap-physics-1",
+    title: "AP Physics 1",
+    source: "https://apstudents.collegeboard.org/courses/ap-physics-1-algebra-based/assessment",
+    year: 2025,
+    note: "College Board AP Physics 1 (algebra-based): 3h hybrid. Section I 42 MCQ / 85 min, Section II 4 FRQ / 95 min (routines, representations, experimental, qualitative/quantitative).",
+    mix: "Newtonian mechanics, energy, momentum, rotation, waves, circuits — algebra, not calculus.",
+    do: "Diagram / graph items MUST set figureBrief. Show the model, not only the number.",
+    dont: "Do not copy College Board FRQs. No calculus-based Physics C demand.",
+    mcq: { count: 42, minutes: 85, note: "Discrete or stimulus sets. Several with figures." },
+    frq: { count: 4, minutes: 95, maxRaw: 40, note: "Four FRQ types. Experimental-design item needs a figure." },
+  }),
+  {
+    id: "ap-physics-c",
+    qualification: "ap",
+    source: "https://apstudents.collegeboard.org/courses/ap-physics-c-mechanics/assessment",
+    year: 2025,
+    note: "College Board AP Physics C is two separate 3h exams (Mechanics; Electricity and Magnetism). Each: 42 MCQ / 85 min + 4 FRQ / 95 min. Onboarding name is one subject — picker sits all four sections. Calculus required.",
+    difficulty: cal(
+      "Mechanics: kinematics through rotation/gravitation with calculus. E&M: fields, Gauss, circuits, induction with calculus.",
+      "Diagram / field-map items MUST set figureBrief. Derive, do not only quote a formula.",
+      "Do not copy College Board FRQs. No algebra-only Physics 1 demand.",
+    ),
+    papers: [
+      sitting("ap-physc-mech-mcq", "Mechanics · Section I MCQ", 85, 42, [
+        mcq(42, 4, 1, "Mechanics MCQ. Several with figures."),
+      ]),
+      sitting("ap-physc-mech-frq", "Mechanics · Section II FRQ", 95, 40, [
+        written(4, 10, "Four FRQ types. At least two figures."),
+      ]),
+      sitting("ap-physc-em-mcq", "E&M · Section I MCQ", 85, 42, [
+        mcq(42, 4, 1, "E&M MCQ. Field / circuit figures."),
+      ]),
+      sitting("ap-physc-em-frq", "E&M · Section II FRQ", 95, 40, [
+        written(4, 10, "Four FRQ types. At least two figures."),
+      ]),
+    ],
+  },
+  apMcqFrq({
+    id: "ap-chem",
+    title: "AP Chemistry",
+    source: "https://apstudents.collegeboard.org/courses/ap-chemistry/assessment",
+    year: 2025,
+    note: "College Board AP Chemistry: 3h15 hybrid. Section I 60 MCQ / 90 min, Section II 7 FRQ / 105 min (3 long × 10 + 4 short × 4 = 46).",
+    mix: "Structure, bonding, reactions, kinetics, thermo, equilibrium. Models + calculation + claim-evidence.",
+    do: "Particle diagram / graph items MUST set figureBrief. Calculator allowed. Original numbers.",
+    mcq: { count: 60, minutes: 90, note: "Discrete and set-based. Several with figures." },
+    frq: { count: 7, minutes: 105, maxRaw: 46, note: "Three long (10) and four short (4). Lab-design and representation items need figures." },
+  }),
+  apMcqFrq({
+    id: "ap-bio",
+    title: "AP Biology",
+    source: "https://apstudents.collegeboard.org/courses/ap-biology/assessment",
+    year: 2025,
+    note: "College Board AP Biology: 3h hybrid. Section I 60 MCQ / 90 min, Section II 6 FRQ / 90 min (2 long + 4 short).",
+    mix: "Evolution, energetics, information, systems. Science practices: explain, analyze, calculate, claim-evidence.",
+    do: "Graph / model items MUST set figureBrief. Original data. No memorized-only vocab dumps.",
+    mcq: { count: 60, minutes: 90 },
+    frq: { count: 6, minutes: 90, maxRaw: 36, note: "Two long + four short. Experiment / graph items need figures." },
+  }),
+  apMcqFrq({
+    id: "ap-envsci",
+    title: "AP Environmental Science",
+    source: "https://apstudents.collegeboard.org/courses/ap-environmental-science/assessment",
+    year: 2025,
+    note: "College Board AP Environmental Science: 2h40 digital. Section I 80 MCQ / 90 min / 60%, Section II 3 FRQ / 70 min / 40% (investigation, data, calculations).",
+    mix: "Earth systems, biodiversity, populations, earth resources, energy, pollution, global change.",
+    do: "Model / data items MUST set figureBrief. Propose a justified solution, not a slogan.",
+    mcq: { count: 80, minutes: 90 },
+    frq: { count: 3, minutes: 70, maxRaw: 30, note: "Investigation + data + calculation. Each needs a figure." },
+  }),
+  apHistory({
+    id: "ap-ush",
+    title: "AP U.S. History",
+    source: "https://apstudents.collegeboard.org/courses/ap-united-states-history/assessment",
+    span: "1491–2001",
+    dbqSpan: "1754–1980",
+  }),
+  apHistory({
+    id: "ap-world",
+    title: "AP World History: Modern",
+    source: "https://apstudents.collegeboard.org/courses/ap-world-history-modern/assessment",
+    span: "1200–2001",
+    dbqSpan: "1200–2001",
+  }),
+  apHistory({
+    id: "ap-euro",
+    title: "AP European History",
+    source: "https://apstudents.collegeboard.org/courses/ap-european-history/assessment",
+    span: "1450–2001",
+    dbqSpan: "1450–2001",
+  }),
+  apMcqFrq({
+    id: "ap-eng-lang",
+    title: "AP English Language",
+    source: "https://apstudents.collegeboard.org/courses/ap-english-language-and-composition/assessment",
+    year: 2025,
+    note: "College Board AP English Language and Composition: 3h15 digital. Section I 45 MCQ / 60 min / 45% (reading + writing), Section II 3 essays / 135 min including 15-min reading / 55%.",
+    mix: "Nonfiction rhetorical analysis, synthesis of 6 sources, argument. Reading questions + prose-revision questions.",
+    do: "Passage / source items MUST set figureBrief (original excerpt or visual source). Cite at least 3 synthesis sources.",
+    dont: "Do not copy College Board passages or released essays. No fiction-lit paper — that is AP Lit.",
+    mcq: { count: 45, minutes: 60, note: "23–25 reading + 20–22 writing/revision on nonfiction excerpts." },
+    frq: { count: 3, minutes: 135, maxRaw: 18, note: "Synthesis + rhetorical analysis + argument. Synthesis sources need figures." },
+  }),
+  apMcqFrq({
+    id: "ap-eng-lit",
+    title: "AP English Literature",
+    source: "https://apstudents.collegeboard.org/courses/ap-english-literature-and-composition/assessment",
+    year: 2025,
+    note: "College Board AP English Literature and Composition: 3h digital. Section I 55 MCQ / 60 min / 45% (prose + poetry sets), Section II 3 essays / 120 min / 55%. Section times are the long-standing CED split of the published 3h.",
+    mix: "Poetry analysis, prose/drama analysis, literary argument on a work of quality.",
+    do: "Each MCQ set is one original excerpt. Essays quote the passage. Do not paste a copyrighted novel chapter — write a short original extract.",
+    dont: "Do not copy College Board passages. No AP Lang synthesis essay.",
+    mcq: { count: 55, minutes: 60, note: "Five sets, 8–13 each. At least two prose/drama and two poetry." },
+    frq: { count: 3, minutes: 120, maxRaw: 18, note: "Poetry + prose + literary argument." },
+  }),
+  apMcqFrq({
+    id: "ap-csa",
+    title: "AP Computer Science A",
+    source: "https://apstudents.collegeboard.org/courses/ap-computer-science-a/assessment",
+    year: 2025,
+    note: "College Board AP Computer Science A: 3h digital. Section I 42 MCQ / 55%, Section II 4 FRQ / 45% (methods, class design, ArrayList, 2D array). College Board publishes the 3h total; the 90/90 split is the CED section clock.",
+    mix: "Java: objects, control, arrays, ArrayList, 2D, inheritance. Read code and write code.",
+    do: "FRQ stems MAY set figureBrief (UML or sample data). Code in the stem, not as an SVG dump.",
+    mcq: { count: 42, minutes: 90, note: "Trace, equivalence, required-code. Occasional 2-question sets." },
+    frq: { count: 4, minutes: 90, maxRaw: 36, note: "Methods + class + ArrayList + 2D array. Write Java." },
+  }),
+  apMcqFrq({
+    id: "ap-psych",
+    title: "AP Psychology",
+    source: "https://apstudents.collegeboard.org/courses/ap-psychology/assessment",
+    year: 2025,
+    note: "College Board AP Psychology (redesigned): 2h40 digital. Section I 75 MCQ / 90 min / 67%, Section II 2 FRQ / 70 min / 33% (Article Analysis + Evidence-Based Question).",
+    mix: "Apply perspectives and research methods. Evaluate quantitative and qualitative representations.",
+    do: "Table / graph items MUST set figureBrief. AAQ uses an original article excerpt, not an AP released study.",
+    mcq: { count: 75, minutes: 90 },
+    frq: { count: 2, minutes: 70, maxRaw: 14, note: "AAQ + EBQ. Article / evidence figures required." },
+  }),
+  apMcqFrq({
+    id: "ap-micro",
+    title: "AP Microeconomics",
+    source: "https://apstudents.collegeboard.org/courses/ap-microeconomics/assessment",
+    year: 2025,
+    note: "College Board AP Microeconomics: 2h10 hybrid. Section I 60 MCQ / 70 min / 66%, Section II 3 FRQ / 60 min including 10-min reading / 33% (1 long + 2 short).",
+    mix: "Scarcity, supply/demand, elasticity, costs, markets, factor markets, government. Graph + calculate.",
+    do: "Graph items MUST set figureBrief (original S/D, cost, surplus). Label axes.",
+    dont: "Do not copy College Board FRQs. No macro AD/AS paper.",
+    mcq: { count: 60, minutes: 70 },
+    frq: { count: 3, minutes: 60, maxRaw: 21, note: "One long + two short. At least two graphs." },
+  }),
+  apMcqFrq({
+    id: "ap-macro",
+    title: "AP Macroeconomics",
+    source: "https://apstudents.collegeboard.org/courses/ap-macroeconomics/assessment",
+    year: 2025,
+    note: "College Board AP Macroeconomics: 2h10 hybrid. Section I 60 MCQ / 70 min / 66%, Section II 3 FRQ / 60 min including 10-min reading / 33% (1 long + 2 short).",
+    mix: "Indicators, AD/AS, money, policy, growth, trade. Graph + calculate.",
+    do: "Graph items MUST set figureBrief (original AD/AS, money market, Phillips). Label axes.",
+    dont: "Do not copy College Board FRQs. No micro cost-curve paper.",
+    mcq: { count: 60, minutes: 70 },
+    frq: { count: 3, minutes: 60, maxRaw: 21, note: "One long + two short. At least two graphs." },
+  }),
+  apMcqFrq({
+    id: "ap-gov",
+    title: "AP U.S. Government and Politics",
+    source: "https://apstudents.collegeboard.org/courses/ap-united-states-government-and-politics/assessment",
+    year: 2025,
+    note: "College Board AP U.S. Government and Politics: 3h digital. Section I 55 MCQ / 80 min / 50%, Section II 4 FRQ / 100 min / 50% (concept, quantitative, SCOTUS comparison, argument).",
+    mix: "Foundations, branches, civil liberties/rights, ideology, participation. Apply required cases and documents.",
+    do: "Data / document items MUST set figureBrief. SCOTUS comparison uses one required case + one original scenario case — do not paste an AP released pairing.",
+    mcq: { count: 55, minutes: 80 },
+    frq: { count: 4, minutes: 100, maxRaw: 28, note: "Concept + quant + SCOTUS + argument essay. Quant needs a figure." },
+  }),
+  apWorldLanguage({
+    id: "ap-spanish",
+    language: "Spanish",
+    source: "https://apstudents.collegeboard.org/courses/ap-spanish-language-and-culture/assessment",
+  }),
+  apWorldLanguage({
+    id: "ap-french",
+    language: "French",
+    source: "https://apstudents.collegeboard.org/courses/ap-french-language-and-culture/assessment",
+  }),
+  ibMathHl({
+    id: "ib-math-aa",
+    course: "Mathematics: analysis and approaches",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/mathematics/mathematics/",
+  }),
+  ibMathHl({
+    id: "ib-math-ai",
+    course: "Mathematics: applications and interpretation",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/mathematics/mathematics/",
+  }),
+  ibScienceHl({
+    id: "ib-physics",
+    subject: "Physics",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/sciences/physics/",
+  }),
+  ibScienceHl({
+    id: "ib-chemistry",
+    subject: "Chemistry",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/sciences/chemistry/",
+  }),
+  ibScienceHl({
+    id: "ib-biology",
+    subject: "Biology",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/sciences/biology/",
+  }),
+  {
+    id: "ib-ess",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/sciences/ess/",
+    year: 2017,
+    note: "IB Environmental systems and societies: Paper 1 case 1h / 40 / 25%, Paper 2 2h / 65 / 50%, IA 25% not sat. ESS is the interdisciplinary Group 3/4 course — not the same clock as Group 4 Biology/Chemistry/Physics.",
+    difficulty: cal(
+      "Case-study resource booklet, then short + two essays. Systems, models, sustainability.",
+      "Case / data items MUST set figureBrief (original map, table, model). Do not paste a copyrighted satellite image.",
+      "Do not copy IB specimens. IA fieldwork is not sat here. No Group 4 Physics paper.",
+    ),
+    papers: [
+      sitting("ib-ess-p1", "Paper 1 · Case study", 60, 40, [
+        short(8, 5, "Resource-booklet questions. figureBrief for the case plates."),
+      ]),
+      sitting("ib-ess-p2", "Paper 2 · Short and essays", 120, 65, [
+        short(9, 5, "Section A short. Several with figures."),
+        written(2, 10, "Section B two essays."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-history",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/individuals-and-societies/history/",
+    year: 2017,
+    note: "IB History HL: Paper 1 sources 1h / 24 / 20%, Paper 2 world topics 1h30 / 30 / 25%, Paper 3 regional 2h30 / 45 / 35%. SL has no Paper 3. IA 20% not sat. This mock sits HL.",
+    difficulty: cal(
+      "Prescribed-subject sources, then two world-history essays, then three regional essays.",
+      "Paper 1 sources MUST set figureBrief (original text/cartoon/table plates). OPVL. Essays need a thesis and named evidence.",
+      "Do not copy IB specimens or prescribed-subject packs. IA is not sat here.",
+    ),
+    papers: [
+      sitting("ib-hist-p1", "Paper 1 · Sources", 60, 24, [
+        written(4, 6, "Four source questions on one prescribed subject. Figures on the sources."),
+      ]),
+      sitting("ib-hist-p2", "Paper 2 · World history", 90, 30, [
+        written(2, 15, "Two essays from two different world-history topics."),
+      ]),
+      sitting("ib-hist-p3", "Paper 3 · Regional", 150, 45, [
+        written(3, 15, "Three essays from one regional option."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-geography",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/individuals-and-societies/geography/",
+    year: 2019,
+    note: "IB Geography HL: Paper 1 options 2h15 / 60 / 35%, Paper 2 core 1h15 / 50 / 25%, Paper 3 HL core extension 1h / 28 / 20%. SL Paper 1 is 1h30 / 40. IA 20% not sat. This mock sits HL.",
+    difficulty: cal(
+      "Optional themes (structured + essay), then core short + infographic + essay, then HL two-part essay.",
+      "Map / infographic items MUST set figureBrief. Original numbers. Named located examples.",
+      "Do not copy IB specimens. IA fieldwork is not sat here.",
+    ),
+    papers: [
+      sitting("ib-geo-p1", "Paper 1 · Optional themes", 135, 60, [
+        written(3, 10, "Structured on three options. Figures on each."),
+        written(3, 10, "One extended per option."),
+      ]),
+      sitting("ib-geo-p2", "Paper 2 · Global change", 75, 50, [
+        short(6, 5, "Section A structured (30). Several with figures."),
+        short(2, 5, "Section B infographic (10). Figure required."),
+        written(1, 10, "Section C essay (10)."),
+      ]),
+      sitting("ib-geo-p3", "Paper 3 · HL extension", 60, 28, [
+        written(1, 12, "Part A"),
+        written(1, 16, "Part B evaluative"),
+      ]),
+    ],
+  },
+  {
+    id: "ib-economics",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/individuals-and-societies/economics/",
+    year: 2022,
+    note: "IB Economics HL (first assessment 2022): Paper 1 1h15 / 25 / 20%, Paper 2 1h45 / 40 / 30%, Paper 3 1h45 / 60 / 30%. SL has no Paper 3. IA portfolio 20% not sat. This mock sits HL.",
+    difficulty: cal(
+      "Extended response, then data response, then HL policy/quantitative paper.",
+      "Data / diagram items MUST set figureBrief (original AD/AS, PPC, table). Label diagrams.",
+      "Do not copy IB specimens. IA commentary portfolio is not sat here.",
+    ),
+    papers: [
+      sitting("ib-econ-p1", "Paper 1 · Extended response", 75, 25, [
+        written(1, 10, "Part A"),
+        written(1, 15, "Part B evaluative"),
+      ]),
+      sitting("ib-econ-p2", "Paper 2 · Data response", 105, 40, [
+        written(1, 40, "One data-response question. Figure = the data booklet."),
+      ]),
+      sitting("ib-econ-p3", "Paper 3 · HL policy", 105, 60, [
+        short(6, 5, "Calculations / short. Several with figures."),
+        written(2, 15, "Policy recommendation. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-eng-a",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/language-and-literature/",
+    year: 2021,
+    note: "IB Language A (Literature or Language & Literature) HL (first assessment 2021): Paper 1 2h15 / 40 two guided analyses, Paper 2 1h45 / 30 comparative essay. IO / HL essay not sat. This mock sits HL. SL Paper 1 is one analysis / 1h15.",
+    difficulty: cal(
+      "Unseen guided literary (or text) analysis, then a comparative essay on two studied works — here, two original short extracts standing in for studied works.",
+      "Each Paper 1 text MUST set figureBrief or sit in stimulus. Quote. No plot-summary essays.",
+      "Do not copy IB specimens or set-work wording. Orals and the HL essay are not sat here.",
+    ),
+    papers: [
+      sitting("ib-enga-p1", "Paper 1 · Guided analysis", 135, 40, [
+        written(2, 20, "Two unseen texts. Each extract in stimulus / figure."),
+      ]),
+      sitting("ib-enga-p2", "Paper 2 · Comparative", 105, 30, [
+        written(1, 30, "One comparative essay on two works."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-eng-b",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/language-acquisition/",
+    year: 2020,
+    note: "IB Language B HL: Paper 1 writing 1h30 / 30, Paper 2 receptive 2h / 65 (listen + read). Listening is a printed transcript. Individual oral 25% not sat. This mock sits HL.",
+    difficulty: cal(
+      "One written text type at HL, then listening and reading comprehension. Themes: identities, experiences, human ingenuity, social organisation, sharing the planet.",
+      "Listen items MUST set figureBrief (transcript). Reading texts are original. Write in the target language.",
+      "Do not copy IB specimens or audio. Oral is not sat here. No Language A literary essay.",
+    ),
+    papers: [
+      sitting("ib-engb-p1", "Paper 1 · Writing", 90, 30, [
+        written(1, 30, "One HL text type (blog, speech, proposal, article)."),
+      ]),
+      sitting("ib-engb-p2", "Paper 2 · Receptive", 120, 65, [
+        mcq(12, 4, 1, "Listening from a printed transcript. figureBrief per clip."),
+        short(8, 4, "Listening short"),
+        mcq(12, 4, 1, "Reading. figureBrief per extract."),
+        short(5, 5, "Reading short"),
+      ]),
+    ],
+  },
+  {
+    id: "ib-cs",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/sciences/computer-science/",
+    year: 2014,
+    note: "IB Computer Science HL (current until the 2027 first assessment): Paper 1 2h10 / 100, Paper 2 1h20 / 65, Paper 3 case study 1h / 30. IA 20% not sat. This mock sits HL. SL has no Paper 3.",
+    difficulty: cal(
+      "Core theory + OOP/option, then the annually issued case-study paper. Trace, write, evaluate.",
+      "Trace tables / UML MAY set figureBrief. Code in the stem. Paper 3 uses an original case, not the live IB case.",
+      "Do not copy IB specimens or the current official case study. IA is not sat here.",
+    ),
+    papers: [
+      sitting("ib-cs-p1", "Paper 1 · Core", 130, 100, [
+        short(10, 4, "Short / trace. Several with figures."),
+        written(6, 10, "Extended. At least one figure."),
+      ]),
+      sitting("ib-cs-p2", "Paper 2 · Option", 80, 65, [
+        short(5, 5, "Short / code"),
+        written(4, 10, "Extended option (OOP common)."),
+      ]),
+      sitting("ib-cs-p3", "Paper 3 · Case study", 60, 30, [
+        written(4, 7, "Case-study questions. Figure = the case."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-visual-arts",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/the-arts/visual-arts/",
+    year: 2017,
+    note: "IB Visual Arts is 100% coursework: comparative study, process portfolio, exhibition. There is no written exam. Exam Sim sits the written comparative-study / exhibition rationale only — not the studio exhibition.",
+    difficulty: cal(
+      "Compare at least 3 artworks from at least 2 cultures, then a curatorial rationale.",
+      "Each artwork plate MUST set figureBrief (original still-life / location drawing — not a copyrighted museum photo).",
+      "Do not copy IB sample screens. Do not pretend this is the exhibition.",
+    ),
+    papers: [
+      sitting("ib-va-cs", "Comparative study (written)", 90, 30, [
+        written(1, 15, "Compare two works. Figures required."),
+        written(1, 15, "Third work + making connections. Figure required."),
+      ]),
+      sitting("ib-va-ex", "Exhibition rationale (written mock)", 60, 30, [
+        written(1, 30, "Curatorial rationale for a coherent exhibition. Figure = a hanging plan."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-psychology",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/individuals-and-societies/psychology/",
+    year: 2019,
+    note: "IB Psychology HL: Paper 1 2h / 49 (SAQ + essay), Paper 2 2h / 44 (two option essays), Paper 3 1h / 24 research. SL Paper 2 is 1h / one essay, no Paper 3. IA 20% not sat. This mock sits HL.",
+    difficulty: cal(
+      "Approaches SAQ + essay, then two option essays, then three research-methods shorts on an unseen study.",
+      "Unseen-study items MUST set figureBrief (original method plate). Named studies, not invented famous ones.",
+      "Do not copy IB specimens. IA experimental study is not sat here.",
+    ),
+    papers: [
+      sitting("ib-psych-p1", "Paper 1 · Approaches", 120, 49, [
+        written(3, 9, "Three SAQ on the core approaches"),
+        written(1, 22, "One essay. HL essay references AHL."),
+      ]),
+      sitting("ib-psych-p2", "Paper 2 · Options", 120, 44, [
+        written(2, 22, "Two essays from two options."),
+      ]),
+      sitting("ib-psych-p3", "Paper 3 · Research", 60, 24, [
+        written(3, 8, "Three shorts on an unseen study. Figure = the study plate."),
+      ]),
+    ],
+  },
+  {
+    id: "ib-philosophy",
+    qualification: "ib",
+    source: "https://www.ibo.org/programmes/diploma-programme/curriculum/individuals-and-societies/philosophy/",
+    year: 2016,
+    note: "IB Philosophy HL: Paper 1 2h30 / 50, Paper 2 1h / 25, Paper 3 1h15 / 25 unseen text (HL). SL has no Paper 3. IA 20% not sat. This mock sits HL.",
+    difficulty: cal(
+      "Core theme + optional theme essays, then a prescribed-text essay, then HL unseen-text analysis.",
+      "Stimulus items MAY set figureBrief. Argue; do not dump philosopher biographies.",
+      "Do not copy IB unseen texts or prescribed-text wording. IA is not sat here.",
+    ),
+    papers: [
+      sitting("ib-phil-p1", "Paper 1 · Themes", 150, 50, [
+        written(1, 25, "Core theme essay. Stimulus may need a figure."),
+        written(1, 25, "Optional theme essay."),
+      ]),
+      sitting("ib-phil-p2", "Paper 2 · Prescribed text", 60, 25, [
+        written(1, 25, "One essay on a prescribed text — use an original short extract in stimulus, not a copyrighted chapter."),
+      ]),
+      sitting("ib-phil-p3", "Paper 3 · HL unseen", 75, 25, [
+        written(1, 25, "Unseen text. Extract in stimulus."),
+      ]),
+    ],
+  },
 ];
 
 const NMT_ENG_IDS = new Set(["nmt-eng", "nmt-de", "nmt-fr", "nmt-es"]);
@@ -1704,6 +2368,7 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "gcse-spanish", re: /spanish|іспанськ|испанск|español/i },
   { id: "gcse-german", re: /german|німецьк|немецк|deutsch/i },
   { id: "gcse-cs", re: /computer science|computing|\bcs\b|інформатик|информатик/i },
+  { id: "gcse-electronics", re: /electronic/i },
   { id: "gcse-business", re: /business|бізнес|бизнес/i },
   { id: "gcse-economics", re: /econom|економі|экономи/i },
   { id: "gcse-art", re: /art\s*(&|and)?\s*design|fine art|\bart\b|мистецтв|искусств/i },
@@ -1723,6 +2388,7 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "alevel-economics", re: /econom|економі|экономи/i },
   { id: "alevel-psychology", re: /psycholog|психолог/i },
   { id: "alevel-cs", re: /computer science|computing|\bcs\b|інформатик|информатик/i },
+  { id: "alevel-electronics", re: /electronic/i },
   { id: "alevel-business", re: /business|бізнес|бизнес/i },
   { id: "alevel-politics", re: /politic|government and politics|політик|политик/i },
   { id: "alevel-french", re: /french|французьк|французск|français/i },
@@ -1740,6 +2406,41 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "alevel-media", re: /media stud|\bmedia\b|медіа|медиа/i },
   { id: "alevel-dance", re: /dance|хореогр|танц/i },
   { id: "alevel-classics", re: /classic|classical civ|античн|класичн/i },
+  { id: "ap-calc-bc", re: /calculus bc|calc bc/i },
+  { id: "ap-calc-ab", re: /calculus ab|calc ab|calculus(?! bc)/i },
+  { id: "ap-stats", re: /statistic/i },
+  { id: "ap-physics-c", re: /physics c/i },
+  { id: "ap-physics-1", re: /physics 1|physics(?! c)/i },
+  { id: "ap-chem", re: /chem/i },
+  { id: "ap-bio", re: /biolog/i },
+  { id: "ap-envsci", re: /environmental science/i },
+  { id: "ap-world", re: /world history/i },
+  { id: "ap-euro", re: /european history/i },
+  { id: "ap-ush", re: /u\.?s\.? history|united states history|apush/i },
+  { id: "ap-eng-lit", re: /english lit/i },
+  { id: "ap-eng-lang", re: /english lang|english(?! lit)/i },
+  { id: "ap-csa", re: /computer science|cs a|\bcsa\b/i },
+  { id: "ap-psych", re: /psycholog/i },
+  { id: "ap-micro", re: /micro/i },
+  { id: "ap-macro", re: /macro/i },
+  { id: "ap-gov", re: /government|gov(ernment)? and politic/i },
+  { id: "ap-spanish", re: /spanish|español/i },
+  { id: "ap-french", re: /french|français/i },
+  { id: "ib-math-aa", re: /analysis and approaches|\baa\b/i },
+  { id: "ib-math-ai", re: /applications and interpretation|\bai\b/i },
+  { id: "ib-ess", re: /environmental system/i },
+  { id: "ib-physics", re: /physics/i },
+  { id: "ib-chemistry", re: /chem/i },
+  { id: "ib-biology", re: /biolog/i },
+  { id: "ib-history", re: /histor/i },
+  { id: "ib-geography", re: /geograph/i },
+  { id: "ib-economics", re: /econom/i },
+  { id: "ib-eng-a", re: /english a|language a|literature/i },
+  { id: "ib-eng-b", re: /english b|language b/i },
+  { id: "ib-cs", re: /computer science|computing/i },
+  { id: "ib-visual-arts", re: /visual art/i },
+  { id: "ib-psychology", re: /psycholog/i },
+  { id: "ib-philosophy", re: /philosoph/i },
 ];
 
 const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(

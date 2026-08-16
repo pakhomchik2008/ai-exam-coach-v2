@@ -93,6 +93,7 @@ describe("paperShapeFor", () => {
     ["A-Level Environmental Science", "alevel-envsci", [180, 180], [120, 120]],
     ["A-Level Dance", "alevel-dance", [150], [100]],
     ["A-Level Classical Civilisation", "alevel-classics", [140, 105, 105], [100, 75, 75]],
+    ["A-Level Electronics", "alevel-electronics", [165, 165], [140, 140]],
   ] as const)("sits %s on the official shape, not a generic mock", (name, id, minutes, maxRaw) => {
     const shape = paperShapeFor({ qualificationId: "alevel", name });
     expect(shape?.id).toBe(id);
@@ -114,6 +115,7 @@ describe("paperShapeFor", () => {
     ["GCSE Physical Education", "gcse-pe", [75, 75], [78, 78]],
     ["GCSE Art & Design", "gcse-art", [90, 90], [96, 96]],
     ["GCSE Music", "gcse-music", [90], [96]],
+    ["GCSE Electronics", "gcse-electronics", [90, 90], [80, 80]],
   ] as const)("sits %s on the AQA GCSE shape, not a generic mock", (name, id, minutes, maxRaw) => {
     const shape = paperShapeFor({ qualificationId: "gcse", name });
     expect(shape?.id).toBe(id);
@@ -151,12 +153,90 @@ describe("paperShapeFor", () => {
     expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Geography" })?.id).toBe("alevel-geography");
   });
 
-  it("keeps Electronics unofficial", () => {
-    expect(specFor("alevel", 6, "A-Level Electronics").official).toBe(false);
+  it.each([
+    ["AP Calculus AB", "ap-calc-ab", [100, 90], [42, 54]],
+    ["AP Calculus BC", "ap-calc-bc", [100, 90], [42, 54]],
+    ["AP Statistics", "ap-stats", [90, 90], [42, 40]],
+    ["AP Physics 1", "ap-physics-1", [85, 95], [42, 40]],
+    ["AP Physics C", "ap-physics-c", [85, 95, 85, 95], [42, 40, 42, 40]],
+    ["AP Chemistry", "ap-chem", [90, 105], [60, 46]],
+    ["AP Biology", "ap-bio", [90, 90], [60, 36]],
+    ["AP Environmental Science", "ap-envsci", [90, 70], [80, 30]],
+    ["AP US History", "ap-ush", [55, 40, 100], [55, 9, 13]],
+    ["AP World History", "ap-world", [55, 40, 100], [55, 9, 13]],
+    ["AP European History", "ap-euro", [55, 40, 100], [55, 9, 13]],
+    ["AP English Language", "ap-eng-lang", [60, 135], [45, 18]],
+    ["AP English Literature", "ap-eng-lit", [60, 120], [55, 18]],
+    ["AP Computer Science A", "ap-csa", [90, 90], [42, 36]],
+    ["AP Psychology", "ap-psych", [90, 70], [75, 14]],
+    ["AP Economics (Micro)", "ap-micro", [70, 60], [60, 21]],
+    ["AP Economics (Macro)", "ap-macro", [70, 60], [60, 21]],
+    ["AP US Government", "ap-gov", [80, 100], [55, 28]],
+    ["AP Spanish", "ap-spanish", [70, 80], [50, 55]],
+    ["AP French", "ap-french", [70, 80], [50, 55]],
+  ] as const)("sits %s on the College Board AP shape, not a generic mock", (name, id, minutes, maxRaw) => {
+    const shape = paperShapeFor({ qualificationId: "ap", name });
+    expect(shape?.id).toBe(id);
+    expect(shape?.papers.map((p) => p.minutes)).toEqual([...minutes]);
+    expect(shape?.papers.map((p) => p.maxRaw)).toEqual([...maxRaw]);
+    expect(specFor("ap", 6, name).official).toBe(true);
+  });
+
+  it.each([
+    ["IB Mathematics AA", "ib-math-aa", [120, 120, 60], [110, 110, 55]],
+    ["IB Mathematics AI", "ib-math-ai", [120, 120, 60], [110, 110, 55]],
+    ["IB Physics", "ib-physics", [120, 150], [60, 90]],
+    ["IB Chemistry", "ib-chemistry", [120, 150], [60, 90]],
+    ["IB Biology", "ib-biology", [120, 150], [60, 90]],
+    ["IB Environmental Systems", "ib-ess", [60, 120], [40, 65]],
+    ["IB History", "ib-history", [60, 90, 150], [24, 30, 45]],
+    ["IB Geography", "ib-geography", [135, 75, 60], [60, 50, 28]],
+    ["IB Economics", "ib-economics", [75, 105, 105], [25, 40, 60]],
+    ["IB English A", "ib-eng-a", [135, 105], [40, 30]],
+    ["IB English B", "ib-eng-b", [90, 120], [30, 65]],
+    ["IB Computer Science", "ib-cs", [130, 80, 60], [100, 65, 30]],
+    ["IB Visual Arts", "ib-visual-arts", [90, 60], [30, 30]],
+    ["IB Psychology", "ib-psychology", [120, 120, 60], [49, 44, 24]],
+    ["IB Philosophy", "ib-philosophy", [150, 60, 75], [50, 25, 25]],
+  ] as const)("sits %s on the IB HL shape, not a generic mock", (name, id, minutes, maxRaw) => {
+    const shape = paperShapeFor({ qualificationId: "ib", name });
+    expect(shape?.id).toBe(id);
+    expect(shape?.papers.map((p) => p.minutes)).toEqual([...minutes]);
+    expect(shape?.papers.map((p) => p.maxRaw)).toEqual([...maxRaw]);
+    expect(specFor("ib", 6, name).official).toBe(true);
+  });
+
+  it("does not let AP Calculus BC fall through to AB", () => {
+    expect(paperShapeFor({ qualificationId: "ap", name: "AP Calculus BC" })?.id).toBe("ap-calc-bc");
+    expect(paperShapeFor({ qualificationId: "ap", name: "AP Calculus AB" })?.id).toBe("ap-calc-ab");
+  });
+
+  it("does not let AP Physics C fall through to Physics 1", () => {
+    expect(paperShapeFor({ qualificationId: "ap", name: "AP Physics C" })?.id).toBe("ap-physics-c");
+    expect(paperShapeFor({ qualificationId: "ap", name: "AP Physics 1" })?.id).toBe("ap-physics-1");
+  });
+
+  it("does not let AP Micro fall through to Macro", () => {
+    expect(paperShapeFor({ qualificationId: "ap", name: "AP Economics (Micro)" })?.id).toBe("ap-micro");
+    expect(paperShapeFor({ qualificationId: "ap", name: "AP Economics (Macro)" })?.id).toBe("ap-macro");
+  });
+
+  it("does not let IB Mathematics AA fall through to AI", () => {
+    expect(paperShapeFor({ qualificationId: "ib", name: "Mathematics AA" })?.id).toBe("ib-math-aa");
+    expect(paperShapeFor({ qualificationId: "ib", name: "Mathematics AI" })?.id).toBe("ib-math-ai");
+  });
+
+  it("does not let IB English A fall through to English B", () => {
+    expect(paperShapeFor({ qualificationId: "ib", name: "English A" })?.id).toBe("ib-eng-a");
+    expect(paperShapeFor({ qualificationId: "ib", name: "English B" })?.id).toBe("ib-eng-b");
+  });
+
+  it("keeps university modules unofficial — no public board", () => {
+    expect(specFor("uni", 6, "University Mathematics").official).toBe(false);
   });
 
   it("does not call a bare GCSE official", () => {
-    const spec = specFor("gcse", 6, "GCSE Electronics");
+    const spec = specFor("gcse", 6, "GCSE Food Technology");
     expect(spec.official).toBe(false);
   });
 
