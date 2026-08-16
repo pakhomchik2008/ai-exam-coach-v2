@@ -13,6 +13,14 @@ import { renderCoachMarkdown } from "../../lib/math-render";
 import { sanitizeSvg } from "../../lib/svg-sanitize";
 import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
+import {
+  OPTION_LETTERS,
+  normalizeSimQuestion,
+  paperShapeFor,
+  scoreSimAnswer,
+  sectionGenerationPrompt,
+  sittingById,
+} from "../../lib/paper-shapes";
 import { ExamRecap } from "../study/ExamRecap.jsx";
 import { WaitPress } from "../../components/WaitPress";
 import { ListenClip } from "../../components/ListenClip";
@@ -1792,6 +1800,72 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
 }
 
+function _simItemFields(q, idx, answers, setAnswers) {
+  const current = answers[idx];
+  const set = (value) => setAnswers((a) => { const next = [...a]; next[idx] = value; return next; });
+  const choice = (on, label, onClick, key) => React.createElement("button", {
+    key, type: "button", onClick,
+    style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: on ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${on ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: on ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)" },
+  }, label);
+
+  if (q.kind === "short" || q.kind === "written") {
+    return React.createElement("div", null,
+      q.stimulus ? React.createElement("div", { style: { fontSize: 14, lineHeight: 1.6, color: "var(--text-body)", marginBottom: 12, padding: 12, background: "var(--slate-50)", borderRadius: 12 }, dangerouslySetInnerHTML: { __html: _md(q.stimulus) } }) : null,
+      React.createElement(q.kind === "written" ? "textarea" : "input", {
+        value: current || "",
+        onChange: (e) => set(e.target.value),
+        rows: q.kind === "written" ? 8 : undefined,
+        placeholder: q.kind === "written" ? "Write your answer…" : "",
+        style: { width: "100%", padding: "12px 14px", borderRadius: 12, border: "1.5px solid var(--border-default)", fontFamily: "var(--font-sans)", fontSize: 15, minHeight: q.kind === "written" ? 160 : 44 },
+      }),
+    );
+  }
+  if (q.kind === "match") {
+    const got = Array.isArray(current) ? current : new Array((q.left || []).length).fill(null);
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 12 } },
+      ...(q.left || []).map((stem, i) => React.createElement("div", { key: i },
+        React.createElement("p", { style: { margin: "0 0 6px", fontWeight: 600, fontSize: 14 }, dangerouslySetInnerHTML: { __html: _md(`${i + 1}. ${stem}`) } }),
+        React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } },
+          ...(q.right || []).map((opt, ri) => choice(got[i] === ri, `${OPTION_LETTERS[ri] || ri} · ${opt}`, () => {
+            const next = [...got]; next[i] = ri; set(next);
+          }, `${i}-${ri}`))))));
+  }
+  if (q.kind === "order") {
+    const got = Array.isArray(current) ? current : [];
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+      React.createElement("p", { style: { margin: 0, fontSize: 12, color: "var(--text-muted)" } }, "Tap in chronological order"),
+      ...(q.items || []).map((item, i) => {
+        const pos = got.indexOf(i);
+        return choice(pos >= 0, `${pos >= 0 ? pos + 1 : "·"}  ${item}`, () => {
+          if (pos >= 0) set(got.filter((x) => x !== i));
+          else set([...got, i]);
+        }, i);
+      }));
+  }
+  if (q.kind === "multi") {
+    const got = new Set(Array.isArray(current) ? current : []);
+    return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+      ...(q.options || []).map((opt, i) => choice(got.has(i), `${OPTION_LETTERS[i] || i}  ${opt}`, () => {
+        const next = new Set(got);
+        if (next.has(i)) next.delete(i); else next.add(i);
+        set([...next]);
+      }, i)));
+  }
+  if (q.kind === "groups") {
+    const got = Array.isArray(current) ? current : new Array((q.columns || []).length).fill(null);
+    return React.createElement("div", { style: { display: "grid", gridTemplateColumns: `repeat(${Math.max(1, (q.columns || []).length)}, 1fr)`, gap: 10 } },
+      ...(q.columns || []).map((col, ci) => React.createElement("div", { key: ci, style: { display: "flex", flexDirection: "column", gap: 6 } },
+        ...(col || []).map((opt, ri) => choice(got[ci] === ri, opt, () => {
+          const next = [...got]; next[ci] = ri; set(next);
+        }, `${ci}-${ri}`)))));
+  }
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
+    ...(q.options || []).map((opt, i) => choice(current === i, [
+      React.createElement("span", { key: "l", style: { width: 28, height: 28, borderRadius: 8, background: current === i ? "var(--indigo-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: current === i ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, OPTION_LETTERS[i] || String(i + 1)),
+      React.createElement("span", { key: "t", style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }),
+    ], () => set(i), i)));
+}
+
 // ─── EXAM SIMULATION ─────────────────────────────────────────────────────────
 // A full timed mock exam for ONE subject, covering ALL of its topics (not just
 // weak ones) — distinct from Practice (untimed, topic-picked, reveals per
@@ -1820,21 +1894,29 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
   const [ieltsModule, setIeltsModule] = React.useState("academic");
   const [ieltsPaper, setIeltsPaper] = React.useState("reading");
   const [ieltsRun, setIeltsRun] = React.useState(null);
+  const [paperId, setPaperId] = React.useState(null);
 
   const selectedExam = examViews.find((e) => e.id === examId) || examViews[0] || null;
   const examTopics = selectedExam ? (selectedExam.topics || []).map((t) => t.topicName || t.name).filter(Boolean) : [];
-  // Resolve the exam's qualification (nmt/sat/...) — course-backed exams carry
-  // it on the Course's curriculumRef, legacy exams directly — to pick the
-  // named spec (src/lib/exam-specs.ts); specFor() falls back to a
-  // topic-count heuristic for anything unlisted.
   const examQual = React.useMemo(
     () => _qualificationOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null),
     [examId]
   );
-  const spec = React.useMemo(() => specFor(examQual, examTopics.length), [examQual, examTopics.length]);
+  const paperShape = React.useMemo(
+    () => paperShapeFor({ qualificationId: examQual, name: selectedExam?.name }),
+    [examQual, selectedExam?.name],
+  );
+  React.useEffect(() => {
+    setPaperId(paperShape?.papers[0]?.id || null);
+  }, [examId, paperShape?.id]);
+  const spec = React.useMemo(
+    () => specFor(examQual, examTopics.length, selectedExam?.name, paperId),
+    [examQual, examTopics.length, selectedExam?.name, paperId],
+  );
   const questionCount = spec.questionCount;
   const styleNote = spec.note;
   const estMinutes = spec.durationMin;
+  const sitting = spec.sitting || sittingById(paperShape, paperId);
 
   const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -1845,14 +1927,15 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
     let correctCount = 0;
     questions.forEach((q, i) => {
       const sel = answers[i];
-      if (sel === null || sel === undefined) return; // unanswered — no signal to record, but still counts wrong in the score below
-      const isCorrect = sel === q.correct;
+      if (sel === null || sel === undefined || sel === "") return;
+      const scored = scoreSimAnswer(q, sel);
+      const isCorrect = scored.correct;
       if (isCorrect) correctCount++;
       const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
       if (resolved && window.recordReview) {
         window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
       }
-      if (!isCorrect && resolved && window.logMistake) {
+      if (!isCorrect && resolved && window.logMistake && q.kind === "mcq") {
         window.logMistake({
           topic: resolved?.topicName || q.topic, question: q.question,
           options: q.options, correctIndex: q.correct, selectedIndex: sel, explanation: q.explanation,
@@ -1903,62 +1986,65 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
       }
       setPhase("loading"); setError(null); finishedRef.current = false; setAutoSubmitted(false);
       setStartedAt(Date.now());
-      // Generate in PARALLEL CHUNKS of ~6 questions each, not one giant call.
-      // A single 20-24 question request with explanations regularly blew past
-      // the 60s budget or returned truncated/invalid JSON on the fast model —
-      // that was the "Couldn't generate exam / Took too long" bug. Small chunks
-      // each finish quickly, run concurrently, and a chunk that fails just
-      // trims the paper instead of failing the whole exam.
       try {
         const topics = examTopics.length > 0 ? examTopics : [selectedExam.name];
-        const CHUNK = 6;
-        const numChunks = Math.max(1, Math.ceil(questionCount / CHUNK));
-        const perChunk = Math.ceil(questionCount / numChunks);
-        // Round-robin the topics across chunks so coverage is even.
-        const chunkTopics = Array.from({ length: numChunks }, (_, i) => {
-          const ts = topics.filter((_, j) => j % numChunks === i);
-          return ts.length ? ts : topics.slice(0, Math.min(3, topics.length));
-        });
-        const makeChunk = (ts) => {
-          const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
+        const examPaperQual = _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null);
+        const raceJson = (system, user) => {
+          const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
+          return Promise.race([window.brainCompleteJSON({ system, messages: [{ role: "user", content: user }], paperQual: examPaperQual }), to]);
+        };
+        let all = [];
+        if (sitting) {
+          // One call per official section so НМТ math is 15×5 + pairs + short,
+          // not 18 four-option MCQs. A dead section trims that form only.
+          const parts = await Promise.all(sitting.sections.map(async (section) => {
+            try {
+              const system = sectionGenerationPrompt({ examName: selectedExam.name, styleNote, topics, section });
+              const raw = await raceJson(system, `Generate ${section.count} ${section.kind} items.`);
+              const rows = Array.isArray(raw && raw.questions) ? raw.questions : [];
+              return rows.map((row) => normalizeSimQuestion(row, section.kind)).filter(Boolean).slice(0, section.count);
+            } catch (err) {
+              console.warn("exam-sim: section failed —", err.message || err);
+              return [];
+            }
+          }));
+          all = parts.flat();
+        } else {
+          const CHUNK = 6;
+          const numChunks = Math.max(1, Math.ceil(questionCount / CHUNK));
+          const perChunk = Math.ceil(questionCount / numChunks);
+          const chunkTopics = Array.from({ length: numChunks }, (_, i) => {
+            const ts = topics.filter((_, j) => j % numChunks === i);
+            return ts.length ? ts : topics.slice(0, Math.min(3, topics.length));
+          });
+          const makeChunk = (ts) => {
+            const system = `You are an exam board writing part of a real mock paper for "${selectedExam.name}". ${styleNote} Write exactly ${perChunk} exam-style multiple-choice questions on these topics: ${ts.join(", ")}.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
-FORMAT: {"questions":[{"question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
+FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
 RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.
 ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
-          const to = new Promise((_, rej) => setTimeout(() => rej(new Error("chunk timeout")), 45000));
-          return Promise.race([window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Generate ${perChunk} questions on: ${ts.join(", ")}` }], paperQual: _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null) }), to])
-            .then((p) => (Array.isArray(p && p.questions) ? p.questions : []))
-            // A dead chunk must not kill the paper, but it must not vanish
-            // either — the recap counts what is missing.
-            .catch((err) => { console.warn("exam-sim: chunk failed —", err.message || err); return []; });
-        };
-        const chunks = await Promise.all(chunkTopics.map(makeChunk));
-        // Merge, lint, cap at target count. Lint runs before the slice so a
-        // rejected question is replaced by a spare from another chunk rather
-        // than shortening the paper.
-        const merged = chunks.flat().filter((q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 && typeof q.correct === "number");
-        const examPaperQual = _paperQualOf(window.getExams ? window.getExams().find((e) => e.id === examId) : null);
-        const linted = filterMcqBatch(merged, { language: paperLanguageFor(examPaperQual) });
+            return raceJson(system, `Generate ${perChunk} questions on: ${ts.join(", ")}`)
+              .then((p) => (Array.isArray(p && p.questions) ? p.questions : []))
+              .catch((err) => { console.warn("exam-sim: chunk failed —", err.message || err); return []; });
+          };
+          const chunks = await Promise.all(chunkTopics.map(makeChunk));
+          all = chunks.flat().map((row) => normalizeSimQuestion(row, "mcq")).filter(Boolean);
+        }
+        const mcqRows = all.filter((q) => q.kind === "mcq");
+        const otherRows = all.filter((q) => q.kind !== "mcq");
+        const linted = filterMcqBatch(mcqRows, { language: paperLanguageFor(examPaperQual) });
         reportRejections("exam-sim", linted.rejected);
         setDroppedCount(linted.rejected.length);
-        const rawAll = linted.kept.slice(0, questionCount);
+        const rawAll = sitting ? [...linted.kept, ...otherRows] : linted.kept.slice(0, questionCount);
         if (rawAll.length === 0) throw new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."));
-        // Novelty pass across the whole assembled paper. Retry regenerates
-        // one extra chunk covering all topics — cheaper than another
-        // full-paper generation, and dedupeAgainstQuestionBank only pulls the
-        // replacements it actually needs. taxonomy = the exam's qualification
-        // (nmt/sat/…), the same key ai_question_bank partitions by.
         const examTaxonomyLocal = examQual || (selectedExam && selectedExam.id) || "examsim";
-        const all = await dedupeAgainstQuestionBank(rawAll, examTaxonomyLocal, () => makeChunk(topics));
-        // An official-spec paper keeps its full named time budget even if a
-        // chunk failure shortened the actual question count — the point of
-        // "official format" is the clock matching the real thing, not
-        // shrinking alongside a generation hiccup. An unlisted qualification
-        // has no such budget to protect, so it stays proportional to what
-        // was actually generated.
-        const secs = spec.official ? spec.durationMin * 60 : Math.round(all.length * 1.5) * 60;
-        setQuestions(all);
-        setAnswers(new Array(all.length).fill(null));
+        const mcqForBank = rawAll.filter((q) => q.kind === "mcq");
+        const restForBank = rawAll.filter((q) => q.kind !== "mcq");
+        const dedupedMcq = await dedupeAgainstQuestionBank(mcqForBank, examTaxonomyLocal, async () => []);
+        const assembled = [...dedupedMcq, ...restForBank];
+        const secs = spec.official ? spec.durationMin * 60 : Math.round(assembled.length * 1.5) * 60;
+        setQuestions(assembled);
+        setAnswers(new Array(assembled.length).fill(null));
         setIdx(0);
         setTimeLeft(secs);
         setTimeLimitSec(secs);
@@ -1974,7 +2060,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
       React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20 } },
         React.createElement("button", { onClick: onExit, style: { background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)", padding: 0 } }, "←"),
         React.createElement("h2", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, L("📝 Exam Simulation", "📝 Симуляція іспиту", "📝 Симуляция экзамена", "📝 Simulation d'examen", "📝 Prüfungssimulation"))),
-      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, L("A full timed mock exam covering every topic in one subject — no answers revealed until you submit, just like the real thing.", "Повноцінний пробний іспит з таймером, що охоплює всі теми одного предмета — відповіді не показуються, доки ви не здасте, як на справжньому іспиті.", "Полноценный пробный экзамен с таймером, охватывающий все темы одного предмета — ответы не показываются, пока вы не сдадите, как на настоящем экзамене.", "Un examen blanc chronométré complet couvrant tous les sujets d'une matière — aucune réponse révélée avant la soumission, comme un vrai examen.", "Eine vollständige zeitlich begrenzte Testprüfung, die alle Themen eines Fachs abdeckt — keine Antworten werden angezeigt, bis du abgibst, genau wie in echt.")),
+      React.createElement("p", { style: { fontSize: 13, color: "var(--text-muted)", margin: "0 0 20px" } }, L("Timed mock in this subject's official forms. Original items — no past-paper bank, no file required.", "Пробний іспит у офіційних формах цього предмета. Нові завдання — без банку минулих робіт, файл не потрібен.", "Пробный экзамен в официальных формах этого предмета. Новые задания — без банка прошлых работ, файл не нужен.", "Examen blanc dans les formes officielles de cette matière. Items originaux — pas de banque, fichier facultatif.", "Zeitprüfung in den offiziellen Formen dieses Fachs. Originale Items — keine Altklausur-Bank, keine Datei nötig.")),
 
       error && React.createElement("div", { style: { padding: "12px 16px", background: "var(--red-50)", border: "1px solid var(--red-400)", borderRadius: 12, marginBottom: 16 } },
         React.createElement("p", { style: { margin: 0, fontSize: 13, color: "var(--red-700)" } }, error)),
@@ -1996,23 +2082,27 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
         ],
       }),
 
-      // Real vs Practice made visible (Phase 3 §3b): only a named spec can
-      // honestly claim to mirror an exam's official shape — everything else
-      // is a generic mock, and the copy says so rather than implying more
-      // precision than the fallback heuristic actually has.
+      !isIeltsQual(examQual) && paperShape && paperShape.papers.length > 1 && React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 } },
+        ...paperShape.papers.map((paper) => React.createElement("button", {
+          key: paper.id, type: "button", onClick: () => setPaperId(paper.id),
+          style: { padding: "8px 14px", fontSize: 13, fontWeight: 600, borderRadius: 20, border: `1.5px solid ${paperId === paper.id ? "var(--indigo-500)" : "var(--border-default)"}`, background: paperId === paper.id ? "var(--indigo-50)" : "var(--surface-card)", color: paperId === paper.id ? "var(--indigo-700)" : "var(--text-muted)", cursor: "pointer", fontFamily: "var(--font-sans)" },
+        }, `${paper.label} · ${paper.questionCount} · ${paper.minutes}m`))),
+
       selectedExam && spec.official && React.createElement("div", {
         style: { display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "var(--emerald-50)", border: "1px solid var(--emerald-100)", borderRadius: 999, marginBottom: 12, fontSize: 11, fontWeight: 700, color: "var(--emerald-700)" }
-      }, "✓ ", L(`Official ${examQual?.toUpperCase()} format`, `Офіційний формат ${examQual?.toUpperCase()}`, `Официальный формат ${examQual?.toUpperCase()}`, `Format officiel ${examQual?.toUpperCase()}`, `Offizielles ${examQual?.toUpperCase()}-Format`)),
+      }, "✓ ", sitting?.label || L("Official sitting", "Офіційна форма", "Официальная форма", "Forme officielle", "Offizielle Form")),
+
+      selectedExam && !spec.official && !isIeltsQual(examQual) && React.createElement("p", { style: { fontSize: 12, color: "var(--text-muted)", margin: "0 0 12px" } }, L("No verified paper shape for this subject yet — generic mock, not an official sitting.", "Для цього предмета ще немає звіреної форми — загальний мок, не офіційна сесія.", "Для этого предмета ещё нет сверенной формы — общий мок, не официальная сессия.", "Pas encore de forme vérifiée — mock générique.", "Noch keine geprüfte Form — generischer Mock.")),
 
       selectedExam && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 12, padding: "14px 8px" } },
         ...[
           isIeltsQual(examQual) && ieltsPaper === "writing"
             ? { val: "2", label: L("Tasks", "Завдання", "Задания", "Tâches", "Aufgaben") }
             : { val: isIeltsQual(examQual) ? 40 : questionCount, label: L("Questions", "Питання", "Вопросы", "Questions", "Fragen") },
-          { val: isIeltsQual(examQual) ? "60m" : `~${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
+          { val: isIeltsQual(examQual) ? "60m" : `${estMinutes}m`, label: L("Time limit", "Ліміт часу", "Лимит времени", "Limite de temps", "Zeitlimit") },
           isIeltsQual(examQual)
             ? { val: ieltsPaper === "writing" ? "T1+T2" : "3", label: ieltsPaper === "writing" ? L("Paper", "Папір", "Бумага", "Épreuve", "Teil") : L("Passages", "Тексти", "Тексты", "Textes", "Texte") }
-            : { val: examTopics.length || L("All", "Усі", "Все", "Tous", "Alle"), label: L("Topics", "Теми", "Темы", "Sujets", "Themen") },
+            : { val: sitting ? sitting.sections.length : (examTopics.length || L("All", "Усі", "Все", "Tous", "Alle")), label: sitting ? L("Sections", "Секції", "Секции", "Sections", "Teile") : L("Topics", "Теми", "Темы", "Sujets", "Themen") },
         ].map((s, i) => React.createElement("div", { key: i, style: { textAlign: "center" } },
           React.createElement("p", { style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.val),
           React.createElement("p", { style: { margin: "2px 0 0", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase" } }, s.label)))),
@@ -2032,8 +2122,8 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
   // ── Summary ──
   if (phase === "summary") {
     const total = questions.length;
-    const answeredCount = answers.filter((a) => a !== null && a !== undefined).length;
-    const correctCount = questions.filter((q, i) => answers[i] === q.correct).length;
+    const answeredCount = answers.filter((a) => a !== null && a !== undefined && a !== "").length;
+    const correctCount = questions.filter((q, i) => scoreSimAnswer(q, answers[i]).correct).length;
     const pct = Math.round((correctCount / total) * 100);
     const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0); // display only — actually awarded once in finishExam()
     // The old "Predicted grade: B" badge is gone: ExamRecap reports the score
@@ -2046,7 +2136,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
       const tp = q.topic || L("Unknown", "Невідомо", "Неизвестно", "Inconnu", "Unbekannt");
       if (!byTopic[tp]) byTopic[tp] = { correct: 0, total: 0 };
       byTopic[tp].total++;
-      if (answers[i] === q.correct) byTopic[tp].correct++;
+      if (scoreSimAnswer(q, answers[i]).correct) byTopic[tp].correct++;
     });
     const weakTopics = Object.entries(byTopic).filter(([, v]) => v.correct / v.total < 0.5).map(([k]) => k);
 
@@ -2086,7 +2176,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
   if (!questions) return null;
   const q = questions[idx];
   const total = questions.length;
-  const answeredCount = answers.filter((a) => a !== null && a !== undefined).length;
+  const answeredCount = answers.filter((a) => a !== null && a !== undefined && a !== "").length;
   const unansweredCount = total - answeredCount;
 
   return React.createElement("div", { style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
@@ -2120,17 +2210,9 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "0 20px 80px" } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
+        q.kind && q.kind !== "mcq" && React.createElement("div", { style: { marginBottom: 8 } }, _badge("var(--slate-100)", "var(--text-muted)", q.kind)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
-        React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
-          ...(q.options || []).map((opt, i) => {
-            const isSel = answers[idx] === i;
-            return React.createElement("button", {
-              key: i, onClick: () => setAnswers((a) => { const next = [...a]; next[idx] = i; return next; }),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: isSel ? "var(--indigo-50)" : "var(--surface-card)", border: `1.5px solid ${isSel ? "var(--indigo-500)" : "var(--border-default)"}`, borderRadius: 14, color: isSel ? "var(--indigo-700)" : "var(--text-body)", fontSize: 14, textAlign: "left", cursor: "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
-            },
-              React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: isSel ? "var(--indigo-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: isSel ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
-              React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
-          })))),
+        _simItemFields(q, idx, answers, setAnswers))),
 
     // Prev / Next navigation
     React.createElement("div", { style: { padding: "12px 20px 20px", display: "flex", gap: 10 } },
