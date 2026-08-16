@@ -253,10 +253,118 @@ describe("paperShapeFor", () => {
     expect(paperShapeFor({ qualificationId: "uni", name: "History" })?.id).toBe("uni-history");
   });
 
+  it.each([
+    ["ACT Math", "act", "act-math", [50], [45]],
+    ["ACT English", "act", "act-english", [35], [50]],
+    ["ACT Reading", "act", "act-reading", [40], [36]],
+    ["ACT Science", "act", "act-science", [40], [40]],
+    ["Matura Matematyka", "matura", "matura-math", [180, 180], [50, 50]],
+    ["Matura Język polski", "matura", "matura-polski", [240, 210], [70, 50]],
+    ["Matura Język angielski", "matura", "matura-eng", [120, 150], [50, 50]],
+    ["Matura Język niemiecki", "matura", "matura-eng", [120, 150], [50, 50]],
+    ["Matura Język rosyjski", "matura", "matura-eng", [120, 150], [50, 50]],
+    ["Matura Biologia", "matura", "matura-science", [180], [60]],
+    ["Matura Chemia", "matura", "matura-science", [180], [60]],
+    ["Matura Fizyka", "matura", "matura-science", [180], [60]],
+    ["Matura Geografia", "matura", "matura-science", [180], [60]],
+    ["Matura Historia", "matura", "matura-hist", [180], [60]],
+    ["Matura Wiedza o społeczeństwie", "matura", "matura-hist", [180], [60]],
+    ["Matura Informatyka", "matura", "matura-it", [60, 150], [20, 30]],
+    ["Bac Français", "bac", "bac-francais", [240], [20]],
+    ["Bac Philosophie", "bac", "bac-philo", [240], [20]],
+    ["Bac Grand oral", "bac", "bac-oral", [20], [20]],
+    ["Bac Mathématiques", "bac", "bac-math", [240], [20]],
+    ["Bac Physique-Chimie", "bac", "bac-pc", [210], [20]],
+    ["Bac SVT", "bac", "bac-svt", [210], [20]],
+    ["Bac SES", "bac", "bac-ses", [240], [20]],
+    ["Bac NSI", "bac", "bac-nsi", [210], [20]],
+    ["Bac HGGSP", "bac", "bac-hggsp", [240], [20]],
+    ["Bac HLP", "bac", "bac-hlp", [240], [20]],
+    ["Bac LLCER Anglais", "bac", "bac-llcer", [210], [20]],
+    ["Abitur Mathematik", "abitur", "abitur-math", [300], [100]],
+    ["Abitur Deutsch", "abitur", "abitur-deutsch", [270], [100]],
+    ["Abitur Englisch", "abitur", "abitur-english", [270], [100]],
+    ["Abitur Biologie", "abitur", "abitur-bio", [270], [100]],
+    ["Abitur Chemie", "abitur", "abitur-chem", [270], [100]],
+    ["Abitur Physik", "abitur", "abitur-phys", [270], [100]],
+    ["Abitur Geschichte", "abitur", "abitur-hist", [270], [100]],
+    ["Abitur Geographie", "abitur", "abitur-geo", [270], [100]],
+    ["Abitur Informatik", "abitur", "abitur-cs", [270], [100]],
+    ["Abitur Sozialkunde", "abitur", "abitur-sozial", [270], [100]],
+    ["Abitur Französisch", "abitur", "abitur-french", [270], [100]],
+    ["Abitur Kunst", "abitur", "abitur-kunst", [180], [80]],
+    ["Abitur Musik", "abitur", "abitur-music", [180], [80]],
+    ["Abitur Sport", "abitur", "abitur-sport", [180], [100]],
+    ["Abitur Wirtschaft", "abitur", "abitur-wirt", [270], [100]],
+    ["IELTS Listening", "ielts", "ielts-listen", [30], [40]],
+    ["IELTS Reading", "ielts", "ielts-read", [60], [40]],
+    ["IELTS Writing", "ielts", "ielts-write", [60], [2]],
+    ["TOEFL Reading", "toefl", "toefl-read", [30], [50]],
+    ["TOEFL Listening", "toefl", "toefl-listen", [29], [47]],
+    ["TOEFL Writing", "toefl", "toefl-write", [23], [12]],
+    ["TOEFL Speaking", "toefl", "toefl-speak", [8], [11]],
+    ["Duolingo Literacy", "duolingo", "det-literacy", [12], [24]],
+    ["Duolingo Comprehension", "duolingo", "det-comp", [12], [18]],
+    ["Duolingo Conversation", "duolingo", "det-conv", [10], [10]],
+    ["Duolingo Production", "duolingo", "det-prod", [12], [6]],
+    ["PTE Speaking", "pte", "pte-speak", [40], [12]],
+    ["PTE Writing", "pte", "pte-write", [40], [3]],
+    ["PTE Reading", "pte", "pte-read", [27], [15]],
+    ["PTE Listening", "pte", "pte-listen", [35], [16]],
+  ] as const)("sits %s on the official leftover-board clock, not a generic mock", (name, qual, id, minutes, maxRaw) => {
+    const shape = paperShapeFor({ qualificationId: qual, name });
+    expect(shape?.id).toBe(id);
+    expect(shape?.papers.map((p) => p.minutes)).toEqual([...minutes]);
+    expect(shape?.papers.map((p) => p.maxRaw)).toEqual([...maxRaw]);
+    expect(specFor(qual, 6, name).official).toBe(true);
+  });
+
+  it("does not let Matura Informatyka fall through to Matematyka", () => {
+    expect(paperShapeFor({ qualificationId: "matura", name: "Informatyka" })?.id).toBe("matura-it");
+    expect(paperShapeFor({ qualificationId: "matura", name: "Matematyka" })?.id).toBe("matura-math");
+  });
+
+  it("does not let Bac LLCER steal Français, or Grand oral steal a 4h paper", () => {
+    expect(paperShapeFor({ qualificationId: "bac", name: "LLCER Anglais" })?.id).toBe("bac-llcer");
+    expect(paperShapeFor({ qualificationId: "bac", name: "Français" })?.id).toBe("bac-francais");
+    expect(paperShapeFor({ qualificationId: "bac", name: "Grand oral" })?.id).toBe("bac-oral");
+  });
+
+  it("does not let Abitur Sport steal Physik, or Sozialkunde steal Geschichte", () => {
+    expect(paperShapeFor({ qualificationId: "abitur", name: "Sport" })?.id).toBe("abitur-sport");
+    expect(paperShapeFor({ qualificationId: "abitur", name: "Physik" })?.id).toBe("abitur-phys");
+    expect(paperShapeFor({ qualificationId: "abitur", name: "Sozialkunde" })?.id).toBe("abitur-sozial");
+    expect(paperShapeFor({ qualificationId: "abitur", name: "Geschichte" })?.id).toBe("abitur-hist");
+    expect(paperShapeFor({ qualificationId: "abitur", name: "Informatik" })?.id).toBe("abitur-cs");
+    expect(paperShapeFor({ qualificationId: "abitur", name: "Mathematik" })?.id).toBe("abitur-math");
+  });
+
+  it("does not let DET Conversation steal Comprehension, or PTE Speaking steal Writing", () => {
+    expect(paperShapeFor({ qualificationId: "duolingo", name: "Conversation" })?.id).toBe("det-conv");
+    expect(paperShapeFor({ qualificationId: "duolingo", name: "Comprehension" })?.id).toBe("det-comp");
+    expect(paperShapeFor({ qualificationId: "pte", name: "Speaking" })?.id).toBe("pte-speak");
+    expect(paperShapeFor({ qualificationId: "pte", name: "Writing" })?.id).toBe("pte-write");
+  });
+
   it("does not call a bare family official", () => {
     expect(specFor("gcse", 6, "GCSE Latin").official).toBe(false);
     expect(specFor("ap", 6, "AP").official).toBe(false);
     expect(specFor("ib", 6, "IB").official).toBe(false);
+    expect(specFor("matura", 6, "Matura").official).toBe(false);
+    expect(specFor("abitur", 6, "Abitur").official).toBe(false);
+    expect(specFor("bac", 6, "Bac").official).toBe(false);
+  });
+
+  it("offers a section picker when the name is just ACT / IELTS / TOEFL / DET / PTE", () => {
+    expect(paperShapeFor({ qualificationId: "act", name: "ACT" })?.papers.map((p) => p.id)).toEqual([
+      "act-english", "act-math", "act-reading", "act-science",
+    ]);
+    expect(paperShapeFor({ qualificationId: "ielts", name: "IELTS" })?.papers.map((p) => p.id)).toEqual([
+      "ielts-listen", "ielts-read", "ielts-write",
+    ]);
+    expect(specFor("toefl", 6, "TOEFL").official).toBe(true);
+    expect(specFor("duolingo", 6, "Duolingo").official).toBe(true);
+    expect(specFor("pte", 6, "PTE").official).toBe(true);
   });
 
   it("does not call a bare NMT official when the subject is unknown", () => {

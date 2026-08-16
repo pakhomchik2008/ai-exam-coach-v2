@@ -27,5 +27,14 @@ describe("specFor", () => {
   it("does not treat a family id as an official paper", () => {
     expect(specFor("gcse", 8).official).toBe(false);
     expect(specFor("nmt", 8).official).toBe(false);
+    expect(specFor("matura", 8).official).toBe(false);
+    expect(specFor("abitur", 8).official).toBe(false);
+    expect(specFor("bac", 8).official).toBe(false);
+  });
+
+  it("treats ACT / IELTS-style families as an official section picker", () => {
+    expect(specFor("act", 8).official).toBe(true);
+    expect(specFor("ielts", 8).official).toBe(true);
+    expect(specFor("toefl", 8).official).toBe(true);
   });
 });
