@@ -1,20 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { specFor, EXAM_SPECS } from "./exam-specs";
+import { specFor } from "./exam-specs";
 
 describe("specFor", () => {
-  it("resolves a known qualification as official", () => {
-    const nmt = EXAM_SPECS.nmt;
-    if (!nmt) throw new Error("EXAM_SPECS.nmt missing — fixture drifted");
-    const s = specFor("nmt", 5);
+  it("uses the official NMT math sitting when the subject is named", () => {
+    const s = specFor("nmt", 5, "NMT Математика");
     expect(s.official).toBe(true);
-    expect(s.questionCount).toBe(nmt.questionCount);
-    expect(s.durationMin).toBe(nmt.durationMin);
+    expect(s.questionCount).toBe(22);
+    expect(s.durationMin).toBe(60);
   });
 
   it("falls back to the topic-count heuristic for an unlisted qualification", () => {
     const s = specFor("some_unlisted_quals", 4);
     expect(s.official).toBe(false);
-    expect(s.questionCount).toBe(12); // 4 topics * 2 = 8, clamped up to the 12 floor
+    expect(s.questionCount).toBe(12);
   });
 
   it("clamps the fallback question count between 12 and 24", () => {
@@ -26,9 +24,8 @@ describe("specFor", () => {
     expect(specFor(null, 0).questionCount).toBe(16);
   });
 
-  it("derives duration at 1.5 minutes per question for every known spec", () => {
-    for (const [id, s] of Object.entries(EXAM_SPECS)) {
-      expect(s.durationMin, id).toBe(Math.round(s.questionCount * 1.5));
-    }
+  it("does not treat a family id as an official paper", () => {
+    expect(specFor("gcse", 8).official).toBe(false);
+    expect(specFor("nmt", 8).official).toBe(false);
   });
 });

@@ -557,9 +557,9 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   );
   const hasInput = !!(inputText.trim() || (files && files.length) || youtubeData);
 
-  const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
+  const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column' } },
     React.createElement(PageHeader, { title: t.nav_tools || L('Tools','Інструменти','Инструменты','Outils','Werkzeuge') }),
-    React.createElement('div', { style: { flex: 1, overflowY: 'auto' } },
+    React.createElement('div', null,
       React.createElement('div', { style: { marginBottom: '20px' } },
         React.createElement('p', { className: 'app-empty-body' }, L('PDF, Word, notes, YouTube — or type a topic.','PDF, Word, нотатки, YouTube — або введи тему.','PDF, Word, заметки, YouTube — или введи тему.','PDF, Word, notes, YouTube — ou tape un sujet.','PDF, Word, Notizen, YouTube — oder ein Thema eingeben.'))
       ),
@@ -602,7 +602,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     )
   );
 
-  const loadingScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '22px', padding: '40px', textAlign: 'center', animation: 'fadeUp 0.3s ease-out both' } },
+  const loadingScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 420, gap: '22px', padding: '40px', textAlign: 'center', animation: 'fadeUp 0.3s ease-out both' } },
     React.createElement('div', { style: { width: '76px', height: '76px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', boxShadow: '0 10px 32px rgba(79,70,229,0.35)', animation: 'pulse 2s ease-in-out infinite' } }, '🧠'),
     React.createElement('div', null,
       React.createElement('div', { style: { fontSize: '20px', fontWeight: 800, color: 'var(--slate-900)', marginBottom: '8px' } }, L('Building your study set','Збираю ваш навчальний набір','Собираю ваш учебный набор','Création de votre kit d\'étude','Erstelle dein Lernset')),
@@ -612,7 +612,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     React.createElement(LoadingHint, null)
   );
 
-  const resultsScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
+  const resultsScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 160px)' } },
     React.createElement('div', { style: { padding: '10px 12px', background: 'var(--surface-card)', borderBottom: '1px solid var(--slate-200)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' } },
       React.createElement('button', { onClick: () => { try { localStorage.removeItem(STUDY_RESULT_KEY); } catch {} setState({ mode: 'upload', inputText: '', files: [], youtubeData: null, errorMsg: '' }); }, style: { width: '34px', height: '34px', background: 'var(--slate-100)', border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 } },
         React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'var(--slate-700)', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '15 18 9 12 15 6' }))),
@@ -642,7 +642,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     React.createElement('div', { style: { padding: '0 18px 18px', flexShrink: 0 } }, chatInputBarEl)
   );
 
-  return React.createElement('div', { style: { height: 'calc(100vh - 140px)', minHeight: 480, borderRadius: 'var(--radius-2xl)', overflow: 'hidden', border: '1px solid var(--border-subtle)', background: 'var(--slate-50)', position: 'relative' } },
+  return React.createElement('div', { style: { position: 'relative' } },
     mode === 'upload' && uploadScreen,
     mode === 'loading' && loadingScreen,
     mode === 'results' && resultsScreen,

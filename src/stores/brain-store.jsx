@@ -488,7 +488,7 @@ function simulateReadinessGain(examId, topicIdx, correct = true) {
 
 function examScheme(exam) {
   const qualificationId = window.examQualificationId ? window.examQualificationId(exam) : exam.qualificationId;
-  return schemeFromExam({ qualificationId, gradingSystem: exam.gradingSystem });
+  return schemeFromExam({ qualificationId, name: exam.name, examBoard: exam.examBoard, gradingSystem: exam.gradingSystem });
 }
 function gradeFromReadiness(r, exam) {
   return predictedFromReadiness(r, exam ? examScheme(exam) : schemeFromExam({}));
@@ -565,7 +565,7 @@ function getBrain() {
     // Predicted grade + probability are forecasts for exam DAY, so they read off
     // the projected (runway-aware) readiness — not the raw "right now" number.
     const projReadiness = projectedReadiness(readiness, daysAway);
-    const scheme = schemeFromExam({ qualificationId, gradingSystem: exam.gradingSystem });
+    const scheme = schemeFromExam({ qualificationId, name: exam.name, examBoard: exam.examBoard, gradingSystem: exam.gradingSystem });
     const predictedGrade = predictedFromReadiness(projReadiness, scheme);
     const probability = targetProbability(projReadiness, exam.targetGrade, daysAway, scheme);
     const risk = riskFromProbability(probability);

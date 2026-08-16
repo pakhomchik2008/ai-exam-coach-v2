@@ -305,9 +305,6 @@ function renderTab({
     }
     case "study": {
       // Phase 3.7a — Learn section. NMT is per-subject (language ≠ math).
-      // StudyHub stays available on
-      // /studyhub for one release as a rollback path if LearnMain
-      // regresses something in production.
       return <LearnMain t={t} launch={learnLaunch} onLaunchConsumed={() => setLearnLaunch(null)} onGoToExams={() => setTab("exams")} />;
     }
     case "studyhub": {
