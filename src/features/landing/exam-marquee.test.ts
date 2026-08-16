@@ -1,23 +1,21 @@
 /**
- * The fold strip is the exam list. If a board drops out of EXAM_CHIPS,
- * the landing silently advertises a shorter product than the FAQ.
+ * The fold strip is the exam list. Only live Learn trees belong here.
+ * SAT / A-Level / GCSE are Coach chat — putting them on the strip sold a tree.
  */
 import { describe, expect, it } from "vitest";
 import { EXAM_CHIPS } from "./ExamMarquee";
 
 describe("exam marquee", () => {
-  it("lists every board named on the landing brief", () => {
+  it("lists only the live Learn trees", () => {
     const names = EXAM_CHIPS.map((exam) => exam.name);
-    for (const need of ["НМТ", "IELTS", "SAT", "GCSE", "TOEFL", "PTE", "ACT", "AP", "Abitur", "Bac", "GRE", "GMAT", "Duolingo", "Matura"]) {
-      expect(names).toContain(need);
-    }
+    expect(names).toEqual(["НМТ", "ЗНО", "IELTS"]);
   });
 
-  it("keeps product exams that the FAQ already claims", () => {
+  it("does not advertise boards that have no live tree", () => {
     const names = EXAM_CHIPS.map((exam) => exam.name);
-    expect(names).toContain("ЗНО");
-    expect(names).toContain("A-Level");
-    expect(names).toContain("IB");
+    for (const board of ["SAT", "GCSE", "A-Level", "TOEFL", "IB"]) {
+      expect(names).not.toContain(board);
+    }
   });
 
   it("has unique ids so the duplicated track does not collide in React", () => {
