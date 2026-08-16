@@ -7,6 +7,10 @@
  *
  * Family-level "18 GCSE MCQs" is a lie. Official is only claimed when this
  * catalog has a verified subject sitting. Unlisted subjects stay a generic mock.
+ *
+ * Decision #114: difficulty is calibrated from official public demos
+ * (УЦОЯО 2023–2026 sittings, College Board Bluebook 1–5, ETS/GMAC samples).
+ * We do not store or regenerate those items — only the difficulty curve.
  */
 import { canonicalQualification, paperQualForExam, type ExamNameLike } from "./paper-language";
 import { GRE_AWA, GRE_QUANT, GRE_VERBAL } from "./gre-paper";
@@ -34,13 +38,24 @@ export interface PaperSitting {
   readonly sections: readonly PaperSection[];
 }
 
+export interface DifficultyCal {
+  readonly mix: string;
+  readonly do: string;
+  readonly dont: string;
+}
+
 export interface PaperShape {
   readonly id: string;
   readonly qualification: string;
   readonly source: string;
   readonly year: number;
   readonly note: string;
+  readonly difficulty: DifficultyCal;
   readonly papers: readonly PaperSitting[];
+}
+
+function cal(mix: string, doThis: string, dont: string): DifficultyCal {
+  return { mix, do: doThis, dont };
 }
 
 function sitting(
@@ -85,6 +100,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_matematyka_2026.pdf",
     year: 2026,
     note: "НМТ математика 2026: 22 / 60 хв / 32 тестових. 15×5 варіантів, 3 логічні пари, 4 короткі.",
+    difficulty: cal(
+      "1–8 school applied (chart, %, ratio, log, vector, spatial). 9–15 traps (which-statements, integrals, inequality systems, circle). Matching: function properties / evaluate / geometry. Shorts 19–22 are the hard end: piecewise+derivative, combinatorics, 3D volume, parameter so no roots.",
+      "Five options А–Д. One calculation or one concept per MCQ. Shorts need 2–3 steps. Decimal answers allowed, including negatives. A formula sheet exists — still require working.",
+      "No 2+2. No olympiad inequalities. Do not copy УЦОЯО demo or live items from 2023–2026.",
+    ),
     papers: [sitting("nmt-math", "Математика", 60, 32, [
       mcq(15, 5, 1, "1–15 одна з п’яти"),
       match(3, 3, 5, 3, "16–18 логічні пари 1–3 × А–Д"),
@@ -96,9 +116,15 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     qualification: "nmt",
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_ukrmova_2026.pdf",
     year: 2026,
-    note: "НМТ українська мова 2026: 30 / 60 хв / 45 тестових.",
+    note: "НМТ українська мова 2026: 30 / 60 хв / 45 тестових. 1–10 чотири варіанти, 11–25 п’ять.",
+    difficulty: cal(
+      "1–10 orthography / stress / prefix / soft sign / hyphen / tautology (4 options). 11–20 syntax, punctuation justification, morphology, vocative (5 options). 21–25 one scrambled paragraph. Matching: phraseology / style.",
+      "Near-miss distractors (wrong letter, wrong stress). School ЗНО programme only.",
+      "No 'what is a noun'. No literary-theory essays. Do not copy demo sentences.",
+    ),
     papers: [sitting("nmt-ukr", "Українська мова", 60, 45, [
-      mcq(25, 4, 1, "1–25 одна відповідь (4 або 5 варіантів)"),
+      mcq(10, 4, 1, "1–10 орфографія / наголос / лексика, 4 варіанти"),
+      mcq(15, 5, 1, "11–25 синтаксис / пунктуація / морфологія, 5 варіантів; 21–25 один розсипаний текст"),
       match(5, 4, 5, 4, "26–30 логічні пари 1–4 × А–Д"),
     ])],
   },
@@ -108,6 +134,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_istUkrayiny_2026.pdf",
     year: 2026,
     note: "НМТ історія України 2026: 30 / 60 хв. MCQ, пари, послідовність, три з семи.",
+    difficulty: cal(
+      "1–20 one fact / cause / map / figure. Matching year↔event or figure↔work. Order four events across centuries. 3-of-7 is the hard end.",
+      "Concrete Ukrainian history 9th c.–today. Plausible neighbouring-year distractors.",
+      "No 'when was Kyiv founded' baby trivia. No essays. Do not copy demo items.",
+    ),
     papers: [sitting("nmt-hist", "Історія України", 60, 54, [
       mcq(20, 4, 1, "1–20 одна з чотирьох"),
       match(4, 4, 5, 4, "21–24 логічні пари 1–4 × А–Д"),
@@ -120,9 +151,14 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     qualification: "nmt",
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_ukrliteratura_2026.pdf",
     year: 2026,
-    note: "НМТ українська література 2026: 30 / 60 хв / 45 тестових.",
+    note: "НМТ українська література 2026: 30 / 60 хв / 45 тестових. MCQ — п’ять варіантів.",
+    difficulty: cal(
+      "Quote / author / work / genre / folklore vs literary. Matching artist↔statement.",
+      "School canon only. One skill per item. Five options А–Д.",
+      "No obscure untaught authors. Do not copy demo quotes.",
+    ),
     papers: [sitting("nmt-lit", "Українська література", 60, 45, [
-      mcq(25, 4, 1, "1–25 одна відповідь"),
+      mcq(25, 5, 1, "1–25 одна з п’яти"),
       match(5, 4, 5, 4, "26–30 логічні пари 1–4 × А–Д"),
     ])],
   },
@@ -132,6 +168,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_biologiya_2026.pdf",
     year: 2026,
     note: "НМТ біологія 2026: 30 / 60 хв. 24 MCQ, 4 пари, 2 тригрупові.",
+    difficulty: cal(
+      "1–12 cell / plant / human recall+apply. 13–24 experiment, graph, which-statements. Matching + three-group classification.",
+      "Programme facts with one twist. Four options.",
+      "No med-school biochemistry. Do not copy demo items.",
+    ),
     papers: [sitting("nmt-bio", "Біологія", 60, 46, [
       mcq(24, 4, 1, "1–24 одна з чотирьох"),
       match(4, 4, 5, 4, "25–28 логічні пари 1–4 × А–Д"),
@@ -144,6 +185,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_fizyka_2026.pdf",
     year: 2026,
     note: "НМТ фізика 2026: 22 / 60 хв. 14 MCQ, 2 пари, 6 коротких.",
+    difficulty: cal(
+      "1–8 concept + one formula (path vs displacement, KE vs p, Coulomb, R). 9–14 graphs / direction / nuclear. Shorts: equilibrium, centripetal, mixing, capacitors, lens, half-life ratio.",
+      "Formula sheet allowed. Numbers that cancel. Four options. Shorts 2–3 steps.",
+      "No contest physics. Do not copy demo items.",
+    ),
     papers: [sitting("nmt-phys", "Фізика", 60, 32, [
       mcq(14, 4, 1, "1–14 одна з чотирьох"),
       match(2, 3, 5, 3, "15–16 логічні пари 1–3 × А–Д"),
@@ -156,6 +202,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_himiya_2026.pdf",
     year: 2026,
     note: "НМТ хімія 2026: 24 / 60 хв. 18 MCQ, 2 пари, 4 короткі.",
+    difficulty: cal(
+      "1–12 formula / periodicity / pH / redox. 13–18 organic + which-statements. Shorts: Mr, isomers, solubility %, yield %, mixture mass.",
+      "School reactions. Round Ar to integers. Four options.",
+      "No university physical chemistry. Do not copy demo items.",
+    ),
     papers: [sitting("nmt-chem", "Хімія", 60, 32, [
       mcq(18, 4, 1, "1–18 одна з чотирьох"),
       match(2, 3, 5, 3, "19–20 логічні пари 1–3 × А–Д"),
@@ -168,6 +219,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_geografiya_2026.pdf",
     year: 2026,
     note: "НМТ географія 2026: 30 / 60 хв. 20 MCQ, 4 короткі, 6× три з семи.",
+    difficulty: cal(
+      "1–5 place / term. 6–17 map / profile / tectonics clusters. Shorts numeric. 3-of-7 is the hard end.",
+      "Ukraine + world. Describe a map in words — do not paste a copyrighted map.",
+      "No capital-city quiz only. Do not copy demo items.",
+    ),
     papers: [sitting("nmt-geo", "Географія", 60, 46, [
       mcq(20, 4, 1, "1–20 одна з чотирьох"),
       short(4, 2, "21–24 коротка відповідь"),
@@ -180,6 +236,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_inozemnimovy_2026.pdf",
     year: 2026,
     note: "НМТ іноземна 2026: 32 / 60 хв / 32 тестових. 6 tasks (5+5+6+6+5+5).",
+    difficulty: cal(
+      "Task 1 ads match B1. Task 2 ~400-word story, 5 MCQ. Task 3 museum match. Task 4 sentence gap. Task 5 vocab/phrasal. Task 6 grammar. Overall B1–B2.",
+      "Authentic short texts. Four options on MCQ. Matching has unused extras.",
+      "No C1 academic papers. No A2 'my name is'. Do not copy demo passages.",
+    ),
     papers: [sitting("nmt-eng", "Іноземна мова", 60, 32, [
       mcq(20, 4, 1, "Tasks 1–2 and 5–6 style: one answer"),
       short(12, 1, "Tasks 3–4 style: matching / gap-fill as short keys"),
@@ -191,6 +252,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://satsuite.collegeboard.org/sat/whats-on-the-test/structure",
     year: 2024,
     note: "Digital SAT Reading and Writing: 54 / 64 min (two 32-min modules).",
+    difficulty: cal(
+      "Short 25–150 word stems, one question each. Craft/structure, info/ideas, conventions, expression. Module 1 mixed; mock sits mid-hard (harder module-2 path).",
+      "Vocabulary in context, grammar in a sentence, rhetoric. Four options.",
+      "No long SAT essay. No GRE-hard vocab. Do not copy Bluebook stems.",
+    ),
     papers: [sitting("sat-rw", "Reading and Writing", 64, 54, [
       mcq(54, 4, 1, "Two modules × 27. Adaptive module 2 is not modelled — one mixed paper."),
     ])],
@@ -201,6 +267,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://satsuite.collegeboard.org/sat/whats-on-the-test/structure",
     year: 2024,
     note: "Digital SAT Math: 44 / 70 min. Most MCQ; some student-produced response.",
+    difficulty: cal(
+      "Algebra ~35%, Advanced Math ~35%, PSDA, some geometry. Module 1 mixed easy/medium/hard. Mock sits harder-module-2: non-obvious factoring, rationals, function composition — still SAT, not AMC.",
+      "Four-option MCQ + SPR integers/decimals. Calculator-ok algebra.",
+      "No contest olympiad. No arithmetic-only. Do not copy Bluebook items.",
+    ),
     papers: [sitting("sat-math", "Math", 70, 44, [
       mcq(36, 4, 1, "Multiple choice"),
       short(8, 1, "Student-produced response"),
@@ -212,6 +283,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.ets.org/gre/test-takers/general-test/prepare/content.html",
     year: 2023,
     note: "Shorter GRE Verbal: 27 / 41.",
+    difficulty: cal(
+      "Text completion 1–3 blanks, sentence equivalence, dense RC. Vocab is GRE-hard.",
+      "Five options typical. Precise diction, not SAT-easy synonyms.",
+      "No SAT-easy vocab. Do not copy ETS items.",
+    ),
     papers: [sitting("gre-verbal", "Verbal", GRE_VERBAL.minutes, GRE_VERBAL.questions, [
       mcq(GRE_VERBAL.questions, 5, 1, "Text completion / sentence equivalence / reading"),
     ])],
@@ -222,6 +298,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.ets.org/gre/test-takers/general-test/prepare/content.html",
     year: 2023,
     note: "Shorter GRE Quant: 27 / 47.",
+    difficulty: cal(
+      "Quantitative comparison + problem solving. Tricks over calculation. Harder than SAT.",
+      "Compare A / B / equal / cannot. Data interpretation.",
+      "No calculus. Do not copy ETS items.",
+    ),
     papers: [sitting("gre-quant", "Quant", GRE_QUANT.minutes, GRE_QUANT.questions, [
       mcq(GRE_QUANT.questions, 5, 1, "Quantitative comparison and problem solving"),
     ])],
@@ -232,6 +313,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.ets.org/gre/test-takers/general-test/prepare/content.html",
     year: 2023,
     note: "Shorter GRE AWA: one Issue essay, 30 min. Argument removed.",
+    difficulty: cal(
+      "One Issue essay, 30 min, 0–6 half points.",
+      "Take a position, examples, concede a counter.",
+      "No Argument task — ETS removed it. Do not copy Issue prompts.",
+    ),
     papers: [sitting("gre-awa", "Analytical Writing", GRE_AWA.minutes, 1, [
       written(1, 6, "Issue essay, 0–6 half points"),
     ])],
@@ -242,6 +328,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.mba.com/exams/gmat-exam/about/exam-structure-and-content",
     year: 2024,
     note: "GMAT Focus Quant: 21 / 45.",
+    difficulty: cal(
+      "Problem solving, no geometry. Harder than SAT. Data sufficiency lives in Data Insights.",
+      "Five options. Tight algebra / word problems.",
+      "No geometry. Do not copy GMAC items.",
+    ),
     papers: [sitting("gmat-quant", "Quantitative", GMAT_QUANT.minutes, GMAT_QUANT.questions, [
       mcq(GMAT_QUANT.questions, 5, 1, "Problem solving. No geometry."),
     ])],
@@ -252,6 +343,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.mba.com/exams/gmat-exam/about/exam-structure-and-content",
     year: 2024,
     note: "GMAT Focus Verbal: 23 / 45. No Sentence Correction.",
+    difficulty: cal(
+      "Critical reasoning + reading. No sentence correction.",
+      "Assumption / weaken / strengthen / evaluate.",
+      "No grammar underline. Do not copy GMAC items.",
+    ),
     papers: [sitting("gmat-verbal", "Verbal", GMAT_VERBAL.minutes, GMAT_VERBAL.questions, [
       mcq(GMAT_VERBAL.questions, 5, 1, "Critical reasoning and reading"),
     ])],
@@ -262,6 +358,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.mba.com/exams/gmat-exam/about/exam-structure-and-content",
     year: 2024,
     note: "GMAT Focus Data Insights: 20 / 45.",
+    difficulty: cal(
+      "Data sufficiency, tables, graphs. Multi-source feel.",
+      "Statement (1)/(2) sufficient patterns. Five options.",
+      "Do not copy GMAC items.",
+    ),
     papers: [sitting("gmat-di", "Data Insights", GMAT_DATA_INSIGHTS.minutes, GMAT_DATA_INSIGHTS.questions, [
       mcq(GMAT_DATA_INSIGHTS.questions, 5, 1, "Data sufficiency, tables, graphs"),
     ])],
@@ -272,6 +373,11 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     source: "https://www.aqa.org.uk/subjects/history/gcse/history-8145/specification/specification-at-a-glance",
     year: 2016,
     note: "AQA GCSE History 8145: two written papers, 2h / 84 marks each. Not 11 MCQs.",
+    difficulty: cal(
+      "Written command words. 4–16 mark. Sources + essays. Not MCQ.",
+      "Explain / How far / Write an account. Short original stimulus.",
+      "No 11 MCQs. Do not copy AQA extracts.",
+    ),
     papers: [
       sitting("gcse-hist-p1", "Paper 1 · Understanding the modern world", 120, 84, [
         written(6, 7, "Section A period study — six compulsory questions, 40 marks"),
@@ -330,12 +436,14 @@ const FAMILY_PAPER_IDS: Readonly<Record<string, readonly string[]>> = {
 function mergeFamily(family: string, ids: readonly string[]): PaperShape | null {
   const papers = ids.flatMap((id) => BY_ID[id]?.papers || []);
   if (!papers.length) return null;
+  const first = BY_ID[ids[0] || ""];
   return {
     id: family,
     qualification: family,
-    source: BY_ID[ids[0] || ""]?.source || "",
-    year: BY_ID[ids[0] || ""]?.year || 0,
+    source: first?.source || "",
+    year: first?.year || 0,
     note: `Pick one official ${family.toUpperCase()} section. The real sitting is these sections, not a generic MCQ pack.`,
+    difficulty: first?.difficulty || cal("Mixed official sections.", "Sit the chosen paper's curve.", "Do not copy published items."),
     papers,
   };
 }
@@ -373,11 +481,19 @@ export function sectionGenerationPrompt(opts: {
   styleNote: string;
   topics: readonly string[];
   section: PaperSection;
+  difficulty?: DifficultyCal | null;
 }): string {
-  const { examName, styleNote, topics, section } = opts;
+  const { examName, styleNote, topics, section, difficulty } = opts;
   const topicLine = topics.length ? topics.join(", ") : examName;
+  const diffBlock = difficulty
+    ? `DIFFICULTY (calibrated from official public demos — do not copy those items):
+Mix: ${difficulty.mix}
+Do: ${difficulty.do}
+Don't: ${difficulty.dont}`
+    : "Same forms and difficulty as the real sitting.";
   const base = `You write ORIGINAL items for a mock sitting of "${examName}". ${styleNote}
-Do not copy a published past paper or a third-party bank. Same forms and difficulty as the real sitting.
+Do not copy a published past paper or a third-party bank.
+${diffBlock}
 Topics to cover: ${topicLine}
 Write exactly ${section.count} items. ${section.note}
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.`;

@@ -5,6 +5,7 @@ import {
   normalizeSimQuestion,
   paperShapeFor,
   scoreSimAnswer,
+  sectionGenerationPrompt,
   sittingById,
 } from "./paper-shapes";
 
@@ -15,6 +16,17 @@ describe("paperShapeFor", () => {
     expect(sitting?.questionCount).toBe(22);
     expect(sitting?.minutes).toBe(60);
     expect(sitting?.sections.map((s) => s.kind)).toEqual(["mcq", "match", "short"]);
+    expect(sitting?.sections[0]?.options).toBe(5);
+  });
+
+  it("splits NMT Ukrainian into 4-option then 5-option MCQ, as the 2026 demo", () => {
+    const sitting = sittingById(paperShapeFor({ qualificationId: "nmt", name: "НМТ Українська мова" }));
+    expect(sitting?.sections[0]).toMatchObject({ kind: "mcq", count: 10, options: 4 });
+    expect(sitting?.sections[1]).toMatchObject({ kind: "mcq", count: 15, options: 5 });
+  });
+
+  it("sits NMT literature on five-option MCQ", () => {
+    const sitting = sittingById(paperShapeFor({ qualificationId: "nmt", name: "НМТ Українська література" }));
     expect(sitting?.sections[0]?.options).toBe(5);
   });
 
@@ -61,6 +73,29 @@ describe("PAPER_SHAPES integrity", () => {
     for (const shape of PAPER_SHAPES) {
       expect(shape.source, shape.id).toMatch(/^https:\/\//);
     }
+  });
+
+  it("every shape has a calibrated difficulty curve", () => {
+    for (const shape of PAPER_SHAPES) {
+      expect(shape.difficulty.mix.length, shape.id).toBeGreaterThan(20);
+      expect(shape.difficulty.dont, shape.id).toMatch(/do not copy/i);
+    }
+  });
+});
+
+describe("sectionGenerationPrompt", () => {
+  it("steers NMT math off baby arithmetic and off olympiad", () => {
+    const shape = paperShapeFor({ qualificationId: "nmt", name: "НМТ Математика" });
+    const prompt = sectionGenerationPrompt({
+      examName: "НМТ Математика",
+      styleNote: shape?.note || "",
+      topics: ["Алгебра"],
+      section: shape?.papers[0]?.sections[0] || { kind: "mcq", count: 15, maxMarksEach: 1, note: "" },
+      difficulty: shape?.difficulty ?? null,
+    });
+    expect(prompt).toMatch(/19–22/);
+    expect(prompt).toMatch(/No 2\+2/);
+    expect(prompt).toMatch(/No olympiad/);
   });
 });
 
