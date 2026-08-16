@@ -12,6 +12,8 @@
 // touched by the AI scheduler because its examId is the PERSONAL_EVENT_ID
 // sentinel, which never matches a real exam id (see schedule-store.jsx).
 
+import { PageHeader } from "../../components/PageHeader";
+
 const CAL_HOUR_START = 6;   // 06:00
 const CAL_HOUR_END = 23;    // 23:00
 const CAL_HOUR_PX = 56;
@@ -843,6 +845,7 @@ Object.assign(window, {
 // Month overview (was the separate "Overview" tab) and the week time-grid
 // (was "Calendar") are two views of the same data; splitting them across two
 // nav items made users hunt. One tab, one segmented control.
+
 function CalendarHub({ t, onGoToExams }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [view, setView] = React.useState(() => {
@@ -864,15 +867,15 @@ function CalendarHub({ t, onGoToExams }) {
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", fontFamily: "var(--font-sans)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>
-          {t.nav_calendar || "Calendar"}
-        </h1>
-        <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)" }}>
-          {seg("month", L("Month", "Місяць", "Месяц", "Mois", "Monat"))}
-          {seg("week", L("Week", "Тиждень", "Неделя", "Semaine", "Woche"))}
-        </div>
-      </div>
+      <PageHeader
+        title={t.nav_calendar || "Calendar"}
+        action={(
+          <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: "var(--radius-full)", background: "var(--surface-card)", border: "1px solid var(--chrome-line)" }}>
+            {seg("month", L("Month", "Місяць", "Месяц", "Mois", "Monat"))}
+            {seg("week", L("Week", "Тиждень", "Неделя", "Semaine", "Woche"))}
+          </div>
+        )}
+      />
       {view === "month"
         ? <window.Schedule t={t} embedded />
         : <StudyCalendar t={t} onGoToExams={onGoToExams} embedded />}

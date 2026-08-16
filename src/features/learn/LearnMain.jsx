@@ -9,6 +9,7 @@
 // one component here rather than fanning out to 4 small files. 3.7b scoring
 // lives in drill-exercises.ts; the boards stay here so one runner owns phase.
 
+import { EmptyState, PageHeader } from "../../components/PageHeader";
 import { findLessonByTitle, treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
 import { canOpenNode, isMastered } from "./tree/locks";
@@ -91,24 +92,13 @@ function EmptyLearn({ L, onGoToExams, kind }) {
   const title = L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen");
   const body = noTree
     ? L("This exam has no topic tree yet. Pick a subject Learn supports — More → Exams.", "Для цього іспиту ще немає дерева тем. Обери предмет, який Learn підтримує — Ще → Іспити.", "Для этого экзамена ещё нет дерева тем. Выбери предмет, который Learn поддерживает — Ещё → Экзамены.", "Cet examen n’a pas encore d’arbre. Choisis une matière prise en charge — Plus → Examens.", "Für diese Prüfung gibt es noch keinen Themenbaum. Wähle ein unterstütztes Fach — Mehr → Prüfungen.")
-    : L("Add an exam first — Learn opens a topic tree per exam.", "Спочатку додай іспит — Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen.", "Füge zuerst eine Prüfung hinzu.");
+    : L("Add an exam first — More → Exams. Learn opens a topic tree per exam.", "Спочатку додай іспит — Ще → Іспити. Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Ещё → Экзамены. Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen — Plus → Examens.", "Füge zuerst eine Prüfung hinzu — Mehr → Prüfungen.");
   const cta = noTree
     ? L("Go to Exams", "До іспитів", "К экзаменам", "Vers Examens", "Zu Prüfungen")
     : L("Add an exam", "Додати іспит", "Добавить экзамен", "Ajouter un examen", "Prüfung hinzufügen");
-  return React.createElement("div", { style: { padding: 24, fontFamily: "var(--font-sans)", maxWidth: 520 } },
-    React.createElement("h1", { style: { margin: "0 0 8px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, title),
-    React.createElement("p", { style: { margin: "0 0 16px", color: "var(--text-muted)", fontSize: 14, lineHeight: 1.5 } }, body),
-    onGoToExams && React.createElement("button", {
-      type: "button",
-      className: "ux-press",
-      onClick: onGoToExams,
-      style: {
-        minHeight: 44, padding: "12px 16px", borderRadius: 12, border: "none",
-        background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15,
-        cursor: "pointer", fontFamily: "var(--font-sans)",
-      },
-    }, cta + " →"),
-  );
+  return React.createElement(EmptyState, {
+    title, body, actionLabel: onGoToExams ? cta : undefined, onAction: onGoToExams,
+  });
 }
 
 // Best-effort dedup pass for the 3-question Prove batch. Same shape as
@@ -743,6 +733,19 @@ ${mcqRulesBlock(plan)}`;
 
 // ─── Main list ────────────────────────────────────────────────────────────────
 
+function examDateLine(exam, L, lang) {
+  if (!exam || !exam.examDate) return "";
+  const days = window.daysAway ? window.daysAway(exam.examDate) : null;
+  const formatted = new Date(exam.examDate + "T12:00:00").toLocaleDateString(
+    lang === "uk" ? "uk-UA" : lang === "ru" ? "ru-RU" : lang === "fr" ? "fr-FR" : lang === "de" ? "de-DE" : "en-GB",
+    { day: "numeric", month: "short", year: "numeric" },
+  );
+  if (days == null || days < 0) return formatted;
+  if (days === 0) return L(`Today · ${formatted}`, `Сьогодні · ${formatted}`, `Сегодня · ${formatted}`, `Aujourd'hui · ${formatted}`, `Heute · ${formatted}`);
+  if (days === 1) return L(`Tomorrow · ${formatted}`, `Завтра · ${formatted}`, `Завтра · ${formatted}`, `Demain · ${formatted}`, `Morgen · ${formatted}`);
+  return L(`${days} days · ${formatted}`, `${days} дн. · ${formatted}`, `${days} дн. · ${formatted}`, `${days} j · ${formatted}`, `${days} T. · ${formatted}`);
+}
+
 function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
   const lang = (t && t.code) || "en";
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[lang] || en);
@@ -879,7 +882,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
   if (!tree) {
     return React.createElement("div", {
       className: "learn-main",
-      style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
+      style: { maxWidth: 720, margin: "0 auto", fontFamily: "var(--font-sans)" },
     },
       React.createElement("h1", { style: { margin: "0 0 6px", fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen")),
       React.createElement("p", { style: { margin: "0 0 20px", color: "var(--text-muted)", fontSize: 13 } },
@@ -901,7 +904,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
           React.createElement("div", { style: { flex: 1, minWidth: 0 } },
             React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, o.label),
             React.createElement("div", { style: { fontSize: 12, color: "var(--text-muted)", marginTop: 4 } },
-              L(`${totalNodeCount(o.tree)} topics`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} sujets`, `${totalNodeCount(o.tree)} Themen`)),
+              [L(`${totalNodeCount(o.tree)} topics`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} тем`, `${totalNodeCount(o.tree)} sujets`, `${totalNodeCount(o.tree)} Themen`), examDateLine(o.exam, L, lang)].filter(Boolean).join(" · ")),
           ),
           React.createElement("span", { "aria-hidden": "true", style: { color: "var(--text-faint)", fontSize: 20 } }, "→"),
         )),
@@ -943,7 +946,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
 
   return React.createElement("div", {
     className: "learn-main" + (shouldEnter ? " learn-main--enter" : ""),
-    style: { maxWidth: 720, margin: "0 auto", padding: "20px 16px 60px", fontFamily: "var(--font-sans)" },
+    style: { maxWidth: 720, margin: "0 auto", fontFamily: "var(--font-sans)" },
   },
     React.createElement("div", { key: "head", style: { marginBottom: 24 } },
       options.length > 1 && React.createElement("div", {
@@ -966,7 +969,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
           }, o.label);
         }),
       ),
-      React.createElement("h1", { style: { margin: 0, fontSize: 24, fontWeight: 700, color: "var(--text-strong)" } }, examLabel),
+      React.createElement(PageHeader, { title: examLabel, kicker: examDateLine(selected.exam, L, lang) || undefined }),
       React.createElement("p", { style: { margin: "6px 0 0", color: "var(--text-muted)", fontSize: 13, fontVariantNumeric: "tabular-nums" } }, progressLabel),
       proCount > 0 && React.createElement("p", { style: { margin: "4px 0 0", color: "var(--text-faint)", fontSize: 12 } },
         L(`${freeCount} free · ${proCount} Pro`, `${freeCount} безкоштовно · ${proCount} Pro`, `${freeCount} бесплатно · ${proCount} Pro`, `${freeCount} gratuits · ${proCount} Pro`, `${freeCount} gratis · ${proCount} Pro`)),

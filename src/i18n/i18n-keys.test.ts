@@ -29,20 +29,24 @@ describe("i18n key parity", () => {
     expect(String(langs.uk?.land_hero_title)).toContain("Examik");
   });
 
-  it("price copy lists Pro $54 / Max $90 and does not sell Max or yearly Checkout", () => {
+  it("price copy is one sentence and does not list Max or yearly", () => {
+    const publicKeys = [
+      "land_price_sub", "land_price_pro_body", "land_price_note",
+      "land_faq_1_a", "land_faq_7_a", "land_about_p3", "legal_refund_body",
+    ];
     for (const code of Object.keys(langs)) {
       const pack = langs[code];
       if (!pack) throw new Error(`missing LANGS.${code}`);
       expect(String(pack.land_price_free_body), code).toMatch(/7/);
       expect(String(pack.land_price_free_body), code).toMatch(/10/);
-      expect(String(pack.land_price_pro_year), code).toMatch(/54/);
-      expect(String(pack.land_price_max_year), code).toMatch(/90/);
-      expect(String(pack.land_price_max_month), code).toMatch(/9\.99|9,99/);
-      expect(String(pack.land_price_max_name), code).toBe("Max");
-      expect(String(pack.land_price_note), code).toMatch(/Checkout/);
-      expect(String(pack.land_price_max_cta), code).not.toMatch(/buy|купить|купити|acheter|kaufen/i);
-      expect(String(pack.land_faq_1_a), code).toMatch(/54/);
-      expect(String(pack.land_faq_1_a), code).toMatch(/90/);
+      expect(String(pack.land_price_sub), code).toMatch(/5\.99/);
+      expect(String(pack.land_price_sub), code).toMatch(/3/);
+      expect(String(pack.land_price_note), code).toMatch(/Checkout|checkout/);
+      for (const key of publicKeys) {
+        const text = String(pack[key]);
+        expect(text, `${code}.${key}`).not.toMatch(/54|90|9\.99|9,99/);
+        expect(text, `${code}.${key}`).not.toMatch(/\bMax\b/);
+      }
       expect(String(pack.land_hero_sub), code).toMatch(/IELTS/);
       expect(String(pack.land_hero_sub), code).not.toMatch(/SAT|A-Level|GCSE/);
       expect(String(pack.land_faq_9_a), code).toMatch(/hash|хеш|hach|gehash/i);

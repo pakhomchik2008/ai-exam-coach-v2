@@ -1,11 +1,12 @@
 /**
  * Examik mark — block E of eleven squares. Placeholder until the new SVG lands.
- * Same geometry as brand/logo.svg so nav, favicon, and lockup stay one drawing.
+ * Lockup is horizontal only: unframed E + "Examik". The framed cream tile is
+ * the app icon / favicon, never a header. Gap is one cell of the E so every
+ * surface (nav, landing, OG, email) is the same drawing.
  */
 
 const PURPLE = "#8921F5";
 const PAPER = "#F7F5F0";
-const NAVY = "#141822";
 
 const CELLS: [number, number][] = [
   [0, 0], [1, 0], [2, 0],
@@ -15,10 +16,21 @@ const CELLS: [number, number][] = [
   [0, 4], [1, 4], [2, 4],
 ];
 
-const SQUARE = 6;
-const GAP = 4;
-const ORIGIN_X = 19;
-const ORIGIN_Y = 9;
+export const BRAND_GLYPH = {
+  square: 6,
+  gap: 4,
+  originX: 19,
+  originY: 9,
+  width: 26,
+  height: 46,
+  tile: 64,
+} as const;
+
+export const LOCKUP_MARK = 24;
+
+export function lockupGapPx(markHeight: number): number {
+  return markHeight * (BRAND_GLYPH.square / BRAND_GLYPH.height);
+}
 
 type BrandMarkProps = {
   size?: number;
@@ -32,72 +44,67 @@ export function BrandGlyph({ color = PURPLE }: { color?: string }) {
       {CELLS.map(([col, row]) => (
         <rect
           key={`${col}-${row}`}
-          x={ORIGIN_X + col * (SQUARE + GAP)}
-          y={ORIGIN_Y + row * (SQUARE + GAP)}
-          width={SQUARE}
-          height={SQUARE}
+          x={BRAND_GLYPH.originX + col * (BRAND_GLYPH.square + BRAND_GLYPH.gap)}
+          y={BRAND_GLYPH.originY + row * (BRAND_GLYPH.square + BRAND_GLYPH.gap)}
+          width={BRAND_GLYPH.square}
+          height={BRAND_GLYPH.square}
         />
       ))}
     </g>
   );
 }
 
-export function BrandMark({ size = 26, framed = true, title }: BrandMarkProps) {
+export function BrandMark({ size = LOCKUP_MARK, framed = false, title }: BrandMarkProps) {
+  if (framed) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${BRAND_GLYPH.tile} ${BRAND_GLYPH.tile}`}
+        role={title ? "img" : "presentation"}
+        aria-hidden={title ? undefined : true}
+        aria-label={title}
+      >
+        <rect width={BRAND_GLYPH.tile} height={BRAND_GLYPH.tile} rx="14" fill={PAPER} />
+        <BrandGlyph />
+      </svg>
+    );
+  }
+
+  const width = size * (BRAND_GLYPH.width / BRAND_GLYPH.height);
   return (
     <svg
-      width={size}
+      width={width}
       height={size}
-      viewBox="0 0 64 64"
+      viewBox={`${BRAND_GLYPH.originX} ${BRAND_GLYPH.originY} ${BRAND_GLYPH.width} ${BRAND_GLYPH.height}`}
       role={title ? "img" : "presentation"}
       aria-hidden={title ? undefined : true}
       aria-label={title}
     >
-      {framed ? <rect width="64" height="64" rx="14" fill={PAPER} /> : null}
       <BrandGlyph />
     </svg>
   );
 }
 
 type BrandLockupProps = {
-  width?: number;
+  mark?: number;
   title?: string;
+  wordClassName?: string;
 };
 
-export function BrandLockup({ width = 200, title = "Examik" }: BrandLockupProps) {
+export function BrandLockup({
+  mark = LOCKUP_MARK,
+  title = "Examik",
+  wordClassName,
+}: BrandLockupProps) {
+  const gap = lockupGapPx(mark);
+  const fontSize = `${1.2 * (mark / LOCKUP_MARK)}rem`;
   return (
-    <svg
-      width={width}
-      viewBox="0 0 280 340"
-      role="img"
-      aria-label={title}
-    >
-      <rect width="280" height="340" fill={NAVY} />
-      <g transform="translate(140 118) scale(2.15) translate(-32 -32)">
-        <BrandGlyph />
-      </g>
-      <text
-        x="140"
-        y="236"
-        textAnchor="middle"
-        fill={PAPER}
-        fontFamily="var(--font-brand), Georgia, serif"
-        fontSize="32"
-        fontWeight="600"
-      >
+    <span className="brand-lockup" style={{ gap, fontSize }}>
+      <BrandMark size={mark} />
+      <span className={["brand-lockup-word", wordClassName].filter(Boolean).join(" ")}>
         {title}
-      </text>
-      <text
-        x="140"
-        y="268"
-        textAnchor="middle"
-        fill={PURPLE}
-        fontFamily="var(--font-sans), ui-sans-serif, system-ui, sans-serif"
-        fontSize="11"
-        fontWeight="600"
-        letterSpacing="0.32em"
-      >
-        SINCE 2026
-      </text>
-    </svg>
+      </span>
+    </span>
   );
 }

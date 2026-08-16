@@ -3,16 +3,17 @@
 // Journal, Tools, Progress, Settings, logout. Seven-item collapse is gone
 // because four labels fit a phone.
 
-import { BrandMark } from "../brand/BrandMark";
+import { BrandLockup, BrandMark } from "../brand/BrandMark";
 
 export const MORE_TABS = Object.freeze([
   "calendar", "schedule", "exams", "journal", "studyhub", "progress", "settings",
 ]);
 
-function NavLogoMark({ size = 26 }) {
-  return <BrandMark size={size} framed />;
+function NavLogoMark({ size = 24 }) {
+  return <BrandMark size={size} />;
 }
 window.NavLogoMark = NavLogoMark;
+window.BrandLockup = BrandLockup;
 
 function NavLogoutButton({ onLogout, label }) {
   const [confirm, setConfirm] = React.useState(false);
@@ -31,19 +32,6 @@ function NavLogoutButton({ onLogout, label }) {
       borderRadius: "var(--radius-lg)",
     }}>{confirm ? ({ uk: "Натисніть ще раз", ru: "Нажмите ещё раз", fr: "Cliquez à nouveau", de: "Erneut klicken" }[(window.getProfile && window.getProfile().lang) || "en"] || "Click again to confirm") : label}</button>
   );
-}
-
-function roomStyle(active, open) {
-  return {
-    border: "none", cursor: "pointer", borderRadius: "var(--radius-full)",
-    padding: "7px 13px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
-    background: active ? "var(--ink-900)" : "transparent",
-    color: active ? "var(--text-invert)" : open ? "var(--text-strong)" : "var(--text-muted)",
-    fontWeight: active || open ? "var(--weight-semibold)" : "var(--weight-medium)",
-    boxShadow: open && !active ? "inset 0 0 0 1.5px var(--ink-900)" : "none",
-    transition: "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)",
-    whiteSpace: "nowrap",
-  };
 }
 
 function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
@@ -121,26 +109,19 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   }, [langOpen]);
 
   return (
-    <nav style={{
-      position: "sticky", top: 0, zIndex: 50,
-      borderBottom: "1px solid var(--border-subtle)",
-      background: "var(--surface-nav)",
-      backdropFilter: "blur(14px) saturate(160%)", WebkitBackdropFilter: "blur(14px) saturate(160%)",
-    }}>
+    <nav className="app-nav">
       {moreOpen && (
         <div
           className="app-nav-more-backdrop"
           onClick={() => setMoreOpen(false)}
         />
       )}
-      <div style={{ maxWidth: "var(--container-app)", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", gap: 8 }}>
+      <div className="app-nav-bar">
         <button type="button" onClick={() => go("dashboard")} aria-label="Examik" style={{
-          display: "flex", alignItems: "center", gap: 10, border: "none", background: "transparent",
-          cursor: "pointer", padding: 0, fontWeight: 600, color: "var(--text-strong)",
-          fontFamily: "var(--font-brand)", letterSpacing: "-0.03em", fontSize: "1.2rem",
+          display: "flex", alignItems: "center", border: "none", background: "transparent",
+          cursor: "pointer", padding: 0, color: "var(--text-strong)",
         }}>
-          <NavLogoMark />
-          <span className="app-nav-wordmark">Examik</span>
+          <BrandLockup wordClassName="app-nav-wordmark" />
         </button>
 
         <div className="app-nav-links">
@@ -151,19 +132,17 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
               className="app-nav-room"
               aria-current={current === l.id ? "page" : undefined}
               onClick={() => go(l.id)}
-              style={roomStyle(current === l.id, false)}
             >{l.label}</button>
           ))}
 
           <div ref={moreRef} style={{ position: "relative" }}>
             <button
               type="button"
-              className="app-nav-room"
+              className={moreOpen ? "app-nav-room is-open" : "app-nav-room"}
               aria-expanded={moreOpen}
               aria-haspopup="dialog"
               aria-current={moreActive ? "true" : undefined}
               onClick={() => { setMoreOpen((o) => !o); setLangOpen(false); }}
-              style={roomStyle(moreActive, moreOpen)}
             >{t.nav_more}</button>
             {moreOpen && (
               <div
@@ -199,17 +178,17 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
 
           <div ref={langRef} style={{ position: "relative", marginLeft: 4 }}>
             <button type="button" className="ux-press app-nav-lang" onClick={() => { setLangOpen((o) => !o); setMoreOpen(false); }} style={{
-              border: "1px solid var(--border-default)", cursor: "pointer", borderRadius: "var(--radius-full)",
+              borderRadius: "var(--radius-full)",
               padding: "5px 11px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)",
-              background: "var(--surface-card)", color: "var(--text-body)", display: "flex", alignItems: "center", gap: 4,
+              display: "flex", alignItems: "center", gap: 4, cursor: "pointer",
             }}>
               <span>{t.flag}</span><span className="app-nav-lang-caret" style={{ fontSize: 10, color: "var(--text-faint)" }}>▾</span>
             </button>
             {langOpen && (
               <div className="ux-pop" style={{
                 position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
-                background: "var(--surface-nav)", backdropFilter: "blur(16px) saturate(180%)", WebkitBackdropFilter: "blur(16px) saturate(180%)",
-                border: "1px solid var(--border-default)",
+                background: "var(--chrome-paper)",
+                border: "1px solid var(--chrome-line)",
                 borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
                 overflow: "hidden", minWidth: 160,
               }}>
@@ -217,8 +196,8 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
                   <button key={l.code} type="button" onClick={() => { onLangChange(l.code); setLangOpen(false); }} style={{
                     display: "flex", alignItems: "center", gap: "var(--space-2)", width: "100%", textAlign: "left",
                     padding: "10px 14px", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    fontSize: "var(--text-sm)", background: lang === l.code ? "var(--indigo-50)" : "transparent",
-                    color: lang === l.code ? "var(--indigo-700)" : "var(--text-body)",
+                    fontSize: "var(--text-sm)", background: lang === l.code ? "var(--chrome-ink)" : "transparent",
+                    color: lang === l.code ? "var(--chrome-paper)" : "var(--text-body)",
                     fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)",
                   }}>
                     <span>{l.flag}</span><span>{l.label}</span>

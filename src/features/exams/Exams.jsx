@@ -1,10 +1,10 @@
 // Examik — Exams screen: brain-driven, reactive via useBrain().
 import { examSlotLocked } from "../learn/premium";
 import { ProSheet } from "../learn/ProSheet";
+import { PageHeader, PrimaryButton } from "../../components/PageHeader";
 
 function Exams({ t, onPlanReady }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const { Button } = window.AIExamCoachDesignSystem_99e467;
   const brain = window.useBrain();
   const [exams, setExams] = React.useState(() => window.getExams());
   const [showAdd, setShowAdd] = React.useState(false);
@@ -82,10 +82,14 @@ function Exams({ t, onPlanReady }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.exams_title}</h1>
-        <Button variant="primary" size="md" onClick={() => examSlotLocked(exams.length) ? setShowSlotPaywall(true) : setShowAdd(true)}>{t.exams_add}</Button>
-      </div>
+      <PageHeader
+        title={t.exams_title}
+        action={(
+          <PrimaryButton onClick={() => examSlotLocked(exams.length) ? setShowSlotPaywall(true) : setShowAdd(true)}>
+            {t.exams_add}
+          </PrimaryButton>
+        )}
+      />
       {nearestExam && (
         <div style={{ borderRadius: "var(--radius-xl)", background: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-50)" : "var(--indigo-50)", border: `1px solid ${daysAway(nearestExam.examDate) <= 7 ? "var(--amber-100)" : "var(--indigo-100)"}`, padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
           <span style={{ color: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-700)" : "var(--indigo-600)", fontWeight: "var(--weight-semibold)" }}>

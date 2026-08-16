@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 46" role="img" aria-label="Examik">
+  <g fill="#8921F5" transform="translate(-19 -9)">
+    <rect x="19" y="9" width="6" height="6"/>
+    <rect x="29" y="9" width="6" height="6"/>
+    <rect x="39" y="9" width="6" height="6"/>
+    <rect x="19" y="19" width="6" height="6"/>
+    <rect x="19" y="29" width="6" height="6"/>
+    <rect x="29" y="29" width="6" height="6"/>
+    <rect x="39" y="29" width="6" height="6"/>
+    <rect x="19" y="39" width="6" height="6"/>
+    <rect x="19" y="49" width="6" height="6"/>
+    <rect x="29" y="49" width="6" height="6"/>
+    <rect x="39" y="49" width="6" height="6"/>
+  </g>
+  <text x="32" y="34" fill="#141822" font-family="Cormorant Garamond, Iowan Old Style, Palatino, Georgia, serif" font-size="28" font-weight="600" letter-spacing="-0.03em">Examik</text>
+</svg>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rasterise the Exam Coach block-E into PNG + iOS AppIcon.appiconset.
+"""Rasterise the Examik block-E into PNG + iOS AppIcon.appiconset.
 
 Why a stdlib PNG writer: we refuse a new dependency for one utility
 (see CLAUDE.md). Geometry matches brand/logo.svg: eleven purple squares.
@@ -54,6 +54,20 @@ def paint(px: float, py: float) -> bool:
         if x <= px < x + SQUARE and y <= py < y + SQUARE:
             return True
     return False
+
+
+def render_mark(width: int, height: int) -> list[list[tuple[int, int, int, int]]]:
+    # Tight crop matches BrandMark viewBox 19 9 26 46. Email clients
+    # drop SVG in <img>, so the lockup header needs this PNG.
+    rows = []
+    for y in range(height):
+        cy = 9.0 + (y + 0.5) / height * 46.0
+        row = []
+        for x in range(width):
+            cx = 19.0 + (x + 0.5) / width * 26.0
+            row.append(PURPLE if paint(cx, cy) else CLEAR)
+        rows.append(row)
+    return rows
 
 
 def render(size: int, background: bool) -> list[list[tuple[int, int, int, int]]]:
@@ -136,7 +150,7 @@ CONTENTS = """{
     {"idiom": "ipad", "size": "83.5x83.5", "scale": "2x", "filename": "Icon-83.5@2x.png"},
     {"idiom": "ios-marketing", "size": "1024x1024", "scale": "1x", "filename": "Icon-1024.png"}
   ],
-  "info": {"version": 1, "author": "exam.coach"}
+  "info": {"version": 1, "author": "examik"}
 }
 """
 
@@ -144,7 +158,7 @@ CONTENTS = """{
 def copy_svgs() -> None:
     src = ROOT / "brand"
     BRAND_OUT.mkdir(parents=True, exist_ok=True)
-    for name in ("logo.svg", "mark.svg", "wordmark.svg"):
+    for name in ("logo.svg", "mark.svg", "wordmark.svg", "lockup.svg"):
         (BRAND_OUT / name).write_bytes((src / name).read_bytes())
     (PUBLIC / "favicon.svg").write_bytes((src / "logo.svg").read_bytes())
 
@@ -158,6 +172,8 @@ def main() -> None:
             print(f"  render {size}×{size}")
             cache[size] = render(size, background=True)
         return cache[size]
+
+    write_png(BRAND_OUT / "mark-48.png", render_mark(28, 48))
 
     for size in (32, 64, 128, 256, 512, 1024):
         write_png(BRAND_OUT / f"logo-{size}.png", png_for(size))

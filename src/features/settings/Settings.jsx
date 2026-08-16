@@ -10,6 +10,7 @@ import { exportPersonalData } from "../../lib/export-data";
 import { deleteAccount } from "../../lib/delete-account";
 import { ACCENT_OPTIONS } from "../../app/tweaks";
 import { Legal } from "../../app/legal/Legal";
+import { PageHeader } from "../../components/PageHeader";
 
 function L(lang, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[lang] || en; }
 
@@ -299,7 +300,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
     <div className="settings-hub" style={{ backgroundImage: tierOff ? "none" : tierWash, margin: "-8px -4px 0", padding: "8px 4px 0" }}>
       {!sheet && (
         <div className="settings-hub-home">
-      <h1>{t.settings_title}</h1>
+      <PageHeader title={t.settings_title} />
 
       <section className="settings-hub-section">
         <p className="settings-hub-kicker">{L(lang, "Account", "Акаунт", "Аккаунт", "Compte", "Konto")}</p>
