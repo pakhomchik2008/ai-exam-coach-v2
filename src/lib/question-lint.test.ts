@@ -68,6 +68,48 @@ const GOLDEN: GoldenCase[] = [
     expect: ["length-bias"],
   },
   {
+    name: "history tell: correct is a clause, distractors are short phrases — the mean test used to miss this",
+    question: {
+      question: "Яка з наведених подій започаткувала державотворення Київської Русі?",
+      options: [
+        "Хрещення Русі Володимиром",
+        "Любецький з'їзд князів",
+        "Князь Олег захопив Київ у 882 році і проголосив його столицею, об'єднавши північні і південні землі",
+        "Правда Ярослава",
+      ],
+      correct: 2,
+    },
+    expect: ["length-bias"],
+  },
+  {
+    name: "correct is longest by ~20% vs a tight pack — mean 1.35 used to let this through",
+    question: {
+      question: "What did collectivisation aim to do?",
+      options: [
+        "Raise living standards for peasants living across the whole countryside",
+        "Expand private farms throughout the southern Ukrainian grain regions",
+        "Liquidate remaining private landholding and force peasants onto state kolkhozes",
+        "Cut grain exports so that the cities and the army could be supplied",
+      ],
+      correct: 2,
+    },
+    expect: ["length-bias"],
+  },
+  {
+    name: "a few extra characters vs a tight pack is not a student-visible tell",
+    question: {
+      question: "What did collectivisation aim to do?",
+      options: [
+        "Raise living standards for peasants in the countryside",
+        "Expand private farms across the southern grain belt",
+        "End private landholding and drive peasants onto kolkhozes",
+        "Cut grain exports so the cities could be fed",
+      ],
+      correct: 2,
+    },
+    expect: [],
+  },
+  {
     name: "short maths options are allowed to differ — a fixed percentage corridor would reject this",
     question: {
       question: "Solve $x^2 + 4 = 0$ over the reals.",
@@ -166,7 +208,12 @@ const GOLDEN: GoldenCase[] = [
     name: "Russian paper, Ukrainian letters leak in",
     question: {
       question: "Какая формула описывает площадь треугольника?",
-      options: ["Основа на висоту навпіл", "Сторона в квадрате", "Сумма углов", "Радиус круга"],
+      options: [
+        "Основа на висоту навпіл",
+        "Сторона в квадрате целиком",
+        "Сумма внутренних углов",
+        "Радиус описанного круга",
+      ],
       correct: 0,
     },
     language: "ru",
@@ -332,6 +379,8 @@ describe("mcqRulesBlock", () => {
     const block = mcqRulesBlock([]);
     expect(block).not.toContain("0-based indices");
     expect(block).toContain("none of the above");
+    expect(block).toContain("±2 words");
+    expect(block).toContain("same syntactic shape");
   });
 });
 
