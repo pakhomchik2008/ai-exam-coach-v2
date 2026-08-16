@@ -15,11 +15,15 @@ import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
 import {
   OPTION_LETTERS,
+  figureBriefOf,
+  figurePassPrompt,
   isBabyShort,
   normalizeSimQuestion,
   paperShapeFor,
+  parseFigurePack,
   scoreSimAnswer,
   sectionGenerationPrompt,
+  shouldDrawFigure,
   sittingById,
 } from "../../lib/paper-shapes";
 import { ExamRecap } from "../study/ExamRecap.jsx";
@@ -1801,14 +1805,21 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
 }
 
-function _simFigure(raw) {
-  const clean = sanitizeSvg(raw);
-  if (!clean) return null;
-  return React.createElement("figure", {
-    className: "theory-diagram",
-    style: { margin: "0 0 16px" },
-    dangerouslySetInnerHTML: { __html: clean },
-  });
+function _simFigurePlate(q, lang) {
+  const clean = sanitizeSvg(q && q.figure);
+  const brief = q && (q.figureBrief || "");
+  if (!clean && !brief && !(q && q.figureKind === "source")) return null;
+  const isSource = q.figureKind === "source" || /source|джерел|источник/i.test(`${q.question || ""} ${q.stimulus || ""}`);
+  const label = isSource
+    ? (lang === "uk" ? "Джерело А" : lang === "ru" ? "Источник А" : "Source A")
+    : (lang === "uk" || lang === "ru" ? "Рис. 1" : "Figure 1");
+  return React.createElement("figure", { className: "exam-figure-plate" },
+    React.createElement("div", { className: "exam-figure-plate__label" }, label),
+    clean
+      ? React.createElement("div", { className: "exam-figure-plate__art", dangerouslySetInnerHTML: { __html: clean } })
+      : React.createElement("div", { className: "exam-figure-plate__art exam-figure-plate__art--empty" }),
+    brief ? React.createElement("figcaption", { className: "exam-figure-plate__cap" }, brief) : null,
+  );
 }
 
 function _simItemFields(q, idx, answers, setAnswers) {
@@ -2015,10 +2026,10 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
                 difficulty: paperShape && paperShape.difficulty,
               });
               const user = section.kind === "short"
-                ? `Write ${section.count} HARD last-paper short items. No order-of-operations warmup. At least half need an SVG figure.`
+                ? `Write ${section.count} HARD last-paper short items. No order-of-operations warmup. At least half need a figureBrief (prism, graph, trapezoid). No SVG in the JSON.`
                 : section.kind === "written"
-                  ? `Write ${section.count} written items. Where a real paper would print a photo, map, cartoon, or graph, include an original SVG in figure.`
-                  : `Generate ${section.count} ${section.kind} items. Include an original SVG figure when the stem needs a diagram.`;
+                  ? `Write ${section.count} written items. Every source/map/photo item needs a figureBrief and figureKind source|figure. No SVG in the JSON.`
+                  : `Generate ${section.count} ${section.kind} items. Put a figureBrief on any stem that would print a diagram. No SVG in the JSON.`;
               const raw = await raceJson(system, user);
               const rows = Array.isArray(raw && raw.questions) ? raw.questions : [];
               return rows
@@ -2063,7 +2074,31 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
         const mcqForBank = rawAll.filter((q) => q.kind === "mcq");
         const restForBank = rawAll.filter((q) => q.kind !== "mcq");
         const dedupedMcq = await dedupeAgainstQuestionBank(mcqForBank, examTaxonomyLocal, async () => []);
-        const assembled = [...dedupedMcq, ...restForBank];
+        let assembled = [...dedupedMcq, ...restForBank];
+        const figureJobs = assembled
+          .map((q, i) => ({ q, i }))
+          .filter(({ q }) => shouldDrawFigure(q))
+          .sort((a, b) => Number(!!b.q.figureBrief) - Number(!!a.q.figureBrief))
+          .slice(0, 8);
+        const figureBatches = [];
+        for (let i = 0; i < figureJobs.length; i += 2) figureBatches.push(figureJobs.slice(i, i + 2));
+        const raceText = (system, user) => {
+          const to = new Promise((_, rej) => setTimeout(() => rej(new Error("figure timeout")), 50000));
+          return Promise.race([window.brainComplete({ system, messages: [{ role: "user", content: user }], paperQual: examPaperQual }), to]);
+        };
+        const drawn = new Map();
+        await Promise.all(figureBatches.map(async (batch) => {
+          try {
+            const raw = await raceText(
+              figurePassPrompt(selectedExam.name, batch.map(({ q, i }) => ({ i, question: q.question, brief: figureBriefOf(q) }))),
+              "Draw every figure in the pack now.",
+            );
+            parseFigurePack(String(raw || "")).forEach((svg, i) => drawn.set(i, svg));
+          } catch (err) {
+            console.warn("exam-sim: figure pass failed —", err.message || err);
+          }
+        }));
+        if (drawn.size) assembled = assembled.map((q, i) => (drawn.has(i) ? { ...q, figure: drawn.get(i) } : q));
         const secs = spec.official ? spec.durationMin * 60 : Math.round(assembled.length * 1.5) * 60;
         setQuestions(assembled);
         setAnswers(new Array(assembled.length).fill(null));
@@ -2234,7 +2269,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         q.kind && q.kind !== "mcq" && React.createElement("div", { style: { marginBottom: 8 } }, _badge("var(--slate-100)", "var(--text-muted)", q.kind)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
-        _simFigure(q.figure),
+        _simFigurePlate(q, paperLanguageFor(examQual) || t?.code),
         _simItemFields(q, idx, answers, setAnswers))),
 
     // Prev / Next navigation

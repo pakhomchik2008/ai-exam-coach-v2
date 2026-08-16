@@ -5,8 +5,10 @@ import {
   isBabyShort,
   normalizeSimQuestion,
   paperShapeFor,
+  parseFigurePack,
   scoreSimAnswer,
   sectionGenerationPrompt,
+  shouldDrawFigure,
   sittingById,
 } from "./paper-shapes";
 
@@ -160,6 +162,24 @@ describe("scoreSimAnswer", () => {
     expect(q).toBeTruthy();
     expect(scoreSimAnswer(q!, 3).correct).toBe(true);
     expect(scoreSimAnswer(q!, 0).correct).toBe(false);
+  });
+
+  it("parses a print-pack of figures", () => {
+    const pack = parseFigurePack(`===FIG 2===
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420"><circle cx="10" cy="10" r="4"/></svg>
+===FIG 5===
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420"><rect x="1" y="1" width="8" height="8"/></svg>`);
+    expect(pack.get(2)).toMatch(/circle/);
+    expect(pack.get(5)).toMatch(/rect/);
+  });
+
+  it("draws a source plate when the brief is set", () => {
+    const q = normalizeSimQuestion({
+      kind: "written", question: "Study Source A. How useful is it?",
+      figureBrief: "1930s soup kitchen, queue of workers", figureKind: "source",
+      markscheme: ["content"],
+    }, "written");
+    expect(shouldDrawFigure(q!)).toBe(true);
   });
 
   it("keeps an SVG figure on a short item", () => {
