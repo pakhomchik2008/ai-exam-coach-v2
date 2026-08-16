@@ -79,3 +79,4 @@ See #100–103 in `docs/phase-5-billing-tiers-plan.md`.
 | 113 | Exam Sim sits official public paper shapes per subject. #37 stays — no third-party banks. File optional | УЦОЯО / College Board / AQA характеристики, original items. Family-level "18 GCSE MCQs" was a lie |
 | 114 | Exam Sim difficulty is calibrated from official public demos, not a generic "genuine exam" line | УЦОЯО 2023–2026 sittings + Bluebook 1–5 + ETS/GMAC samples. Curve only — do not store those items |
 | 115 | GCSE / A-level sit AQA paper clocks and generate original SVG figures (maps, apparatus, source scenes) | Real papers print photos. We do not ingest AQA images — original drawings only |
+| 116 | Exam figures are a second pass (===FIG n===), never inline SVG in the item JSON | Inline SVG broke parseJSON, so Source A never reached the screen |

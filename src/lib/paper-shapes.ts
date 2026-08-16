@@ -140,7 +140,7 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
       "No 'when was Kyiv founded' baby trivia. No essays. Do not copy demo items.",
     ),
     papers: [sitting("nmt-hist", "Історія України", 60, 54, [
-      mcq(20, 4, 1, "1–20 одна з чотирьох"),
+      mcq(20, 4, 1, "1–20 одна з чотирьох. Map / portrait / cartoon items MUST set figureBrief."),
       match(4, 4, 5, 4, "21–24 логічні пари 1–4 × А–Д"),
       order(3, 3, "25–27 послідовність з 4 подій"),
       multi(3, 7, 3, 3, "28–30 три правильні з семи"),
@@ -225,7 +225,7 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
       "No capital-city quiz only. Do not copy demo items.",
     ),
     papers: [sitting("nmt-geo", "Географія", 60, 46, [
-      mcq(20, 4, 1, "1–20 одна з чотирьох"),
+      mcq(20, 4, 1, "1–20 одна з чотирьох. Map / profile items MUST set figureBrief."),
       short(4, 2, "21–24 коротка відповідь"),
       multi(6, 7, 3, 3, "25–30 три правильні з семи"),
     ])],
@@ -908,10 +908,10 @@ OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.`;
   if (section.kind === "mcq") {
     const n = section.options || 4;
     return `${base}
-FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"...","figure":""}]}
+FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"...","figureBrief":""}]}
 RULES: each item has exactly ${n} options; "correct" is a 0-based index.
-figure is "" or a raw <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg> drawing (triangle, axes, circle, spatial). No width/height, no script, no external images.
-When the stem says "see the figure" / "див. рисунок", figure MUST be a real drawing, not empty.`;
+figureBrief is a 8–20 word drawing brief (triangle ABC with median AM, circuit, climate graph) or "". Do NOT put SVG in this JSON — a second pass draws it.
+When the stem says "див. рисунок" / "Study Figure 1", figureBrief MUST be non-empty.`;
   }
   if (section.kind === "match") {
     return `${base}
@@ -920,12 +920,12 @@ RULES: left has ${section.left} stems; right has ${section.right} options (А–
   }
   if (section.kind === "short") {
     return `${base}
-FORMAT: {"questions":[{"kind":"short","question":"...","answer":"-2.5","accept":["-2,5","-2.50"],"explanation":"2-3 step method","topic":"...","figure":""}]}
+FORMAT: {"questions":[{"kind":"short","question":"...","answer":"-2.5","accept":["-2,5","-2.50"],"explanation":"2-3 step method","topic":"...","figureBrief":""}]}
 RULES: these are the LAST items on the paper — harder than the MCQs.
 Each item needs 2–3 reasoning steps (piecewise+derivative, combinatorics C(n,k), 3D volume, parameter).
 Answer is a number (decimals and negatives allowed). accept lists comma/dot twins.
 BANNED: a single arithmetic expression with no context (order of operations, "обчисліть значення виразу (2³-5)·4").
-figure is "" or a raw <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg>. At least half the items MUST have a figure (prism, graph, trapezoid).`;
+figureBrief is a drawing brief or "". At least half MUST be non-empty (prism, graph, trapezoid). No SVG in this JSON.`;
   }
   if (section.kind === "order") {
     return `${base}
@@ -943,9 +943,9 @@ FORMAT: {"questions":[{"kind":"groups","question":"...","columns":[["a","b","c"]
 RULES: three columns of three labels; correct[i] is the chosen row in column i.`;
   }
   return `${base}
-FORMAT: {"questions":[{"kind":"written","question":"...","stimulus":"optional source extract","maxMarks":${section.maxMarksEach},"markscheme":["bullet 1","bullet 2"],"topic":"...","figure":""}]}
+FORMAT: {"questions":[{"kind":"written","question":"...","stimulus":"optional source extract","maxMarks":${section.maxMarksEach},"markscheme":["bullet 1","bullet 2"],"topic":"...","figureBrief":"","figureKind":"source"}]}
 RULES: exam-board command words (Explain / How far / Write an account). Stimulus is a short original source, not a copyrighted extract.
-figure is "" or a raw <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg>: map, cartoon, photo-like scene, graph, apparatus. Never a scanned AQA/Edexcel photo. When the stem says "Study Figure 1" / "Source A", figure MUST be a real drawing.`;
+figureKind is "source" (History photo/cartoon) or "figure" (map/graph). figureBrief MUST be non-empty when the stem says "Study Figure 1" / "Source A". No SVG in this JSON.`;
 }
 
 export type SimAnswer =
@@ -973,6 +973,8 @@ export type SimQuestion = {
   markscheme?: string[];
   maxMarks?: number;
   figure?: string;
+  figureBrief?: string;
+  figureKind?: "figure" | "source";
 };
 
 /** Last-section NMT shorts that are just order-of-operations. Official 19–22 never look like this. */
@@ -992,24 +994,26 @@ export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuest
   const topic = typeof row.topic === "string" ? row.topic : "";
   const explanation = typeof row.explanation === "string" ? row.explanation : "";
   const figure = typeof row.figure === "string" ? row.figure : "";
+  const figureBrief = typeof row.figureBrief === "string" ? row.figureBrief.trim() : "";
+  const figureKind = row.figureKind === "source" ? "source" : "figure";
   if (kind === "mcq") {
     const options = Array.isArray(row.options) ? row.options.map((o) => String(o)) : [];
     const correct = typeof row.correct === "number" ? row.correct : 0;
     if (options.length < 2) return null;
-    return { kind, question, options, correct, explanation, topic, figure };
+    return { kind, question, options, correct, explanation, topic, figure, figureBrief, figureKind };
   }
   if (kind === "match") {
     const left = Array.isArray(row.left) ? row.left.map((o) => String(o)) : [];
     const right = Array.isArray(row.right) ? row.right.map((o) => String(o)) : [];
     const pairs = Array.isArray(row.pairs) ? row.pairs.map((n) => Number(n)) : [];
     if (!left.length || !right.length) return null;
-    return { kind, question, left, right, pairs, explanation, topic, figure };
+    return { kind, question, left, right, pairs, explanation, topic, figure, figureBrief, figureKind };
   }
   if (kind === "short") {
     const answer = String(row.answer || row.correct || "").trim();
     const accept = Array.isArray(row.accept) ? row.accept.map((o) => String(o)) : [];
     if (!answer) return null;
-    return { kind, question, answer, accept, explanation, topic, figure };
+    return { kind, question, answer, accept, explanation, topic, figure, figureBrief, figureKind };
   }
   if (kind === "order") {
     const items = Array.isArray(row.items) ? row.items.map((o) => String(o)) : [];
@@ -1041,7 +1045,59 @@ export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuest
     topic,
     explanation,
     figure,
+    figureBrief,
+    figureKind,
   };
+}
+
+const FIGURE_HINT = /див\.?\s*рисун|see (the )?figure|study (figure|source)|source [a-d]\b|figure \d|рис\.|карт[аеиу]|графік|graph|diagram|апарат|circuit|трикутн|triangle|коло |prism|призм|trapez|трапец/i;
+
+export function figureBriefOf(question: SimQuestion): string {
+  if (question.figureBrief) return question.figureBrief;
+  const blob = `${question.question} ${question.stimulus || ""}`.trim();
+  return blob.slice(0, 180);
+}
+
+export function shouldDrawFigure(question: SimQuestion): boolean {
+  if (question.figure && question.figure.includes("<svg")) return false;
+  if (question.figureBrief) return true;
+  if (question.kind === "written" && question.figureKind === "source") return true;
+  return FIGURE_HINT.test(`${question.question} ${question.stimulus || ""}`);
+}
+
+export const EXAM_FIGURE_PLAYBOOK = `Official printed-paper style (УЦОЯО / AQA), not a website illustration.
+- White background. Black ink only (#111). No purple, no gradients, no drop shadows.
+- Strokes 1.6–2.2, round caps. Geometry looks compass-drawn. Vertices labelled.
+- viewBox "0 0 720 420". 24px padding. No width/height on <svg>. No <script>, no on*, no <image href>.
+- Labels 1–4 words, font-family="ui-sans-serif, system-ui, sans-serif" font-size 14 font-weight 650 fill="#111".
+- History SOURCE: a dense pictorial scene (people, buildings, objects, period clothes) — a plate the student can read like a photo, not a stick-man. Caption lives outside the SVG.
+- Geography: sketch map with north arrow + scale bar, or a landscape plate with 4+ landform labels.
+- Science: apparatus / circuit / cell / graph with labelled axes and units.
+- Maths: the actual figure in the stem (triangle, circle, prism, axes). Hidden edges dashed.
+- Never copy a published past-paper image. Never write the word Diagram inside the SVG.`;
+
+export function figurePassPrompt(examName: string, batch: readonly { i: number; question: string; brief: string }[]): string {
+  const lines = batch.map((row) => `[${row.i}] STEM: ${row.question}\nBRIEF: ${row.brief}`).join("\n\n");
+  const headers = batch.map((row) => `===FIG ${row.i}===\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420">...</svg>`).join("\n");
+  return `You are the exam-board illustrator for "${examName}".
+${EXAM_FIGURE_PLAYBOOK}
+Draw one ORIGINAL print-ready SVG per item. Ultra-clear, as good as a real paper plate.
+OUTPUT ONLY this pack — no JSON, no markdown fences:
+${headers}
+Items:
+${lines}`;
+}
+
+export function parseFigurePack(raw: string): Map<number, string> {
+  const map = new Map<number, string>();
+  if (!raw) return map;
+  const re = /===FIG\s+(\d+)===\s*([\s\S]*?)(?====FIG\s+\d+===|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(raw))) {
+    const chunk = match[2] || "";
+    if (chunk.toLowerCase().includes("<svg")) map.set(Number(match[1]), chunk.trim());
+  }
+  return map;
 }
 
 function normKey(value: string): string {
