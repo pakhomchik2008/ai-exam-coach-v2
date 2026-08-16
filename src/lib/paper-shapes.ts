@@ -1,0 +1,561 @@
+/**
+ * Official sitting shapes per exam + subject.
+ *
+ * Decision #113: #37 stays — we do not ingest ЗНО онлайн / revision banks.
+ * We encode public board характеристики (УЦОЯО PDFs, College Board, AQA spec)
+ * and generate original items. A student file is optional, never required.
+ *
+ * Family-level "18 GCSE MCQs" is a lie. Official is only claimed when this
+ * catalog has a verified subject sitting. Unlisted subjects stay a generic mock.
+ */
+import { canonicalQualification, paperQualForExam, type ExamNameLike } from "./paper-language";
+import { GRE_AWA, GRE_QUANT, GRE_VERBAL } from "./gre-paper";
+import { GMAT_DATA_INSIGHTS, GMAT_QUANT, GMAT_VERBAL } from "./gmat-paper";
+
+export type ItemKind = "mcq" | "match" | "short" | "order" | "multi" | "groups" | "written";
+
+export interface PaperSection {
+  readonly kind: ItemKind;
+  readonly count: number;
+  readonly options?: number;
+  readonly left?: number;
+  readonly right?: number;
+  readonly picks?: number;
+  readonly maxMarksEach: number;
+  readonly note: string;
+}
+
+export interface PaperSitting {
+  readonly id: string;
+  readonly label: string;
+  readonly minutes: number;
+  readonly questionCount: number;
+  readonly maxRaw: number;
+  readonly sections: readonly PaperSection[];
+}
+
+export interface PaperShape {
+  readonly id: string;
+  readonly qualification: string;
+  readonly source: string;
+  readonly year: number;
+  readonly note: string;
+  readonly papers: readonly PaperSitting[];
+}
+
+function sitting(
+  id: string,
+  label: string,
+  minutes: number,
+  maxRaw: number,
+  sections: readonly PaperSection[],
+): PaperSitting {
+  const questionCount = sections.reduce((sum, section) => sum + section.count, 0);
+  return { id, label, minutes, questionCount, maxRaw, sections };
+}
+
+function mcq(count: number, options: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "mcq", count, options, maxMarksEach, note };
+}
+function match(count: number, left: number, right: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "match", count, left, right, maxMarksEach, note };
+}
+function short(count: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "short", count, maxMarksEach, note };
+}
+function order(count: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "order", count, maxMarksEach, note };
+}
+function multi(count: number, options: number, picks: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "multi", count, options, picks, maxMarksEach, note };
+}
+function groups(count: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "groups", count, maxMarksEach, note };
+}
+function written(count: number, maxMarksEach: number, note: string): PaperSection {
+  return { kind: "written", count, maxMarksEach, note };
+}
+
+const NMT_INDEX = "https://testportal.gov.ua/skladnyky-nmt-2026/";
+
+export const PAPER_SHAPES: readonly PaperShape[] = [
+  {
+    id: "nmt-math",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_matematyka_2026.pdf",
+    year: 2026,
+    note: "НМТ математика 2026: 22 / 60 хв / 32 тестових. 15×5 варіантів, 3 логічні пари, 4 короткі.",
+    papers: [sitting("nmt-math", "Математика", 60, 32, [
+      mcq(15, 5, 1, "1–15 одна з п’яти"),
+      match(3, 3, 5, 3, "16–18 логічні пари 1–3 × А–Д"),
+      short(4, 2, "19–22 коротка відповідь"),
+    ])],
+  },
+  {
+    id: "nmt-ukr",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_ukrmova_2026.pdf",
+    year: 2026,
+    note: "НМТ українська мова 2026: 30 / 60 хв / 45 тестових.",
+    papers: [sitting("nmt-ukr", "Українська мова", 60, 45, [
+      mcq(25, 4, 1, "1–25 одна відповідь (4 або 5 варіантів)"),
+      match(5, 4, 5, 4, "26–30 логічні пари 1–4 × А–Д"),
+    ])],
+  },
+  {
+    id: "nmt-hist",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_istUkrayiny_2026.pdf",
+    year: 2026,
+    note: "НМТ історія України 2026: 30 / 60 хв. MCQ, пари, послідовність, три з семи.",
+    papers: [sitting("nmt-hist", "Історія України", 60, 54, [
+      mcq(20, 4, 1, "1–20 одна з чотирьох"),
+      match(4, 4, 5, 4, "21–24 логічні пари 1–4 × А–Д"),
+      order(3, 3, "25–27 послідовність з 4 подій"),
+      multi(3, 7, 3, 3, "28–30 три правильні з семи"),
+    ])],
+  },
+  {
+    id: "nmt-lit",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_ukrliteratura_2026.pdf",
+    year: 2026,
+    note: "НМТ українська література 2026: 30 / 60 хв / 45 тестових.",
+    papers: [sitting("nmt-lit", "Українська література", 60, 45, [
+      mcq(25, 4, 1, "1–25 одна відповідь"),
+      match(5, 4, 5, 4, "26–30 логічні пари 1–4 × А–Д"),
+    ])],
+  },
+  {
+    id: "nmt-bio",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_biologiya_2026.pdf",
+    year: 2026,
+    note: "НМТ біологія 2026: 30 / 60 хв. 24 MCQ, 4 пари, 2 тригрупові.",
+    papers: [sitting("nmt-bio", "Біологія", 60, 46, [
+      mcq(24, 4, 1, "1–24 одна з чотирьох"),
+      match(4, 4, 5, 4, "25–28 логічні пари 1–4 × А–Д"),
+      groups(2, 3, "29–30 три групи, по одному вибору"),
+    ])],
+  },
+  {
+    id: "nmt-phys",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_fizyka_2026.pdf",
+    year: 2026,
+    note: "НМТ фізика 2026: 22 / 60 хв. 14 MCQ, 2 пари, 6 коротких.",
+    papers: [sitting("nmt-phys", "Фізика", 60, 32, [
+      mcq(14, 4, 1, "1–14 одна з чотирьох"),
+      match(2, 3, 5, 3, "15–16 логічні пари 1–3 × А–Д"),
+      short(6, 2, "17–22 коротка відповідь"),
+    ])],
+  },
+  {
+    id: "nmt-chem",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_himiya_2026.pdf",
+    year: 2026,
+    note: "НМТ хімія 2026: 24 / 60 хв. 18 MCQ, 2 пари, 4 короткі.",
+    papers: [sitting("nmt-chem", "Хімія", 60, 32, [
+      mcq(18, 4, 1, "1–18 одна з чотирьох"),
+      match(2, 3, 5, 3, "19–20 логічні пари 1–3 × А–Д"),
+      short(4, 2, "21–24 коротка відповідь"),
+    ])],
+  },
+  {
+    id: "nmt-geo",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_geografiya_2026.pdf",
+    year: 2026,
+    note: "НМТ географія 2026: 30 / 60 хв. 20 MCQ, 4 короткі, 6× три з семи.",
+    papers: [sitting("nmt-geo", "Географія", 60, 46, [
+      mcq(20, 4, 1, "1–20 одна з чотирьох"),
+      short(4, 2, "21–24 коротка відповідь"),
+      multi(6, 7, 3, 3, "25–30 три правильні з семи"),
+    ])],
+  },
+  {
+    id: "nmt-eng",
+    qualification: "nmt",
+    source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_inozemnimovy_2026.pdf",
+    year: 2026,
+    note: "НМТ іноземна 2026: 32 / 60 хв / 32 тестових. 6 tasks (5+5+6+6+5+5).",
+    papers: [sitting("nmt-eng", "Іноземна мова", 60, 32, [
+      mcq(20, 4, 1, "Tasks 1–2 and 5–6 style: one answer"),
+      short(12, 1, "Tasks 3–4 style: matching / gap-fill as short keys"),
+    ])],
+  },
+  {
+    id: "sat-rw",
+    qualification: "sat",
+    source: "https://satsuite.collegeboard.org/sat/whats-on-the-test/structure",
+    year: 2024,
+    note: "Digital SAT Reading and Writing: 54 / 64 min (two 32-min modules).",
+    papers: [sitting("sat-rw", "Reading and Writing", 64, 54, [
+      mcq(54, 4, 1, "Two modules × 27. Adaptive module 2 is not modelled — one mixed paper."),
+    ])],
+  },
+  {
+    id: "sat-math",
+    qualification: "sat",
+    source: "https://satsuite.collegeboard.org/sat/whats-on-the-test/structure",
+    year: 2024,
+    note: "Digital SAT Math: 44 / 70 min. Most MCQ; some student-produced response.",
+    papers: [sitting("sat-math", "Math", 70, 44, [
+      mcq(36, 4, 1, "Multiple choice"),
+      short(8, 1, "Student-produced response"),
+    ])],
+  },
+  {
+    id: "gre-verbal",
+    qualification: "gre",
+    source: "https://www.ets.org/gre/test-takers/general-test/prepare/content.html",
+    year: 2023,
+    note: "Shorter GRE Verbal: 27 / 41.",
+    papers: [sitting("gre-verbal", "Verbal", GRE_VERBAL.minutes, GRE_VERBAL.questions, [
+      mcq(GRE_VERBAL.questions, 5, 1, "Text completion / sentence equivalence / reading"),
+    ])],
+  },
+  {
+    id: "gre-quant",
+    qualification: "gre",
+    source: "https://www.ets.org/gre/test-takers/general-test/prepare/content.html",
+    year: 2023,
+    note: "Shorter GRE Quant: 27 / 47.",
+    papers: [sitting("gre-quant", "Quant", GRE_QUANT.minutes, GRE_QUANT.questions, [
+      mcq(GRE_QUANT.questions, 5, 1, "Quantitative comparison and problem solving"),
+    ])],
+  },
+  {
+    id: "gre-awa",
+    qualification: "gre",
+    source: "https://www.ets.org/gre/test-takers/general-test/prepare/content.html",
+    year: 2023,
+    note: "Shorter GRE AWA: one Issue essay, 30 min. Argument removed.",
+    papers: [sitting("gre-awa", "Analytical Writing", GRE_AWA.minutes, 1, [
+      written(1, 6, "Issue essay, 0–6 half points"),
+    ])],
+  },
+  {
+    id: "gmat-quant",
+    qualification: "gmat",
+    source: "https://www.mba.com/exams/gmat-exam/about/exam-structure-and-content",
+    year: 2024,
+    note: "GMAT Focus Quant: 21 / 45.",
+    papers: [sitting("gmat-quant", "Quantitative", GMAT_QUANT.minutes, GMAT_QUANT.questions, [
+      mcq(GMAT_QUANT.questions, 5, 1, "Problem solving. No geometry."),
+    ])],
+  },
+  {
+    id: "gmat-verbal",
+    qualification: "gmat",
+    source: "https://www.mba.com/exams/gmat-exam/about/exam-structure-and-content",
+    year: 2024,
+    note: "GMAT Focus Verbal: 23 / 45. No Sentence Correction.",
+    papers: [sitting("gmat-verbal", "Verbal", GMAT_VERBAL.minutes, GMAT_VERBAL.questions, [
+      mcq(GMAT_VERBAL.questions, 5, 1, "Critical reasoning and reading"),
+    ])],
+  },
+  {
+    id: "gmat-di",
+    qualification: "gmat",
+    source: "https://www.mba.com/exams/gmat-exam/about/exam-structure-and-content",
+    year: 2024,
+    note: "GMAT Focus Data Insights: 20 / 45.",
+    papers: [sitting("gmat-di", "Data Insights", GMAT_DATA_INSIGHTS.minutes, GMAT_DATA_INSIGHTS.questions, [
+      mcq(GMAT_DATA_INSIGHTS.questions, 5, 1, "Data sufficiency, tables, graphs"),
+    ])],
+  },
+  {
+    id: "gcse-history",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/history/gcse/history-8145/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE History 8145: two written papers, 2h / 84 marks each. Not 11 MCQs.",
+    papers: [
+      sitting("gcse-hist-p1", "Paper 1 · Understanding the modern world", 120, 84, [
+        written(6, 7, "Section A period study — six compulsory questions, 40 marks"),
+        written(4, 10, "Section B wider world depth — four compulsory questions, 40 marks + SPaG"),
+      ]),
+      sitting("gcse-hist-p2", "Paper 2 · Shaping the nation", 120, 84, [
+        written(4, 10, "Section A thematic study — four compulsory questions, 40 marks"),
+        written(4, 10, "Section B British depth + historic environment — four questions, 40 marks + SPaG"),
+      ]),
+    ],
+  },
+];
+
+const NMT_ENG_IDS = new Set(["nmt-eng", "nmt-de", "nmt-fr", "nmt-es"]);
+
+const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
+  { id: "nmt-math", re: /матем|math|алгебр|геометр/i },
+  { id: "nmt-ukr", re: /українськ(а|ої) мов|украинск(ая|ий) яз|ukrainian language/i },
+  { id: "nmt-hist", re: /істор|истор|history/i },
+  { id: "nmt-lit", re: /літератур|литератур|literature/i },
+  { id: "nmt-bio", re: /біолог|биолог|biology/i },
+  { id: "nmt-phys", re: /фізик|физик|physics/i },
+  { id: "nmt-chem", re: /хімі|хими|chemistry/i },
+  { id: "nmt-geo", re: /географ|geograph/i },
+  { id: "nmt-eng", re: /англійськ|английск|english|англ/i },
+  { id: "nmt-de", re: /німецьк|немецк|german|deutsch/i },
+  { id: "nmt-fr", re: /французьк|французск|french|français/i },
+  { id: "nmt-es", re: /іспанськ|испанск|spanish|español/i },
+  { id: "sat-math", re: /math|математи/i },
+  { id: "sat-rw", re: /read|writ|verbal|english|читан|письм/i },
+  { id: "gre-verbal", re: /verbal|read/i },
+  { id: "gre-quant", re: /quant|math/i },
+  { id: "gre-awa", re: /awa|writ|essay|issue/i },
+  { id: "gmat-quant", re: /quant|math/i },
+  { id: "gmat-verbal", re: /verbal|read/i },
+  { id: "gmat-di", re: /data|insight/i },
+  { id: "gcse-history", re: /histor|істор|истор/i },
+];
+
+const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(
+  PAPER_SHAPES.map((shape) => [shape.id, shape]),
+);
+
+export function paperShapeById(id: string | null | undefined): PaperShape | null {
+  if (!id) return null;
+  if (NMT_ENG_IDS.has(id) && id !== "nmt-eng") return BY_ID["nmt-eng"] || null;
+  return BY_ID[id] || null;
+}
+
+const FAMILY_PAPER_IDS: Readonly<Record<string, readonly string[]>> = {
+  sat: ["sat-rw", "sat-math"],
+  gre: ["gre-verbal", "gre-quant", "gre-awa"],
+  gmat: ["gmat-quant", "gmat-verbal", "gmat-di"],
+};
+
+function mergeFamily(family: string, ids: readonly string[]): PaperShape | null {
+  const papers = ids.flatMap((id) => BY_ID[id]?.papers || []);
+  if (!papers.length) return null;
+  return {
+    id: family,
+    qualification: family,
+    source: BY_ID[ids[0] || ""]?.source || "",
+    year: BY_ID[ids[0] || ""]?.year || 0,
+    note: `Pick one official ${family.toUpperCase()} section. The real sitting is these sections, not a generic MCQ pack.`,
+    papers,
+  };
+}
+
+export function paperShapeFor(exam: ExamNameLike | null | undefined): PaperShape | null {
+  if (!exam) return null;
+  const paperQual = paperQualForExam(exam);
+  if (paperQual && NMT_ENG_IDS.has(paperQual)) return BY_ID["nmt-eng"] || null;
+  const blob = `${exam.name || ""} ${exam.subject || ""} ${paperQual || ""}`;
+  const family = canonicalQualification(exam.qualificationId || paperQual);
+  for (const row of SUBJECT_MATCHERS) {
+    const shape = BY_ID[row.id];
+    if (!shape) continue;
+    if (family) {
+      if (shape.qualification !== family) continue;
+    } else {
+      const token = shape.qualification === "nmt" ? /nmt|зно/i : new RegExp(shape.qualification, "i");
+      if (!token.test(blob)) continue;
+    }
+    if (row.re.test(blob)) return shape;
+  }
+  if (family && FAMILY_PAPER_IDS[family]) return mergeFamily(family, FAMILY_PAPER_IDS[family]);
+  return null;
+}
+
+export function sittingById(shape: PaperShape | null | undefined, paperId?: string | null): PaperSitting | null {
+  if (!shape || !shape.papers.length) return null;
+  return shape.papers.find((paper) => paper.id === paperId) || shape.papers[0] || null;
+}
+
+export const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G"] as const;
+
+export function sectionGenerationPrompt(opts: {
+  examName: string;
+  styleNote: string;
+  topics: readonly string[];
+  section: PaperSection;
+}): string {
+  const { examName, styleNote, topics, section } = opts;
+  const topicLine = topics.length ? topics.join(", ") : examName;
+  const base = `You write ORIGINAL items for a mock sitting of "${examName}". ${styleNote}
+Do not copy a published past paper or a third-party bank. Same forms and difficulty as the real sitting.
+Topics to cover: ${topicLine}
+Write exactly ${section.count} items. ${section.note}
+OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.`;
+
+  if (section.kind === "mcq") {
+    const n = section.options || 4;
+    return `${base}
+FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"..."}]}
+RULES: each item has exactly ${n} options; "correct" is a 0-based index; genuine exam difficulty.`;
+  }
+  if (section.kind === "match") {
+    return `${base}
+FORMAT: {"questions":[{"kind":"match","question":"...","left":["1..."],"right":["A..."],"pairs":[0,1,2],"explanation":"...","topic":"..."}]}
+RULES: left has ${section.left} stems; right has ${section.right} options (А–Д style); pairs[i] is the right-index for left[i].`;
+  }
+  if (section.kind === "short") {
+    return `${base}
+FORMAT: {"questions":[{"kind":"short","question":"...","answer":"12","accept":["12","12.0"],"explanation":"...","topic":"..."}]}
+RULES: answer is a short number or word; accept lists equivalent forms.`;
+  }
+  if (section.kind === "order") {
+    return `${base}
+FORMAT: {"questions":[{"kind":"order","question":"...","items":["A...","B...","C...","D..."],"correct":[2,0,3,1],"explanation":"...","topic":"..."}]}
+RULES: four items; correct is the chronological index order.`;
+  }
+  if (section.kind === "multi") {
+    return `${base}
+FORMAT: {"questions":[{"kind":"multi","question":"...","options":["..."],"correct":[0,2,5],"explanation":"...","topic":"..."}]}
+RULES: exactly ${section.options} options; correct has exactly ${section.picks} indices.`;
+  }
+  if (section.kind === "groups") {
+    return `${base}
+FORMAT: {"questions":[{"kind":"groups","question":"...","columns":[["a","b","c"],["a","b","c"],["a","b","c"]],"correct":[0,1,2],"explanation":"...","topic":"..."}]}
+RULES: three columns of three labels; correct[i] is the chosen row in column i.`;
+  }
+  return `${base}
+FORMAT: {"questions":[{"kind":"written","question":"...","stimulus":"optional source extract","maxMarks":${section.maxMarksEach},"markscheme":["bullet 1","bullet 2"],"topic":"..."}]}
+RULES: exam-board command words (Explain / How far / Write an account). Stimulus is a short original source, not a copyrighted extract.`;
+}
+
+export type SimAnswer =
+  | number
+  | string
+  | number[]
+  | null
+  | undefined;
+
+export type SimQuestion = {
+  kind: ItemKind;
+  question: string;
+  options?: string[];
+  correct?: number | number[] | string;
+  explanation?: string;
+  topic?: string;
+  left?: string[];
+  right?: string[];
+  pairs?: number[];
+  items?: string[];
+  answer?: string;
+  accept?: string[];
+  columns?: string[][];
+  stimulus?: string;
+  markscheme?: string[];
+  maxMarks?: number;
+};
+
+export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuestion | null {
+  if (!raw || typeof raw !== "object") return null;
+  const row = raw as Record<string, unknown>;
+  const question = String(row.question || "").trim();
+  if (!question) return null;
+  const kind = (typeof row.kind === "string" ? row.kind : fallback) as ItemKind;
+  const topic = typeof row.topic === "string" ? row.topic : "";
+  const explanation = typeof row.explanation === "string" ? row.explanation : "";
+  if (kind === "mcq") {
+    const options = Array.isArray(row.options) ? row.options.map((o) => String(o)) : [];
+    const correct = typeof row.correct === "number" ? row.correct : 0;
+    if (options.length < 2) return null;
+    return { kind, question, options, correct, explanation, topic };
+  }
+  if (kind === "match") {
+    const left = Array.isArray(row.left) ? row.left.map((o) => String(o)) : [];
+    const right = Array.isArray(row.right) ? row.right.map((o) => String(o)) : [];
+    const pairs = Array.isArray(row.pairs) ? row.pairs.map((n) => Number(n)) : [];
+    if (!left.length || !right.length) return null;
+    return { kind, question, left, right, pairs, explanation, topic };
+  }
+  if (kind === "short") {
+    const answer = String(row.answer || row.correct || "").trim();
+    const accept = Array.isArray(row.accept) ? row.accept.map((o) => String(o)) : [];
+    if (!answer) return null;
+    return { kind, question, answer, accept, explanation, topic };
+  }
+  if (kind === "order") {
+    const items = Array.isArray(row.items) ? row.items.map((o) => String(o)) : [];
+    const correct = Array.isArray(row.correct) ? row.correct.map((n) => Number(n)) : [];
+    if (items.length < 3) return null;
+    return { kind, question, items, correct, explanation, topic };
+  }
+  if (kind === "multi") {
+    const options = Array.isArray(row.options) ? row.options.map((o) => String(o)) : [];
+    const correct = Array.isArray(row.correct) ? row.correct.map((n) => Number(n)) : [];
+    if (options.length < 3 || !correct.length) return null;
+    return { kind, question, options, correct, explanation, topic };
+  }
+  if (kind === "groups") {
+    const columns = Array.isArray(row.columns)
+      ? row.columns.map((col) => (Array.isArray(col) ? col.map((o) => String(o)) : []))
+      : [];
+    const correct = Array.isArray(row.correct) ? row.correct.map((n) => Number(n)) : [];
+    if (columns.length < 2) return null;
+    return { kind, question, columns, correct, explanation, topic };
+  }
+  const markscheme = Array.isArray(row.markscheme) ? row.markscheme.map((o) => String(o)) : [];
+  return {
+    kind: "written",
+    question,
+    stimulus: typeof row.stimulus === "string" ? row.stimulus : "",
+    markscheme,
+    maxMarks: typeof row.maxMarks === "number" ? row.maxMarks : 8,
+    topic,
+    explanation,
+  };
+}
+
+function normKey(value: string): string {
+  return String(value || "").toLowerCase().replace(/\s+/g, "").replace(",", ".");
+}
+
+export function scoreSimAnswer(question: SimQuestion, answer: SimAnswer): { correct: boolean; marks: number; maxMarks: number } {
+  if (question.kind === "mcq") {
+    const maxMarks = question.maxMarks || 1;
+    const ok = answer === question.correct;
+    return { correct: ok, marks: ok ? maxMarks : 0, maxMarks };
+  }
+  if (question.kind === "short") {
+    const maxMarks = question.maxMarks || 2;
+    const got = normKey(String(answer || ""));
+    const pool = [question.answer, ...(question.accept || [])].filter(Boolean).map((v) => normKey(String(v)));
+    const ok = Boolean(got) && pool.some((v) => v === got);
+    return { correct: ok, marks: ok ? maxMarks : 0, maxMarks };
+  }
+  if (question.kind === "match") {
+    const maxMarks = question.pairs?.length || 0;
+    const got = Array.isArray(answer) ? answer : [];
+    let marks = 0;
+    (question.pairs || []).forEach((want, i) => { if (got[i] === want) marks += 1; });
+    return { correct: marks === maxMarks && maxMarks > 0, marks, maxMarks };
+  }
+  if (question.kind === "order") {
+    const want = Array.isArray(question.correct) ? question.correct : [];
+    const got = Array.isArray(answer) ? answer : [];
+    const maxMarks = want.length;
+    let marks = 0;
+    want.forEach((w, i) => { if (got[i] === w) marks += 1; });
+    return { correct: marks === maxMarks && maxMarks > 0, marks, maxMarks };
+  }
+  if (question.kind === "multi") {
+    const want = new Set(Array.isArray(question.correct) ? question.correct : []);
+    const got = new Set(Array.isArray(answer) ? answer : []);
+    const maxMarks = want.size;
+    let marks = 0;
+    want.forEach((w) => { if (got.has(w)) marks += 1; });
+    return { correct: marks === maxMarks && maxMarks > 0, marks, maxMarks };
+  }
+  if (question.kind === "groups") {
+    const want = Array.isArray(question.correct) ? question.correct : [];
+    const got = Array.isArray(answer) ? answer : [];
+    const maxMarks = want.length;
+    let marks = 0;
+    want.forEach((w, i) => { if (got[i] === w) marks += 1; });
+    return { correct: marks === maxMarks && maxMarks > 0, marks, maxMarks };
+  }
+  const maxMarks = question.maxMarks || 8;
+  const text = String(answer || "").trim();
+  return { correct: text.length > 40, marks: 0, maxMarks };
+}
+
+export function nmtIndexUrl(): string {
+  return NMT_INDEX;
+}
