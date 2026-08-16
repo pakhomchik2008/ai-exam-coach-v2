@@ -53,7 +53,6 @@ function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
 }
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
-  const [annual, setAnnual] = React.useState(true);
   const [slit, setSlit] = React.useState(shouldPlaySlit);
   const landRef = React.useRef(null);
   React.useEffect(() => {
@@ -174,10 +173,6 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         <div className="land-wrap">
           <h2 id="land-price-title">{t.land_price_title}</h2>
           <p className="land-lede">{t.land_price_sub}</p>
-          <div className="land-bill" role="group" aria-label={t.land_price_annual}>
-            <button type="button" className={!annual ? "is-on" : ""} onClick={() => { setAnnual(false); window.playSound?.("select"); }}>{t.land_price_monthly}</button>
-            <button type="button" className={annual ? "is-on" : ""} onClick={() => { setAnnual(true); window.playSound?.("select"); }}>{t.land_price_annual}</button>
-          </div>
           <div className="land-plans">
             <article className="land-plan">
               <h3>{t.land_price_free_name}</h3>
@@ -188,8 +183,8 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
             <article className="land-plan is-featured">
               <h3>{t.land_price_pro_name}</h3>
               <p className="land-plan-price">
-                {annual ? t.land_price_pro_year : t.land_price_pro_month}
-                <span>{annual ? t.land_price_per_year : t.land_price_per_month}</span>
+                {t.land_price_pro_month}
+                <span>{t.land_price_per_month}</span>
               </p>
               <p>{t.land_price_pro_body}</p>
               <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_price_cta}</button>
