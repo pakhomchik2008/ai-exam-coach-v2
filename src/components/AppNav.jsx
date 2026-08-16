@@ -29,7 +29,7 @@ function NavLogoutButton({ onLogout, label }) {
 function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const t = window.LANGS[lang] || window.LANGS.en;
   const links = [
-    { id: "dashboard", label: t.nav_today },
+    { id: "dashboard", label: t.nav_dashboard },
     { id: "chat", label: t.nav_chat },
     { id: "study", label: t.nav_study },
     { id: "studyhub", label: t.nav_tools },

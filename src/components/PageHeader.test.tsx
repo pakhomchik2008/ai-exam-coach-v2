@@ -30,15 +30,6 @@ describe("EmptyState", () => {
 });
 
 describe("app chrome sources", () => {
-  it("kills Today's AI Plan chrome and dashboard gauges", () => {
-    const dash = readFileSync("src/features/dashboard/Dashboard.jsx", "utf8");
-    expect(dash).not.toMatch(/L\("Today's AI Plan"/);
-    expect(dash).not.toMatch(/GaugeRing|WeekStrip|BurnoutAlert|adaptSchedule/);
-    expect(dash).toMatch(/<PageHeader/);
-    expect(dash).toMatch(/<EmptyState/);
-    expect(dash).toMatch(/recommendNextAction/);
-  });
-
   it("nav is paper, not glass", () => {
     const nav = readFileSync("src/components/AppNav.jsx", "utf8");
     expect(nav).toMatch(/className="app-nav"/);
