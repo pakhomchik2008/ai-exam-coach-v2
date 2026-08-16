@@ -29,15 +29,20 @@ describe("i18n key parity", () => {
     expect(String(langs.uk?.land_hero_title)).toContain("Examik");
   });
 
-  it("price copy matches Checkout: first-unit counts, no yearly SKU, hash not exam-board", () => {
+  it("price copy lists Pro $54 / Max $90 and does not sell Max or yearly Checkout", () => {
     for (const code of Object.keys(langs)) {
       const pack = langs[code];
       if (!pack) throw new Error(`missing LANGS.${code}`);
       expect(String(pack.land_price_free_body), code).toMatch(/7/);
       expect(String(pack.land_price_free_body), code).toMatch(/10/);
-      expect(String(pack.land_price_sub), code).not.toMatch(/\$54|54\s*\$/);
-      expect(String(pack.land_faq_1_a), code).not.toMatch(/\$54|54\s*\$/);
-      expect(String(pack.land_faq_7_a), code).not.toMatch(/unless you pick yearly|якщо не обереш рік|если не выберешь год|si tu ne prends pas|wenn du nicht das Jahr/);
+      expect(String(pack.land_price_pro_year), code).toMatch(/54/);
+      expect(String(pack.land_price_max_year), code).toMatch(/90/);
+      expect(String(pack.land_price_max_month), code).toMatch(/9\.99|9,99/);
+      expect(String(pack.land_price_max_name), code).toBe("Max");
+      expect(String(pack.land_price_note), code).toMatch(/Checkout/);
+      expect(String(pack.land_price_max_cta), code).not.toMatch(/buy|купить|купити|acheter|kaufen/i);
+      expect(String(pack.land_faq_1_a), code).toMatch(/54/);
+      expect(String(pack.land_faq_1_a), code).toMatch(/90/);
       expect(String(pack.land_hero_sub), code).toMatch(/IELTS/);
       expect(String(pack.land_hero_sub), code).not.toMatch(/SAT|A-Level|GCSE/);
       expect(String(pack.land_faq_9_a), code).toMatch(/hash|хеш|hach|gehash/i);
@@ -46,8 +51,19 @@ describe("i18n key parity", () => {
       expect(String(pack.land_about_p3), code).not.toMatch(/вересня|September|septembre|2026/);
       expect(String(pack.land_reel_title), code).toMatch(/Pro/);
       expect(pack.land_cta_d47, code).toBeUndefined();
-      expect(pack.land_price_max_name, code).toBeUndefined();
       expect(pack.land_feat_novelty_body, code).toBeUndefined();
+    }
+  });
+
+  it("nav rooms are four short labels, not seven pills", () => {
+    for (const code of Object.keys(langs)) {
+      const pack = langs[code];
+      if (!pack) throw new Error(`missing LANGS.${code}`);
+      expect(String(pack.nav_today).length, `${code}.nav_today`).toBeLessThanOrEqual(11);
+      expect(String(pack.nav_study).length, `${code}.nav_study`).toBeLessThanOrEqual(8);
+      expect(String(pack.nav_chat), `${code}.nav_chat`).toMatch(/^(Coach|Коуч)$/);
+      expect(String(pack.nav_more).length, `${code}.nav_more`).toBeLessThanOrEqual(4);
+      expect(String(pack.nav_chat), code).not.toMatch(/AI |KI-/);
     }
   });
 
