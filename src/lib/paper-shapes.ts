@@ -338,6 +338,67 @@ function uniModule(opts: {
   };
 }
 
+function bacWritten(opts: {
+  id: string;
+  label: string;
+  minutes: number;
+  note: string;
+  mix: string;
+  essays?: number;
+}): PaperShape {
+  const essays = opts.essays ?? 1;
+  return {
+    id: opts.id,
+    qualification: "bac",
+    source: "https://eduscol.education.gouv.fr/5706/les-epreuves-terminales-du-baccalaureat-general",
+    year: 2025,
+    note: opts.note,
+    difficulty: cal(
+      opts.mix,
+      "Dissertation / exercice: a thesis, not a dump. Figures where the sujet prints a doc, graph, or map. /20.",
+      "Do not copy sujets 2023–2025. Contrôle continu is not sat here. Oral pratique is a written mock when listed.",
+    ),
+    papers: [
+      sitting(`${opts.id}-ecrit`, opts.label, opts.minutes, 20, [
+        written(essays, Math.round(20 / essays), "Épreuve écrite. /20."),
+      ]),
+    ],
+  };
+}
+
+function abiturLk(opts: {
+  id: string;
+  subject: string;
+  minutes: number;
+  kind: "stem" | "essay" | "studio";
+}): PaperShape {
+  const papers = opts.kind === "essay"
+    ? [sitting(`${opts.id}-lk`, "Schriftliche Prüfung · LK", opts.minutes, 100, [
+        written(2, 50, "Zwei Klausurteile / Interpretationen. Argument, nicht Referat."),
+      ])]
+    : opts.kind === "studio"
+      ? [sitting(`${opts.id}-lk`, "Schriftliche Prüfung (Praxis nicht)", 180, 80, [
+          written(2, 40, "Analyse. Figure required."),
+        ])]
+      : [sitting(`${opts.id}-lk`, "Schriftliche Prüfung · LK", opts.minutes, 100, [
+          short(6, 5, "Hilfsmittelfrei / kurz. Mehrere mit Figure."),
+          written(4, 17, "Mit Hilfsmitteln. Mindestens zwei Figures."),
+        ])];
+  return {
+    id: opts.id,
+    qualification: "abitur",
+    source: "https://www.standardsicherung.schulministerium.nrw.de/zentralabitur-gost/",
+    year: 2025,
+    note: `Abitur written clock sits NRW Zentralabitur Leistungskurs (${opts.minutes} min for ${opts.subject}). Other Länder differ — say NRW in the picker. GK is shorter. Mündlich / Facharbeit not sat.`,
+    difficulty: cal(
+      `LK ${opts.subject}: EPA Anforderungsbereiche I–III. Not a 45-min Schulaufgabe.`,
+      "Graph / Quelle / Abbildung as original SVG. Operatoren: analysieren, erörtern, beurteilen.",
+      "Do not copy NRW/Bayern Abituraufgaben 2023–2025. No GK-only demand on an LK paper.",
+    ),
+    papers,
+  };
+}
+
 function ibScienceHl(opts: { id: string; subject: string; source: string }): PaperShape {
   return {
     id: opts.id,
@@ -2430,9 +2491,554 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
   uniModule({ id: "uni-linguistics", subject: "Linguistics", kind: "mixed" }),
   uniModule({ id: "uni-geography", subject: "Geography", kind: "mixed" }),
   uniModule({ id: "uni-envsci", subject: "Environmental Science", kind: "mixed" }),
+  {
+    id: "act-english",
+    qualification: "act",
+    source: "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/act-exam-sections-and-structure.html",
+    year: 2025,
+    note: "Enhanced ACT (national from Sept 2025): English 50 items / 35 min (40 scored). Calibrated to official ACT section page + Preparing for the ACT samples + enhanced-vs-legacy tables — curve only.",
+    difficulty: cal(
+      "Usage/mechanics + rhetoric in 5 passages. Faster than SAT RW. Convention, concision, organisation.",
+      "Underline-style stems. Four options. No SAT-style vocabulary-in-isolation.",
+      "Do not copy ACT released items. No 75-question legacy paper.",
+    ),
+    papers: [sitting("act-english", "English", 35, 50, [
+      mcq(50, 4, 1, "Five passages. Usage + rhetoric."),
+    ])],
+  },
+  {
+    id: "act-math",
+    qualification: "act",
+    source: "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/act-exam-sections-and-structure.html",
+    year: 2025,
+    note: "Enhanced ACT Math: 45 items / 50 min (41 scored), four options (legacy was five). Preparing for Higher Math ~80%.",
+    difficulty: cal(
+      "Pre-algebra through trig. Self-contained + some shared graphs. Calculator allowed per ACT policy.",
+      "Graph items MUST set figureBrief. Four options. Harder-end: functions, modelling — still ACT, not AMC.",
+      "Do not copy ACT items. No 60-question legacy paper.",
+    ),
+    papers: [sitting("act-math", "Math", 50, 45, [
+      mcq(45, 4, 1, "Several with figures."),
+    ])],
+  },
+  {
+    id: "act-reading",
+    qualification: "act",
+    source: "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/act-exam-sections-and-structure.html",
+    year: 2025,
+    note: "Enhanced ACT Reading: 36 items / 40 min (27 scored). Literary + informational, including a paired set.",
+    difficulty: cal(
+      "Main idea, detail, inference, purpose, compare paired passages. First-year college prose.",
+      "Each passage in stimulus. Original texts. Not SAT adaptive modules.",
+      "Do not copy ACT passages.",
+    ),
+    papers: [sitting("act-reading", "Reading", 40, 36, [
+      mcq(36, 4, 1, "Four passage sets including one pair. Shared stimulus per set."),
+    ])],
+  },
+  {
+    id: "act-science",
+    qualification: "act",
+    source: "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/act-exam-sections-and-structure.html",
+    year: 2025,
+    note: "Enhanced ACT Science is optional and not in the Composite. 40 items / 40 min (34 scored). Still sat here because onboarding lists Science.",
+    difficulty: cal(
+      "Data, investigation, evaluating arguments. Bio / chem / earth / physics passages. Conflicting viewpoints is the hard end.",
+      "Every passage MUST set figureBrief (original table, graph, experiment plate).",
+      "Do not copy ACT science passages. No content-recall bio quiz.",
+    ),
+    papers: [sitting("act-science", "Science", 40, 40, [
+      mcq(40, 4, 1, "Data + research + conflicting viewpoints. Figures required."),
+    ])],
+  },
+  {
+    id: "matura-polski",
+    qualification: "matura",
+    source: "https://cke.gov.pl/egzamin-maturalny/egzamin-maturalny-w-formule-2023/informatory",
+    year: 2025,
+    note: "CKE Matura Formuła 2023: język polski PP 240 min (język w użyciu + test hist-lit + wypracowanie). PR 210 min is a second sitting. Ustny not sat. Calibrated to CKE informatory + arkusze 2023–2025 structure.",
+    difficulty: cal(
+      "PP: language-in-use, literary-history test, then one longer wypracowanie. PR is a literary essay paper.",
+      "Teksty źródłowe in stimulus. Original extracts — not CKE arkusze.",
+      "Do not copy CKE 2023–2025. No oral.",
+    ),
+    papers: [
+      sitting("matura-pl-pp", "Język polski · podstawowy", 240, 70, [
+        short(8, 2, "Język polski w użyciu"),
+        short(8, 2, "Test historycznoliteracki"),
+        written(1, 38, "Wypracowanie"),
+      ]),
+      sitting("matura-pl-pr", "Język polski · rozszerzony", 210, 50, [
+        written(1, 50, "Wypracowanie PR"),
+      ]),
+    ],
+  },
+  {
+    id: "matura-math",
+    qualification: "matura",
+    source: "https://cke.gov.pl/egzamin-maturalny/egzamin-maturalny-w-formule-2023/informatory",
+    year: 2025,
+    note: "CKE matematyka Formuła 2023: PP 180 min / 50 (20–25 zamknięte + 7–14 otwarte). PR 180 min / 50. Mock sits 22+10 as a legal mid-range. Wzory allowed.",
+    difficulty: cal(
+      "PP: school algebra, functions, geo, stats — not olimpiada. PR: proofs, parameters, 3D, harder stats.",
+      "Figure on geometry / graph items. Decimal answers OK. Show working on otwarte.",
+      "Do not copy CKE arkusze 2023–2025. No 2+2.",
+    ),
+    papers: [
+      sitting("matura-math-pp", "Matematyka · podstawowy", 180, 50, [
+        mcq(22, 4, 1, "Zamknięte (~25 pkt). Several with figures."),
+        short(10, 2, "Otwarte (~25 pkt). At least three figures."),
+      ]),
+      sitting("matura-math-pr", "Matematyka · rozszerzony", 180, 50, [
+        short(8, 3, "Otwarte krótkie"),
+        written(4, 6, "Otwarte dłuższe. Figures on geometry."),
+      ]),
+    ],
+  },
+  {
+    id: "matura-eng",
+    qualification: "matura",
+    source: "https://cke.gov.pl/egzamin-maturalny/egzamin-maturalny-w-formule-2023/informatory",
+    year: 2025,
+    note: "CKE język obcy nowożytny: PP 120 min, PR 150 min. Listening is a printed transcript. Ustny not sat.",
+    difficulty: cal(
+      "PP B1–B2: listen, read, write a short text. PR B2–C1: longer read + write.",
+      "Listen items MUST set figureBrief (transcript). Original texts. Stems in Polish on PP instructions, items in the target language.",
+      "Do not copy CKE arkusze. No dictionary.",
+    ),
+    papers: [
+      sitting("matura-eng-pp", "Język obcy · podstawowy", 120, 50, [
+        mcq(10, 4, 1, "Listening from a printed transcript. figureBrief."),
+        mcq(10, 4, 1, "Reading"),
+        written(1, 10, "Writing (email / blog)"),
+        short(10, 2, "Use of English / short"),
+      ]),
+      sitting("matura-eng-pr", "Język obcy · rozszerzony", 150, 50, [
+        mcq(10, 4, 1, "Listening transcript. figureBrief."),
+        mcq(10, 4, 1, "Reading"),
+        written(1, 13, "Longer writing"),
+        short(7, 1, "Use of English"),
+      ]),
+    ],
+  },
+  {
+    id: "matura-science",
+    qualification: "matura",
+    source: "https://cke.gov.pl/egzamin-maturalny/egzamin-maturalny-w-formule-2023/informatory",
+    year: 2025,
+    note: "CKE biologia / chemia / fizyka / geografia PR: 180 min. Item mix is not fixed — mock is closed + open with figures. Wzory where the subject has a formula sheet.",
+    difficulty: cal(
+      "PR only (no PP science). Experiment, graph, calculate, explain.",
+      "Data / apparatus / map items MUST set figureBrief. Original numbers.",
+      "Do not copy CKE arkusze.",
+    ),
+    papers: [sitting("matura-sci-pr", "Przedmiot dodatkowy · rozszerzony", 180, 60, [
+      mcq(15, 4, 1, "Zamknięte. Several with figures."),
+      short(10, 3, "Otwarte. At least four figures."),
+      written(3, 5, "Dłuższe"),
+    ])],
+  },
+  {
+    id: "matura-hist",
+    qualification: "matura",
+    source: "https://cke.gov.pl/egzamin-maturalny/egzamin-maturalny-w-formule-2023/informatory",
+    year: 2025,
+    note: "CKE historia / WOS PR: 180 min. Źródła + wypracowanie.",
+    difficulty: cal(
+      "Source analysis then a longer argument. Named facts, not slogans.",
+      "Źródła MUST set figureBrief (original text / cartoon / table).",
+      "Do not copy CKE arkusze.",
+    ),
+    papers: [sitting("matura-hist-pr", "Historia / WOS · rozszerzony", 180, 60, [
+      short(10, 3, "Źródła. Figures required."),
+      written(2, 15, "Wypracowanie"),
+    ])],
+  },
+  {
+    id: "matura-it",
+    qualification: "matura",
+    source: "https://cke.gov.pl/egzamin-maturalny/egzamin-maturalny-w-formule-2023/informatory",
+    year: 2025,
+    note: "CKE informatyka PR: 210 min (część I 60 + II 150, 30-min break). Mock sits both parts as two sittings.",
+    difficulty: cal(
+      "Theory + practical programming. Trace, write, evaluate.",
+      "Trace / UML MAY set figureBrief. Code in the stem.",
+      "Do not copy CKE arkusze.",
+    ),
+    papers: [
+      sitting("matura-it-p1", "Informatyka · część I", 60, 20, [
+        short(8, 2, "Teoria / krótke"),
+        written(1, 4, "Dłuższe"),
+      ]),
+      sitting("matura-it-p2", "Informatyka · część II", 150, 30, [
+        written(3, 10, "Programowanie / zadanie praktyczne"),
+      ]),
+    ],
+  },
+  bacWritten({
+    id: "bac-francais",
+    label: "Français · écrit anticipé",
+    minutes: 240,
+    essays: 1,
+    note: "Bac général: français écrit 4h / coeff 5. Oral 20 min not sat as audio. Sujets 2023–2025: commentaire or dissertation — sit one.",
+    mix: "Commentaire de texte or dissertation. 1ère, not Terminale philo.",
+  }),
+  bacWritten({
+    id: "bac-philo",
+    label: "Philosophie",
+    minutes: 240,
+    essays: 1,
+    note: "Bac général: philosophie 4h / coeff 8. One dissertation or explication de texte.",
+    mix: "Dissertation on a notion, or explication. Jury criteria: compréhension, problématique, argumentation, expression.",
+  }),
+  {
+    id: "bac-oral",
+    qualification: "bac",
+    source: "https://eduscol.education.gouv.fr/5706/les-epreuves-terminales-du-baccalaureat-general",
+    year: 2025,
+    note: "Grand oral: 20 min passage (after 20 min prep) / coeff 10. Written mock of the présentation + échange. Not the 20-min live jury.",
+    difficulty: cal(
+      "Two questions prepared in the year; jury picks one. Then exchange.",
+      "Write the 5-min présentation script, then four follow-up replies.",
+      "Do not copy published Grand oral questions. This is not a 4h dissertation.",
+    ),
+    papers: [sitting("bac-oral", "Grand oral (written mock)", 20, 20, [
+      written(1, 12, "Présentation"),
+      written(1, 8, "Échange — four short replies"),
+    ])],
+  },
+  bacWritten({
+    id: "bac-math",
+    label: "Spécialité Mathématiques",
+    minutes: 240,
+    essays: 4,
+    note: "Spé maths écrite 4h / coeff 16. Exercices (including one algorithmique). Pratique not a separate paper.",
+    mix: "Analysis, geo, proba, algo. 2023–2025 sujets: 4 exercices, last one often Python-flavoured.",
+  }),
+  bacWritten({
+    id: "bac-pc",
+    label: "Spécialité Physique-Chimie · écrit",
+    minutes: 210,
+    essays: 3,
+    note: "Spé PC écrite 3h30 / coeff 16. ECE 1h not sat.",
+    mix: "Physique + chimie exercices. Graphs, protocoles.",
+  }),
+  bacWritten({
+    id: "bac-svt",
+    label: "Spécialité SVT · écrit",
+    minutes: 210,
+    essays: 2,
+    note: "Spé SVT écrite 3h30. ECE 1h not sat.",
+    mix: "Two exercices: one typed, one document-based. Figures required.",
+  }),
+  bacWritten({
+    id: "bac-ses",
+    label: "Spécialité SES",
+    minutes: 240,
+    essays: 1,
+    note: "Spé SES écrite 4h. Dissertation or épreuve composée.",
+    mix: "Dissertation (sujet + docs) or épreuve composée (EC1–EC3).",
+  }),
+  bacWritten({
+    id: "bac-nsi",
+    label: "Spécialité NSI · écrit",
+    minutes: 210,
+    essays: 3,
+    note: "Spé NSI écrite 3h30. Pratique 1h not sat.",
+    mix: "Algorithmique, bases de données, architectures. Code in the stem.",
+  }),
+  bacWritten({
+    id: "bac-hggsp",
+    label: "Spécialité HGGSP",
+    minutes: 240,
+    essays: 2,
+    note: "Spé HGGSP écrite 4h. Dissertation + étude critique de documents.",
+    mix: "One dissertation, one document critique. Maps / docs as figures.",
+  }),
+  bacWritten({
+    id: "bac-hlp",
+    label: "Spécialité HLP",
+    minutes: 240,
+    essays: 2,
+    note: "Spé HLP écrite 4h. Interprétation + essai.",
+    mix: "Texte à interpréter, then essai. Extract in stimulus.",
+  }),
+  bacWritten({
+    id: "bac-llcer",
+    label: "Spécialité LLCER Anglais · écrit",
+    minutes: 210,
+    essays: 2,
+    note: "Spé LLCER écrite 3h30 + oral 20 min not sat as audio. Synthesis + essai in English.",
+    mix: "Dossier of texts/images, synthèse, then essai. Figures on the dossier.",
+  }),
+  abiturLk({ id: "abitur-math", subject: "Mathematik", minutes: 300, kind: "stem" }),
+  abiturLk({ id: "abitur-deutsch", subject: "Deutsch", minutes: 270, kind: "essay" }),
+  abiturLk({ id: "abitur-english", subject: "Englisch", minutes: 270, kind: "essay" }),
+  abiturLk({ id: "abitur-bio", subject: "Biologie", minutes: 270, kind: "stem" }),
+  abiturLk({ id: "abitur-chem", subject: "Chemie", minutes: 270, kind: "stem" }),
+  abiturLk({ id: "abitur-phys", subject: "Physik", minutes: 270, kind: "stem" }),
+  abiturLk({ id: "abitur-hist", subject: "Geschichte", minutes: 270, kind: "essay" }),
+  abiturLk({ id: "abitur-geo", subject: "Geographie", minutes: 270, kind: "stem" }),
+  abiturLk({ id: "abitur-cs", subject: "Informatik", minutes: 270, kind: "stem" }),
+  abiturLk({ id: "abitur-sozial", subject: "Sozialkunde", minutes: 270, kind: "essay" }),
+  abiturLk({ id: "abitur-french", subject: "Französisch", minutes: 270, kind: "essay" }),
+  abiturLk({ id: "abitur-kunst", subject: "Kunst", minutes: 180, kind: "studio" }),
+  abiturLk({ id: "abitur-music", subject: "Musik", minutes: 180, kind: "studio" }),
+  abiturLk({ id: "abitur-sport", subject: "Sport", minutes: 180, kind: "essay" }),
+  abiturLk({ id: "abitur-wirt", subject: "Wirtschaft", minutes: 270, kind: "essay" }),
+  {
+    id: "ielts-listen",
+    qualification: "ielts",
+    source: "https://ielts.org/take-a-test/test-format",
+    year: 2025,
+    note: "IELTS Listening: 40 / ~30 min + 10 transfer on paper. Four sections, easier→harder. Exam Sim uses a printed transcript — real IELTS is audio. Academic and GT share Listening.",
+    difficulty: cal(
+      "Section 1 everyday, 2 public talk, 3 academic discussion, 4 lecture. Form-fill, MCQ, map, matching. Official samples 1–3 curve: S4 is the hard end.",
+      "Transcript plate as figureBrief. Map items need a figure. One listen — do not write 'replay'.",
+      "Do not copy IELTS official sample recordings or Cambridge tests.",
+    ),
+    papers: [sitting("ielts-listen", "Listening", 30, 40, [
+      short(10, 1, "Section 1 form / notes. figureBrief = transcript."),
+      short(10, 1, "Section 2. Map items need a figure."),
+      short(10, 1, "Section 3 discussion"),
+      short(10, 1, "Section 4 lecture"),
+    ])],
+  },
+  {
+    id: "ielts-read",
+    qualification: "ielts",
+    source: "https://ielts.org/take-a-test/test-format",
+    year: 2025,
+    note: "IELTS Academic Reading: 3 passages / 40 / 60. GT is easier workplace texts — mock sits Academic. TFNG / YNNG / matching / MCQ.",
+    difficulty: cal(
+      "Passage 1 factual, 2 more argument, 3 hardest. Official samples: TFNG traps and matching headings are the curve.",
+      "Each passage in stimulus. Original articles. No invented citations.",
+      "Do not copy Cambridge / IDP / British Council samples.",
+    ),
+    papers: [sitting("ielts-read", "Reading", 60, 40, [
+      short(13, 1, "Passage 1. Stimulus = the text."),
+      short(13, 1, "Passage 2"),
+      short(14, 1, "Passage 3 — hardest"),
+    ])],
+  },
+  {
+    id: "ielts-write",
+    qualification: "ielts",
+    source: "https://ielts.org/take-a-test/test-format",
+    year: 2025,
+    note: "IELTS Academic Writing: Task 1 20 min / 150 words (chart), Task 2 40 min / 250 words. 60 min total.",
+    difficulty: cal(
+      "T1 describe a chart without inventing causes. T2 argue with a position. Band descriptors: TA/TR, CC, LR, GRA.",
+      "Task 1 MUST set figureBrief (original chart). Do not copy IELTS charts.",
+      "Do not copy official Task 2 prompts. No GT letter on Academic.",
+    ),
+    papers: [sitting("ielts-write", "Writing", 60, 2, [
+      written(1, 1, "Task 1 chart. Figure required. ≥150 words."),
+      written(1, 1, "Task 2 essay. ≥250 words."),
+    ])],
+  },
+  {
+    id: "toefl-read",
+    qualification: "toefl",
+    source: "https://www.ets.org/toefl/test-takers/ibt/about/content.html",
+    year: 2026,
+    note: "TOEFL iBT from Jan 2026: Reading ~50 items / 30 min (Complete the Words, Read in Daily Life, Academic Passage). Adaptive — mock sits one mixed paper. Onboarding scale still 0–120 during ETS transition; ETS now also reports 1–6 bands.",
+    difficulty: cal(
+      "Daily-life + academic. Not the pre-2026 2×700-word / 20-Q paper.",
+      "Academic passage in stimulus. Original text.",
+      "Do not copy ETS TOEFL Practice Online. No 35-min 20-question legacy paper.",
+    ),
+    papers: [sitting("toefl-read", "Reading", 30, 50, [
+      short(20, 1, "Complete the Words / daily life"),
+      mcq(30, 4, 1, "Academic passage set. Stimulus = the text."),
+    ])],
+  },
+  {
+    id: "toefl-listen",
+    qualification: "toefl",
+    source: "https://www.ets.org/toefl/test-takers/ibt/about/content.html",
+    year: 2026,
+    note: "TOEFL iBT 2026 Listening ~47 items / 29 min. Printed transcript here.",
+    difficulty: cal(
+      "Response, conversation, announcement, academic talk. Campus + lecture.",
+      "figureBrief = transcript plate.",
+      "Do not copy ETS audio.",
+    ),
+    papers: [sitting("toefl-listen", "Listening", 29, 47, [
+      mcq(47, 4, 1, "Mixed listen types. Transcript figures."),
+    ])],
+  },
+  {
+    id: "toefl-write",
+    qualification: "toefl",
+    source: "https://www.ets.org/toefl/test-takers/ibt/about/content.html",
+    year: 2026,
+    note: "TOEFL iBT 2026 Writing: 12 items / 23 min — Build a Sentence, Write an Email, Write for an Academic Discussion. Not the pre-2026 29-min two-task paper.",
+    difficulty: cal(
+      "Sentence build + email + academic discussion post. No long independent essay.",
+      "Discussion prompt in stimulus. Register: campus email vs seminar post.",
+      "Do not copy ETS prompts. No 20-min integrated essay from the old form.",
+    ),
+    papers: [sitting("toefl-write", "Writing", 23, 12, [
+      short(8, 1, "Build a Sentence"),
+      written(2, 1, "Write an Email"),
+      written(2, 1, "Academic Discussion"),
+    ])],
+  },
+  {
+    id: "toefl-speak",
+    qualification: "toefl",
+    source: "https://www.ets.org/toefl/test-takers/ibt/about/content.html",
+    year: 2026,
+    note: "TOEFL iBT 2026 Speaking: 11 items / 8 min — Listen and Repeat + Take an Interview. Written mock of the spoken answers. Not the pre-2026 4-task / 16 min form.",
+    difficulty: cal(
+      "Repeat + interview turns. Short, timed.",
+      "Write what would be spoken. Interview follow-ups in stimulus.",
+      "Do not copy ETS speaking items. No 4-task integrated speaking from the old form.",
+    ),
+    papers: [sitting("toefl-speak", "Speaking (written mock)", 8, 11, [
+      short(6, 1, "Listen and Repeat — transcribe then reproduce"),
+      written(5, 1, "Interview turns"),
+    ])],
+  },
+  {
+    id: "det-literacy",
+    qualification: "duolingo",
+    source: "https://englishtest.duolingo.com/test_takers",
+    year: 2026,
+    note: "DET is one ~45 min adaptive stream, not four papers. Onboarding lists Literacy / Comprehension / Conversation / Production — we sit representative task packs from the official handbook (13 types). Real DET interleaves them.",
+    difficulty: cal(
+      "Read and Select, Fill in the Blanks, Read and Complete, Interactive Reading. Adaptive feel: later items harder.",
+      "Interactive Reading set shares a stimulus. Original micro-texts.",
+      "Do not copy DET handbook examples. This pack is not the whole adaptive test.",
+    ),
+    papers: [sitting("det-literacy", "Literacy", 12, 24, [
+      mcq(15, 2, 1, "Read and Select — real word vs fake"),
+      short(9, 1, "Fill in the Blanks / Read and Complete"),
+    ])],
+  },
+  {
+    id: "det-comp",
+    qualification: "duolingo",
+    source: "https://englishtest.duolingo.com/test_takers",
+    year: 2026,
+    note: "DET Comprehension pack: Listen and Type + Interactive Listening. Audio is a printed transcript.",
+    difficulty: cal(
+      "Dictation then a short interactive conversation + summary.",
+      "Transcript / conversation plates as figureBrief.",
+      "Do not copy DET samples.",
+    ),
+    papers: [sitting("det-comp", "Comprehension", 12, 18, [
+      short(8, 1, "Listen and Type from a transcript plate"),
+      short(10, 1, "Interactive Listening set"),
+    ])],
+  },
+  {
+    id: "det-conv",
+    qualification: "duolingo",
+    source: "https://englishtest.duolingo.com/test_takers",
+    year: 2026,
+    note: "DET Conversation pack: Speak About the Photo, Read Then Speak, Interactive Speaking. Written mock of speech.",
+    difficulty: cal(
+      "Photo description + short opinion + 6–8 interactive turns.",
+      "Photo items MUST set figureBrief.",
+      "Do not copy DET photos.",
+    ),
+    papers: [sitting("det-conv", "Conversation (written mock)", 10, 10, [
+      written(1, 1, "Speak About the Photo. Figure = the photo."),
+      written(1, 1, "Read, Then Speak"),
+      short(8, 1, "Interactive Speaking turns"),
+    ])],
+  },
+  {
+    id: "det-prod",
+    qualification: "duolingo",
+    source: "https://englishtest.duolingo.com/test_takers",
+    year: 2026,
+    note: "DET Production pack: Write About the Photo + Interactive Writing + Writing Sample.",
+    difficulty: cal(
+      "Three photo captions, then a two-part write, then a 5-min sample.",
+      "Photo figures required. 5-min sample is a short essay, not IELTS T2.",
+      "Do not copy DET prompts.",
+    ),
+    papers: [sitting("det-prod", "Production", 12, 6, [
+      written(3, 1, "Write About the Photo. Figures required."),
+      written(2, 1, "Interactive Writing"),
+      written(1, 1, "Writing Sample"),
+    ])],
+  },
+  {
+    id: "pte-speak",
+    qualification: "pte",
+    source: "https://www.pearsonpte.com/pte-academic",
+    year: 2025,
+    note: "PTE Academic Part 1 Speaking+Writing is ~76–84 min together. Onboarding splits skills — this sitting is the speaking item types (Read Aloud, Repeat, Describe Image, Retell, Answer Short, plus Aug 2025 Respond to a Situation / Summarize Group Discussion). Spoken tasks are written mocks. Score guide structure, not a licensed Scored Practice Test.",
+    difficulty: cal(
+      "Short integrated speaking. Describe Image is the figure-heavy one. New 2025 types included.",
+      "Describe Image MUST set figureBrief. Group discussion as a transcript plate.",
+      "Do not copy Pearson scored tests.",
+    ),
+    papers: [sitting("pte-speak", "Speaking (written mock)", 40, 12, [
+      short(4, 1, "Read Aloud / Repeat / short answer"),
+      written(2, 1, "Describe Image. Figure required."),
+      written(2, 1, "Retell / Summarize Group Discussion. Transcript figure."),
+      written(4, 1, "Respond to a Situation"),
+    ])],
+  },
+  {
+    id: "pte-write",
+    qualification: "pte",
+    source: "https://www.pearsonpte.com/pte-academic",
+    year: 2025,
+    note: "PTE Academic writing item types from Part 1: Summarize Written Text + Write Essay. Public traits in pte-paper.ts.",
+    difficulty: cal(
+      "One-sentence summary then a 200–300 word essay. Not IELTS T2 length.",
+      "Source text in stimulus for SWT.",
+      "Do not copy Pearson essays.",
+    ),
+    papers: [sitting("pte-write", "Writing", 40, 3, [
+      written(2, 1, "Summarize Written Text"),
+      written(1, 1, "Write Essay 200–300 words"),
+    ])],
+  },
+  {
+    id: "pte-read",
+    qualification: "pte",
+    source: "https://www.pearsonpte.com/pte-academic",
+    year: 2025,
+    note: "PTE Academic Part 2 Reading ~23–30 min. Fill-in, MCQ, reorder.",
+    difficulty: cal(
+      "Academic paragraphs. Reorder paragraphs is the hard end.",
+      "Each item is its own short text in stimulus.",
+      "Do not copy Pearson reading items.",
+    ),
+    papers: [sitting("pte-read", "Reading", 27, 15, [
+      short(6, 1, "Fill in the blanks"),
+      mcq(5, 4, 1, "MCQ"),
+      order(4, 1, "Reorder paragraphs"),
+    ])],
+  },
+  {
+    id: "pte-listen",
+    qualification: "pte",
+    source: "https://www.pearsonpte.com/pte-academic",
+    year: 2025,
+    note: "PTE Academic Part 3 Listening ~31–39 min. Transcript plates stand in for audio.",
+    difficulty: cal(
+      "Summarize spoken text, MCQ, fill blanks, highlight incorrect words, write from dictation.",
+      "figureBrief = transcript. Dictation is type-what-you-hear from the plate.",
+      "Do not copy Pearson audio.",
+    ),
+    papers: [sitting("pte-listen", "Listening", 35, 16, [
+      written(2, 1, "Summarize Spoken Text. Transcript figure."),
+      mcq(6, 4, 1, "MCQ / highlight"),
+      short(8, 1, "Fill blanks / dictation"),
+    ])],
+  },
 ];
 
 const NMT_ENG_IDS = new Set(["nmt-eng", "nmt-de", "nmt-fr", "nmt-es"]);
+const MATURA_FL_IDS = new Set(["matura-eng", "matura-de", "matura-fr", "matura-es"]);
 
 const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "nmt-math", re: /матем|math|алгебр|геометр/i },
@@ -2574,6 +3180,57 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "uni-law", re: /\blaw\b|юриспр|\bправо\b/i },
   { id: "uni-geography", re: /geograph|географ/i },
   { id: "uni-music", re: /music|музик|музык/i },
+  { id: "act-science", re: /science|наук/i },
+  { id: "act-reading", re: /read|читан/i },
+  { id: "act-english", re: /english|англ/i },
+  { id: "act-math", re: /math|математи/i },
+  { id: "matura-it", re: /informatyk|informatic/i },
+  { id: "matura-polski", re: /polski|polish language|język polski/i },
+  { id: "matura-eng", re: /angielsk|niemieck|rosyjsk|english|german|russian|matura-eng|matura-de/i },
+  { id: "matura-hist", re: /historia|społeczeństw|\bwos\b|wiedza o/i },
+  { id: "matura-science", re: /biolog|chemia|chem|fizyk|physic|geograf/i },
+  { id: "matura-math", re: /matem|math/i },
+  { id: "bac-llcer", re: /llcer/i },
+  { id: "bac-oral", re: /grand oral|\boral\b/i },
+  { id: "bac-philo", re: /philo/i },
+  { id: "bac-hggsp", re: /hggsp|géopolit|geopolit/i },
+  { id: "bac-hlp", re: /\bhlp\b|humanités|humanites/i },
+  { id: "bac-nsi", re: /\bnsi\b|numérique|numerique/i },
+  { id: "bac-ses", re: /\bses\b|sciences éco|sciences eco/i },
+  { id: "bac-pc", re: /physique-chimie|physique/i },
+  { id: "bac-svt", re: /\bsvt\b|vie et terre/i },
+  { id: "bac-francais", re: /français|francais/i },
+  { id: "bac-math", re: /math/i },
+  { id: "abitur-cs", re: /informatik/i },
+  { id: "abitur-sport", re: /sport/i },
+  { id: "abitur-sozial", re: /sozialkunde|sozial/i },
+  { id: "abitur-wirt", re: /wirtschaft/i },
+  { id: "abitur-kunst", re: /kunst/i },
+  { id: "abitur-music", re: /musik/i },
+  { id: "abitur-french", re: /französ|franzosis|french/i },
+  { id: "abitur-english", re: /englisch|english/i },
+  { id: "abitur-deutsch", re: /deutsch/i },
+  { id: "abitur-geo", re: /geograph/i },
+  { id: "abitur-hist", re: /geschicht/i },
+  { id: "abitur-bio", re: /biolog/i },
+  { id: "abitur-chem", re: /chemie|chem/i },
+  { id: "abitur-phys", re: /physik|physics/i },
+  { id: "abitur-math", re: /mathematik|math/i },
+  { id: "ielts-listen", re: /listen/i },
+  { id: "ielts-write", re: /writ/i },
+  { id: "ielts-read", re: /read/i },
+  { id: "toefl-speak", re: /speak/i },
+  { id: "toefl-listen", re: /listen/i },
+  { id: "toefl-write", re: /writ/i },
+  { id: "toefl-read", re: /read/i },
+  { id: "det-conv", re: /conversation/i },
+  { id: "det-comp", re: /comprehension/i },
+  { id: "det-literacy", re: /literacy/i },
+  { id: "det-prod", re: /production/i },
+  { id: "pte-speak", re: /speak/i },
+  { id: "pte-write", re: /writ/i },
+  { id: "pte-listen", re: /listen/i },
+  { id: "pte-read", re: /read/i },
 ];
 
 const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(
@@ -2583,6 +3240,7 @@ const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(
 export function paperShapeById(id: string | null | undefined): PaperShape | null {
   if (!id) return null;
   if (NMT_ENG_IDS.has(id) && id !== "nmt-eng") return BY_ID["nmt-eng"] || null;
+  if (MATURA_FL_IDS.has(id)) return BY_ID["matura-eng"] || null;
   return BY_ID[id] || null;
 }
 
@@ -2590,6 +3248,11 @@ const FAMILY_PAPER_IDS: Readonly<Record<string, readonly string[]>> = {
   sat: ["sat-rw", "sat-math"],
   gre: ["gre-verbal", "gre-quant", "gre-awa"],
   gmat: ["gmat-quant", "gmat-verbal", "gmat-di"],
+  act: ["act-english", "act-math", "act-reading", "act-science"],
+  ielts: ["ielts-listen", "ielts-read", "ielts-write"],
+  toefl: ["toefl-read", "toefl-listen", "toefl-write", "toefl-speak"],
+  duolingo: ["det-literacy", "det-comp", "det-conv", "det-prod"],
+  pte: ["pte-speak", "pte-write", "pte-read", "pte-listen"],
 };
 
 function mergeFamily(family: string, ids: readonly string[]): PaperShape | null {
@@ -2611,6 +3274,7 @@ export function paperShapeFor(exam: ExamNameLike | null | undefined): PaperShape
   if (!exam) return null;
   const paperQual = paperQualForExam(exam);
   if (paperQual && NMT_ENG_IDS.has(paperQual)) return BY_ID["nmt-eng"] || null;
+  if (paperQual && MATURA_FL_IDS.has(paperQual)) return BY_ID["matura-eng"] || null;
   const blob = `${exam.name || ""} ${exam.subject || ""} ${paperQual || ""}`;
   const family = canonicalQualification(exam.qualificationId || paperQual);
   for (const row of SUBJECT_MATCHERS) {
