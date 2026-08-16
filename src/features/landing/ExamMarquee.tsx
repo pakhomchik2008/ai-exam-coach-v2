@@ -1,7 +1,8 @@
 /**
  * Infinite exam strip under the hero fold.
  * Duplicated track + translateX(-50%) — same mechanic Cursor/Vercel use
- * for logo rows. Names are the product set plus the boards Hlib listed.
+ * for logo rows. Only live Learn trees. Other boards are Coach chat —
+ * listing them here sold a syllabus we do not have.
  */
 
 export type ExamChip = {
@@ -14,20 +15,6 @@ export const EXAM_CHIPS: readonly ExamChip[] = [
   { id: "nmt", mark: "НМ", name: "НМТ" },
   { id: "zno", mark: "ЗН", name: "ЗНО" },
   { id: "ielts", mark: "IE", name: "IELTS" },
-  { id: "sat", mark: "SA", name: "SAT" },
-  { id: "gcse", mark: "GC", name: "GCSE" },
-  { id: "toefl", mark: "TO", name: "TOEFL" },
-  { id: "pte", mark: "PT", name: "PTE" },
-  { id: "act", mark: "AC", name: "ACT" },
-  { id: "ap", mark: "AP", name: "AP" },
-  { id: "abitur", mark: "AB", name: "Abitur" },
-  { id: "bac", mark: "BA", name: "Bac" },
-  { id: "gre", mark: "GR", name: "GRE" },
-  { id: "gmat", mark: "GM", name: "GMAT" },
-  { id: "duolingo", mark: "DU", name: "Duolingo" },
-  { id: "matura", mark: "MA", name: "Matura" },
-  { id: "alevel", mark: "AL", name: "A-Level" },
-  { id: "ib", mark: "IB", name: "IB" },
 ];
 
 type ExamMarqueeProps = {
