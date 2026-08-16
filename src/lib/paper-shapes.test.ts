@@ -116,6 +116,7 @@ describe("paperShapeFor", () => {
     ["GCSE Art & Design", "gcse-art", [90, 90], [96, 96]],
     ["GCSE Music", "gcse-music", [90], [96]],
     ["GCSE Electronics", "gcse-electronics", [90, 90], [80, 80]],
+    ["GCSE Food Preparation and Nutrition", "gcse-food", [105], [100]],
   ] as const)("sits %s on the AQA GCSE shape, not a generic mock", (name, id, minutes, maxRaw) => {
     const shape = paperShapeFor({ qualificationId: "gcse", name });
     expect(shape?.id).toBe(id);
@@ -162,6 +163,7 @@ describe("paperShapeFor", () => {
     ["AP Chemistry", "ap-chem", [90, 105], [60, 46]],
     ["AP Biology", "ap-bio", [90, 90], [60, 36]],
     ["AP Environmental Science", "ap-envsci", [90, 70], [80, 30]],
+    ["AP Human Geography", "ap-human-geo", [60, 75], [60, 21]],
     ["AP US History", "ap-ush", [55, 40, 100], [55, 9, 13]],
     ["AP World History", "ap-world", [55, 40, 100], [55, 9, 13]],
     ["AP European History", "ap-euro", [55, 40, 100], [55, 9, 13]],
@@ -231,13 +233,30 @@ describe("paperShapeFor", () => {
     expect(paperShapeFor({ qualificationId: "ib", name: "English B" })?.id).toBe("ib-eng-b");
   });
 
-  it("keeps university modules unofficial — no public board", () => {
-    expect(specFor("uni", 6, "University Mathematics").official).toBe(false);
+  it.each([
+    ["University Mathematics", "uni-math", [120], [100]],
+    ["University English Literature", "uni-eng-lit", [120], [100]],
+    ["University Law", "uni-law", [120], [100]],
+    ["University Medicine", "uni-medicine", [120], [100]],
+    ["University Architecture", "uni-architecture", [90], [80]],
+    ["University Art History", "uni-art-hist", [90], [80]],
+  ] as const)("sits %s on a typical unseen module, not 18 MCQs", (name, id, minutes, maxRaw) => {
+    const shape = paperShapeFor({ qualificationId: "uni", name });
+    expect(shape?.id).toBe(id);
+    expect(shape?.papers.map((p) => p.minutes)).toEqual([...minutes]);
+    expect(shape?.papers.map((p) => p.maxRaw)).toEqual([...maxRaw]);
+    expect(specFor("uni", 6, name).official).toBe(true);
   });
 
-  it("does not call a bare GCSE official", () => {
-    const spec = specFor("gcse", 6, "GCSE Food Technology");
-    expect(spec.official).toBe(false);
+  it("does not let University Art History fall through to History", () => {
+    expect(paperShapeFor({ qualificationId: "uni", name: "Art History" })?.id).toBe("uni-art-hist");
+    expect(paperShapeFor({ qualificationId: "uni", name: "History" })?.id).toBe("uni-history");
+  });
+
+  it("does not call a bare family official", () => {
+    expect(specFor("gcse", 6, "GCSE Latin").official).toBe(false);
+    expect(specFor("ap", 6, "AP").official).toBe(false);
+    expect(specFor("ib", 6, "IB").official).toBe(false);
   });
 
   it("does not call a bare NMT official when the subject is unknown", () => {

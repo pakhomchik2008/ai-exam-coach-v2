@@ -105,7 +105,7 @@ function suggestedQualificationId(lastExam, profile) {
   if (/(baccalaur[eé]at|\bbac\b)/i.test(blob) && !/international/i.test(blob)) return "bac";
   if (/\bgmat\b/i.test(blob)) return "gmat";
   if (/\bgre\b/i.test(blob)) return "gre";
-  if (/(nmt|нмт|зно)/i.test(blob)) return "nmt";
+  if (/(nmt|нmt|зно)/i.test(blob)) return "nmt";
   const country = profile && profile.country && COUNTRY_TO_EXAM_TYPE[profile.country];
   if (country) return country;
   return "custom";
@@ -330,11 +330,11 @@ const EDUCATION_LEVELS = [
 
 // ─── Subject presets per exam type ─────────────────────────────────────────────
 const SUBJECT_PRESETS = {
-  gcse: ["Maths","English Language","English Literature","Biology","Chemistry","Physics","History","Geography","French","Spanish","German","Computer Science","Art & Design","Music","Business Studies","Drama","Religious Studies","Physical Education","Sociology","Economics"],
+  gcse: ["Maths","English Language","English Literature","Biology","Chemistry","Physics","History","Geography","French","Spanish","German","Computer Science","Art & Design","Music","Business Studies","Drama","Religious Studies","Physical Education","Sociology","Economics","Food Preparation and Nutrition"],
   alevel: ["Mathematics","Further Mathematics","English Literature","Biology","Chemistry","Physics","History","Geography","French","Spanish","German","Computer Science","Art & Design","Music","Business Studies","Economics","Psychology","Sociology","Law","Film Studies","Physical Education"],
   sat: ["Math","Reading & Writing"],
   act: ["Math","English","Reading","Science"],
-  ap: ["AP Calculus AB","AP Calculus BC","AP Statistics","AP Physics 1","AP Physics C","AP Chemistry","AP Biology","AP Environmental Science","AP US History","AP World History","AP European History","AP English Language","AP English Literature","AP Computer Science A","AP Psychology","AP Economics (Micro)","AP Economics (Macro)","AP US Government","AP Spanish","AP French"],
+  ap: ["AP Calculus AB","AP Calculus BC","AP Statistics","AP Physics 1","AP Physics C","AP Chemistry","AP Biology","AP Environmental Science","AP Human Geography","AP US History","AP World History","AP European History","AP English Language","AP English Literature","AP Computer Science A","AP Psychology","AP Economics (Micro)","AP Economics (Macro)","AP US Government","AP Spanish","AP French"],
   ib: ["Mathematics AA","Mathematics AI","Physics","Chemistry","Biology","Environmental Systems","History","Geography","Economics","English A","English B","Computer Science","Visual Arts","Psychology","Philosophy"],
   nmt: ["Українська мова","Математика","Історія України","Біологія","Хімія","Фізика","Географія","Англійська мова","Іноземна мова"],
   ielts: ["Listening","Reading","Writing"],
