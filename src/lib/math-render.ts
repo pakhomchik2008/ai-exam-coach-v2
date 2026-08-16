@@ -1,4 +1,4 @@
-// AI Exam Coach — inline math rendering with KaTeX (Phase 3.7a follow-up).
+// Examik — inline math rendering with KaTeX (Phase 3.7a follow-up).
 //
 // Called by the Learn-mode theory reader (src/features/chat/AIChat.jsx's
 // LearnTheoryReader) to turn AI-authored text carrying $inline$ and

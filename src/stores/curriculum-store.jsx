@@ -1,4 +1,4 @@
-// AI Exam Coach — curriculum data layer, part 2: cache + lookup API.
+// Examik — curriculum data layer, part 2: cache + lookup API.
 //
 // The ONLY file that touches localStorage for curriculum data or calls
 // window.claude for a syllabus. Lookup order is official seed -> cache ->

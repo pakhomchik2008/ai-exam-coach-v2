@@ -1,4 +1,4 @@
-# Phase 0 Audit — AI Exam Coach v3
+# Phase 0 Audit — Examik v3
 
 Date: 2026-08-09. Scope: user bug list + code-level verification + delta against `ARCHITECTURE_AUDIT.md` (2026-08-01, commit `4cb4ea1`, still current — no code changes since).
 

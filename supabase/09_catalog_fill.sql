@@ -1,4 +1,4 @@
--- AI Exam Coach — catalog reachability + content fill (run NINTH, after 01-08).
+-- Examik — catalog reachability + content fill (run NINTH, after 01-08).
 --
 -- Block 2, item 3. The gap report (scripts/catalog-gaps.mjs) showed that most
 -- "missing subjects" were not missing content at all — they were two bugs that

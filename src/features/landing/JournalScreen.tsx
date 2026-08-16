@@ -77,7 +77,7 @@ export function JournalScreen({ lang }: JournalScreenProps) {
   return (
     <div className="land-journal" aria-hidden="true">
       <header className="land-journal-head">
-        <p className="land-learn-kicker">Exam Coach</p>
+        <p className="land-learn-kicker">Examik</p>
         <h3>{copy.title}</h3>
         <ul className="land-journal-stats">
           <li>{copy.due}</li>

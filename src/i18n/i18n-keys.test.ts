@@ -26,7 +26,7 @@ describe("i18n key parity", () => {
   });
 
   it("Ukrainian hero is the source headline", () => {
-    expect(String(langs.uk?.land_hero_title)).toContain("Exam Coach");
+    expect(String(langs.uk?.land_hero_title)).toContain("Examik");
   });
 
   it("privacy copy says Settings wipe the auth account, not a Phase 6 cascade", () => {

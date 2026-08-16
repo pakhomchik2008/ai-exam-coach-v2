@@ -1,4 +1,4 @@
--- AI Exam Coach — notification send-dedup ledger (run FIFTEENTH).
+-- Examik — notification send-dedup ledger (run FIFTEENTH).
 --
 -- Phase 3 §3.5. Deliberately the ONLY new table this feature needs — the
 -- five per-user toggles (daily reminder, exam countdown, weekly digest,

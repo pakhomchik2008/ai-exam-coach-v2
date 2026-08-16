@@ -1,4 +1,4 @@
-// AI Exam Coach — Phase 3 §3.5 notifications. Vercel Cron hits this ONCE a
+// Examik — Phase 3 §3.5 notifications. Vercel Cron hits this ONCE a
 // day (see vercel.json). Runs all six triggers in one pass and sends real
 // email via Resend; every send is deduplicated through notification_log
 // (supabase/15_notification_log.sql, trigger list extended in 18_subscriptions.sql)
@@ -10,7 +10,7 @@
 //
 // Required Vercel environment variables:
 //   RESEND_API_KEY             resend.com → API Keys. SECRET.
-//   RESEND_FROM                sender address, e.g. "AI Exam Coach <onboarding@resend.dev>".
+//   RESEND_FROM                sender address, e.g. "Examik <onboarding@resend.dev>".
 //                               Defaults to the Resend sandbox sender below —
 //                               works immediately but is rate-limited (100/day)
 //                               and lands in spam more often than a verified
@@ -39,7 +39,7 @@
 //     flagged here, not a problem to solve before there are that many users.
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://cyftpdiabopydwytyudt.supabase.co";
-const RESEND_FROM = process.env.RESEND_FROM || "AI Exam Coach <onboarding@resend.dev>";
+const RESEND_FROM = process.env.RESEND_FROM || "Examik <onboarding@resend.dev>";
 const APP_URL = process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 
 // Which UTC hour the (single, Hobby-plan) daily cron actually fires at —
@@ -140,7 +140,7 @@ function unsubscribeFooter(userId, lang) {
   const url = `${APP_URL}/api/unsubscribe?u=${userId}`;
   const label = { uk: "Відписатися від сповіщень", ru: "Отписаться от уведомлений" }[lang] || "Unsubscribe from these emails";
   return `<p style="margin-top:24px;font-size:12px;color:#94a3b8;">
-    <a href="${url}" style="color:#94a3b8;">${label}</a> · AI Exam Coach
+    <a href="${url}" style="color:#94a3b8;">${label}</a> · Examik
   </p>`;
 }
 

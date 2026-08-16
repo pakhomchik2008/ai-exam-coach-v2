@@ -1,4 +1,4 @@
-// AI Exam Coach — top navigation + language switcher
+// Examik — top navigation + language switcher
 // FintechX redesign: sticky translucent bar, geometric logo mark,
 // ink-pill active state, no emoji in the link row.
 import { BrandMark } from "../brand/BrandMark";
@@ -57,7 +57,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
       <div style={{ maxWidth: "var(--container-app)", margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", fontWeight: 600, color: "var(--text-strong)", fontFamily: "var(--font-brand)", letterSpacing: "-0.03em", fontSize: "1.2rem" }}>
           <NavLogoMark />
-          <span>Exam Coach</span>
+          <span>Examik</span>
         </div>
 
         <div className="app-nav-links">

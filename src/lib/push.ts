@@ -1,4 +1,4 @@
-// AI Exam Coach — OneSignal Web Push glue (Phase 3 §3.5 follow-up).
+// Examik — OneSignal Web Push glue (Phase 3 §3.5 follow-up).
 //
 // The SDK is injected from here, not from index.html. OneSignal's dashboard
 // is scoped to production; loading it on a preview origin throws
@@ -13,8 +13,8 @@ const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
 const PROD_PUSH_HOSTS = new Set([
   "ai-exam-coach-v2.vercel.app",
-  "exam.coach",
-  "www.exam.coach",
+  "examik.app",
+  "www.examik.app",
 ]);
 
 function isProdPushHost(): boolean {

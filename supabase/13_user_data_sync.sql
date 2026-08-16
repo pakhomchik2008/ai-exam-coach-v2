@@ -1,4 +1,4 @@
--- AI Exam Coach — cross-device sync for personal data (run THIRTEENTH).
+-- Examik — cross-device sync for personal data (run THIRTEENTH).
 --
 -- Closes audit finding #12: every student's exams, schedule, mistakes, and
 -- brain/mastery state lived only in that one browser's localStorage, so

@@ -1,4 +1,4 @@
--- AI Exam Coach — GMAT Focus (run TWENTY-FIRST).
+-- Examik — GMAT Focus (run TWENTY-FIRST).
 --
 -- Bundled snapshot already has the exam (onboarding-data.jsx + curriculum-data.jsx).
 -- This row is what qualifications-store merges over that snapshot.

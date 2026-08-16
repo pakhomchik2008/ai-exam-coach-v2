@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn tree registry.
+// Examik — Learn tree registry.
 //
 // One place that answers "give me the tree for this exam" — LearnMain and
 // every downstream phase (Teach/Drill/Prove) go through `getTree()` rather

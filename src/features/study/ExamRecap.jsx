@@ -1,4 +1,4 @@
-// AI Exam Coach — Exam Recap: the screen shown after a finished practice drill
+// Examik — Exam Recap: the screen shown after a finished practice drill
 // or mock exam (Phase 3 §3c).
 //
 // Deliberately NOT the same component as SessionRecap.jsx. That one closes a

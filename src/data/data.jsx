@@ -1,4 +1,4 @@
-// AI Exam Coach — shared mock data for the UI kit
+// Examik — shared mock data for the UI kit
 // COURSES/TODAY_SESSIONS used to be hardcoded demo content. They're now derived
 // live from real exams (exams-store.jsx) via buildScheduleData()/deriveCourses().
 // MASTERY/WEAKNESS_ALERTS below stay as empty skeletons — neither has a real

@@ -4,9 +4,9 @@
 // Checkout URL and redirects. No AI quota: a pay click is not an Anthropic
 // call (see authenticate() in api/_guard.js).
 //
-// STRIPE_PRICE_ID must be the Pro monthly $5.99 Price. Max ($9.99) is
-// copy until slice 5d adds a second Price. The trial is Pro, not a
-// paid Sprint — Decision Log #100.
+// STRIPE_PRICE_ID must be the Pro monthly $5.99 Price. Max is off the
+// public page until 5c + 5d + Weekly Deep Report exist. The trial is
+// Pro, not a paid Sprint — Decision Log #100.
 
 import { authenticate, resolveAppOrigin } from "./_guard.js";
 import { encodeStripeForm, isProStatus } from "./_stripe.js";

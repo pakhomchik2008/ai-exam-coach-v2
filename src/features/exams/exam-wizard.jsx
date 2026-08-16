@@ -1,4 +1,4 @@
-// AI Exam Coach — the one exam wizard. Onboarding and "Add Exam" both render
+// Examik — the one exam wizard. Onboarding and "Add Exam" both render
 // this component with a different config object; neither branches on a mode
 // string internally (see EXAM_WIZARD_PRESETS below, the only place that
 // knows what "onboarding" vs "add exam" means). commitExamWizard() in
@@ -413,7 +413,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
         <div style={{ padding: "var(--space-5) var(--space-5) var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-4)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 600, color: "var(--text-strong)", fontFamily: "var(--font-brand)", letterSpacing: "-0.03em", fontSize: "1.05rem" }}>
-              {window.NavLogoMark ? <window.NavLogoMark size={24} /> : <span aria-hidden="true">🤖</span>}<span>Exam Coach</span>
+              {window.NavLogoMark ? <window.NavLogoMark size={24} /> : <span aria-hidden="true">🤖</span>}<span>Examik</span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {onLangChange && langs.map((l) => (

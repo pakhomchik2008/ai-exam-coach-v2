@@ -1,4 +1,4 @@
-// AI Exam Coach — Session Recap: shown immediately after a study session.
+// Examik — Session Recap: shown immediately after a study session.
 // Two phases:
 //   1. COVERAGE — the user tells us which of the exam's topics they actually
 //      covered this session (the session's topic is pre-selected). This is the

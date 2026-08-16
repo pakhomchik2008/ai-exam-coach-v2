@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn tree for IELTS.
+// Examik — Learn tree for IELTS.
 //
 // One tree covers Academic + General Training — the sub-skills tested are
 // the same, only the passage/task genres differ, and Sonnet is prompted

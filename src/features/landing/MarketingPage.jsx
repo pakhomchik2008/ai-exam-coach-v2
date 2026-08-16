@@ -194,15 +194,6 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
               <p>{t.land_price_pro_body}</p>
               <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_price_cta}</button>
             </article>
-            <article className="land-plan is-ink">
-              <h3>{t.land_price_max_name}</h3>
-              <p className="land-plan-price">
-                {annual ? t.land_price_max_year : t.land_price_max_month}
-                <span>{annual ? t.land_price_per_year : t.land_price_per_month}</span>
-              </p>
-              <p>{t.land_price_max_body}</p>
-              <button type="button" className="land-btn land-btn-amber" onClick={tap(onSignup)}>{t.land_price_cta}</button>
-            </article>
           </div>
           <p className="land-price-note">{t.land_price_note}</p>
           <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} />
@@ -254,8 +245,6 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           </nav>
           <nav aria-label="social">
             <a href="https://github.com/pakhomchik2008/ai-exam-coach-v2">{t.land_foot_support}</a>
-            <a href="https://t.me/examcoach_ua">{t.land_foot_telegram}</a>
-            <a href="https://www.tiktok.com/@exam.coach">{t.land_foot_tiktok}</a>
           </nav>
         </div>
       </footer>

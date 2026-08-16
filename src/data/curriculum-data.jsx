@@ -1,4 +1,4 @@
-// AI Exam Coach — curriculum data layer, part 1: static "official" seed.
+// Examik — curriculum data layer, part 1: static "official" seed.
 //
 // This is a SMALL, hand-curated set of syllabi I can actually vouch for —
 // not a claim of licensed access to real exam-board specifications. Every

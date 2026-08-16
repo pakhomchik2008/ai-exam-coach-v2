@@ -1,4 +1,4 @@
--- AI Exam Coach — PTE Academic (run TWENTY-SECOND).
+-- Examik — PTE Academic (run TWENTY-SECOND).
 --
 -- Bundled snapshot already has the exam (onboarding-data.jsx + curriculum-data.jsx).
 -- This row is what qualifications-store merges over that snapshot.

@@ -1,4 +1,4 @@
--- AI Exam Coach — exam catalog schema (run FIRST, in Supabase → SQL Editor).
+-- Examik — exam catalog schema (run FIRST, in Supabase → SQL Editor).
 -- Stores the official exam catalog (qualifications × subjects × topics) so new
 -- exams (IELTS, TOEFL, Duolingo…) are added by inserting a row — no code change.
 -- Row shape mirrors CURRICULUM_SEED in curriculum-data.jsx exactly.

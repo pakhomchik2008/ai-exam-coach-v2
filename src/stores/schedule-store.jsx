@@ -1,4 +1,4 @@
-// AI Exam Coach — persisted study schedule. Sessions are their own entity
+// Examik — persisted study schedule. Sessions are their own entity
 // (localStorage["study_schedule_v1"]), seeded from exams but never wholesale
 // regenerated: editing one exam's completion % touches zero sessions, and a
 // completed session survives reconciliation by stable id no matter what else

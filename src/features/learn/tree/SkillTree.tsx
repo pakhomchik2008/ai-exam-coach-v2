@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn (Phase 3.7e) — per-unit SVG skill tree.
+// Examik — Learn (Phase 3.7e) — per-unit SVG skill tree.
 //
 // Lines live in an SVG gutter; labels stay HTML so long Ukrainian titles
 // wrap instead of getting clipped by a viewBox. Click target is the whole

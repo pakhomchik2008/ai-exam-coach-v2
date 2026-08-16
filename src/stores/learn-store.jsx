@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn progress store (Phase 3.7a).
+// Examik — Learn progress store (Phase 3.7a).
 //
 // Per-node mastery per exam. Same get/save/subscribe/migrate shape as
 // every other store (see profile-store.jsx's header) — mostly so a new
