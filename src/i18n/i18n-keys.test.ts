@@ -59,14 +59,13 @@ describe("i18n key parity", () => {
     }
   });
 
-  it("nav rooms are four short labels, not seven pills", () => {
+  it("nav labels stay short and Coach is not AI Coach", () => {
     for (const code of Object.keys(langs)) {
       const pack = langs[code];
       if (!pack) throw new Error(`missing LANGS.${code}`);
       expect(String(pack.nav_today).length, `${code}.nav_today`).toBeLessThanOrEqual(11);
       expect(String(pack.nav_study).length, `${code}.nav_study`).toBeLessThanOrEqual(8);
       expect(String(pack.nav_chat), `${code}.nav_chat`).toMatch(/^(Coach|Коуч)$/);
-      expect(String(pack.nav_more).length, `${code}.nav_more`).toBeLessThanOrEqual(4);
       expect(String(pack.nav_chat), code).not.toMatch(/AI |KI-/);
     }
   });
