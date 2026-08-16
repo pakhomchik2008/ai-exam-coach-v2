@@ -10,7 +10,7 @@
 // changes), and subscribeExams/_notify exist now so that hook is a pure
 // addition later, not a rewrite.
 
-import { predictedFromReadiness, schemeFromExam, stepDownPredicted } from "../lib/scales";
+import { predictedFromReadiness, qualificationFamilyFromName, schemeFromExam, stepDownPredicted } from "../lib/scales";
 
 const EXAMS_KEY = "exams_list_v2";
 const EXAM_SCHEMA_VERSION = 1;
@@ -98,7 +98,11 @@ function migrateExam(raw, index) {
     // here, so saveExams() silently dropped it on every write — meaning
     // official exam formats and real score scales only ever resolved for
     // course-backed exams.
-    qualificationId: typeof e.qualificationId === "string" && e.qualificationId ? e.qualificationId : null,
+    qualificationId: (() => {
+      const stored = typeof e.qualificationId === "string" && e.qualificationId ? e.qualificationId : null;
+      const inferred = qualificationFamilyFromName(e.name, e.examBoard);
+      return inferred || stored;
+    })(),
     kind: ["exam", "midterm", "final", "resit", "mock", "certification"].includes(e.kind) ? e.kind : "exam",
     // Per-exam lesson length in minutes, chosen per subject in the wizard.
     // null = "use the profile default" (legacy exams, and any created before
@@ -214,6 +218,8 @@ function deriveCourse(exam) {
 
   const scheme = schemeFromExam({
     qualificationId: _examQualId(exam),
+    name: exam.name,
+    examBoard: exam.examBoard,
     gradingSystem: exam.gradingSystem,
   });
   const predictedGrade = predictedFromReadiness(gradeProbability, scheme);
@@ -409,6 +415,8 @@ function commitExamWizard({ examDrafts, profilePatch }) {
 // prefix (localized or Latin) is stripped first, then the current one re-applied.
 function _examQualId(exam) {
   if (!exam) return null;
+  const inferred = qualificationFamilyFromName(exam.name, exam.examBoard);
+  if (inferred) return inferred;
   if (exam.qualificationId) return exam.qualificationId;
   const c = exam.courseId && window.getCourse ? window.getCourse(exam.courseId) : null;
   return (c && c.curriculumRef && c.curriculumRef.qualificationId) || null;

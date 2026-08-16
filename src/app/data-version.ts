@@ -27,7 +27,7 @@
  * takes anyway (sending a message, generating a set), so they lose nothing
  * meaningful by not remounting.
  */
-export const TRANSIENT_TABS: ReadonlySet<string> = new Set(["chat", "study"]);
+export const TRANSIENT_TABS: ReadonlySet<string> = new Set(["chat", "study", "studyhub"]);
 
 /**
  * The `key` to give the tab content. Changing a `key` is what makes React throw

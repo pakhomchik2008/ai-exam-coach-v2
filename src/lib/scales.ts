@@ -190,6 +190,8 @@ export type GradeScheme = ScoreScheme | LabelScheme;
 
 export interface ExamGradeInput {
   readonly qualificationId?: string | null;
+  readonly name?: string | null;
+  readonly examBoard?: string | null;
   readonly gradingSystem?: {
     readonly kind?: string;
     readonly min?: number;
@@ -197,6 +199,29 @@ export interface ExamGradeInput {
     readonly step?: number;
     readonly options?: readonly string[];
   } | null;
+}
+
+/**
+ * Family from the exam title. Old adds were silently tagged GCSE; Learn
+ * already trusts the name, and the predicted score must do the same or
+ * НМТ shows a 1–9 grade instead of 100–200.
+ */
+export function qualificationFamilyFromName(
+  name?: string | null,
+  board?: string | null,
+): string | null {
+  const blob = `${name || ""} ${board || ""}`;
+  if (/nmt|нмт|зно/i.test(blob)) return "nmt";
+  if (/ielts/i.test(blob)) return "ielts";
+  if (/toefl/i.test(blob)) return "toefl";
+  if (/duolingo|\bdet\b/i.test(blob)) return "duolingo";
+  if (/\bpte\b|pearson test of english/i.test(blob)) return "pte";
+  if (/\bgmat\b/i.test(blob)) return "gmat";
+  if (/\bgre\b/i.test(blob)) return "gre";
+  if (/\bsat\b/i.test(blob)) return "sat";
+  if (/a[\s-]?level/i.test(blob)) return "alevel";
+  if (/gcse/i.test(blob)) return "gcse";
+  return null;
 }
 
 function scaleFromScoreScheme(scheme: ScoreScheme): Scale {
@@ -222,7 +247,8 @@ function scoreSchemeFromScale(scale: Scale): ScoreScheme {
  * keep predicting "C".
  */
 export function schemeFromExam(exam: ExamGradeInput): GradeScheme {
-  const qid = exam.qualificationId ? exam.qualificationId.toLowerCase() : "";
+  const inferred = qualificationFamilyFromName(exam.name, exam.examBoard);
+  const qid = (inferred || exam.qualificationId || "").toLowerCase();
   if (qid && !isNormalizedFallback(scaleIdForTaxonomy(qid))) {
     return scoreSchemeFromScale(scaleForTaxonomy(qid));
   }

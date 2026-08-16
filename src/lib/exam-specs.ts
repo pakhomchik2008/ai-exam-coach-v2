@@ -1,19 +1,12 @@
 /**
- * Canonical "official-ish" mock-exam shape per qualification (Phase 3 §3b —
- * see docs/phase-3-plan.md). Promotes what used to be an inline
- * EXAM_MOCK_SPECS object in AIChat.jsx into a real module alongside
- * scales.ts, adding a named duration instead of the ad-hoc "1.5 minutes per
- * question" math that used to live at each call site.
+ * Mock-exam clock + count. Subject sittings come from paper-shapes.ts
+ * (official board характеристики). A bare qualification id is no longer
+ * "official" — that was the GCSE History → 18 MCQ lie.
  *
- * "Official-ish" is deliberate, not modest phrasing: these are NOT licensed
- * real-paper timings — per Decision Log #37, real past-paper licensing
- * ($10k–$100k/y with Cambridge/College Board/Pearson) isn't feasible on a
- * solo-founder budget at launch. The durations here are exactly the
- * 1.5-min-per-question heuristic the app already used, just centralized and
- * named — no new numbers invented, no false precision claimed. `specFor`'s
- * `official` flag exists so UI copy can say "exam-style mock" rather than
- * imply a real board's actual clock.
+ * Decision #37 still holds: no licensed item bank. Decision #113: public
+ * structure only; generate original items; student file optional.
  */
+import { paperShapeFor, sittingById, type PaperSitting } from "./paper-shapes";
 
 export interface ExamSpec {
   readonly questionCount: number;
@@ -21,44 +14,54 @@ export interface ExamSpec {
   readonly note: string;
 }
 
+export interface ResolvedExamSpec extends ExamSpec {
+  readonly official: boolean;
+  readonly sitting: PaperSitting | null;
+}
+
 const MIN_PER_QUESTION = 1.5;
 function spec(questionCount: number, note: string): ExamSpec {
   return { questionCount, durationMin: Math.round(questionCount * MIN_PER_QUESTION), note };
 }
 
+/** Kept for tests that still list family-level heuristics. Not official. */
 export const EXAM_SPECS: Record<string, ExamSpec> = {
-  nmt: spec(20, "НМТ style: single-best-answer and matching items, moderate-to-hard, curriculum-faithful to the Ukrainian program."),
-  sat: spec(22, "Digital SAT style: concise multiple-choice, evidence and reasoning focus, adaptive difficulty."),
+  nmt: spec(20, "НМТ is per subject — use paper-shapes, not this family row."),
+  sat: spec(22, "Digital SAT is per section — Reading and Writing 54/64 or Math 44/70."),
   act: spec(20, "ACT style: fast-paced four-option multiple-choice."),
   ap: spec(16, "AP style: college-level multiple-choice, application-heavy."),
   ib: spec(18, "IB style: multiple-choice using command terms, HL-level rigour."),
-  gcse: spec(18, "GCSE style: graduated difficulty from foundation to higher tier."),
+  gcse: spec(18, "GCSE is per subject and paper — History is two 2-hour written papers."),
   alevel: spec(18, "A-Level style: demanding multi-step multiple-choice."),
   matura: spec(18, "Matura style: exam-board multiple-choice."),
   abitur: spec(16, "Abitur style: analytical multiple-choice."),
-  bac: spec(16, "Baccalauréat général: written papers are 4h (français, philosophie, most spécialités); Grand oral is 20 min. Practice uses exam-style items, not a licensed annales clock."),
-  gre: spec(27, "Shorter GRE (Sept 2023+): Verbal 27/41, Quant 27/47. AWA is a separate 30-min Issue essay. Practice uses exam-style items, not a licensed PowerPrep clock."),
-  gmat: spec(21, "GMAT Focus: Quant 21/45, Verbal 23/45, Data Insights 20/45. No AWA. Practice uses exam-style items, not a licensed Official Practice Exam clock."),
-  pte: spec(20, "PTE Academic (~2h, Aug 2025): 22 item types across Speaking, Writing, Reading, Listening. Practice uses exam-style items, not a licensed Scored Practice Test clock."),
-  ielts: spec(40, "IELTS Reading: 3 passages, 40 questions, 60 minutes. Writing and Listening use their own clocks."),
+  bac: spec(16, "Baccalauréat général: written papers are 4h; Grand oral is 20 min."),
+  gre: spec(27, "Shorter GRE: Verbal 27/41, Quant 27/47, AWA 30-min Issue."),
+  gmat: spec(21, "GMAT Focus: Quant 21/45, Verbal 23/45, Data Insights 20/45."),
+  pte: spec(20, "PTE Academic (~2h): 22 item types across four skills."),
+  ielts: spec(40, "IELTS Reading: 3 passages, 40 questions, 60 minutes."),
 };
 
-export interface ResolvedExamSpec extends ExamSpec {
-  /** False when falling back to the generic topic-count heuristic — no named
-   * spec exists for this qualification (yet). Drives whether the UI can
-   * claim "exam-style mock" for this qualification specifically or has to
-   * stay generic. */
-  readonly official: boolean;
-}
-
-/**
- * Resolves the spec for a qualification id (nmt/sat/gcse/...), falling back
- * to the same topic-count-derived heuristic Practice mode and the generic
- * path already used before named specs existed: 12–24 questions, 2 per topic.
- */
-export function specFor(qualificationId: string | null | undefined, topicCount: number): ResolvedExamSpec {
-  const known = qualificationId ? EXAM_SPECS[qualificationId] : undefined;
-  if (known) return { ...known, official: true };
+export function specFor(
+  qualificationId: string | null | undefined,
+  topicCount: number,
+  examName?: string | null,
+  paperId?: string | null,
+): ResolvedExamSpec {
+  const shape = paperShapeFor({
+    qualificationId: qualificationId || null,
+    name: examName || null,
+  });
+  const sitting = sittingById(shape, paperId);
+  if (shape && sitting) {
+    return {
+      questionCount: sitting.questionCount,
+      durationMin: sitting.minutes,
+      note: shape.note,
+      official: true,
+      sitting,
+    };
+  }
   const questionCount = Math.max(12, Math.min(24, topicCount > 0 ? topicCount * 2 : 16));
-  return { ...spec(questionCount, "at genuine exam difficulty for this subject"), official: false };
+  return { ...spec(questionCount, "at genuine exam difficulty for this subject"), official: false, sitting: null };
 }

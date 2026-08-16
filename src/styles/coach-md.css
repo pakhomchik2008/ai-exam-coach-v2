@@ -98,3 +98,37 @@ h4.coach-md-h { font-size: 14px; font-weight: 600; }
   border-top: 1px solid var(--border-subtle);
   margin: 12px 0;
 }
+
+/* Printed insert — exam figures stay black-on-white like the real paper. */
+.exam-figure-plate {
+  margin: 0 0 16px;
+  padding: 12px 14px 10px;
+  background: #fff;
+  border: 1px solid #1a1a1a;
+  border-radius: 2px;
+  color: #111;
+}
+.exam-figure-plate__label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.exam-figure-plate__art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+.exam-figure-plate__art--empty {
+  min-height: 160px;
+  background: repeating-linear-gradient(-45deg, #f4f4f4, #f4f4f4 8px, #fff 8px, #fff 16px);
+  border: 1px dashed #bbb;
+}
+.exam-figure-plate__cap {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+}
