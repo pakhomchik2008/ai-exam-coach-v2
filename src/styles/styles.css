@@ -1,5 +1,5 @@
 /* ============================================================
-   AI Exam Coach — global stylesheet entry point
+   Examik — global stylesheet entry point
    Consumers link THIS one file. It is @import lines only.
    ============================================================ */
 @import "tokens/colors.css";

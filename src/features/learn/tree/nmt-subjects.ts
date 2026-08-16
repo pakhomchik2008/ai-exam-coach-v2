@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn trees for NMT subjects other than Mathematics.
+// Examik — Learn trees for NMT subjects other than Mathematics.
 //
 // Math already has a hand-authored 47-node tree (`nmt-math.ts`, taxonomy
 // `nmt`) — do not replace it, or existing mastery keys reset. Every other

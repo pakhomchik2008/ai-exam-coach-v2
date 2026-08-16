@@ -1,4 +1,4 @@
--- AI Exam Coach — security audit fixes (run TENTH, after 01-09).
+-- Examik — security audit fixes (run TENTH, after 01-09).
 --
 -- Fixes found auditing the deployed app at https://ai-exam-coach-v2.vercel.app.
 -- Every item here is a defect in 07_ai_usage.sql / 08_curriculum_trust.sql, i.e.

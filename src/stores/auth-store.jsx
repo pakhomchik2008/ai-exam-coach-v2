@@ -1,4 +1,4 @@
-// AI Exam Coach — Supabase-backed auth.
+// Examik — Supabase-backed auth.
 // Drop-in replacement for the local-only version: keeps the same
 // window.getSession / signUp / logIn / startDemo / clearSession API
 // so every other file that calls those functions works without changes.

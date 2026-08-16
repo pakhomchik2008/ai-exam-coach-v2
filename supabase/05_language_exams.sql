@@ -1,4 +1,4 @@
--- AI Exam Coach — language exams (IELTS / TOEFL / Duolingo), plan Block 2 proof.
+-- Examik — language exams (IELTS / TOEFL / Duolingo), plan Block 2 proof.
 -- Run AFTER 04_qualifications.sql. This adds THREE new exams with ZERO app code:
 -- one row each in `qualifications` + their section rows in `curriculum`. Once run,
 -- the client (qualifications-store.jsx + curriculum-store.jsx) surfaces them in

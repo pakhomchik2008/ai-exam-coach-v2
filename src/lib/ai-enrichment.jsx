@@ -1,4 +1,4 @@
-// AI Exam Coach — background AI enrichment for newly created exams.
+// Examik — background AI enrichment for newly created exams.
 // Used to be a blocking full-screen step inside onboarding (the user
 // couldn't even click Finish until this resolved); now it's a store-level,
 // fire-and-forget call kicked off right after commitExamWizard() — running

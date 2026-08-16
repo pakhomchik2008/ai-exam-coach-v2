@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn trees for A-Level subjects.
+// Examik — Learn trees for A-Level subjects.
 //
 // Same split as NMT: qualificationId "alevel" is not one tree. Mathematics
 // and Chemistry are different sittings. Topic titles are the official 2025

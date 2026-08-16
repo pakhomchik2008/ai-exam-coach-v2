@@ -1,4 +1,4 @@
--- AI Exam Coach — user upload bucket + server-side enforcement (run TWELFTH).
+-- Examik — user upload bucket + server-side enforcement (run TWELFTH).
 --
 -- Closes the server half of audit finding #2. `src/lib/upload-limits.ts` caps
 -- uploads at 20 files / 25 MB each / 200 MB total, but a client-side cap is a

@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn tree for NMT Mathematics.
+// Examik — Learn tree for NMT Mathematics.
 //
 // AI-drafted first pass covering the standard Ukrainian secondary-school
 // math syllabus grouped as the six units the mega-prompt spec names:

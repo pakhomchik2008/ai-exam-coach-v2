@@ -15,10 +15,10 @@ Two **model** lanes, four **commercial** states:
 
 | State | Money | Model | Unlocks |
 |---|---|---|---|
-| Free | — | Haiku, 5 Coach-chat msgs/day | 1 active exam slot. First **unit** of that tree fully open (all Learn modes). Calendar view-only. Predictor shown, number blurred. Exam Sim 1×/week. |
+| Free | — | Haiku | 1 exam slot. First **unit** of each subject (not 50% of nodes). Calendar locked. Mistake journal locked. Coach chat + Learn Drill in the free unit stay open. |
 | Sprint | $2.99 / 3 days | Haiku | Pro-level tree + Pro surfaces, on a clock. **Not Max.** Autoship to Pro. |
-| Pro | $5.99/mo · $54/yr (−25%) | Haiku unlimited chat | Full tree, Mistake Journal, calendar edit, predictor number, unlimited Coach chat. |
-| Max | $9.99/mo · $90/yr (−25%) | Haiku + Sonnet (40/day) | Everything in Pro, plus Sonnet on heavy tasks. |
+| Pro | $5.99/mo · $54/yr (−25%) | Haiku today. Sonnet + daily cap after slice 5c | Full plan: every unit, calendar, journal, practice. 3-day $0 trial, then $5.99. |
+| Max | $9.99/mo · yearly TBD (~35–40% off, A/B after launch) | Hidden until built | Everything in Pro + unlimited Sonnet + unlimited Socratic/Feynman + Weekly Deep Report. Not on the public page until 5c + 5d + the report exist. |
 
 Annual is 25% off 12× monthly, rounded: 5.99×12×0.75 = 53.91 → **$54**
 ($4.50/mo). 9.99×12×0.75 = 89.91 → **$90** ($7.50/mo). Badge “−25%”.
@@ -56,9 +56,9 @@ locked” means Coach **Practice Engine**, not Learn’s Teach→Drill→Prove.
 - `isProUser()` is a boolean. Gates are half-tree (`freeTopicLimit`).
 - `api/complete.js` hardcodes Haiku 4.5. No Sonnet route, no cap.
 - Quota is 400 `complete`/day per signed-in user, not 5 chat messages.
-- Journal, calendar drag, predictor number, exam-slot cap, weekly Exam
-  Sim: ungated.
-- Stripe Checkout: one Pro Price (`STRIPE_PRICE_ID`), `trial_period_days: 3` ($0). Live copy matches that. Max $9.99 is listed; there is no Max Price yet.
+- Predictor number, weekly Exam Sim, Coach Practice Engine: still ungated
+  (not in the locked Free grid of 15 Aug).
+- Stripe Checkout: one Pro Price (`STRIPE_PRICE_ID`), `trial_period_days: 3` ($0). Live copy matches that. Max is **off the public page** until it exists in code.
 - Apple IAP / Capacitor: not in this app yet. Web Stripe first.
 - PostHog: not installed.
 - Referral “1 week Pro per friend”: named in this spec, not coded.
@@ -122,9 +122,9 @@ fingerprint. Apple does this per Apple ID when IAP exists.
 | Coach Practice Engine | locked | open |
 | Exam Sim full-length | 1 / rolling week | unlimited |
 | Coach Chat | 5 Haiku msgs/UTC day | unlimited Haiku |
-| Mistake Journal | blur + CTA | open |
-| Calendar | view-only | drag / create / personal |
-| Predictor | curve visible, **number** `██` + CTA | number shown |
+| Mistake Journal | locked (paywall tab) | open |
+| Calendar | locked (paywall tab) | drag / create / personal |
+| Predictor | still ungated (not this cut) | number shown |
 
 Paywall `trigger` is passed into PostHog: `predictor_blur` |
 `node_locked` | `calendar_edit` | `chat_limit` | `practice_locked` |
@@ -174,7 +174,7 @@ Each slice is its own PR. Gate: typecheck, lint, vitest, build.
 | Slice | Ships | Blocked by |
 |---|---|---|
 | **5a Entitlements** | `tier` on `subscriptions` + `profile.tier`. `hasProSurfaces` / `isMaxUser`. Tests. No paywall copy change yet. | — |
-| **5b Free gates** | First-unit lock, exam slot, journal blur, calendar view-only, predictor blur, chat 5, Practice lock, Exam Sim 1/week. Paywall trigger ids. | 5a |
+| **5b Free gates** | Remainder: predictor blur, chat 5, Practice lock, Exam Sim 1/week. Paywall trigger ids. (First-unit, 1 exam slot, locked calendar + journal already shipped on `fix/price-copy`.) | 5a |
 | **5c Router** | Allowlisted `task` → Haiku/Sonnet. 40/day Sonnet counter. Soft degrade toast. Opus never in `complete.js`. | 5a |
 | **5d Stripe** | Prices: Sprint $2.99/3d, Pro $5.99/$54, Max $9.99/$90. Subscription Schedule. Radar. Webhook writes `tier`. Kill `$0 trial_period_days`. | 5a, Hlib creates Prices in Test mode |
 | **5e Paywall** | Value-stack, annual toggle, disclosure, social-proof RPC (hide if n<50), Settings copy. | 5b, 5d |
@@ -204,7 +204,10 @@ copy cannot disagree with Checkout.
 | 83 | Social proof is a live count, hidden below 50 | A fake “1,240” is a dark pattern we will not ship. |
 | 84 | Cancel stays one visible tap | Apple Guideline. Win-back is information, not a maze. |
 | 85 | Referral is 5h, not 5a | Money path must work before we give away weeks of Pro. |
-| 100 | Live offer is a $0 3-day **Pro** trial, then $5.99/mo | Reverses #78 for launch. Checkout already uses `trial_period_days: 3`. $1.99 / $2.99 Sprint copy was a third price story. Max stays $9.99 on the page; Checkout is still one Pro Price until 5d |
+| 100 | Live offer is a $0 3-day **Pro** trial, then $5.99/mo | Reverses #78 for launch. Checkout already uses `trial_period_days: 3`. $1.99 / $2.99 Sprint copy was a third price story. Checkout is still one Pro Price until 5d |
+| 101 | Max = unlimited Sonnet + unlimited Socratic/Feynman + Weekly Deep Report, $9.99/mo | Not “the same app on Sonnet”. Yearly 35–40% off, A/B after launch. Hidden from the public page until 5c + 5d + the report ship. Do not advertise Sonnet on Pro until the router exists |
+| 102 | Free public copy = 1 exam, first unit of each subject, calendar + journal locked | Matches code. Half-tree (#63) stays reversed. An addendum “половина тем” was a misread of the repo |
+| 103 | No Max card, no SAT/A-Level as live trees | Copy-drift kills App Store reviews. Live trees are NMT + IELTS. Max keys stay in i18n unused |
 
 ## Reversibility
 

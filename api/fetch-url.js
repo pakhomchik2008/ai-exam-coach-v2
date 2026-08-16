@@ -91,7 +91,7 @@ async function fetchOnce(urlStr) {
     const resp = await fetch(safeUrl.toString(), {
       redirect: "manual",
       signal: controller.signal,
-      headers: { "User-Agent": "AIExamCoach-URLImport/1.0" },
+      headers: { "User-Agent": "Examik-URLImport/1.0" },
     });
     if (resp.status >= 300 && resp.status < 400 && resp.headers.get("location")) {
       return { redirect: new URL(resp.headers.get("location"), safeUrl).toString() };

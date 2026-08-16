@@ -313,8 +313,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
           <HubCard
             title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")}
             sub={pro
-              ? L(lang, "Full Learn tree unlocked.", "Все дерево Learn відкрите.", "Всё дерево Learn открыто.", "Arbre Learn complet déverrouillé.", "Ganzer Learn-Baum offen.")
-              : L(lang, "First unit free. 3 days of Pro free, then $5.99/month.", "Перший юніт безкоштовно. 3 дні Pro безкоштовно, далі $5.99/міс.", "Первый юнит бесплатно. 3 дня Pro бесплатно, дальше $5.99/мес.", "Premier chapitre gratuit. 3 jours de Pro gratuits, puis $5.99/mois.", "Erste Einheit gratis. 3 Tage Pro kostenlos, dann $5.99/Monat.")}
+              ? L(lang, "Full plan unlocked.", "Повний план відкритий.", "Полный план открыт.", "Plan complet déverrouillé.", "Voller Plan offen.")
+              : L(lang, "1 exam, first unit. Calendar and journal are Pro. 3 days free, then $5.99/month.", "1 іспит, перший юніт. Календар і журнал — у Pro. 3 дні безкоштовно, далі $5.99/міс.", "1 экзамен, первый юнит. Календарь и журнал — в Pro. 3 дня бесплатно, дальше $5.99/мес.", "1 examen, premier chapitre. Calendrier et journal : Pro. 3 jours gratuits, puis $5.99/mois.", "1 Prüfung, erste Einheit. Kalender und Journal: Pro. 3 Tage gratis, dann $5.99/Monat.")}
             status={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : null}
             cta={pro ? null : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
             pulse={!pro}
@@ -384,13 +384,13 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
           />
           <HubCard
             title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")}
-            sub={L(lang, "FAQ, Telegram, bugs", "FAQ, Telegram, баги", "FAQ, Telegram, баги", "FAQ, Telegram, bugs", "FAQ, Telegram, Bugs")}
+            sub={L(lang, "FAQ, bugs", "FAQ, баги", "FAQ, баги", "FAQ, bugs", "FAQ, Bugs")}
             onClick={() => setSheet("support")}
             icon={<HubIcon><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></HubIcon>}
           />
           <HubCard
             title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")}
-            sub={`exam.coach · v${PKG_VERSION}`}
+            sub={`Examik · v${PKG_VERSION}`}
             onClick={() => setSheet("aboutMenu")}
             icon={<HubIcon><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></HubIcon>}
           />
@@ -657,8 +657,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             <Row
               label={pro ? "Pro" : "Free"}
               sub={pro
-                ? L(lang, "Full Learn tree unlocked. $5.99/month after trial.", "Все дерево Learn відкрите. $5.99/міс після тріалу.", "Всё дерево Learn открыто. $5.99/мес после триала.", "Arbre Learn complet. $5.99/mois après l’essai.", "Ganzer Learn-Baum. $5.99/Monat nach dem Trial.")
-                : L(lang, "First unit free. Rest unlocks with Pro — 3 days free, then $5.99/month. Card at checkout.", "Перший юніт безкоштовно. Решта в Pro — 3 дні безкоштовно, далі $5.99/міс. Картка на Checkout.", "Первый юнит бесплатно. Остальное в Pro — 3 дня бесплатно, дальше $5.99/мес. Карта на Checkout.", "Premier chapitre gratuit. Le reste avec Pro — 3 jours gratuits, puis $5.99/mois.", "Erste Einheit gratis. Rest mit Pro — 3 Tage kostenlos, dann $5.99/Monat.")}
+                ? L(lang, "Full plan unlocked. $5.99/month after trial.", "Повний план відкритий. $5.99/міс після тріалу.", "Полный план открыт. $5.99/мес после триала.", "Plan complet. $5.99/mois après l’essai.", "Voller Plan. $5.99/Monat nach dem Trial.")
+                : L(lang, "1 exam, first unit of each subject. Calendar and journal unlock with Pro — 3 days free, then $5.99/month. Card at checkout.", "1 іспит, перший юніт кожного предмета. Календар і журнал — у Pro. 3 дні безкоштовно, далі $5.99/міс. Картка на Checkout.", "1 экзамен, первый юнит каждого предмета. Календарь и журнал — в Pro. 3 дня бесплатно, дальше $5.99/мес. Карта на Checkout.", "1 examen, premier chapitre de chaque matière. Calendrier et journal avec Pro — 3 jours gratuits, puis $5.99/mois.", "1 Prüfung, erste Einheit jedes Fachs. Kalender und Journal mit Pro — 3 Tage gratis, dann $5.99/Monat.")}
               value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
             />
             {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
@@ -704,11 +704,9 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
           <Card>
             <Row label={L(lang, "FAQ", "Питання", "Вопросы", "FAQ", "FAQ")} chevron onClick={() => setSheet("faq")} />
             <Row label={L(lang, "Write to support", "Написати в підтримку", "Написать в поддержку", "Écrire au support", "Support schreiben")}
-              sub="Telegram · email" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
+              sub="email" chevron onClick={() => { window.location.href = "mailto:hlibpakh@gmail.com"; }} />
             <Row label={L(lang, "Report a bug", "Повідомити про баг", "Сообщить о баге", "Signaler un bug", "Fehler melden")} chevron
               onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2/issues/new", "_blank", "noopener")} />
-            <Row label={L(lang, "Telegram community", "Telegram-спільнота", "Сообщество Telegram", "Communauté Telegram", "Telegram-Community")} chevron
-              onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
           </Card>
         </SettingsPage>
       )}
@@ -716,7 +714,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
       {sheet === "aboutMenu" && (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "About", "Про застосунок", "О приложении", "À propos", "Über die App")} onClose={() => setSheet(null)}>
           <Card>
-            <Row label="exam.coach" value={`v${PKG_VERSION}`} onClick={() => {
+            <Row label="Examik" value={`v${PKG_VERSION}`} onClick={() => {
               const n = egg + 1;
               setEgg(n);
               if (n >= 5) setSheet("egg");
@@ -724,8 +722,6 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             <Row label={L(lang, "Our story", "Наша історія", "Наша история", "Notre histoire", "Unsere Geschichte")} chevron onClick={() => setSheet("about")} />
             <Row label={L(lang, "Contact", "Контакт", "Контакт", "Contact", "Kontakt")} value="Hlib Pakhomov" chevron
               onClick={() => { window.location.href = "mailto:hlibpakh@gmail.com"; }} />
-            <Row label="Telegram" chevron onClick={() => window.open("https://t.me/examcoach_ua", "_blank", "noopener")} />
-            <Row label="TikTok" chevron onClick={() => window.open("https://www.tiktok.com/@exam.coach", "_blank", "noopener")} />
             <Row label="GitHub" chevron onClick={() => window.open("https://github.com/pakhomchik2008/ai-exam-coach-v2", "_blank", "noopener")} />
           </Card>
         </SettingsPage>
@@ -868,7 +864,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
               <p style={{ margin: 0, fontSize: 15, lineHeight: 1.55, color: "var(--text-body)" }}>
                 {L(lang, "Built by Hlib in Ukraine. Coffee: ∞. Beta testers: you.", "Зробив Гліб в Україні. Кави: ∞. Бета: ти.", "Сделал Глеб в Украине. Кофе: ∞.", "Fait par Hlib en Ukraine. Café : ∞.", "Gebaut von Hlib in der Ukraine. Kaffee: ∞.")}
               </p>
-              <p style={{ margin: "12px 0 0", fontSize: 13, color: "var(--text-faint)" }}>exam.coach v{PKG_VERSION}</p>
+              <p style={{ margin: "12px 0 0", fontSize: 13, color: "var(--text-faint)" }}>Examik v{PKG_VERSION}</p>
             </div>
           </Card>
         </SettingsPage>

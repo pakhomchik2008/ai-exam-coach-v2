@@ -1,4 +1,4 @@
-// AI Exam Coach — one-click unsubscribe target for the footer link in every
+// Examik — one-click unsubscribe target for the footer link in every
 // notification email (see api/notifications-cron.js). GDPR/CAN-SPAM require
 // this to work without a login step, so it takes just the user id from the
 // query string and flips `notifUnsubscribed: true` on that user's synced

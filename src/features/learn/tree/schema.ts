@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn (Phase 3.7a) — skill-tree schema.
+// Examik — Learn (Phase 3.7a) — skill-tree schema.
 //
 // A tree is a static, in-repo data structure — not a Supabase table — for
 // reasons that matter here: (a) it's shared by every student learning this

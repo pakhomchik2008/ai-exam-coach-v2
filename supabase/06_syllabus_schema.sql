@@ -1,4 +1,4 @@
--- AI Exam Coach — normalized syllabus schema (run SIXTH, after 01-05).
+-- Examik — normalized syllabus schema (run SIXTH, after 01-05).
 --
 -- The reusable substrate for AI Coach / Diagnostic / Flashcards / Quiz / Study
 -- Plan / Knowledge Graph / recommendations. Exam → Sections → Topics → Subtopics,

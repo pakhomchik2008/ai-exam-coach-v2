@@ -30,3 +30,20 @@ export function isProUser(): boolean {
 export function topicIsLocked(tree: LearnTree, nodeId: string): boolean {
   return isPremiumNode(tree, nodeId) && !isProUser();
 }
+
+/** Free holds one exam. Extra rows already saved stay; Add is what we block. */
+export const FREE_EXAM_SLOTS = 1;
+
+export function examSlotLocked(examCount?: number): boolean {
+  if (isProUser()) return false;
+  if (typeof examCount === "number") return examCount >= FREE_EXAM_SLOTS;
+  if (typeof window === "undefined") return false;
+  const w = window as Window & { getExams?: () => unknown[] };
+  const exams = w.getExams?.();
+  return Array.isArray(exams) && exams.length >= FREE_EXAM_SLOTS;
+}
+
+/** Calendar and journal are Pro. Learn first-unit stays open. */
+export function proSurfaceLocked(): boolean {
+  return !isProUser();
+}

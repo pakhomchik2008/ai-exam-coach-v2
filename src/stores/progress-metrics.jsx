@@ -1,4 +1,4 @@
-// AI Exam Coach — derived progress metrics computed purely from real
+// Examik — derived progress metrics computed purely from real
 // persisted data (exams-store + schedule-store). No fabricated numbers: an
 // empty history yields a 0 streak and all-locked achievements, not a
 // placeholder figure like the hardcoded "12" this replaces in Progress.jsx.

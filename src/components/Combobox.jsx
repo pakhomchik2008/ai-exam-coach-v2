@@ -1,4 +1,4 @@
-// AI Exam Coach — generic searchable combobox.
+// Examik — generic searchable combobox.
 //
 // Zero curriculum/exam knowledge — a caller supplies options, loading state,
 // and a noMatchSlot (CurriculumStep uses this to inject "My course isn't

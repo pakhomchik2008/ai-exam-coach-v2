@@ -13,6 +13,8 @@ import { remountKeyFor, isTrackedKey } from "./data-version";
 import { QuickOnboarding } from "../features/onboarding/QuickOnboarding";
 import { consumeBillingQuery, refreshProStatus } from "../lib/billing";
 import { applyAppearance } from "../lib/appearance";
+import { isProUser } from "../features/learn/premium";
+import { ProGatePage } from "../features/learn/ProSheet";
 
 type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
@@ -318,6 +320,7 @@ function renderTab({
       return <StudyHub t={t} />;
     }
     case "journal": {
+      if (!isProUser()) return <ProGatePage reason="journal" t={t} />;
       return (
         <MistakeJournal
           t={t}
@@ -331,6 +334,7 @@ function renderTab({
     // from AppNav (audit finding #19); kept until the nav registry is unified.
     case "schedule":
     case "calendar": {
+      if (!isProUser()) return <ProGatePage reason="calendar" t={t} />;
       return <CalendarHub t={t} onGoToExams={() => setTab("exams")} />;
     }
     case "exams": {

@@ -1,4 +1,4 @@
-# AI Exam Coach — Agent Context
+# Examik — Agent Context
 
 Read this first. It's the shortest path from cold to productive on this repo.
 

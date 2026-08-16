@@ -1,4 +1,4 @@
-// AI Exam Coach — automated regression tests for StudyCalendar.jsx +
+// Examik — automated regression tests for StudyCalendar.jsx +
 // schedule-store.jsx's date/time engine. This app has no build step (Babel
 // standalone, no npm/jest), so this is a dependency-free assertion runner
 // exposed as window.runCalendarTests() — run it from the browser console,

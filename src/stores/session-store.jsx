@@ -1,4 +1,4 @@
-// AI Exam Coach — global active-study-session store + overlay renderer.
+// Examik — global active-study-session store + overlay renderer.
 //
 // WHY: the running session used to live in Dashboard's local state, so
 // switching to any other tab unmounted the timer and silently lost the

@@ -1,4 +1,4 @@
-# AI Exam Coach — Full Skills Audit
+# Examik — Full Skills Audit
 
 *2026-07-16. Three parallel audits (Design/UX, Marketing/Growth, AI-Architecture) run via installed Claude Code skills, cross-examined with `devils-advocate`. The four highest-leverage technical claims (aiTyping keyframe, model name, duplicate context injection, dead memory fields) were independently verified against the actual source before being included below — see verification notes inline.*
 

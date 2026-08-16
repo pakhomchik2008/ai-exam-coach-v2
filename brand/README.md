@@ -8,7 +8,7 @@ Why this folder exists: SVG + PNG + iOS AppIcon.
 Block E. Eleven squares on a 3×5 grid, purple `#8921F5` on
 cream `#F7F5F0`. Square 6, gap 4, origin 19,9 in a 64 viewBox.
 
-Lockup adds `Exam Coach` / `SINCE 2026` on navy.
+Lockup adds `Examik` / `SINCE 2026` on navy. Placeholder mark until the new SVG.
 
 ## Generators
 

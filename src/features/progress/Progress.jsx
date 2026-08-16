@@ -1,4 +1,4 @@
-// AI Exam Coach — Progress screen: brain-driven, no legacy deriveCourses.
+// Examik — Progress screen: brain-driven, no legacy deriveCourses.
 function Progress({ t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const { Card, ProgressBar, Badge } = window.AIExamCoachDesignSystem_99e467;
