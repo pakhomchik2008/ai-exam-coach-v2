@@ -1,5 +1,5 @@
 /**
- * Exam Coach mark — block E of eleven squares.
+ * Examik mark — block E of eleven squares. Placeholder until the new SVG lands.
  * Same geometry as brand/logo.svg so nav, favicon, and lockup stay one drawing.
  */
 
@@ -63,7 +63,7 @@ type BrandLockupProps = {
   title?: string;
 };
 
-export function BrandLockup({ width = 200, title = "Exam Coach" }: BrandLockupProps) {
+export function BrandLockup({ width = 200, title = "Examik" }: BrandLockupProps) {
   return (
     <svg
       width={width}

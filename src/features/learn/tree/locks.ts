@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn (Phase 3.7e) — prerequisite locks + SVG layout.
+// Examik — Learn (Phase 3.7e) — prerequisite locks + SVG layout.
 //
 // Lock state is *derived*, never stored. A missing learn-store entry is
 // still "unlocked" in the store (3.7a default); whether the student can

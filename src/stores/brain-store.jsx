@@ -1,4 +1,4 @@
-// AI Exam Coach — THE BRAIN.
+// Examik — THE BRAIN.
 //
 // One unified learner model that every screen reads from and every action
 // writes to. Before this file, state lived in six disconnected islands

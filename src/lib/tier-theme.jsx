@@ -1,4 +1,4 @@
-// AI Exam Coach — Level TIER controller.
+// Examik — Level TIER controller.
 // The XP level system (brain-store.jsx xpLevel) groups levels into "tiers".
 // Each tier re-themes the whole app by setting  data-tier  on <html> — the
 // CSS in tokens/tiers.css does the rest. This file owns: the tier ladder,

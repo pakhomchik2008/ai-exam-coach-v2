@@ -1,4 +1,4 @@
-// AI Exam Coach — shared exam store. Single source of truth for "what exams
+// Examik — shared exam store. Single source of truth for "what exams
 // does the user have", used by Exams.jsx (writer) and Dashboard/Schedule/
 // Progress/AIChat (readers). Courses are derived live from real, persisted
 // exams — there is no separate static mock dataset anymore.

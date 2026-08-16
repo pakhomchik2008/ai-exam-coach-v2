@@ -96,7 +96,7 @@ export function LearnScreen({ lang }: LearnScreenProps) {
   return (
     <div className="land-learn" aria-hidden="true">
       <header className="land-learn-head">
-        <p className="land-learn-kicker">Exam Coach</p>
+        <p className="land-learn-kicker">Examik</p>
         <h3>{copy.title}</h3>
         <p>{copy.progress}</p>
         <div className="land-learn-bar"><i /></div>

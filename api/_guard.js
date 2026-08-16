@@ -32,6 +32,8 @@ const SUPABASE_ANON_KEY =
 
 const DEFAULT_ORIGINS = [
   "https://ai-exam-coach-v2.vercel.app",
+  "https://examik.app",
+  "https://www.examik.app",
   // 5050 was serve.py's port, replaced by Vite (5173) in Phase 1. Left stale
   // here meant every AI request from the local dev server was silently
   // rejected with a 403 "Origin not allowed" — found while reproducing a

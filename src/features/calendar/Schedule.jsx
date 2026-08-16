@@ -1,4 +1,4 @@
-// AI Exam Coach — month-overview screen (i18n-aware). Rendered standalone
+// Examik — month-overview screen (i18n-aware). Rendered standalone
 // (legacy) or embedded as the "Month" view inside CalendarHub — embedded
 // mode drops the page h1 since the hub owns the heading.
 function Schedule({ t, embedded }) {

@@ -1,4 +1,4 @@
-// AI Exam Coach — global user preferences, separate from exam data. One
+// Examik — global user preferences, separate from exam data. One
 // profile, shared by every exam the user creates: weekly study hours,
 // materials they have, how they like to learn. Captured once (onboarding)
 // and reused (Add Exam prefills + lets the user tweak it) instead of asking

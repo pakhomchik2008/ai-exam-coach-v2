@@ -1,4 +1,4 @@
-// AI Exam Coach — AI Planning Screen (post-exam-creation experience)
+// Examik — AI Planning Screen (post-exam-creation experience)
 // Two phases: animated "planning" sequence, then full plan reveal with
 // stats, calendar, reasoning, and "Start My AI Plan" CTA.
 

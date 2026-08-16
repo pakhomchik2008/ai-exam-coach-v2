@@ -1,4 +1,4 @@
--- AI Exam Coach — curriculum trust model (run EIGHTH, after 01-07).
+-- Examik — curriculum trust model (run EIGHTH, after 01-07).
 --
 -- Closes the S2 finding in ARCHITECTURE_AUDIT.md: community rows could override
 -- the official catalog for every user. 03_curriculum_community_writes.sql opened

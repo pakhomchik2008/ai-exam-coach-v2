@@ -1,4 +1,4 @@
--- AI Exam Coach — tighten RLS (run TWENTY-THIRD).
+-- Examik — tighten RLS (run TWENTY-THIRD).
 --
 -- user_data UPDATE had USING (user_id = auth.uid()) and no WITH CHECK, so a
 -- signed-in client could change user_id on an owned row. ai_question_bank

@@ -1,4 +1,4 @@
--- AI Exam Coach — quota rows for /api/transcribe (run SEVENTEENTH).
+-- Examik — quota rows for /api/transcribe (run SEVENTEENTH).
 --
 -- 07_ai_usage.sql only listed complete + fetch-url. Whisper (3.7g) spends
 -- ai_quota_consume('transcribe'). No row → fail closed → the UI shows

@@ -1,4 +1,4 @@
-// AI Exam Coach — Landing + authentication.
+// Examik — Landing + authentication.
 // Phase 4: marketing page is the 8-section story; this file keeps the
 // three explicit paths in (Sign Up, Log In, Try Demo) plus legal stubs.
 // Auth is still the existing window.signUp / logIn / startDemo contract.

@@ -1,4 +1,4 @@
-// AI Exam Coach — Learn (Phase 3.7a).
+// Examik — Learn (Phase 3.7a).
 //
 // Replaces StudyHub for exams that HAVE a Learn tree defined
 // (src/features/learn/tree/index.ts). NMT is per-subject: two NMT sittings

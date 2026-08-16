@@ -1,10 +1,14 @@
-// AI Exam Coach — Exams screen: brain-driven, reactive via useBrain().
+// Examik — Exams screen: brain-driven, reactive via useBrain().
+import { examSlotLocked } from "../learn/premium";
+import { ProSheet } from "../learn/ProSheet";
+
 function Exams({ t, onPlanReady }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const { Button } = window.AIExamCoachDesignSystem_99e467;
   const brain = window.useBrain();
   const [exams, setExams] = React.useState(() => window.getExams());
   const [showAdd, setShowAdd] = React.useState(false);
+  const [showSlotPaywall, setShowSlotPaywall] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
 
   // Re-sync when brain changes (another screen marked topics, etc.)
@@ -80,7 +84,7 @@ function Exams({ t, onPlanReady }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.exams_title}</h1>
-        <Button variant="primary" size="md" onClick={() => setShowAdd(true)}>{t.exams_add}</Button>
+        <Button variant="primary" size="md" onClick={() => examSlotLocked(exams.length) ? setShowSlotPaywall(true) : setShowAdd(true)}>{t.exams_add}</Button>
       </div>
       {nearestExam && (
         <div style={{ borderRadius: "var(--radius-xl)", background: daysAway(nearestExam.examDate) <= 7 ? "var(--amber-50)" : "var(--indigo-50)", border: `1px solid ${daysAway(nearestExam.examDate) <= 7 ? "var(--amber-100)" : "var(--indigo-100)"}`, padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
@@ -113,6 +117,9 @@ function Exams({ t, onPlanReady }) {
         )}
       </section>
 
+      {showSlotPaywall && (
+        <ProSheet reason="exam_slot" t={t} onClose={() => setShowSlotPaywall(false)} />
+      )}
       {showAdd && (exams.length === 0 ? (
         <window.ExamWizard
           config={window.EXAM_WIZARD_PRESETS.addExam}

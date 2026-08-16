@@ -11,17 +11,59 @@
   --land-line: rgba(20, 24, 34, 0.12);
   --land-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --land-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --land-slit-hold: 0ms;
   color: var(--land-ink);
   background: var(--land-paper);
   font-family: var(--font-sans);
   --font-display: var(--font-brand);
+}
+.land.is-slitting {
+  --land-slit-hold: 520ms;
+}
+
+/* First-visit slit: ink doors, gold hairline. Once per tab. */
+.land-slit {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: auto;
+  overflow: hidden;
+}
+.land-slit-pane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: var(--land-ink);
+  animation: land-slit-away 640ms var(--land-ease) 260ms forwards;
+}
+.land-slit-pane.is-left {
+  left: 0;
+  --away: -100%;
+}
+.land-slit-pane.is-right {
+  right: 0;
+  --away: 100%;
+}
+.land-slit-line {
+  position: absolute;
+  left: 50%;
+  top: 10%;
+  bottom: 10%;
+  width: 1px;
+  background: var(--land-amber);
+  transform: translateX(-50%) scaleY(0);
+  transform-origin: 50% 50%;
+  animation:
+    land-slit-grow 240ms var(--land-ease) forwards,
+    land-slit-fade 280ms var(--land-ease) 520ms forwards;
 }
 
 .land-skip {
   position: absolute;
   left: 12px;
   top: -48px;
-  z-index: 20;
+  z-index: 60;
   padding: 8px 12px;
   background: var(--land-amber);
   color: var(--land-ink);
@@ -152,12 +194,12 @@
 .land-hero-line {
   stroke-dasharray: 1800;
   stroke-dashoffset: 1800;
-  animation: land-draw 1600ms var(--land-ease) 200ms forwards;
+  animation: land-draw 1600ms var(--land-ease) calc(200ms + var(--land-slit-hold)) forwards;
 }
 .land-hero-peak {
   transform-box: fill-box;
   transform-origin: center;
-  animation: land-peak 700ms var(--land-ease) 1500ms both;
+  animation: land-peak 700ms var(--land-ease) calc(1500ms + var(--land-slit-hold)) both;
 }
 .land-hero-stage {
   position: relative;
@@ -198,7 +240,7 @@
   font-size: clamp(1.12rem, 2.1vw, 1.4rem);
   line-height: 1.45;
   color: color-mix(in srgb, var(--land-ink) 62%, var(--land-paper));
-  animation: land-word 700ms var(--land-ease) 420ms both;
+  animation: land-word 700ms var(--land-ease) calc(420ms + var(--land-slit-hold)) both;
 }
 .land-cta {
   margin-top: 34px;
@@ -206,7 +248,7 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
-  animation: land-word 700ms var(--land-ease) 560ms both;
+  animation: land-word 700ms var(--land-ease) calc(560ms + var(--land-slit-hold)) both;
 }
 .land-cta-primary {
   position: relative;
@@ -886,7 +928,7 @@
 }
 .land-plans {
   display: grid;
-  grid-template-columns: 0.9fr 1.15fr 0.95fr;
+  grid-template-columns: 0.9fr 1.15fr;
   gap: 14px;
   align-items: stretch;
 }
@@ -1046,6 +1088,16 @@
   font-weight: 600;
 }
 
+@keyframes land-slit-grow {
+  from { transform: translateX(-50%) scaleY(0); }
+  to   { transform: translateX(-50%) scaleY(1); }
+}
+@keyframes land-slit-fade {
+  to { opacity: 0; }
+}
+@keyframes land-slit-away {
+  to { transform: translateX(var(--away)); }
+}
 @keyframes land-word {
   from { opacity: 0; transform: translateY(22px); filter: blur(6px); }
   to   { opacity: 1; transform: none; filter: none; }
@@ -1107,13 +1159,16 @@
   .land-sub,
   .land-cta,
   .land-auth,
-  .land-marquee-track {
+  .land-marquee-track,
+  .land-slit-pane,
+  .land-slit-line {
     animation: none;
     filter: none;
     opacity: 1;
     stroke-dashoffset: 0;
     transform: none;
   }
+  .land-slit { display: none; }
 }
 
 @media (hover: hover) and (pointer: fine) {

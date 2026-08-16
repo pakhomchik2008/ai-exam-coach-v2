@@ -1,4 +1,4 @@
-// AI Exam Coach — Predictive Burnout Detection (#9)
+// Examik — Predictive Burnout Detection (#9)
 function BurnoutAlert({ t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [dismissed, setDismissed] = React.useState(() => {

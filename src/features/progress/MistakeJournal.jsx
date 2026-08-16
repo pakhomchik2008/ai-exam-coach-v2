@@ -1,4 +1,4 @@
-// AI Exam Coach — Mistake Journal, rebuilt as an AI-powered review dashboard.
+// Examik — Mistake Journal, rebuilt as an AI-powered review dashboard.
 // Every number on this page is derived from real logged mistakes
 // (mistakes-store.jsx) — nothing here is a placeholder or fabricated stat.
 // One deliberate naming choice: the top card says "Recovery Rate," not

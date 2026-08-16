@@ -1,4 +1,4 @@
--- AI Exam Coach — curriculum catalog: community auto-population (run THIRD).
+-- Examik — curriculum catalog: community auto-population (run THIRD).
 --
 -- Plan 2.2: the "long tail" of subjects nobody seeded (e.g. AP Music Theory) is
 -- generated once by the first student who asks for it and then SAVED BACK to the

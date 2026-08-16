@@ -1,4 +1,4 @@
-// AI Exam Coach — Study tab.
+// Examik — Study tab.
 
 // Shared upload limits — the same 20 files / 25 MB / 200 MB rules the exam
 // wizard enforces, so the two surfaces cannot drift apart.

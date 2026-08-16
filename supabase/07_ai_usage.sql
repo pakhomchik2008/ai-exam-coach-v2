@@ -1,4 +1,4 @@
--- AI Exam Coach — per-user AI quota (run SEVENTH, after 01-06).
+-- Examik — per-user AI quota (run SEVENTH, after 01-06).
 --
 -- Closes the S1 finding in ARCHITECTURE_AUDIT.md: `api/complete.js` was an
 -- unauthenticated open proxy onto a paid Anthropic key. The serverless function

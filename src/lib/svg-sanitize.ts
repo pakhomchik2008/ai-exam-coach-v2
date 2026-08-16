@@ -1,4 +1,4 @@
-// AI Exam Coach — safe SVG rendering for AI-generated diagrams
+// Examik — safe SVG rendering for AI-generated diagrams
 // (Phase 3.7d). Claude occasionally emits an <svg> block inside the theory
 // reader to illustrate a triangle, coordinate plane, function graph, etc.
 // Rendering that untrusted string via dangerouslySetInnerHTML without a

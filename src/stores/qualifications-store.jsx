@@ -1,4 +1,4 @@
-// AI Exam Coach — qualifications catalog: DB-backed, snapshot-fallback.
+// Examik — qualifications catalog: DB-backed, snapshot-fallback.
 //
 // Plan 3.2: the exam metadata that used to be five hardcoded JS structures
 // (EXAM_TYPES, SUBJECT_PRESETS, COUNTRY_TO_EXAM_TYPE, and the SECTION_BASED /

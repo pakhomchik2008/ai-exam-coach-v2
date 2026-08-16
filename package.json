@@ -1,5 +1,5 @@
 {
-  "name": "ai-exam-coach",
+  "name": "examik",
   "version": "3.0.0",
   "scripts": {
     "test": "vitest run",
