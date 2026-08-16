@@ -8,13 +8,6 @@ import { ExamMarquee } from "./ExamMarquee";
 import { FeatureReel } from "./FeatureReel";
 import { startLenis } from "../../lib/motion-runtime";
 
-const CTA_DAYS = [
-  ["1", "land_cta_d1"],
-  ["3", "land_cta_d3"],
-  ["7", "land_cta_d7"],
-  ["47", "land_cta_d47"],
-];
-
 const SLIT_KEY = "land_slit_seen";
 
 function shouldPlaySlit() {
@@ -28,24 +21,10 @@ function shouldPlaySlit() {
 
 const FAQ_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
+function CtaTrio({ t, tap, onSignup, onLogin, onDemo }) {
   return (
     <div className="land-cta">
-      {withTimeline ? (
-        <div className="land-cta-primary">
-          <ol className="land-cta-tl">
-            {CTA_DAYS.map(([day, key]) => (
-              <li key={day}>
-                <b>{t.land_cta_day} {day}</b>
-                <span>{t[key]}</span>
-              </li>
-            ))}
-          </ol>
-          <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_cta_trial}</button>
-        </div>
-      ) : (
-        <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_cta_trial}</button>
-      )}
+      <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_cta_trial}</button>
       <button type="button" className="land-btn land-btn-ghost" onClick={tap(onLogin)}>{t.land_cta_login}</button>
       <button type="button" className="land-btn land-btn-demo" onClick={tap(onDemo)}>{t.land_cta_demo}</button>
     </div>
@@ -53,7 +32,6 @@ function CtaTrio({ t, tap, onSignup, onLogin, onDemo, withTimeline }) {
 }
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
-  const [annual, setAnnual] = React.useState(true);
   const [slit, setSlit] = React.useState(shouldPlaySlit);
   const landRef = React.useRef(null);
   React.useEffect(() => {
@@ -157,7 +135,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
                 ))}
               </h1>
               <p className="land-sub">{t.land_hero_sub}</p>
-              <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} withTimeline />
+              <CtaTrio t={t} tap={tap} onSignup={onSignup} onLogin={onLogin} onDemo={onDemo} />
             </div>
           </div>
           <ExamMarquee label={t.land_marquee} />
@@ -174,10 +152,6 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         <div className="land-wrap">
           <h2 id="land-price-title">{t.land_price_title}</h2>
           <p className="land-lede">{t.land_price_sub}</p>
-          <div className="land-bill" role="group" aria-label={t.land_price_annual}>
-            <button type="button" className={!annual ? "is-on" : ""} onClick={() => { setAnnual(false); window.playSound?.("select"); }}>{t.land_price_monthly}</button>
-            <button type="button" className={annual ? "is-on" : ""} onClick={() => { setAnnual(true); window.playSound?.("select"); }}>{t.land_price_annual}</button>
-          </div>
           <div className="land-plans">
             <article className="land-plan">
               <h3>{t.land_price_free_name}</h3>
@@ -188,8 +162,8 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
             <article className="land-plan is-featured">
               <h3>{t.land_price_pro_name}</h3>
               <p className="land-plan-price">
-                {annual ? t.land_price_pro_year : t.land_price_pro_month}
-                <span>{annual ? t.land_price_per_year : t.land_price_per_month}</span>
+                {t.land_price_pro_month}
+                <span>{t.land_price_per_month}</span>
               </p>
               <p>{t.land_price_pro_body}</p>
               <button type="button" className="land-btn land-btn-primary" onClick={tap(onSignup)}>{t.land_price_cta}</button>

@@ -34,11 +34,11 @@ function paywallCopy(reason, t, freeCount, lockedCount) {
     return {
       title: L5(t, "One exam on Free", "На Free — один іспит", "На Free — один экзамен", "Un examen en Free", "Eine Prüfung in Free"),
       body: L5(t,
-        "Free holds one exam and the first unit of each subject. A second exam is Pro — 3 days free, then $5.99/month. Card at checkout.",
-        "Free тримає один іспит і перший юніт кожного предмета. Другий іспит — у Pro. 3 дні безкоштовно, далі $5.99/міс. Картка на Checkout.",
-        "Free держит один экзамен и первый юнит каждого предмета. Второй экзамен — в Pro. 3 дня бесплатно, дальше $5.99/мес. Карта на Checkout.",
-        "Free garde un examen et le premier chapitre de chaque matière. Un deuxième examen, c’est Pro. 3 jours gratuits, puis $5.99/mois.",
-        "Free hält eine Prüfung und die erste Einheit jedes Fachs. Eine zweite Prüfung ist Pro. 3 Tage gratis, dann $5.99/Monat."),
+        "Free holds one exam and the first unit of its tree (7 topics on NMT Maths, 10 on IELTS Listening). A second exam is Pro — 3 days free, then $5.99/month. Card at checkout.",
+        "Free тримає один іспит і перший юніт дерева (7 тем у НМТ-математиці, 10 у IELTS Listening). Другий іспит — у Pro. 3 дні безкоштовно, далі $5.99/міс. Картка на Checkout.",
+        "Free держит один экзамен и первый юнит дерева (7 тем в НМТ-математике, 10 в IELTS Listening). Второй экзамен — в Pro. 3 дня бесплатно, дальше $5.99/мес. Карта на Checkout.",
+        "Free garde un examen et le premier chapitre de l’arbre (7 sujets NMT maths, 10 IELTS Listening). Un deuxième examen, c’est Pro. 3 jours gratuits, puis $5.99/mois.",
+        "Free hält eine Prüfung und die erste Einheit (7 Themen NMT-Mathe, 10 IELTS Listening). Eine zweite Prüfung ist Pro. 3 Tage gratis, dann $5.99/Monat."),
     };
   }
   return {
