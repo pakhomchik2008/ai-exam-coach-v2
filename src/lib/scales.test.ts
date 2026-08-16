@@ -11,6 +11,7 @@ import {
   scaleSteps,
   schemeFromExam,
   predictedFromReadiness,
+  qualificationFamilyFromName,
   targetReadiness,
   stepDownPredicted,
 } from "./scales";
@@ -240,6 +241,15 @@ describe("schemeFromExam — exam's own grading, not A-Level letters", () => {
     expect(predictedFromReadiness(0, scheme)).toBe("100");
     expect(predictedFromReadiness(50, scheme)).toBe("150");
     expect(predictedFromReadiness(100, scheme)).toBe("200");
+  });
+
+  it("НМТ name beats a stale GCSE tag, so the tile is 100–200 not 1–9", () => {
+    expect(qualificationFamilyFromName("NMT Математика")).toBe("nmt");
+    expect(qualificationFamilyFromName("НМТ Математика")).toBe("nmt");
+    expect(qualificationFamilyFromName("ЗНО Математика")).toBe("nmt");
+    const stale = schemeFromExam({ qualificationId: "gcse", name: "NMT Математика" });
+    expect(predictedFromReadiness(50, stale)).toBe("150");
+    expect(predictedFromReadiness(0, stale)).toBe("100");
   });
 
   it("A-Level still uses letters", () => {

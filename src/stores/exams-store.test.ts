@@ -15,6 +15,7 @@ type ExamsStore = {
   sessionsNeeded: (completionPct: number, daysLeft: number) => number;
   requiredPct: (completionPct: number, daysLeft: number, totalDays: number) => number;
   migrateExam: (raw: unknown) => Record<string, unknown>;
+  examQualificationId: (exam: { name?: string; qualificationId?: string | null }) => string | null;
 };
 
 const s = window as unknown as ExamsStore;
@@ -118,6 +119,15 @@ describe("migrateExam", () => {
   // without a course could never resolve its official format or score scale.
   it("preserves qualificationId so non-course exams keep their exam type", () => {
     expect(s.migrateExam({ id: "x", qualificationId: "nmt" })["qualificationId"]).toBe("nmt");
+  });
+
+  it("rewrites a stale GCSE tag when the name is НМТ", () => {
+    expect(s.migrateExam({ id: "x", name: "NMT Математика", qualificationId: "gcse" })["qualificationId"]).toBe("nmt");
+    expect(s.migrateExam({ id: "x", name: "НМТ Українська мова", qualificationId: "gcse" })["qualificationId"]).toBe("nmt");
+  });
+
+  it("reads НМТ from the name even before migrate rewrites the row", () => {
+    expect(s.examQualificationId({ name: "NMT Математика", qualificationId: "gcse" })).toBe("nmt");
   });
 
   it("normalises a missing or non-string qualificationId to null", () => {
