@@ -103,12 +103,12 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     difficulty: cal(
       "1–8 school applied (chart, %, ratio, log, vector, spatial). 9–15 traps (which-statements, integrals, inequality systems, circle). Matching: function properties / evaluate / geometry. Shorts 19–22 are the hard end: piecewise+derivative, combinatorics, 3D volume, parameter so no roots.",
       "Five options А–Д. One calculation or one concept per MCQ. Shorts need 2–3 steps. Decimal answers allowed, including negatives. A formula sheet exists — still require working.",
-      "No 2+2. No olympiad inequalities. Do not copy УЦОЯО demo or live items from 2023–2026.",
+      "No 2+2. No bare order-of-operations. No olympiad inequalities. Do not copy УЦОЯО demo or live items from 2023–2026.",
     ),
     papers: [sitting("nmt-math", "Математика", 60, 32, [
-      mcq(15, 5, 1, "1–15 одна з п’яти"),
+      mcq(15, 5, 1, "1–15 одна з п’яти. Items 2, 6, 10, 12, 15 need an original SVG figure (triangle, graph, circle, spatial) in the figure field."),
       match(3, 3, 5, 3, "16–18 логічні пари 1–3 × А–Д"),
-      short(4, 2, "19–22 коротка відповідь"),
+      short(4, 2, "19–22 HARD only: (19) piecewise or derivative, (20) combinatorics, (21) 3D solid volume, (22) parameter so an equation has no roots. At least two items MUST include an original SVG figure. Ban order-of-operations warmups like (2³−5)·4+12:3."),
     ])],
   },
   {
@@ -501,8 +501,10 @@ OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.`;
   if (section.kind === "mcq") {
     const n = section.options || 4;
     return `${base}
-FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"..."}]}
-RULES: each item has exactly ${n} options; "correct" is a 0-based index; genuine exam difficulty.`;
+FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"...","figure":""}]}
+RULES: each item has exactly ${n} options; "correct" is a 0-based index.
+figure is "" or a raw <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg> drawing (triangle, axes, circle, spatial). No width/height, no script, no external images.
+When the stem says "see the figure" / "див. рисунок", figure MUST be a real drawing, not empty.`;
   }
   if (section.kind === "match") {
     return `${base}
@@ -511,8 +513,12 @@ RULES: left has ${section.left} stems; right has ${section.right} options (А–
   }
   if (section.kind === "short") {
     return `${base}
-FORMAT: {"questions":[{"kind":"short","question":"...","answer":"12","accept":["12","12.0"],"explanation":"...","topic":"..."}]}
-RULES: answer is a short number or word; accept lists equivalent forms.`;
+FORMAT: {"questions":[{"kind":"short","question":"...","answer":"-2.5","accept":["-2,5","-2.50"],"explanation":"2-3 step method","topic":"...","figure":""}]}
+RULES: these are the LAST items on the paper — harder than the MCQs.
+Each item needs 2–3 reasoning steps (piecewise+derivative, combinatorics C(n,k), 3D volume, parameter).
+Answer is a number (decimals and negatives allowed). accept lists comma/dot twins.
+BANNED: a single arithmetic expression with no context (order of operations, "обчисліть значення виразу (2³-5)·4").
+figure is "" or a raw <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg>. At least half the items MUST have a figure (prism, graph, trapezoid).`;
   }
   if (section.kind === "order") {
     return `${base}
@@ -558,7 +564,16 @@ export type SimQuestion = {
   stimulus?: string;
   markscheme?: string[];
   maxMarks?: number;
+  figure?: string;
 };
+
+/** Last-section NMT shorts that are just order-of-operations. Official 19–22 never look like this. */
+export function isBabyShort(question: string): boolean {
+  const text = String(question || "");
+  const hard = /функц|похідн|призм|пірамід|комбін|параметр|нерівн|об'?єм|ймовірн|послідовн|piecewise|derivative|prism|combinator/i.test(text);
+  if (hard) return false;
+  return /обчисл.+\s+значення\s+виразу|evaluate the (value of the )?expression|compute the value of/i.test(text);
+}
 
 export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuestion | null {
   if (!raw || typeof raw !== "object") return null;
@@ -568,24 +583,25 @@ export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuest
   const kind = (typeof row.kind === "string" ? row.kind : fallback) as ItemKind;
   const topic = typeof row.topic === "string" ? row.topic : "";
   const explanation = typeof row.explanation === "string" ? row.explanation : "";
+  const figure = typeof row.figure === "string" ? row.figure : "";
   if (kind === "mcq") {
     const options = Array.isArray(row.options) ? row.options.map((o) => String(o)) : [];
     const correct = typeof row.correct === "number" ? row.correct : 0;
     if (options.length < 2) return null;
-    return { kind, question, options, correct, explanation, topic };
+    return { kind, question, options, correct, explanation, topic, figure };
   }
   if (kind === "match") {
     const left = Array.isArray(row.left) ? row.left.map((o) => String(o)) : [];
     const right = Array.isArray(row.right) ? row.right.map((o) => String(o)) : [];
     const pairs = Array.isArray(row.pairs) ? row.pairs.map((n) => Number(n)) : [];
     if (!left.length || !right.length) return null;
-    return { kind, question, left, right, pairs, explanation, topic };
+    return { kind, question, left, right, pairs, explanation, topic, figure };
   }
   if (kind === "short") {
     const answer = String(row.answer || row.correct || "").trim();
     const accept = Array.isArray(row.accept) ? row.accept.map((o) => String(o)) : [];
     if (!answer) return null;
-    return { kind, question, answer, accept, explanation, topic };
+    return { kind, question, answer, accept, explanation, topic, figure };
   }
   if (kind === "order") {
     const items = Array.isArray(row.items) ? row.items.map((o) => String(o)) : [];
