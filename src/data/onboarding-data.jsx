@@ -105,7 +105,7 @@ function suggestedQualificationId(lastExam, profile) {
   if (/(baccalaur[eé]at|\bbac\b)/i.test(blob) && !/international/i.test(blob)) return "bac";
   if (/\bgmat\b/i.test(blob)) return "gmat";
   if (/\bgre\b/i.test(blob)) return "gre";
-  if (/(nmt|нmt|зно)/i.test(blob)) return "nmt";
+  if (/(nmt|нмт|зно)/i.test(blob)) return "nmt";
   const country = profile && profile.country && COUNTRY_TO_EXAM_TYPE[profile.country];
   if (country) return country;
   return "custom";

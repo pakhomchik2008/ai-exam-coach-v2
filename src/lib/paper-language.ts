@@ -109,7 +109,7 @@ export function paperQualForExam(exam: ExamNameLike | null | undefined): string 
   const qual = (exam.qualificationId || "").toLowerCase();
   if (FOREIGN_BY_SLUG[qual]) return qual;
   const blob = `${exam.name || ""} ${exam.subject || ""}`;
-  const isNmt = qual === "nmt" || qual === "zno" || qual.startsWith("nmt-") || /nmt|зно/i.test(blob);
+  const isNmt = qual === "nmt" || qual === "zno" || qual.startsWith("nmt-") || /nmt|нмт|зно/i.test(blob);
   if (isNmt) {
     for (const row of foreignPapers("NMT")) {
       if (row.re.test(blob)) return row.slug;
