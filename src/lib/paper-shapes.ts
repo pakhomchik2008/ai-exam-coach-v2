@@ -290,6 +290,54 @@ function ibMathHl(opts: { id: string; course: string; source: string }): PaperSh
   };
 }
 
+/** No public board. Typical UK unseen 2h / 100 so Exam Sim is not 18 MCQs. */
+function uniModule(opts: {
+  id: string;
+  subject: string;
+  kind: "stem" | "essay" | "mixed" | "clinical" | "studio" | "law";
+}): PaperShape {
+  const papers = opts.kind === "essay"
+    ? [sitting(`${opts.id}-p1`, "Unseen essay paper", 120, 100, [
+        written(2, 50, "Two essays. Argument + named evidence. No plot summary."),
+      ])]
+    : opts.kind === "law"
+      ? [sitting(`${opts.id}-p1`, "Unseen problem paper", 120, 100, [
+          written(1, 50, "Problem question — apply the law to original facts."),
+          written(1, 50, "Essay / critical."),
+        ])]
+      : opts.kind === "clinical"
+        ? [sitting(`${opts.id}-p1`, "Unseen SBA + short", 120, 100, [
+            mcq(40, 5, 1, "Single-best-answer. Clinical vignette, not trivia."),
+            short(12, 5, "Short / calculate / interpret. Several with figures."),
+          ])]
+        : opts.kind === "studio"
+          ? [sitting(`${opts.id}-p1`, "Unseen written (studio not sat)", 90, 80, [
+              written(2, 40, "Critical analysis. Figure required on each."),
+            ])]
+          : opts.kind === "mixed"
+            ? [sitting(`${opts.id}-p1`, "Unseen mixed paper", 120, 100, [
+                short(10, 4, "Short / calculate / define. Several with figures."),
+                written(6, 10, "Extended. At least two figures."),
+              ])]
+            : [sitting(`${opts.id}-p1`, "Unseen problem paper", 120, 100, [
+                short(10, 4, "Short / calculate. Several MUST set figureBrief."),
+                written(6, 10, "Multi-step. At least two figures."),
+              ])];
+  return {
+    id: opts.id,
+    qualification: "uni",
+    source: "https://www.qaa.ac.uk/",
+    year: 2024,
+    note: `No public exam board — onboarding board is "Custom modules". Typical UK undergraduate unseen: 2h / 100 (${opts.kind}). ${opts.subject}. Convention so Exam Sim is not 18 MCQs, not a QAA характеристика.`,
+    difficulty: cal(
+      `Undergraduate ${opts.subject}: unseen, closed-book feel, 2–3 step items or argued essays.`,
+      "Figures where a real paper would print a graph, case, or plate. Original numbers and facts.",
+      "Do not copy a university past paper. No GCSE-easy recall. No invented 'official' board clock.",
+    ),
+    papers,
+  };
+}
+
 function ibScienceHl(opts: { id: string; subject: string; source: string }): PaperShape {
   return {
     id: opts.id,
@@ -1058,6 +1106,24 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
       sitting("gcse-mus-c1", "Component 1 · Understanding music", 90, 96, [
         short(17, 4, "Section A listening (68). Figure = score excerpt / texture plate."),
         written(2, 14, "Section B study pieces (28). Figure on at least one."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-food",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/food-preparation-and-nutrition/gcse/food-preparation-and-nutrition-8585/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Food Preparation and Nutrition 8585: Paper 1 1h45 / 100 / 50% (20 MCQ + five structured / 80). NEA investigation + 3-hour cook 50% not sat.",
+    difficulty: cal(
+      "Nutrition, food science, safety, provenance, choice. Section A 20 MCQ, Section B five structured with subs.",
+      "Process / label / table items MUST set figureBrief. Original numbers. Named dishes, not 'make a sandwich'.",
+      "Do not copy AQA items. NEA cook is not sat here.",
+    ),
+    papers: [
+      sitting("gcse-food-p1", "Paper 1 · Food preparation and nutrition", 105, 100, [
+        mcq(20, 4, 1, "Section A 20 multiple choice"),
+        written(5, 16, "Section B five structured (80). Several with figures."),
       ]),
     ],
   },
@@ -1956,6 +2022,17 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     mcq: { count: 80, minutes: 90 },
     frq: { count: 3, minutes: 70, maxRaw: 30, note: "Investigation + data + calculation. Each needs a figure." },
   }),
+  apMcqFrq({
+    id: "ap-human-geo",
+    title: "AP Human Geography",
+    source: "https://apstudents.collegeboard.org/courses/ap-human-geography/assessment",
+    year: 2025,
+    note: "College Board AP Human Geography: 2h15 digital. Section I 60 MCQ / 60 min / 50%, Section II 3 FRQ / 75 min / 50% (7 points each). Q1 no stimulus, Q2 one, Q3 two.",
+    mix: "Thinking geographically, population, culture, political, agriculture, cities, industry. Scale + spatial.",
+    do: "Map / data items MUST set figureBrief (original choropleth, table, landscape plate — not a copyrighted satellite). 30–40% of MCQ need a stimulus.",
+    mcq: { count: 60, minutes: 60, note: "Individual + set-based. 30–40% with figures." },
+    frq: { count: 3, minutes: 75, maxRaw: 21, note: "Q1 text only, Q2 one stimulus, Q3 two. Figures on Q2–Q3." },
+  }),
   apHistory({
     id: "ap-ush",
     title: "AP U.S. History",
@@ -2326,6 +2403,33 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
       ]),
     ],
   },
+  uniModule({ id: "uni-math", subject: "Mathematics", kind: "stem" }),
+  uniModule({ id: "uni-physics", subject: "Physics", kind: "stem" }),
+  uniModule({ id: "uni-chemistry", subject: "Chemistry", kind: "stem" }),
+  uniModule({ id: "uni-biology", subject: "Biology", kind: "stem" }),
+  uniModule({ id: "uni-cs", subject: "Computer Science", kind: "mixed" }),
+  uniModule({ id: "uni-stats", subject: "Statistics", kind: "stem" }),
+  uniModule({ id: "uni-engineering", subject: "Engineering", kind: "stem" }),
+  uniModule({ id: "uni-economics", subject: "Economics", kind: "mixed" }),
+  uniModule({ id: "uni-psychology", subject: "Psychology", kind: "mixed" }),
+  uniModule({ id: "uni-history", subject: "History", kind: "essay" }),
+  uniModule({ id: "uni-eng-lit", subject: "English Literature", kind: "essay" }),
+  uniModule({ id: "uni-philosophy", subject: "Philosophy", kind: "essay" }),
+  uniModule({ id: "uni-sociology", subject: "Sociology", kind: "essay" }),
+  uniModule({ id: "uni-polisci", subject: "Political Science", kind: "essay" }),
+  uniModule({ id: "uni-law", subject: "Law", kind: "law" }),
+  uniModule({ id: "uni-business", subject: "Business Administration", kind: "mixed" }),
+  uniModule({ id: "uni-accounting", subject: "Accounting", kind: "mixed" }),
+  uniModule({ id: "uni-finance", subject: "Finance", kind: "mixed" }),
+  uniModule({ id: "uni-marketing", subject: "Marketing", kind: "mixed" }),
+  uniModule({ id: "uni-medicine", subject: "Medicine", kind: "clinical" }),
+  uniModule({ id: "uni-nursing", subject: "Nursing", kind: "clinical" }),
+  uniModule({ id: "uni-architecture", subject: "Architecture", kind: "studio" }),
+  uniModule({ id: "uni-art-hist", subject: "Art History", kind: "studio" }),
+  uniModule({ id: "uni-music", subject: "Music", kind: "studio" }),
+  uniModule({ id: "uni-linguistics", subject: "Linguistics", kind: "mixed" }),
+  uniModule({ id: "uni-geography", subject: "Geography", kind: "mixed" }),
+  uniModule({ id: "uni-envsci", subject: "Environmental Science", kind: "mixed" }),
 ];
 
 const NMT_ENG_IDS = new Set(["nmt-eng", "nmt-de", "nmt-fr", "nmt-es"]);
@@ -2373,6 +2477,7 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "gcse-economics", re: /econom|економі|экономи/i },
   { id: "gcse-art", re: /art\s*(&|and)?\s*design|fine art|\bart\b|мистецтв|искусств/i },
   { id: "gcse-music", re: /music|музик|музык/i },
+  { id: "gcse-food", re: /food|nutrition|catering|кулінар|кулинар/i },
   { id: "alevel-further-math", re: /further math|further maths|вища матем|высш/i },
   { id: "alevel-math", re: /math|матем/i },
   { id: "alevel-biology", re: /biolog|біолог|биолог/i },
@@ -2414,6 +2519,7 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "ap-chem", re: /chem/i },
   { id: "ap-bio", re: /biolog/i },
   { id: "ap-envsci", re: /environmental science/i },
+  { id: "ap-human-geo", re: /human geograph/i },
   { id: "ap-world", re: /world history/i },
   { id: "ap-euro", re: /european history/i },
   { id: "ap-ush", re: /u\.?s\.? history|united states history|apush/i },
@@ -2441,6 +2547,33 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "ib-visual-arts", re: /visual art/i },
   { id: "ib-psychology", re: /psycholog/i },
   { id: "ib-philosophy", re: /philosoph/i },
+  { id: "uni-cs", re: /computer science|computing|інформатик|информатик/i },
+  { id: "uni-art-hist", re: /art history|істор(ія|ия) мистецтв|истор(ия|ія) искусств/i },
+  { id: "uni-envsci", re: /environmental science|еколог/i },
+  { id: "uni-eng-lit", re: /english lit|літератур|литератур/i },
+  { id: "uni-polisci", re: /political science|politic|політолог|политолог/i },
+  { id: "uni-business", re: /business admin|business|бізнес|бизнес/i },
+  { id: "uni-accounting", re: /account|бухгалтер/i },
+  { id: "uni-finance", re: /finance|фінанс|финанс/i },
+  { id: "uni-marketing", re: /market/i },
+  { id: "uni-engineering", re: /engineering|інженер|инженер/i },
+  { id: "uni-medicine", re: /medicine|медици/i },
+  { id: "uni-nursing", re: /nurs|медсестр/i },
+  { id: "uni-architecture", re: /architect|архітект|архитект/i },
+  { id: "uni-linguistics", re: /linguistic|лінгвіст|лингвист/i },
+  { id: "uni-math", re: /math|матем/i },
+  { id: "uni-physics", re: /physics\b|фізик|физик/i },
+  { id: "uni-chemistry", re: /chem|хімі|хими/i },
+  { id: "uni-biology", re: /biolog|біолог|биолог/i },
+  { id: "uni-stats", re: /statistic|статисти/i },
+  { id: "uni-economics", re: /econom|економі|экономи/i },
+  { id: "uni-psychology", re: /psycholog|психолог/i },
+  { id: "uni-history", re: /histor|істор|истор/i },
+  { id: "uni-philosophy", re: /philosoph|філософ|философ/i },
+  { id: "uni-sociology", re: /sociolog|соціолог|социолог/i },
+  { id: "uni-law", re: /\blaw\b|юриспр|\bправо\b/i },
+  { id: "uni-geography", re: /geograph|географ/i },
+  { id: "uni-music", re: /music|музик|музык/i },
 ];
 
 const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(
