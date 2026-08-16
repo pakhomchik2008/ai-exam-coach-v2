@@ -4,19 +4,23 @@
 
 Source (edit these, then re-run generators):
 
-- `brand/logo.svg` — app icon (teal square + book + bars + arrow)
-- `brand/mark.svg` — mark only, no square (nav / wordmark lockups)
-- `brand/wordmark.svg` — Examik / SINCE 2026 lockup (placeholder)
+- `brand/logo.svg` — app icon only (cream rounded-rect + E). Never a header.
+- `brand/mark.svg` — unframed E, tight crop (nav / email / lockup)
+- `brand/wordmark.svg` / `brand/lockup.svg` — horizontal E + Examik
 - `brand/generate-icons.py` — rasterises PNG + AppIcon.appiconset
+- `brand/generate-lockup.swift` — 1200×630 OG PNG
 - `brand/generate-sounds.py` — writes WAV, ffmpeg → MP3 + loudnorm
 
 Built (served):
 
-- `public/favicon.svg` — same as logo.svg
+- `public/favicon.svg` — same as logo.svg (framed)
 - `public/apple-touch-icon.png` — 180×180
 - `public/brand/logo.svg`
 - `public/brand/mark.svg`
+- `public/brand/mark-48.png` — unframed E for email (Gmail drops SVG)
 - `public/brand/wordmark.svg`
+- `public/brand/lockup.svg`
+- `public/brand/lockup-og.png` — Open Graph / Twitter
 - `public/brand/logo-{32,64,128,256,512,1024}.png`
 - `public/brand/appicon/AppIcon.appiconset/` — iOS sizes for Phase 5
 

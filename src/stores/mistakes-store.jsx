@@ -65,6 +65,7 @@ function logMistake({ topic, question, options, correctIndex, selectedIndex, exp
   if (!entry) return;
   list.unshift(entry);
   saveMistakes(list.slice(0, 200));
+  if (window.scheduleReviewFromMistake) window.scheduleReviewFromMistake(entry);
 }
 function clearMistake(id) {
   saveMistakes(getMistakes().filter((m) => m.id !== id));
@@ -96,6 +97,11 @@ function recordMistakeRetry(id, { correct, confidence } = {}) {
   }
   list[idx] = updated;
   saveMistakes(list);
+  if (correct) {
+    if (window.cancelMistakeReviewIfClear) window.cancelMistakeReviewIfClear(updated);
+  } else if (window.scheduleReviewFromMistake) {
+    window.scheduleReviewFromMistake(updated);
+  }
   _logReviewActivity();
   return updated;
 }

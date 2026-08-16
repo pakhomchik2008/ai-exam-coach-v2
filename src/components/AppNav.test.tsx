@@ -27,6 +27,11 @@ describe("AppNav four rooms", () => {
     ]);
   });
 
+  it("logo is the horizontal lockup, not a framed tile", () => {
+    expect(src).toMatch(/<BrandLockup/);
+    expect(src).not.toMatch(/framed/);
+  });
+
   it("has no seven-item collapse menu", () => {
     expect(src).not.toMatch(/app-nav-hamburger|app-nav-mobile-panel/);
     expect(src).toMatch(/nav_more/);

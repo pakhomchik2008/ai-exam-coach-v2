@@ -26,8 +26,12 @@ type Api = {
   getMistakes: () => Mistake[];
   clearAllMistakes: () => void;
   logMistake: (m: Record<string, unknown>) => void;
+  recordMistakeRetry: (id: string, opts: { correct: boolean }) => Mistake | null;
   computeReviewQueue: () => Record<"overdue" | "dueToday" | "dueTomorrow" | "later", Mistake[]>;
   MISTAKES_KEY: string;
+  getSchedule: () => { sessions: { notes: string; topic: string; date: string; examId: string; status: string; id: string }[] };
+  deleteSession: (id: string) => void;
+  fmtDateKey: (d: Date) => string;
 };
 
 const api = window as unknown as Api;
@@ -149,5 +153,49 @@ describe("computeReviewQueue", () => {
     seed([{ id: "ok", question: "q" }, null as never, { id: "" } as never, 42 as never]);
     expect(() => api.computeReviewQueue()).not.toThrow();
     expect(api.getMistakes()).toHaveLength(1);
+  });
+});
+
+describe("logMistake dates a calendar block", () => {
+  beforeEach(() => {
+    api.clearAllMistakes();
+    api.getSchedule().sessions
+      .filter((s) => s.notes === "mistake-review")
+      .forEach((s) => api.deleteSession(s.id));
+  });
+
+  afterEach(() => {
+    api.clearAllMistakes();
+    api.getSchedule().sessions
+      .filter((s) => s.notes === "mistake-review")
+      .forEach((s) => api.deleteSession(s.id));
+  });
+
+  it("places a pending review on nextReviewAt", () => {
+    api.logMistake({ topic: "Quadratics", question: "x^2 = 0?", examId: "exam-q" });
+    const miss = api.getMistakes()[0];
+    expect(miss).toBeDefined();
+    const date = api.fmtDateKey(new Date(miss!.nextReviewAt));
+    const hits = api.getSchedule().sessions.filter((s) => s.notes === "mistake-review");
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.date).toBe(date);
+    expect(hits[0]!.topic).toBe("Review: Quadratics");
+    expect(hits[0]!.examId).toBe("exam-q");
+    expect(hits[0]!.status).toBe("pending");
+  });
+
+  it("does not stack a second block for the same topic", () => {
+    api.logMistake({ topic: "Quadratics", question: "q1", examId: "exam-q" });
+    api.logMistake({ topic: "Quadratics", question: "q2", examId: "exam-q" });
+    const hits = api.getSchedule().sessions.filter((s) => s.notes === "mistake-review" && s.topic === "Review: Quadratics");
+    expect(hits).toHaveLength(1);
+  });
+
+  it("drops the block when the last miss on that topic is recovered", () => {
+    api.logMistake({ topic: "Quadratics", question: "q1", examId: "exam-q" });
+    const miss = api.getMistakes()[0]!;
+    api.recordMistakeRetry(miss.id, { correct: true });
+    const hits = api.getSchedule().sessions.filter((s) => s.notes === "mistake-review" && s.topic === "Review: Quadratics");
+    expect(hits).toHaveLength(0);
   });
 });

@@ -7,6 +7,7 @@
 // is "of your logged mistakes, how many have you since fixed."
 
 import { renderCoachMarkdown } from "../../lib/math-render";
+import { EmptyState, PageHeader } from "../../components/PageHeader";
 
 function mjL(t, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[(t && t.code) || "en"] || en; }
 
@@ -117,19 +118,32 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard, onGoToCalendar }) {
     scrollToReview();
   }
   function createStudySessionForTopic(tp) {
-    if (!window.addManualSession) return;
-    window.addManualSession({
-      examId: tp.examId || null,
-      type: tp.examId ? "study" : "personal",
-      category: tp.examId ? null : "custom",
-      personalColor: tp.examId ? null : "var(--indigo-500)",
-      topic: `${L("Review", "Повторення", "Повторение", "Révision", "Wiederholung")}: ${tp.topic}`,
-      date: window.fmtDateKey(new Date()),
-      startTime: mjNextQuarterHour(),
-      durationMin: Math.max(15, tp.estReviewMin),
-    });
+    const first = mistakes.find((m) => m.topic === tp.topic && m.status !== "recovered");
+    const when = first && typeof first.nextReviewAt === "number" ? first.nextReviewAt : Date.now() + 86400000;
+    const date = window.fmtDateKey(new Date(when));
+    if (window.scheduleReviewFromMistake) {
+      window.scheduleReviewFromMistake(first || {
+        topic: tp.topic,
+        examId: tp.examId || null,
+        nextReviewAt: when,
+        status: "pending",
+      });
+    } else if (window.addManualSession) {
+      window.addManualSession({
+        examId: tp.examId || null,
+        type: tp.examId ? "study" : "personal",
+        category: tp.examId ? null : "custom",
+        topic: `${L("Review", "Повторення", "Повторение", "Révision", "Wiederholung")}: ${tp.topic}`,
+        date,
+        startTime: mjNextQuarterHour(),
+        durationMin: Math.max(15, tp.estReviewMin),
+        notes: "mistake-review",
+      });
+    } else {
+      return;
+    }
     bump();
-    setToast(L("Session added to today", "Сесію додано на сьогодні", "Сессия добавлена на сегодня", "Séance ajoutée à aujourd’hui", "Sitzung für heute hinzugefügt"));
+    setToast(L(`Session added to ${date}`, `Сесію додано на ${date}`, `Сессия добавлена на ${date}`, `Séance ajoutée au ${date}`, `Sitzung für ${date} hinzugefügt`));
     if (toastNavRef.current) clearTimeout(toastNavRef.current);
     toastNavRef.current = setTimeout(() => {
       setToast(null);
@@ -150,15 +164,14 @@ function MistakeJournal({ t, onGoToChat, onGoToDashboard, onGoToCalendar }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}</h1>
-          <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{L("Your AI coach's map of what's holding your grade back — and exactly what to fix next.", "Карта вашого AI-коуча: що стримує вашу оцінку — і що виправити далі.", "Карта вашего AI-коуча: что сдерживает вашу оценку — и что исправить дальше.", "La carte de votre coach IA : ce qui freine votre note — et quoi corriger ensuite.", "Die Karte deines KI-Coaches: was deine Note bremst — und was als Nächstes zu tun ist.")}</p>
-        </div>
-        <button onClick={() => { window.clearAllMistakes(); bump(); }} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-muted)", borderRadius: "var(--radius-lg)", padding: "8px 14px", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>
-          {L("Clear all", "Очистити все", "Очистить всё", "Tout effacer", "Alles löschen")}
-        </button>
-      </div>
+      <PageHeader
+        title={L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}
+        action={(
+          <button type="button" className="app-btn app-btn-ghost" onClick={() => { window.clearAllMistakes(); bump(); }}>
+            {L("Clear all", "Очистити все", "Очистить всё", "Tout effacer", "Alles löschen")}
+          </button>
+        )}
+      />
 
       {/* Section 1 — analytics header */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
@@ -636,19 +649,18 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
 function MJEmptyState({ t, onGoToDashboard, onGoToChat }) {
   const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
-      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}</h1>
-      <div style={{ borderRadius: "var(--radius-2xl)", border: "1px dashed var(--border-default)", background: "linear-gradient(135deg, var(--emerald-50), var(--indigo-50))", padding: "var(--space-8)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-        <span style={{ fontSize: 40 }}>🎉</span>
-        <p style={{ margin: 0, fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{L("Great job!", "Чудова робота!", "Отличная работа!", "Excellent travail !", "Großartige Arbeit!")}</p>
-        <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)", maxWidth: 380 }}>{L("You currently have no mistakes waiting for review. Keep taking quizzes and anything you get wrong will show up here automatically.", "Наразі у вас немає помилок, що очікують на повторення. Продовжуйте проходити тести — все, що ви зробите неправильно, автоматично з'явиться тут.", "Сейчас у вас нет ошибок, ожидающих повторения. Продолжайте проходить тесты — всё, что вы сделаете неправильно, автоматически появится здесь.", "Vous n'avez actuellement aucune erreur en attente de révision. Continuez à faire des quiz — tout ce que vous répondrez de travers apparaîtra ici automatiquement.", "Du hast aktuell keine Fehler, die auf Wiederholung warten. Mach weiter Quizze — alles, was du falsch beantwortest, erscheint hier automatisch.")}</p>
-        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", justifyContent: "center" }}>
-          <button onClick={() => onGoToChat && onGoToChat("Give me a practice quiz to test myself.")} style={{ border: "none", background: "var(--indigo-600)", color: "var(--white)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Practice More", "Більше практики", "Больше практики", "Plus d'entraînement", "Mehr üben")}</button>
-          <button onClick={() => onGoToChat && onGoToChat("Give me a harder challenge quiz to push myself.")} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Generate Challenge", "Створити виклик", "Создать вызов", "Générer un défi", "Herausforderung erstellen")}</button>
-          {onGoToDashboard && <button onClick={onGoToDashboard} style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-body)", borderRadius: "var(--radius-lg)", padding: "10px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>{L("Back to Today", "На сьогодні", "На сегодня", "Retour à aujourd'hui", "Zurück zu Heute")}</button>}
-        </div>
-      </div>
-    </div>
+    <EmptyState
+      title={L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}
+      body={L(
+        "Nothing to review. Today already has your next step.",
+        "Немає що повторювати. Наступний крок уже на Сьогодні.",
+        "Нечего повторять. Следующий шаг уже на Сегодня.",
+        "Rien à revoir. Aujourd'hui a déjà la suite.",
+        "Nichts zu wiederholen. Heute hat den nächsten Schritt."
+      )}
+      actionLabel={L("Back to Today", "На сьогодні", "На сегодня", "Retour à aujourd'hui", "Zurück zu Heute")}
+      onAction={onGoToDashboard || (() => onGoToChat && onGoToChat())}
+    />
   );
 }
 

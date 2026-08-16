@@ -10,7 +10,7 @@ export const THEME_IDS = ["cream", "midnight", "trading", "violet", "arcade", "m
 export type ThemeId = (typeof THEME_IDS)[number];
 
 export const THEMES = {
-  cream:    { bg: "#FAFAF8", text: "#0E0F10", accent: "#141822", card: "#F2F0EA" },
+  cream:    { bg: "#F7F5F0", text: "#0E0F10", accent: "#141822", card: "#F2F0EA" },
   midnight: { bg: "#0B0C0D", text: "#F5F5F5", accent: "#F3D062", card: "#141618" },
   trading:  { bg: "#0A0F14", text: "#F5F5F5", accent: "#39FF14", card: "rgba(57,255,20,0.10)" },
   violet:   { bg: "#F4F1FB", text: "#26215C", accent: "#534AB7", card: "#EEEDFE" },

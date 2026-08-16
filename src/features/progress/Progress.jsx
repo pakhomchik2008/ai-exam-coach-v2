@@ -1,4 +1,6 @@
 // Examik — Progress screen: brain-driven, no legacy deriveCourses.
+import { PageHeader } from "../../components/PageHeader";
+
 function Progress({ t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const { Card, ProgressBar, Badge } = window.AIExamCoachDesignSystem_99e467;
@@ -49,7 +51,7 @@ function Progress({ t }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-8)", fontFamily: "var(--font-sans)" }}>
-      <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>{t.progress_title}</h1>
+      <PageHeader title={t.progress_title} />
       {weakest && weakest.readiness < 40 && (
         <div style={{ borderRadius: "var(--radius-xl)", background: "var(--rose-50)", border: "1px solid var(--red-100)", padding: "12px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)" }}>
           <span style={{ color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>{L("Lowest readiness:","Найнижча готовність:","Наименьшая готовность:","Préparation la plus faible :","Niedrigste Bereitschaft:")}</span>

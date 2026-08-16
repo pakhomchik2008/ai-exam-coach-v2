@@ -68,6 +68,9 @@ dead and crawlers have a page.
 | 52 | No Framer Motion for the split-scroll | New dependency for one effect. CSS custom property + scroll listener. Reduced-motion skips the track |
 | 53 | First paint is centered type + exam marquee. Predictor and Learn mock arrive on scroll | Headline is strong enough alone. Geometry wallpaper fought it |
 | 108 | App bar is Today / Learn / Coach / More. Calendar is not a fifth room | Calendar is a lookup tool. Today's CTA is the block; grid is one tap in More. Plan-tab alternative rejected |
+| 110 | Lockup is horizontal unframed E + Examik. Framed cream tile is favicon / app icon only. SINCE 2026 is gone | A poster is not a lockup. One drawing in every header |
+| 111 | App chrome (nav, page title, primary, empty) uses landing paper/ink. Coach and KaTeX stay untouched | Score 5 is the seam. Indigo pills and Today's AI Plan were a second product |
+| 112 | Today is one CTA from recommendNextAction. Public price is one sentence. Journal miss dates a calendar block. NMT + IELTS show the exam date on Learn | The loop ChatGPT cannot fake. Reverses #109 list-Max / list-yearly. SAT / GCSE / A-Level trees, SM-2 cosmetics, Max / Sprint / yearly Checkout deferred |
 
 ## Reversibility
 
