@@ -2268,6 +2268,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         q.kind && q.kind !== "mcq" && React.createElement("div", { style: { marginBottom: 8 } }, _badge("var(--slate-100)", "var(--text-muted)", q.kind)),
+        q.stimulus ? React.createElement("div", { style: { fontSize: 14, lineHeight: 1.65, color: "var(--text-body)", margin: "0 0 16px", padding: 14, background: "var(--slate-50)", borderRadius: 12 }, dangerouslySetInnerHTML: { __html: _md(q.stimulus) } }) : null,
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
         _simFigurePlate(q, paperLanguageFor(examQual) || t?.code),
         _simItemFields(q, idx, answers, setAnswers))),

@@ -47,14 +47,116 @@ describe("paperShapeFor", () => {
     expect(shape?.difficulty.do).toMatch(/SVG/);
   });
 
+  it("sits NMT English as the 2026 six-task paper, not 20 MCQ + shorts", () => {
+    const sitting = sittingById(paperShapeFor({ qualificationId: "nmt", name: "НМТ Англійська мова" }));
+    expect(sitting?.questionCount).toBe(32);
+    expect(sitting?.minutes).toBe(60);
+    expect(sitting?.maxRaw).toBe(32);
+    expect(sitting?.sections.map((s) => s.kind)).toEqual(["match", "mcq", "match", "match", "mcq", "mcq"]);
+    expect(sitting?.sections[0]).toMatchObject({ kind: "match", count: 5, left: 1, right: 8 });
+    expect(sitting?.sections[1]).toMatchObject({ kind: "mcq", count: 5, options: 4 });
+    expect(sitting?.sections[2]).toMatchObject({ kind: "match", count: 6, right: 8 });
+    expect(sitting?.sections[3]).toMatchObject({ kind: "match", count: 6, right: 8 });
+    expect(paperShapeFor({ qualificationId: "nmt", name: "НМТ Англійська мова" })?.difficulty.do).toMatch(/advert|photo|figureBrief/i);
+    expect(paperShapeFor({ qualificationId: "nmt", name: "НМТ Англійська мова" })?.difficulty.dont).toMatch(/Do not copy/i);
+  });
+
   it("sits A-level Maths as three 2-hour papers", () => {
     const shape = paperShapeFor({ qualificationId: "alevel", name: "A-Level Mathematics" });
     expect(shape?.papers).toHaveLength(3);
     expect(shape?.papers.every((p) => p.minutes === 120)).toBe(true);
   });
 
+  it.each([
+    ["A-Level English Literature", "alevel-eng-lit", [180, 150], [75, 75]],
+    ["A-Level English Language", "alevel-eng-lang", [150, 150], [100, 100]],
+    ["A-Level Economics", "alevel-economics", [120, 120, 120], [80, 80, 80]],
+    ["A-Level Psychology", "alevel-psychology", [120, 120, 120], [96, 96, 96]],
+    ["A-Level Computer Science", "alevel-cs", [150, 150], [100, 100]],
+    ["A-Level Business Studies", "alevel-business", [120, 120, 120], [100, 100, 100]],
+    ["A-Level Politics", "alevel-politics", [120, 120, 120], [77, 77, 77]],
+    ["A-Level French", "alevel-french", [150, 120, 23], [100, 80, 60]],
+    ["A-Level Spanish", "alevel-spanish", [150, 120, 23], [100, 80, 60]],
+    ["A-Level German", "alevel-german", [150, 120, 23], [100, 80, 60]],
+    ["A-Level Sociology", "alevel-sociology", [120, 120, 120], [80, 80, 80]],
+    ["A-Level Law", "alevel-law", [120, 120, 120], [100, 100, 100]],
+    ["A-Level Film Studies", "alevel-film", [150, 150], [120, 100]],
+    ["A-Level Physical Education", "alevel-pe", [120, 120], [105, 105]],
+    ["A-Level Art & Design", "alevel-art", [90, 90], [96, 96]],
+    ["A-Level Music", "alevel-music", [150], [120]],
+    ["A-Level Religious Studies", "alevel-rs", [180, 180], [100, 100]],
+    ["A-Level Philosophy", "alevel-philosophy", [180, 180], [100, 100]],
+    ["A-Level Drama and Theatre", "alevel-drama", [180], [80]],
+    ["A-Level Design & Technology", "alevel-dt", [150, 90], [120, 80]],
+    ["A-Level Media Studies", "alevel-media", [120, 120], [84, 84]],
+    ["A-Level Geology", "alevel-geology", [135, 135, 90], [110, 100, 60]],
+    ["A-Level Environmental Science", "alevel-envsci", [180, 180], [120, 120]],
+    ["A-Level Dance", "alevel-dance", [150], [100]],
+    ["A-Level Classical Civilisation", "alevel-classics", [140, 105, 105], [100, 75, 75]],
+  ] as const)("sits %s on the official shape, not a generic mock", (name, id, minutes, maxRaw) => {
+    const shape = paperShapeFor({ qualificationId: "alevel", name });
+    expect(shape?.id).toBe(id);
+    expect(shape?.papers.map((p) => p.minutes)).toEqual([...minutes]);
+    expect(shape?.papers.map((p) => p.maxRaw)).toEqual([...maxRaw]);
+    expect(specFor("alevel", 6, name).official).toBe(true);
+  });
+
+  it.each([
+    ["GCSE Drama", "gcse-drama", [105], [80]],
+    ["GCSE Religious Studies", "gcse-rs", [105, 105], [96, 96]],
+    ["GCSE Sociology", "gcse-sociology", [105, 105], [100, 100]],
+    ["GCSE French", "gcse-french", [45, 12, 60, 75], [50, 50, 50, 50]],
+    ["GCSE Spanish", "gcse-spanish", [45, 12, 60, 75], [50, 50, 50, 50]],
+    ["GCSE German", "gcse-german", [45, 12, 60, 75], [50, 50, 50, 50]],
+    ["GCSE Computer Science", "gcse-cs", [120, 105], [90, 90]],
+    ["GCSE Business", "gcse-business", [105, 105], [90, 90]],
+    ["GCSE Economics", "gcse-economics", [105, 105], [80, 80]],
+    ["GCSE Physical Education", "gcse-pe", [75, 75], [78, 78]],
+    ["GCSE Art & Design", "gcse-art", [90, 90], [96, 96]],
+    ["GCSE Music", "gcse-music", [90], [96]],
+  ] as const)("sits %s on the AQA GCSE shape, not a generic mock", (name, id, minutes, maxRaw) => {
+    const shape = paperShapeFor({ qualificationId: "gcse", name });
+    expect(shape?.id).toBe(id);
+    expect(shape?.papers.map((p) => p.minutes)).toEqual([...minutes]);
+    expect(shape?.papers.map((p) => p.maxRaw)).toEqual([...maxRaw]);
+    expect(specFor("gcse", 6, name).official).toBe(true);
+  });
+
+  it("does not let English Literature fall through to Language", () => {
+    expect(paperShapeFor({ qualificationId: "alevel", name: "English Literature" })?.id).toBe("alevel-eng-lit");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "Англійська література" })?.id).toBe("alevel-eng-lit");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "English Language" })?.id).toBe("alevel-eng-lang");
+  });
+
+  it("does not let Physical Education fall through to Physics", () => {
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Physical Education" })?.id).toBe("alevel-pe");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Physics" })?.id).toBe("alevel-physics");
+    expect(paperShapeFor({ qualificationId: "gcse", name: "GCSE Physical Education" })?.id).toBe("gcse-pe");
+    expect(paperShapeFor({ qualificationId: "gcse", name: "GCSE Physics" })?.id).toBe("gcse-physics");
+  });
+
+  it("does not let Religious Studies fall through to Philosophy", () => {
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Religious Studies" })?.id).toBe("alevel-rs");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Philosophy" })?.id).toBe("alevel-philosophy");
+  });
+
+  it("does not let Design & Technology fall through to Art", () => {
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Design and Technology" })?.id).toBe("alevel-dt");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Product Design" })?.id).toBe("alevel-dt");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Art & Design" })?.id).toBe("alevel-art");
+  });
+
+  it("does not let Geology fall through to Geography", () => {
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Geology" })?.id).toBe("alevel-geology");
+    expect(paperShapeFor({ qualificationId: "alevel", name: "A-Level Geography" })?.id).toBe("alevel-geography");
+  });
+
+  it("keeps Electronics unofficial", () => {
+    expect(specFor("alevel", 6, "A-Level Electronics").official).toBe(false);
+  });
+
   it("does not call a bare GCSE official", () => {
-    const spec = specFor("gcse", 6, "GCSE Sociology");
+    const spec = specFor("gcse", 6, "GCSE Electronics");
     expect(spec.official).toBe(false);
   });
 
@@ -129,6 +231,22 @@ describe("sectionGenerationPrompt", () => {
     expect(prompt).toMatch(/3D/);
   });
 
+  it("asks NMT English Task 1 for photo ads and A–H extras", () => {
+    const shape = paperShapeFor({ qualificationId: "nmt", name: "NMT English" });
+    const task1 = shape?.papers[0]?.sections[0];
+    const prompt = sectionGenerationPrompt({
+      examName: "NMT English",
+      styleNote: shape?.note || "",
+      topics: ["Reading"],
+      section: task1 || { kind: "match", count: 5, left: 1, right: 8, maxMarksEach: 1, note: "" },
+      difficulty: shape?.difficulty ?? null,
+    });
+    expect(prompt).toMatch(/A–H|A-H/);
+    expect(prompt).toMatch(/figureBrief/);
+    expect(prompt).toMatch(/advert|photo/i);
+    expect(prompt).toMatch(/Do not copy/);
+  });
+
   it("asks GCSE written items for an original source figure", () => {
     const shape = paperShapeFor({ qualificationId: "gcse", name: "GCSE History" });
     const written = shape?.papers[0]?.sections[0];
@@ -171,6 +289,14 @@ describe("scoreSimAnswer", () => {
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 420"><rect x="1" y="1" width="8" height="8"/></svg>`);
     expect(pack.get(2)).toMatch(/circle/);
     expect(pack.get(5)).toMatch(/rect/);
+  });
+
+  it("keeps a shared reading passage on an MCQ", () => {
+    const q = normalizeSimQuestion({
+      kind: "mcq", question: "What is TRUE of paragraph 1?", options: ["A", "B", "C", "D"], correct: 0,
+      stimulus: "A 400-word original college narrative used as the Task 2 stem.",
+    }, "mcq");
+    expect(q?.stimulus).toMatch(/400-word/);
   });
 
   it("draws a source plate when the brief is set", () => {

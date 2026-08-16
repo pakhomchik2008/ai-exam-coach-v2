@@ -91,6 +91,84 @@ function written(count: number, maxMarksEach: number, note: string): PaperSectio
   return { kind: "written", count, maxMarksEach, note };
 }
 
+/** AQA 7652 / 7692 / 7662 share one clock. Language-specific source + prompt language. */
+function alevelModernLanguage(opts: {
+  id: string;
+  language: string;
+  code: string;
+  source: string;
+}): PaperShape {
+  const slug = opts.id.replace("alevel-", "");
+  return {
+    id: opts.id,
+    qualification: "alevel",
+    source: opts.source,
+    year: 2016,
+    note: `AQA A-level ${opts.language} ${opts.code}: Paper 1 2h30 / 100 (listen+read+translate), Paper 2 2h / 80, Paper 3 oral 21–23 min / 60. Listening is a printed transcript here — real AQA is student-controlled audio. Speaking is a timed written card + IRP. No dictionary.`,
+    difficulty: cal(
+      `Paper 1: gist / detail / inference in ${opts.language}, then 100-word translations both ways. Paper 2: ~300 words per essay on a set text/film. Paper 3: stimulus card + IRP.`,
+      `Original authentic-style extracts as figure plates (news, interview, blog). Questions in ${opts.language} except the into-English translation.`,
+      `Do not copy AQA recordings, texts, or set-work wording. No dictionary. No English essays on Paper 2.`,
+    ),
+    papers: [
+      sitting(`al-${slug}-p1`, "Paper 1 · Listening, reading and writing", 150, 100, [
+        short(6, 5, "Listening from a printed transcript (30). figureBrief for the transcript plate."),
+        short(10, 5, "Reading (50). figureBrief for each unseen extract."),
+        written(2, 10, "Translation into English and into the target language (min 100 words each)."),
+      ]),
+      sitting(`al-${slug}-p2`, "Paper 2 · Writing", 120, 80, [
+        written(2, 40, "Two essays (~300 words) in the target language on set text and/or film."),
+      ]),
+      sitting(`al-${slug}-p3`, "Paper 3 · Speaking (written mock)", 23, 60, [
+        written(1, 25, "Stimulus-card discussion. Figure = the card."),
+        written(1, 35, "IRP presentation + follow-up (written)."),
+      ]),
+    ],
+  };
+}
+
+/** AQA 8652 / 8692 / 8662 (first teach 2024) share one Higher-tier clock. */
+function gcseModernLanguage(opts: {
+  id: string;
+  language: string;
+  code: string;
+  source: string;
+}): PaperShape {
+  const slug = opts.id.replace("gcse-", "");
+  return {
+    id: opts.id,
+    qualification: "gcse",
+    source: opts.source,
+    year: 2024,
+    note: `AQA GCSE ${opts.language} ${opts.code} (first teach 2024): Higher clocks — Listening 45 min / 50, Speaking 10–12 min / 50, Reading 60 min / 50, Writing 75 min / 50. Foundation is shorter; this mock sits Higher. Listening is a printed transcript. Speaking is a timed written role-play + photo card. No dictionary.`,
+    difficulty: cal(
+      `Higher: gist/detail/inference in ${opts.language}, dictation, 50-word translations, 90- and 150-word writing. Themes: people and lifestyle, popular culture, the world around us.`,
+      `Original extracts as figure plates. Photo-card items MUST set figureBrief. Questions in English on Papers 1 and 3; writing and speaking in ${opts.language}.`,
+      `Do not copy AQA recordings, photo cards, or vocab-list sentences. No dictionary. No A-level essays.`,
+    ),
+    papers: [
+      sitting(`gcse-${slug}-p1`, "Paper 1 · Listening (Higher)", 45, 50, [
+        short(8, 5, "Section A listening from a printed transcript (40). figureBrief for the transcript plate."),
+        short(2, 5, "Section B dictation — transcribe short sentences (10)."),
+      ]),
+      sitting(`gcse-${slug}-p2`, "Paper 2 · Speaking (written mock)", 12, 50, [
+        written(1, 10, "Role-play"),
+        written(1, 15, "Reading aloud + short conversation"),
+        written(1, 25, "Photo card. Figure = the card."),
+      ]),
+      sitting(`gcse-${slug}-p3`, "Paper 3 · Reading (Higher)", 60, 50, [
+        short(8, 5, "Section A reading (40). figureBrief for each extract."),
+        written(1, 10, "Section B translation into English (min 50 words)."),
+      ]),
+      sitting(`gcse-${slug}-p4`, "Paper 4 · Writing (Higher)", 75, 50, [
+        written(1, 10, "Translation into the target language (min 50 words)."),
+        written(1, 15, "90-word bullet writing"),
+        written(1, 25, "150-word open writing"),
+      ]),
+    ],
+  };
+}
+
 const NMT_INDEX = "https://testportal.gov.ua/skladnyky-nmt-2026/";
 
 export const PAPER_SHAPES: readonly PaperShape[] = [
@@ -235,15 +313,19 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     qualification: "nmt",
     source: "https://testportal.gov.ua/wp-content/uploads/2026/01/Harakterystyka-NMT_inozemnimovy_2026.pdf",
     year: 2026,
-    note: "НМТ іноземна 2026: 32 / 60 хв / 32 тестових. 6 tasks (5+5+6+6+5+5).",
+    note: "НМТ іноземна 2026: 32 / 60 хв / 32 тестових. Task 1 №1–5 відповідність (оголошення з фото → A–H, 3 зайві). Task 2 №6–10 MCQ. Task 3 №11–16 відповідність (тексти → A–H, 2 зайві). Tasks 4–6 №17–32 пропуски.",
     difficulty: cal(
-      "Task 1 ads match B1. Task 2 ~400-word story, 5 MCQ. Task 3 museum match. Task 4 sentence gap. Task 5 vocab/phrasal. Task 6 grammar. Overall B1–B2.",
-      "Authentic short texts. Four options on MCQ. Matching has unused extras.",
-      "No C1 academic papers. No A2 'my name is'. Do not copy demo passages.",
+      "Calibrated to УЦОЯО 2024–2026 demos (curve only). Task 1: scan photo-ads, B1. Task 2: one 350–450 word narrative, 5 MCQ — TRUE of a named paragraph, EXCEPT, inference, why. Task 3: 6 short authentic texts, paraphrase match, not keyword. Task 4: one text, 6 clause gaps (relative / purpose / whether), A–H, 2 unused. Task 5: vocab + phrasal + linker near-misses. Task 6: grammar (its/their, modals, participles, whether/while). Floor B1, ceiling B2, one C1-ish distractor max.",
+      "English only. Task 1: every item MUST set figureBrief (print advert photo-plate) and figureKind source. Task 2/5/6: put the FULL shared passage in every item's stimulus. Matching: identical right[] on all items in the task; unused extras stay unused.",
+      "Do not copy УЦОЯО demo ads, college-day narrative, museum set, polyglot gap-text, husky, or robot grammar text. No A2 'my name is' / cat-dog-house. No IELTS essay. No listening. No Ukrainian stems.",
     ),
     papers: [sitting("nmt-eng", "Іноземна мова", 60, 32, [
-      mcq(20, 4, 1, "Tasks 1–2 and 5–6 style: one answer"),
-      short(12, 1, "Tasks 3–4 style: matching / gap-fill as short keys"),
+      match(5, 1, 8, 1, "Task 1 №1–5. Each item is ONE photo-advert. left[0] = 2–4 sentence original ad copy. right = the SAME 8 short headings A–H (eating out / job / clinic style), 3 unused across the set. figureBrief MUST be a print advert photo (shop, flyer, billboard) with 4+ readable English words. figureKind source."),
+      mcq(5, 4, 1, "Task 2 №6–10. ONE shared 350–450 word original narrative/article in stimulus on every item. Stems: TRUE according to paragraph N / EXCEPT / what caused / why. Four options. Not 'what is the title'."),
+      match(6, 1, 8, 1, "Task 3 №11–16. Each item is one short authentic text (80–140 words). right = the SAME 8 sentence completions A–H ('This place ______'), 2 unused. Paraphrase, not a repeated keyword."),
+      match(6, 1, 8, 1, "Task 4 №17–22. ONE shared gapped text in stimulus (same on every item). right = the SAME 8 clause fragments A–H, 2 unused. Gaps need a clause, not a single noun."),
+      mcq(5, 4, 1, "Task 5 №23–27. ONE shared gapped text in stimulus. Vocab / phrasal / discourse marker. Near-miss A–D (look through / look out)."),
+      mcq(5, 4, 1, "Task 6 №28–32. ONE shared gapped text in stimulus. Grammar only: determiners, modals, verb patterns, whether/while. Not A2 be/have."),
     ])],
   },
   {
@@ -605,6 +687,235 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     ],
   },
   {
+    id: "gcse-drama",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/drama/gcse/drama-8261/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Drama 8261: Component 1 written 1h45 / 80 / 40% (open book). Comp 2 devising + Comp 3 texts in practice are NEA — not sat. Extract split 4+8+12+20 is the usual published pattern for the 44-mark Section B.",
+    difficulty: cal(
+      "4 MCQ on drama terms, then four extract questions on a set play, then a 32-mark live-theatre evaluation.",
+      "Extract items MUST set figureBrief (original ground plan / costume / lighting — not a copyrighted still). Name a public-domain or clearly labelled original play.",
+      "Do not copy AQA extracts. NEA performance is not sat here.",
+    ),
+    papers: [
+      sitting("gcse-drama-c1", "Component 1 · Understanding drama", 105, 80, [
+        mcq(4, 4, 1, "Section A multiple choice"),
+        written(1, 4, "Section B extract"),
+        written(1, 8, "Section B extract"),
+        written(1, 12, "Section B extract"),
+        written(1, 20, "Section B extract. Figure = the extract / staging plate."),
+        written(1, 32, "Section C live theatre. Figure = a staging plate."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-rs",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/religious-studies/gcse/religious-studies-8062/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE RS A 8062: two 1h45 / 96-mark papers (+ SPaG not sat here). Comp 1: two religions × two five-part (1+1+4+6+12). Comp 2: four themes × the same five-part.",
+    difficulty: cal(
+      "1-mark, 1-mark, 4 explain, 6 develop, 12 evaluate. Two religions then four themes (relationships, life, God, peace, crime, rights).",
+      "12-markers need a reasoned judgement and a contrasting view. Quote scripture or a named teaching — do not invent verses.",
+      "Do not copy AQA stems. No 'what is a religion' baby defs.",
+    ),
+    papers: [
+      sitting("gcse-rs-c1", "Component 1 · Study of religions", 105, 96, [
+        mcq(8, 4, 1, "1-mark parts of the four five-part questions"),
+        written(4, 4, "4-mark explain"),
+        written(4, 6, "6-mark explain"),
+        written(4, 12, "12-mark evaluate"),
+      ]),
+      sitting("gcse-rs-c2", "Component 2 · Thematic studies", 105, 96, [
+        mcq(8, 4, 1, "1-mark parts of the four theme questions"),
+        written(4, 4, "4-mark explain"),
+        written(4, 6, "6-mark explain"),
+        written(4, 12, "12-mark evaluate"),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-sociology",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/sociology/gcse/sociology-8192/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA GCSE Sociology 8192: two 1h45 / 100-mark papers. Each paper two sections, each opening with two MCQ then shorts + two 12-mark 'discuss how far'. Mid-mark split is not fixed — four 12-mark essays per paper are.",
+    difficulty: cal(
+      "Families + education; crime + stratification. Named perspectives (functionalism, Marxism, feminism, New Right) and UK evidence.",
+      "Item / methods shorts MAY set figureBrief (table or short Item). 12-markers: discuss how far sociologists would agree — judgement required.",
+      "Do not copy AQA Items. No 'what is society' baby defs.",
+    ),
+    papers: [
+      sitting("gcse-soc-p1", "Paper 1 · Families and education", 105, 100, [
+        mcq(4, 4, 1, "Two MCQ per section"),
+        short(12, 4, "Short / item / methods"),
+        written(4, 12, "Two 12-mark essays per section"),
+      ]),
+      sitting("gcse-soc-p2", "Paper 2 · Crime and stratification", 105, 100, [
+        mcq(4, 4, 1, "Two MCQ per section"),
+        short(12, 4, "Short / item / methods"),
+        written(4, 12, "Two 12-mark essays per section"),
+      ]),
+    ],
+  },
+  gcseModernLanguage({
+    id: "gcse-french",
+    language: "French",
+    code: "8652",
+    source: "https://www.aqa.org.uk/subjects/french/gcse/french-8652/specification/specification-at-a-glance",
+  }),
+  gcseModernLanguage({
+    id: "gcse-spanish",
+    language: "Spanish",
+    code: "8692",
+    source: "https://www.aqa.org.uk/subjects/spanish/gcse/spanish-8692/specification/specification-at-a-glance",
+  }),
+  gcseModernLanguage({
+    id: "gcse-german",
+    language: "German",
+    code: "8662",
+    source: "https://www.aqa.org.uk/subjects/german/gcse/german-8662/specification/specification-at-a-glance",
+  }),
+  {
+    id: "gcse-cs",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/computer-science/gcse/computer-science-8525/specification/specification-at-a-glance",
+    year: 2025,
+    note: "AQA GCSE Computer Science 8525 (first teach 2025): Paper 1 2h / 90 (programming), Paper 2 1h45 / 90 (concepts + SQL). Item mix is not fixed.",
+    difficulty: cal(
+      "Paper 1: algorithms, trace, write/refine code. Paper 2: data rep, systems, networks, cyber, SQL, impacts.",
+      "Trace tables, flowcharts, logic, packet diagrams as original SVG. Code in the stem.",
+      "Do not copy AQA items. No A-level skeleton paper.",
+    ),
+    papers: [
+      sitting("gcse-cs-p1", "Paper 1 · Computational thinking and programming", 120, 90, [
+        mcq(10, 4, 1, "MCQ"),
+        short(10, 4, "Short / trace. Several MUST set figureBrief."),
+        written(4, 10, "Write / refine code. Figure = stub or data."),
+      ]),
+      sitting("gcse-cs-p2", "Paper 2 · Computing concepts", 105, 90, [
+        mcq(10, 4, 1, "MCQ"),
+        short(10, 4, "Short / SQL / calculate. Figures on binary and gates."),
+        written(4, 10, "Extended. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-business",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/business/gcse/business-8132/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA GCSE Business 8132: two 1h45 / 90-mark papers. Section A 20 (MCQ+short), B ~34 case, C ~36 case.",
+    difficulty: cal(
+      "Ops/HR then marketing/finance, plus business in the real world. Quant: %, averages, cash-flow, break-even.",
+      "Case items MUST set figureBrief (accounts extract, chart). Original firm, original numbers.",
+      "Do not copy AQA cases. No A-level 25-mark essays.",
+    ),
+    papers: [
+      sitting("gcse-bus-p1", "Paper 1 · Operations and HRM", 105, 90, [
+        mcq(10, 4, 1, "Section A MCQ (part of 20)"),
+        short(5, 2, "Section A short (rest of 20)"),
+        written(2, 17, "Section B case (~34). Figure = the case."),
+        written(2, 18, "Section C case (~36). Figure = the case."),
+      ]),
+      sitting("gcse-bus-p2", "Paper 2 · Marketing and finance", 105, 90, [
+        mcq(10, 4, 1, "Section A MCQ"),
+        short(5, 2, "Section A short"),
+        written(2, 17, "Section B case. Figure = the case."),
+        written(2, 18, "Section C case. Figure = the case."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-economics",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/economics/gcse/economics-8136/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA GCSE Economics 8136: two 1h45 / 80-mark papers. Section A opens with 10 MCQ then shorts/extended. Section B five calculation/short/extended. Item count after the 10 MCQ is not fixed.",
+    difficulty: cal(
+      "How markets work; how the economy works. Calculations + apply to unseen data.",
+      "Data items MUST set figureBrief (table, demand/supply, time series). Original numbers.",
+      "Do not copy AQA contexts. No A-level 40-mark essays.",
+    ),
+    papers: [
+      sitting("gcse-econ-p1", "Paper 1 · How markets work", 105, 80, [
+        mcq(10, 4, 1, "Section A 10 multiple choice"),
+        short(10, 3, "Short / calculate. Several with figures."),
+        written(4, 10, "Extended. At least one figure."),
+      ]),
+      sitting("gcse-econ-p2", "Paper 2 · How the economy works", 105, 80, [
+        mcq(10, 4, 1, "Section A 10 multiple choice"),
+        short(10, 3, "Short / calculate. Several with figures."),
+        written(4, 10, "Extended. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-pe",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/physical-education/gcse/physical-education-8582/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE PE 8582: two 1h15 / 78-mark papers (30% each) + NEA practical 100 / 40% not sat. Item mix is not fixed.",
+    difficulty: cal(
+      "Paper 1: anatomy, movement, training, data. Paper 2: psychology, socio-cultural, health, data.",
+      "Anatomy / lever / graph items MUST set figureBrief. Original numbers.",
+      "Do not copy AQA stems. NEA performance is not sat here. No 'name a sport' baby.",
+    ),
+    papers: [
+      sitting("gcse-pe-p1", "Paper 1 · The human body and movement", 75, 78, [
+        mcq(10, 4, 1, "MCQ / objective"),
+        short(12, 3, "Short. Several with figures."),
+        written(4, 8, "Extended. At least one figure."),
+      ]),
+      sitting("gcse-pe-p2", "Paper 2 · Socio-cultural and well-being", 75, 78, [
+        mcq(10, 4, 1, "MCQ / objective"),
+        short(12, 3, "Short. Data items need a figure."),
+        written(4, 8, "Extended"),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-art",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/art-and-design/gcse/art-and-design-8201/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Art and Design 8201–8206 is 100% NEA: Component 1 portfolio (no time limit, 96, 60%) + Component 2 ESA (prep + 10h studio, 96, 40%). There is no written exam. Exam Sim sits the written annotation / starting-point analysis only — not the 10h practical.",
+    difficulty: cal(
+      "Critical annotation and a response to an ESA starting point. AO1–AO4.",
+      "Starting-point items MUST set figureBrief (original still-life / location plate).",
+      "Do not copy AQA ESA starting points. Do not pretend this is a 10-hour studio sitting.",
+    ),
+    papers: [
+      sitting("gcse-art-c1", "Component 1 · Portfolio (written)", 90, 96, [
+        written(1, 48, "Critical annotation of a sustained project. Figure = a studied work."),
+        written(1, 48, "Reflective commentary on development. Figure = a development sheet."),
+      ]),
+      sitting("gcse-art-c2", "Component 2 · ESA starting point (written mock)", 90, 96, [
+        written(1, 32, "Choose one original starting point. Figure = the stimulus."),
+        written(1, 32, "Development plan: artist connections, materials."),
+        written(1, 32, "Annotation of a finished-outcome intention. Figure = a sketch."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-music",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/music/gcse/music-8271/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Music 8271: Component 1 understanding 1h30 / 96 (listen 68 + study pieces 28) = 40%. Performing and composing NEA are not sat. Listening is a printed score / excerpt plate — real AQA is audio.",
+    difficulty: cal(
+      "Unfamiliar listening across areas of study, then set study pieces. Western classical + popular / traditional / music for ensemble.",
+      "Listening items MUST set figureBrief (original short score excerpt or texture diagram). Correct terms. Do not paste a copyrighted score.",
+      "Do not copy AQA excerpts. Performance / composition NEA is not sat here.",
+    ),
+    papers: [
+      sitting("gcse-mus-c1", "Component 1 · Understanding music", 90, 96, [
+        short(17, 4, "Section A listening (68). Figure = score excerpt / texture plate."),
+        written(2, 14, "Section B study pieces (28). Figure on at least one."),
+      ]),
+    ],
+  },
+  {
     id: "alevel-math",
     qualification: "alevel",
     source: "https://www.aqa.org.uk/subjects/mathematics/a-level/mathematics-7357/specification/specification-at-a-glance",
@@ -781,6 +1092,576 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
       ]),
     ],
   },
+  {
+    id: "alevel-eng-lit",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/english/a-level/english-7712/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level English Literature A 7712: Paper 1 3h / 75, Paper 2 2h30 / 75. NEA (texts across time) is not sat here. Item count is fixed: three 25-mark questions per paper.",
+    difficulty: cal(
+      "Closed-book except Paper 1 Section C. Shakespeare passage+essay, unseen poetry pair, comparison; then set text, unseen prose, linking essay.",
+      "Extract items MUST set figureBrief (passage / poem pair / prose extract as a print plate). Original unseen texts only.",
+      "Do not copy AQA unseen poems, extracts, or set-text wording. NEA is not sat here.",
+    ),
+    papers: [
+      sitting("al-elit-p1", "Paper 1 · Love through the ages", 180, 75, [
+        written(1, 25, "Section A Shakespeare: passage-based + linked essay. Figure = the passage."),
+        written(1, 25, "Section B unseen poetry: two original poems. Figure = the pair."),
+        written(1, 25, "Section C comparing texts (open book in the real sitting)."),
+      ]),
+      sitting("al-elit-p2", "Paper 2 · Texts in shared contexts", 150, 75, [
+        written(1, 25, "Section A set-text essay"),
+        written(1, 25, "Section B unseen prose extract. Figure required."),
+        written(1, 25, "Section B linking two texts"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-eng-lang",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/english/a-level/english-7702/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level English Language 7702: two 2h30 / 100-mark papers. NEA (Language in Action) is not sat here. Paper 1 is four questions; Paper 2 is three.",
+    difficulty: cal(
+      "Close language analysis with frameworks, then children's language / diversity / discourses / directed writing.",
+      "Text items MUST set figureBrief (two linked texts, child-language data, discourse pair). Original texts only.",
+      "Do not copy AQA inserts. NEA investigation / original writing is not sat here.",
+    ),
+    papers: [
+      sitting("al-elang-p1", "Paper 1 · Language, the Individual and Society", 150, 100, [
+        written(1, 25, "Analyse text 1. Figure = the contemporary text."),
+        written(1, 25, "Analyse text 2. Figure = the older text."),
+        written(1, 20, "Compare the two texts"),
+        written(1, 30, "Children's language development essay. Figure = spoken/written/multimodal data."),
+      ]),
+      sitting("al-elang-p2", "Paper 2 · Language Diversity and Change", 150, 100, [
+        written(1, 30, "Evaluative essay: diversity or change"),
+        written(1, 40, "Analyse how two texts present ideas/attitudes. Figure = the pair."),
+        written(1, 30, "Directed writing on the same topic"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-economics",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/economics/a-level/economics-7136/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Economics 7136: three 2h / 80-mark papers. Papers 1–2 are data response (40) + essay (40). Paper 3 is 30 MCQ + 50-mark case. Data-response part count is not fixed by the spec — mock parts are representative.",
+    difficulty: cal(
+      "Apply AD/AS, elasticity, market structures, labour, macro policy to unseen data. Paper 3 MCQ is the synoptic grind.",
+      "Data / case items MUST set figureBrief (table, AD/AS, Lorenz, time series). Original numbers only.",
+      "Do not copy AQA contexts or MCQ stems.",
+    ),
+    papers: [
+      sitting("al-econ-p1", "Paper 1 · Markets and market failure", 120, 80, [
+        written(4, 10, "Section A data response (one of two contexts). Figure on the data item."),
+        written(1, 40, "Section B essay (one from three)"),
+      ]),
+      sitting("al-econ-p2", "Paper 2 · National and international economy", 120, 80, [
+        written(4, 10, "Section A data response. Figure on the data item."),
+        written(1, 40, "Section B essay (one from three)"),
+      ]),
+      sitting("al-econ-p3", "Paper 3 · Economic principles and issues", 120, 80, [
+        mcq(30, 4, 1, "Section A 30 multiple choice across the spec"),
+        written(5, 10, "Section B case study. Figure required on the case."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-psychology",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/psychology/as-and-a-level/psychology-7181-7182/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Psychology 7182: three 2h / 96-mark papers. Each paper mixes MCQ, short, and extended. Exact item count is not fixed — mock mix is representative of a 96-mark sitting.",
+    difficulty: cal(
+      "AO1/AO2/AO3. Paper 1 four 24s (social, memory, attachment, psychopathology). Paper 2 approaches + biopsych + 48-mark research methods. Paper 3 issues + three options.",
+      "Research-methods and scenario items MUST set figureBrief (table, graph, design sketch). Name studies, do not paste them.",
+      "Do not copy AQA stems or data. No invented 'famous' studies.",
+    ),
+    papers: [
+      sitting("al-psych-p1", "Paper 1 · Introductory Topics", 120, 96, [
+        mcq(8, 4, 1, "MCQ across the four topics"),
+        short(8, 3, "Short / application"),
+        written(4, 16, "One extended per topic (8 or 16). Figure on at least one scenario."),
+      ]),
+      sitting("al-psych-p2", "Paper 2 · Psychology in Context", 120, 96, [
+        mcq(8, 4, 1, "MCQ"),
+        short(8, 5, "Short / research methods. Several with data figures."),
+        written(3, 16, "Approaches, biopsychology, methods extended"),
+      ]),
+      sitting("al-psych-p3", "Paper 3 · Issues and Options", 120, 96, [
+        mcq(8, 4, 1, "Issues and debates + options"),
+        short(8, 3, "Short / application"),
+        written(4, 16, "Issues essay + one from each option block"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-cs",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/computer-science/a-level/computer-science-7517/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Computer Science 7517: Paper 1 on-screen 2h30 / 100 raw (scaled ×1.5), Paper 2 written 2h30 / 100 raw. NEA (75) is not sat here. Paper 1 is mocked as written short + code-write/adapt — no IDE.",
+    difficulty: cal(
+      "Paper 1: programming, OOP, data structures, skeleton-style adapt. Paper 2: data rep, computer systems, networks, databases, functional, consequences.",
+      "Trace tables, flowcharts, logic circuits, packet diagrams as original SVG. Code in the stem, not as a photo of an AQA skeleton.",
+      "Do not copy AQA skeleton programs or paper items. NEA is not sat here.",
+    ),
+    papers: [
+      sitting("al-cs-p1", "Paper 1 · Programming (on-screen mock)", 150, 100, [
+        short(8, 5, "Short theory / trace. Several MUST set figureBrief (trace table, flowchart)."),
+        written(4, 15, "Write / adapt / extend programs. Figure = stub or data."),
+      ]),
+      sitting("al-cs-p2", "Paper 2 · Written theory", 150, 100, [
+        short(8, 5, "Short / calculation. Figures on binary, gates, networks."),
+        written(4, 15, "Extended. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-business",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/business/a-level/business-7132/specification/specification-at-a-glance",
+    year: 2023,
+    note: "AQA A-level Business 7132 (first teach 2023): three 2h / 100-mark papers. Paper 1 item split is fixed (15 MCQ + 35 short + 2×25 essays). Papers 2–3 part counts are approximate.",
+    difficulty: cal(
+      "MCQ + shorts + essays; three data-response clusters; one long case. Quant skills (break-even, ARR, ratios, index) on every paper.",
+      "Case / data items MUST set figureBrief (accounts extract, market chart, ops diagram). Original firm, original numbers.",
+      "Do not copy AQA cases or MCQ stems.",
+    ),
+    papers: [
+      sitting("al-bus-p1", "Paper 1 · Business 1", 120, 100, [
+        mcq(15, 4, 1, "Section A 15 multiple choice"),
+        short(7, 5, "Section B short answer (35)"),
+        written(2, 25, "Sections C+D essays (one from two, twice)"),
+      ]),
+      sitting("al-bus-p2", "Paper 2 · Business 2", 120, 100, [
+        short(5, 5, "Data-response parts. Figures on the data."),
+        written(3, 25, "Three compulsory data-response clusters (~33 each including shorts)."),
+      ]),
+      sitting("al-bus-p3", "Paper 3 · Business 3", 120, 100, [
+        short(4, 7, "Case-study shorts. Figure = the case pack."),
+        written(3, 24, "Longer case questions (~six parts in the real paper)."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-politics",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/government-and-politics/a-level/politics-7152/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Politics 7152: three 2h / 77-mark papers. Spec says 'medium explain + essay'; the 3×9 + 25 extract + 25 essay split is the published paper pattern, not a free invention.",
+    difficulty: cal(
+      "UK government/politics; USA + comparative; political ideas. Explain-and-analyse then extract then judgement essay.",
+      "Extract items MUST set figureBrief (original political extract / cartoon / table). Use real institutions, not invented parties.",
+      "Do not copy AQA extracts. No UK-only answers on the USA paper.",
+    ),
+    papers: [
+      sitting("al-pol-p1", "Paper 1 · Government and politics of the UK", 120, 77, [
+        written(3, 9, "Medium 'explain and analyse'"),
+        written(1, 25, "Extract question. Figure = the extract."),
+        written(1, 25, "Essay"),
+      ]),
+      sitting("al-pol-p2", "Paper 2 · USA and comparative politics", 120, 77, [
+        written(3, 9, "Medium 'explain and analyse'"),
+        written(1, 25, "Extract question. Figure = the extract."),
+        written(1, 25, "Essay"),
+      ]),
+      sitting("al-pol-p3", "Paper 3 · Political ideas", 120, 77, [
+        written(3, 9, "Medium 'explain and analyse'"),
+        written(1, 25, "Extract question. Figure = the extract."),
+        written(1, 25, "Essay"),
+      ]),
+    ],
+  },
+  alevelModernLanguage({
+    id: "alevel-french",
+    language: "French",
+    code: "7652",
+    source: "https://www.aqa.org.uk/subjects/french/a-level/french-7652/specification/specification-at-a-glance",
+  }),
+  alevelModernLanguage({
+    id: "alevel-spanish",
+    language: "Spanish",
+    code: "7692",
+    source: "https://www.aqa.org.uk/subjects/spanish/a-level/spanish-7692/specification/specification-at-a-glance",
+  }),
+  alevelModernLanguage({
+    id: "alevel-german",
+    language: "German",
+    code: "7662",
+    source: "https://www.aqa.org.uk/subjects/german/a-level/german-7662/specification/specification-at-a-glance",
+  }),
+  {
+    id: "alevel-sociology",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/sociology/a-level/sociology-7192/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Sociology 7192: three 2h / 80-mark papers. Item split is the published paper pattern (4/6/10/20/30), not a free invention.",
+    difficulty: cal(
+      "Outline 2 / outline 3 / apply Item / 20–30 evaluate. Named studies and perspectives. Methods in Context applies a method to a school setting.",
+      "Item questions MUST set figureBrief (short original Item A/B as a print plate). Name real theorists; do not invent studies.",
+      "Do not copy AQA Items. No 'what is sociology' baby defs.",
+    ),
+    papers: [
+      sitting("al-soc-p1", "Paper 1 · Education with Theory and Methods", 120, 80, [
+        written(1, 4, "Outline two"),
+        written(1, 6, "Outline three"),
+        written(1, 10, "Applying material from Item A. Figure = the Item."),
+        written(1, 30, "Evaluate essay. Figure = the Item."),
+        written(1, 20, "Methods in Context. Figure = the Item."),
+        written(1, 10, "Theory and Methods: outline and explain two"),
+      ]),
+      sitting("al-soc-p2", "Paper 2 · Topics in Sociology", 120, 80, [
+        written(2, 10, "Outline and explain two — one per optional topic"),
+        written(2, 10, "Item analyse two. Figure = the Item."),
+        written(2, 20, "Evaluate essay. Figure = the Item."),
+      ]),
+      sitting("al-soc-p3", "Paper 3 · Crime and Deviance with Theory and Methods", 120, 80, [
+        written(1, 4, "Outline two"),
+        written(1, 6, "Outline three"),
+        written(1, 10, "Applying material from Item A. Figure = the Item."),
+        written(1, 30, "Evaluate essay. Figure = the Item."),
+        written(1, 10, "Theory and Methods: outline and explain two"),
+        written(1, 20, "Theory and Methods evaluate. Figure = the Item."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-law",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/law/a-level/law-7162/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Law 7162: three 2h / 100-mark papers. Spec says MCQ + short + extended; the 5×1 + 5 + 5 + 10 + 15 + 30 + 30 split is the published paper pattern (e.g. 7162/1 June 2023).",
+    difficulty: cal(
+      "ELS/nature-of-law MCQ, then explain, then advise-on-scenario, then 15 and two 30s. Paper 1 crime, Paper 2 tort, Paper 3 contract or human rights.",
+      "Scenario items MUST set figureBrief (fact-pattern plate). Cite real authorities — do not invent case names.",
+      "Do not copy AQA scenarios. No 'what is a court' baby defs.",
+    ),
+    papers: [
+      sitting("al-law-p1", "Paper 1 · Criminal law + English legal system", 120, 100, [
+        mcq(5, 4, 1, "Nature of law / ELS / crime MCQ"),
+        short(2, 5, "Explain two / apply a short fact"),
+        written(1, 10, "Advise on a scenario"),
+        written(1, 15, "Longer scenario / explain"),
+        written(2, 30, "Problem question + essay. Figure on the problem."),
+      ]),
+      sitting("al-law-p2", "Paper 2 · Tort + English legal system", 120, 100, [
+        mcq(5, 4, 1, "Nature of law / ELS / tort MCQ"),
+        short(2, 5, "Explain two / apply a short fact"),
+        written(1, 10, "Advise on a scenario"),
+        written(1, 15, "Longer scenario / explain"),
+        written(2, 30, "Problem question + essay. Figure on the problem."),
+      ]),
+      sitting("al-law-p3", "Paper 3 · Contract or Human rights + ELS", 120, 100, [
+        mcq(5, 4, 1, "Nature of law / ELS / option MCQ"),
+        short(2, 5, "Explain two / apply a short fact"),
+        written(1, 10, "Advise on a scenario"),
+        written(1, 15, "Longer scenario / explain"),
+        written(2, 30, "Problem question + essay. Figure on the problem."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-film",
+    qualification: "alevel",
+    source: "https://www.eduqas.co.uk/qualifications/film-studies-as-a-level/",
+    year: 2017,
+    note: "AQA does not offer Film. Eduqas A-level Film Studies A670QS: Component 1 2h30 / 120 (3×40), Component 2 2h30 / 100, Component 3 production NEA not sat. Board is Eduqas, not AQA — say so in the paper picker.",
+    difficulty: cal(
+      "Comparative Hollywood; US since 2005; British since 1995; then global / documentary / silent / experimental. Sequence analysis + context + ideology.",
+      "Each essay MUST set figureBrief (original still / shot diagram, not a copyrighted frame). Discuss form: cinematography, mise-en-scène, editing, sound.",
+      "Do not copy Eduqas set-film wording or stills. NEA production is not sat here. Do not invent a film and call it a set text — use a well-known public title or a clearly labelled original example.",
+    ),
+    papers: [
+      sitting("al-film-c1", "Component 1 · Varieties of film and filmmaking", 150, 120, [
+        written(3, 40, "Sections A–C. Figure = a still / sequence plate."),
+      ]),
+      sitting("al-film-c2", "Component 2 · Global filmmaking perspectives", 150, 100, [
+        written(1, 40, "Section A global two-film. Figure = a still."),
+        written(3, 20, "Documentary / silent / experimental. Figure on at least two."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-pe",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/physical-education/a-level/physical-education-7582/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA A-level PE 7582: two 2h / 105-mark papers (3×35) + NEA practical 90 / 30%. NEA is not sat here. Item mix inside each 35 is not fixed — mock mix is representative.",
+    difficulty: cal(
+      "Anatomy/physiology, skill acquisition, sport and society; then exercise phys/biomechanics, psychology, technology. MCQ + short + extended per section.",
+      "Anatomy, force, and data items MUST set figureBrief (joint, lever, graph, training session). Original numbers.",
+      "Do not copy AQA stems. NEA performance is not sat here. No 'name a sport' baby trivia.",
+    ),
+    papers: [
+      sitting("al-pe-p1", "Paper 1 · Factors affecting participation", 120, 105, [
+        mcq(9, 4, 1, "Three sections × a few MCQ"),
+        short(12, 3, "Short / apply. Several with figures."),
+        written(6, 10, "Extended. At least two figures (anatomy / society data)."),
+      ]),
+      sitting("al-pe-p2", "Paper 2 · Factors affecting optimal performance", 120, 105, [
+        mcq(9, 4, 1, "Three sections × a few MCQ"),
+        short(12, 3, "Short / calculate. Biomechanics needs a figure."),
+        written(6, 10, "Extended. At least two figures."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-art",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/art-and-design/a-level/art-and-design-7201-7206/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Art and Design 7201–7206 is 100% NEA: Component 1 personal investigation (no time limit, 96, 60%) + Component 2 ESA (prep + 15h studio, 96, 40%). There is no written exam. Exam Sim sits the written material / starting-point analysis only — not the 15h practical.",
+    difficulty: cal(
+      "Critical/contextual prose (1000–3000 words in the real Comp 1) and a response to an ESA starting point. AO1–AO4: develop, refine, record, present.",
+      "Starting-point items MUST set figureBrief (original still-life / location / artefact plate). Specialist vocabulary. Bibliography-style references, not copied artist statements.",
+      "Do not copy AQA ESA starting points. Do not pretend this is a 15-hour studio sitting. No 'draw a house' baby tasks.",
+    ),
+    papers: [
+      sitting("al-art-c1", "Component 1 · Personal investigation (written)", 90, 96, [
+        written(1, 48, "Critical/contextual essay (a 1000-word slice of the 1000–3000 prose). Figure = a studied work, original plate."),
+        written(1, 48, "Reflective commentary linking practical decisions to sources. Figure = a development sheet."),
+      ]),
+      sitting("al-art-c2", "Component 2 · ESA starting point (written mock)", 90, 96, [
+        written(1, 32, "Choose one original starting point and justify. Figure = the stimulus."),
+        written(1, 32, "Development plan: artist connections, materials, refinements."),
+        written(1, 32, "Annotation of a finished-outcome intention. Figure = a composition sketch."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-music",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/music/a-level/music-7272/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA A-level Music 7272: Component 1 appraising 2h30 / 120 (listen 56 + analysis 34 + essay 30) = 40%. Performance and composition NEA are not sat. Listening is a printed score / excerpt plate here — real AQA is audio excerpts.",
+    difficulty: cal(
+      "Listening on unfamiliar excerpts (area of study), then set-work analysis, then a contextual essay. Western classical + chosen areas (pop, jazz, music for media, etc.).",
+      "Listening/analysis items MUST set figureBrief (original short score excerpt or texture diagram). Use correct terms (cadence, ostinato, tonality). Do not paste a copyrighted score.",
+      "Do not copy AQA excerpts or set-work wording. Performance / composition NEA is not sat here. No 'name the instrument' A2-only.",
+    ),
+    papers: [
+      sitting("al-mus-c1", "Component 1 · Appraising music", 150, 120, [
+        short(8, 4, "Section A listening (56 with the MCQ). Figure = score excerpt / texture plate."),
+        mcq(6, 4, 4, "Section A listening MCQ on the same excerpts. stimulus = the excerpt description."),
+        written(2, 17, "Section B analysis of a set-work-style extract. Figure required."),
+        written(1, 30, "Section C contextual essay"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-rs",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/religious-studies/a-level/religious-studies-7062/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA A-level Religious Studies 7062: two 3h / 100-mark papers. Comp 1 is four compulsory two-part (10+15). Comp 2 is two two-part (10+15) plus two 25-mark dialogues.",
+    difficulty: cal(
+      "AO1 explain then AO2 evaluate. Philosophy of religion, ethics, one religion, then synoptic dialogues. Named scholars (Hume, Kant, Barth), not slogans.",
+      "Dialogue / extract items MAY set figureBrief (short stimulus). Argue; do not preach.",
+      "Do not copy AQA stems. No 'what is a religion' baby defs. Not the Philosophy 7172 paper.",
+    ),
+    papers: [
+      sitting("al-rs-c1", "Component 1 · Philosophy of religion and ethics", 180, 100, [
+        written(4, 10, "AO1 first part of each two-part (two philosophy, two ethics)"),
+        written(4, 15, "AO2 second part of each two-part"),
+      ]),
+      sitting("al-rs-c2", "Component 2 · Study of religion and dialogues", 180, 100, [
+        written(2, 10, "Study of religion AO1"),
+        written(2, 15, "Study of religion AO2"),
+        written(1, 25, "Dialogue: philosophy of religion and religion"),
+        written(1, 25, "Dialogue: ethics and religion"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-philosophy",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/philosophy/a-level/philosophy-7172/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Philosophy 7172: two 3h / 100-mark papers. Each section is five questions: 3 + 5 + 5 + 12 + 25. That split is the published paper pattern.",
+    difficulty: cal(
+      "Define, explain, explain, illustrate, then a 25-mark argument. Epistemology + moral; God + mind. Set texts (Descartes, Hume, Mill, Plato) used as arguments, not biographies.",
+      "3-markers are precise definitions. 25-markers need thesis, objection, reply, judgement — not a list of views.",
+      "Do not copy AQA stems. No 'what is philosophy' baby defs. Not the RS 7062 paper.",
+    ),
+    papers: [
+      sitting("al-phil-p1", "Paper 1 · Epistemology and moral philosophy", 180, 100, [
+        written(2, 3, "Define — one per section"),
+        written(4, 5, "Explain — two per section"),
+        written(2, 12, "Explain and illustrate — one per section"),
+        written(2, 25, "Evaluate essay — one per section"),
+      ]),
+      sitting("al-phil-p2", "Paper 2 · Metaphysics of God and of mind", 180, 100, [
+        written(2, 3, "Define — one per section"),
+        written(4, 5, "Explain — two per section"),
+        written(2, 12, "Explain and illustrate — one per section"),
+        written(2, 25, "Evaluate essay — one per section"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-drama",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/drama/a-level/drama-7262/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA A-level Drama and Theatre 7262: Component 1 written 3h / 80 / 40% (open book). Comp 2 devised + Comp 3 making theatre are NEA — not sat.",
+    difficulty: cal(
+      "Set-play essay (List A), three-part extract (List B), live-theatre evaluation. Directing / acting / design choices with precise stage vocabulary.",
+      "Extract items MUST set figureBrief (original ground plan / costume / lighting state — not a copyrighted still). Name a public-domain or clearly labelled original play, not an AQA extract.",
+      "Do not copy AQA extracts or live-theatre wording. NEA performance is not sat here.",
+    ),
+    papers: [
+      sitting("al-drama-c1", "Component 1 · Drama and theatre", 180, 80, [
+        written(1, 25, "Section A set play (List A)"),
+        written(3, 10, "Section B three-part extract (List B). Figure = the extract / staging plate."),
+        written(1, 25, "Section C live theatre. Figure = a staging plate."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-dt",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/design-and-technology/a-level/design-and-technology-7552/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level D&T Product Design 7552: Paper 1 2h30 / 120 (technical), Paper 2 1h30 / 80 (designing and making: 30 product analysis + 50 manufacture). NEA 100 / 50% is not sat. Paper 1 item count is not fixed.",
+    difficulty: cal(
+      "Materials, processes, mechanisms, maths in D&T, then product analysis from a visual stimulus and commercial manufacture.",
+      "Most items MUST set figureBrief (exploded view, section, mechanism, material micrograph, product photo-plate). Original product, original numbers.",
+      "Do not copy AQA product photos. NEA prototype is not sat here. No 'what is a pencil' baby.",
+    ),
+    papers: [
+      sitting("al-dt-p1", "Paper 1 · Technical principles", 150, 120, [
+        short(12, 5, "Short / calculate. Several with figures."),
+        written(4, 15, "Extended. At least two figures."),
+      ]),
+      sitting("al-dt-p2", "Paper 2 · Designing and making principles", 90, 80, [
+        short(6, 5, "Section A product analysis (30). Figure = the product plate."),
+        written(2, 25, "Section B commercial manufacture (50)"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-media",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/media-studies/a-level/media-studies-7572/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Media Studies 7572: Media One 2h / 84, Media Two 2h / 84, NEA cross-media 60 / 30% not sat. Unseen + Close Study Products. Exact mid-mark split varies by series — mock mix is representative of 84.",
+    difficulty: cal(
+      "Media One: language/representation on advert + music video, then industries/audiences. Media Two: TV, magazines, online/games — unseen analysis plus three 25-mark essays, one synoptic. Named theorists (Hall, Gilroy, Gauntlett) applied, not listed.",
+      "Unseen items MUST set figureBrief (original advert / poster / page / still). Do not paste a copyrighted CSP frame — invent an original product in the same form.",
+      "Do not copy AQA unseen figures or CSP wording. NEA production is not sat here.",
+    ),
+    papers: [
+      sitting("al-media-p1", "Media One", 120, 84, [
+        written(1, 8, "Unseen analysis. Figure = original advert/poster."),
+        written(1, 12, "Representation: unseen + a CSP-style product"),
+        written(1, 9, "Theory apply"),
+        written(2, 20, "Two essays, one extended"),
+        written(1, 15, "Industries / audiences"),
+      ]),
+      sitting("al-media-p2", "Media Two", 120, 84, [
+        written(1, 9, "Unseen analysis. Figure = still / page / UI plate."),
+        written(3, 25, "Three essays — one extended, one synoptic"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-geology",
+    qualification: "alevel",
+    source: "https://www.ocr.org.uk/qualifications/as-and-a-level/geology-h014-h414-from-2017/specification-at-a-glance/",
+    year: 2017,
+    note: "AQA does not offer Geology. OCR A-level Geology H414: 01 Fundamentals 2h15 / 110, 02 Scientific literacy 2h15 / 100, 03 Practical skills 1h30 / 60. Practical endorsement (04) is not sat. Board is OCR — say so in the picker.",
+    difficulty: cal(
+      "Minerals, tectonics, logs, fossils, petrology, geohazards, basin analysis. Paper 02 is a scientific-literacy passage. Paper 03 is fieldwork / practical written.",
+      "Most items MUST set figureBrief (geological map, graphic log, fossil, thin-section, outcrop). Original numbers, original locality.",
+      "Do not copy OCR figures or passages. Endorsement is not sat here. No 'what is a rock' baby.",
+    ),
+    papers: [
+      sitting("al-geo-l-p1", "Paper 01 · Fundamentals of geology", 135, 110, [
+        short(10, 5, "Short / calculate. Several with map or log figures."),
+        written(4, 15, "Extended. At least two figures."),
+      ]),
+      sitting("al-geo-l-p2", "Paper 02 · Scientific literacy in geology", 135, 100, [
+        short(8, 5, "Extract from an original passage. Figure on the data."),
+        written(4, 15, "Apply the passage. Figure required on at least one."),
+      ]),
+      sitting("al-geo-l-p3", "Paper 03 · Practical skills in geology", 90, 60, [
+        short(8, 4, "Field / lab. Figures on apparatus or outcrop."),
+        written(2, 14, "Extended practical / fieldwork"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-envsci",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/environmental-science/a-level/environmental-science-7447/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Environmental Science 7447: two 3h / 120-mark papers. Mix of MCQ, short, extended. Item count is not fixed — mock mix is representative. Research methods on both papers.",
+    difficulty: cal(
+      "Paper 1: physical environment, energy, pollution, methods. Paper 2: living environment, biological resources, sustainability, methods. Synoptic links required.",
+      "Data / sampling items MUST set figureBrief (graph, transect, map, apparatus). Original numbers.",
+      "Do not copy AQA stems. No 'recycle more' slogan answers.",
+    ),
+    papers: [
+      sitting("al-env-p1", "Paper 1 · Physical environment", 180, 120, [
+        mcq(15, 4, 1, "MCQ across the paper"),
+        short(15, 3, "Short / calculate. Several with figures."),
+        written(4, 15, "Extended. At least two figures."),
+      ]),
+      sitting("al-env-p2", "Paper 2 · Living environment", 180, 120, [
+        mcq(15, 4, 1, "MCQ across the paper"),
+        short(15, 3, "Short / calculate. Several with figures."),
+        written(4, 15, "Extended. At least two figures."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-dance",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/dance/a-level/dance-7237/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA A-level Dance 7237: Component 1 practical NEA 80 / 50% not sat. Component 2 critical engagement 2h30 / 100 / 50% — short 25 + essay 25 on the compulsory set work, then two 25-mark essays on the optional set work.",
+    difficulty: cal(
+      "Compulsory set work + area of study, then optional set work. Short answers on movement / context, then critical essays.",
+      "Short items MAY set figureBrief (floor plan / motif diagram). Use accurate dance vocabulary. Do not paste a copyrighted still.",
+      "Do not copy AQA set-work wording. Performance / choreography NEA is not sat here.",
+    ),
+    papers: [
+      sitting("al-dance-c2", "Component 2 · Critical engagement", 150, 100, [
+        short(5, 5, "Section A shorts on the compulsory set work / area of study"),
+        written(1, 25, "Section A essay on the compulsory set work"),
+        written(2, 25, "Section B two essays on the second set work / area of study"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-classics",
+    qualification: "alevel",
+    source: "https://www.ocr.org.uk/qualifications/as-and-a-level/classical-civilisation-h408-from-2017/",
+    year: 2017,
+    note: "AQA does not offer Classical Civilisation. OCR H408: World of the Hero 2h20 / 100 / 40%, Culture and the Arts 1h45 / 75 / 30%, Beliefs and Ideas 1h45 / 75 / 30%. Board is OCR — say so in the picker.",
+    difficulty: cal(
+      "Homer + Virgil (compare), then a culture/arts option (theatre or imperial image) and a beliefs/ideas option. Source + essay.",
+      "Source items MUST set figureBrief (original vase / plan / inscription plate — not a copyrighted museum photo). Quote the poem; do not invent lines.",
+      "Do not copy OCR sources. No Latin/Greek language paper — this is Civilisation, not Latin.",
+    ),
+    papers: [
+      sitting("al-class-c1", "Component 11 · The World of the Hero", 140, 100, [
+        written(2, 15, "Section A Homer — two-part"),
+        written(2, 15, "Section B Virgil — two-part"),
+        written(1, 40, "Section C comparative essay"),
+      ]),
+      sitting("al-class-c2", "Component 2 · Culture and the Arts", 105, 75, [
+        written(1, 25, "Source / visual. Figure required."),
+        written(2, 25, "Essays"),
+      ]),
+      sitting("al-class-c3", "Component 3 · Beliefs and Ideas", 105, 75, [
+        written(1, 25, "Source / visual. Figure required."),
+        written(2, 25, "Essays"),
+      ]),
+    ],
+  },
 ];
 
 const NMT_ENG_IDS = new Set(["nmt-eng", "nmt-de", "nmt-fr", "nmt-es"]);
@@ -813,15 +1694,52 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "gcse-math", re: /math|матем/i },
   { id: "gcse-biology", re: /biolog|біолог|биолог/i },
   { id: "gcse-chemistry", re: /chem|хімі|хими/i },
-  { id: "gcse-physics", re: /physic|фізик|физик/i },
+  { id: "gcse-pe", re: /physical education|\bpe\b|фізичн(а|ої) культур|физкультур/i },
+  { id: "gcse-physics", re: /physics\b|фізик|физик/i },
   { id: "gcse-geography", re: /geograph|географ/i },
+  { id: "gcse-drama", re: /drama|theatre|theater|театр/i },
+  { id: "gcse-rs", re: /religious stud|\brs\b|релігі|религ/i },
+  { id: "gcse-sociology", re: /sociolog|соціолог|социолог/i },
+  { id: "gcse-french", re: /french|французьк|французск|français/i },
+  { id: "gcse-spanish", re: /spanish|іспанськ|испанск|español/i },
+  { id: "gcse-german", re: /german|німецьк|немецк|deutsch/i },
+  { id: "gcse-cs", re: /computer science|computing|\bcs\b|інформатик|информатик/i },
+  { id: "gcse-business", re: /business|бізнес|бизнес/i },
+  { id: "gcse-economics", re: /econom|економі|экономи/i },
+  { id: "gcse-art", re: /art\s*(&|and)?\s*design|fine art|\bart\b|мистецтв|искусств/i },
+  { id: "gcse-music", re: /music|музик|музык/i },
   { id: "alevel-further-math", re: /further math|further maths|вища матем|высш/i },
   { id: "alevel-math", re: /math|матем/i },
   { id: "alevel-biology", re: /biolog|біолог|биолог/i },
   { id: "alevel-chemistry", re: /chem|хімі|хими/i },
-  { id: "alevel-physics", re: /physic|фізик|физик/i },
+  { id: "alevel-pe", re: /physical education|\bpe\b|фізичн(а|ої) культур|физкультур/i },
+  { id: "alevel-physics", re: /physics\b|фізик|физик/i },
   { id: "alevel-history", re: /histor|істор|истор/i },
+  { id: "alevel-geology", re: /geolog|геологі|геологи/i },
+  { id: "alevel-envsci", re: /environmental science|environmental stud|еколог/i },
   { id: "alevel-geography", re: /geograph|географ/i },
+  { id: "alevel-eng-lit", re: /english lit|літератур|литератур/i },
+  { id: "alevel-eng-lang", re: /english lang|english(?! lit)|английск|англійськ/i },
+  { id: "alevel-economics", re: /econom|економі|экономи/i },
+  { id: "alevel-psychology", re: /psycholog|психолог/i },
+  { id: "alevel-cs", re: /computer science|computing|\bcs\b|інформатик|информатик/i },
+  { id: "alevel-business", re: /business|бізнес|бизнес/i },
+  { id: "alevel-politics", re: /politic|government and politics|політик|политик/i },
+  { id: "alevel-french", re: /french|французьк|французск|français/i },
+  { id: "alevel-spanish", re: /spanish|іспанськ|испанск|español/i },
+  { id: "alevel-german", re: /german|німецьк|немецк|deutsch/i },
+  { id: "alevel-sociology", re: /sociolog|соціолог|социолог/i },
+  { id: "alevel-law", re: /\blaw\b|юриспр|\bправо\b/i },
+  { id: "alevel-film", re: /film stud|\bfilm\b|кіно|кино/i },
+  { id: "alevel-dt", re: /design and technology|design\s*&\s*technology|\bd&t\b|product design|дизайн/i },
+  { id: "alevel-art", re: /art\s*(&|and)?\s*design|fine art|\bart\b|мистецтв|искусств/i },
+  { id: "alevel-music", re: /music|музик|музык/i },
+  { id: "alevel-rs", re: /religious stud|\brs\b|релігі|религ/i },
+  { id: "alevel-philosophy", re: /philosoph|філософ|философ/i },
+  { id: "alevel-drama", re: /drama|theatre|theater|театр/i },
+  { id: "alevel-media", re: /media stud|\bmedia\b|медіа|медиа/i },
+  { id: "alevel-dance", re: /dance|хореогр|танц/i },
+  { id: "alevel-classics", re: /classic|classical civ|античн|класичн/i },
 ];
 
 const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(
@@ -881,7 +1799,7 @@ export function sittingById(shape: PaperShape | null | undefined, paperId?: stri
   return shape.papers.find((paper) => paper.id === paperId) || shape.papers[0] || null;
 }
 
-export const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G"] as const;
+export const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"] as const;
 
 export function sectionGenerationPrompt(opts: {
   examName: string;
@@ -908,15 +1826,19 @@ OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.`;
   if (section.kind === "mcq") {
     const n = section.options || 4;
     return `${base}
-FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"...","figureBrief":""}]}
+FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["..."],"correct":0,"explanation":"1-2 sentences","topic":"...","stimulus":"","figureBrief":""}]}
 RULES: each item has exactly ${n} options; "correct" is a 0-based index.
+stimulus is a shared passage when the section note asks for one (same text on every item), else "".
 figureBrief is a 8–20 word drawing brief (triangle ABC with median AM, circuit, climate graph) or "". Do NOT put SVG in this JSON — a second pass draws it.
 When the stem says "див. рисунок" / "Study Figure 1", figureBrief MUST be non-empty.`;
   }
   if (section.kind === "match") {
     return `${base}
-FORMAT: {"questions":[{"kind":"match","question":"...","left":["1..."],"right":["A..."],"pairs":[0,1,2],"explanation":"...","topic":"..."}]}
-RULES: left has ${section.left} stems; right has ${section.right} options (А–Д style); pairs[i] is the right-index for left[i].`;
+FORMAT: {"questions":[{"kind":"match","question":"...","left":["1..."],"right":["A..."],"pairs":[0],"explanation":"...","topic":"...","stimulus":"","figureBrief":"","figureKind":"source"}]}
+RULES: left has ${section.left} stems; right has ${section.right} options (A–H when 8); pairs[i] is the right-index for left[i].
+If this task is a set (ads / texts / gaps), ALL items MUST share the identical right[] list. Unused extras stay unused — do not reuse a heading.
+stimulus is the shared gapped text when the section note asks for one, else "".
+figureBrief is a 8–20 word drawing brief or "". Task 1 ads: non-empty, figureKind "source". No SVG in this JSON.`;
   }
   if (section.kind === "short") {
     return `${base}
@@ -996,18 +1918,19 @@ export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuest
   const figure = typeof row.figure === "string" ? row.figure : "";
   const figureBrief = typeof row.figureBrief === "string" ? row.figureBrief.trim() : "";
   const figureKind = row.figureKind === "source" ? "source" : "figure";
+  const stimulus = typeof row.stimulus === "string" ? row.stimulus : "";
   if (kind === "mcq") {
     const options = Array.isArray(row.options) ? row.options.map((o) => String(o)) : [];
     const correct = typeof row.correct === "number" ? row.correct : 0;
     if (options.length < 2) return null;
-    return { kind, question, options, correct, explanation, topic, figure, figureBrief, figureKind };
+    return { kind, question, options, correct, explanation, topic, figure, figureBrief, figureKind, stimulus };
   }
   if (kind === "match") {
     const left = Array.isArray(row.left) ? row.left.map((o) => String(o)) : [];
     const right = Array.isArray(row.right) ? row.right.map((o) => String(o)) : [];
     const pairs = Array.isArray(row.pairs) ? row.pairs.map((n) => Number(n)) : [];
     if (!left.length || !right.length) return null;
-    return { kind, question, left, right, pairs, explanation, topic, figure, figureBrief, figureKind };
+    return { kind, question, left, right, pairs, explanation, topic, figure, figureBrief, figureKind, stimulus };
   }
   if (kind === "short") {
     const answer = String(row.answer || row.correct || "").trim();
@@ -1071,6 +1994,8 @@ export const EXAM_FIGURE_PLAYBOOK = `Official printed-paper style (УЦОЯО / 
 - viewBox "0 0 720 420". 24px padding. No width/height on <svg>. No <script>, no on*, no <image href>.
 - Labels 1–4 words, font-family="ui-sans-serif, system-ui, sans-serif" font-size 14 font-weight 650 fill="#111".
 - History SOURCE: a dense pictorial scene (people, buildings, objects, period clothes) — a plate the student can read like a photo, not a stick-man. Caption lives outside the SVG.
+- NMT English Task 1 ADVERT: a readable printed advert / flyer / shop-window / billboard. People or products, 4+ original English words (offer, place, price). Photo-like, not a stick-man logo.
+- Film still / PE anatomy / Music score: a readable plate (shot diagram, joint/lever, 4-bar excerpt). Not a copyrighted frame or published score.
 - Geography: sketch map with north arrow + scale bar, or a landscape plate with 4+ landform labels.
 - Science: apparatus / circuit / cell / graph with labelled axes and units.
 - Maths: the actual figure in the stem (triangle, circle, prism, axes). Hidden edges dashed.
