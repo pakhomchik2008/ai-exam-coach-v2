@@ -2016,7 +2016,9 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
               });
               const user = section.kind === "short"
                 ? `Write ${section.count} HARD last-paper short items. No order-of-operations warmup. At least half need an SVG figure.`
-                : `Generate ${section.count} ${section.kind} items.`;
+                : section.kind === "written"
+                  ? `Write ${section.count} written items. Where a real paper would print a photo, map, cartoon, or graph, include an original SVG in figure.`
+                  : `Generate ${section.count} ${section.kind} items. Include an original SVG figure when the stem needs a diagram.`;
               const raw = await raceJson(system, user);
               const rows = Array.isArray(raw && raw.questions) ? raw.questions : [];
               return rows

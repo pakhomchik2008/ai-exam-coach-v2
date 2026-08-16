@@ -374,18 +374,410 @@ export const PAPER_SHAPES: readonly PaperShape[] = [
     year: 2016,
     note: "AQA GCSE History 8145: two written papers, 2h / 84 marks each. Not 11 MCQs.",
     difficulty: cal(
-      "Written command words. 4–16 mark. Sources + essays. Not MCQ.",
-      "Explain / How far / Write an account. Short original stimulus.",
-      "No 11 MCQs. Do not copy AQA extracts.",
+      "Written command words. 4–16 mark. Sources + essays. Not MCQ. Real papers print photos, cartoons, maps.",
+      "Explain / How far / Write an account. Original stimulus + SVG figure on at least half the items (cartoon, map, photo-like scene).",
+      "No 11 MCQs. Do not copy AQA extracts or photos.",
     ),
     papers: [
       sitting("gcse-hist-p1", "Paper 1 · Understanding the modern world", 120, 84, [
-        written(6, 7, "Section A period study — six compulsory questions, 40 marks"),
-        written(4, 10, "Section B wider world depth — four compulsory questions, 40 marks + SPaG"),
+        written(6, 7, "Section A period study — six questions, 40 marks. At least three need an SVG source figure."),
+        written(4, 10, "Section B wider world depth — four questions, 40 marks + SPaG. At least two need a figure."),
       ]),
       sitting("gcse-hist-p2", "Paper 2 · Shaping the nation", 120, 84, [
-        written(4, 10, "Section A thematic study — four compulsory questions, 40 marks"),
-        written(4, 10, "Section B British depth + historic environment — four questions, 40 marks + SPaG"),
+        written(4, 10, "Section A thematic study — four questions, 40 marks. At least two need a figure."),
+        written(4, 10, "Section B British depth + historic environment — four questions. Site map / photo-like SVG required on two."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-math",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/mathematics/gcse/mathematics-8300/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA GCSE Maths 8300: three 90-min / 80-mark papers. Mix of 1-mark to multi-step. Q count is not fixed — mock is a representative sitting.",
+    difficulty: cal(
+      "Early items school-applied. Later items multi-step. Many stems say 'not drawn accurately' with a diagram.",
+      "Short + written mix. At least half the items MUST have an original SVG figure (triangle, circle, graph, 3D).",
+      "No order-of-operations warmup. Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("gcse-math-p1", "Paper 1 · non-calculator", 90, 80, [
+        short(12, 3, "Closed items, several with figures"),
+        written(4, 11, "Multi-step. At least two with SVG figures."),
+      ]),
+      sitting("gcse-math-p2", "Paper 2 · calculator", 90, 80, [
+        short(12, 3, "Closed items, several with figures"),
+        written(4, 11, "Multi-step. At least two with SVG figures."),
+      ]),
+      sitting("gcse-math-p3", "Paper 3 · calculator", 90, 80, [
+        short(12, 3, "Closed items, several with figures"),
+        written(4, 11, "Multi-step. At least two with SVG figures."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-eng-lang",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/english/gcse/english-8700/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA GCSE English Language 8700: two 1h45 / 80-mark papers. Reading + writing. Sources are unseen texts, not MCQ.",
+    difficulty: cal(
+      "Paper 1 fiction extract + descriptive write. Paper 2 two non-fiction + viewpoint write.",
+      "Original short extracts in stimulus. A source can include an SVG illustration (poster, photo-like scene) when the task is visual.",
+      "Do not copy AQA inserts.",
+    ),
+    papers: [
+      sitting("gcse-eng-p1", "Paper 1 · Explorations in creative reading and writing", 105, 80, [
+        written(4, 10, "Reading: 4+8+8+20 on one original fiction extract"),
+        written(1, 40, "Writing: one descriptive or narrative"),
+      ]),
+      sitting("gcse-eng-p2", "Paper 2 · Writers' viewpoints and perspectives", 105, 80, [
+        written(4, 10, "Reading: 4+8+12+16 on two original linked texts"),
+        written(1, 40, "Writing: one viewpoint piece"),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-eng-lit",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/english/gcse/english-8702/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA GCSE English Literature 8702: Paper 1 1h45 / 64; Paper 2 2h15 / 96. Essays, closed book.",
+    difficulty: cal(
+      "Extract-to-whole essays. Unseen poetry on Paper 2.",
+      "Original short extracts in stimulus. No figure required unless a stage diagram helps.",
+      "Do not copy set-text extracts from AQA papers.",
+    ),
+    papers: [
+      sitting("gcse-englit-p1", "Paper 1 · Shakespeare and the 19th-century novel", 105, 64, [
+        written(1, 32, "Shakespeare: extract + whole play"),
+        written(1, 32, "19th-century novel: extract + whole text"),
+      ]),
+      sitting("gcse-englit-p2", "Paper 2 · Modern texts and poetry", 135, 96, [
+        written(1, 34, "Modern prose or drama essay"),
+        written(1, 30, "Named poem vs anthology"),
+        written(2, 16, "Unseen poem + comparison"),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-combined-sci",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/science/gcse/science-8464/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA Combined Science Trilogy 8464: six 1h15 / 70-mark papers. MCQ + structured + open. Diagrams and graphs on almost every paper.",
+    difficulty: cal(
+      "Foundation/Higher mix of recall and apply. Graphs, apparatus, cell/circuit drawings.",
+      "At least half the items MUST have an original SVG figure (graph, apparatus, cell, circuit).",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("gcse-csci-b1", "Biology Paper 1", 75, 70, [
+        mcq(8, 4, 1, "Closed. Several with figures"),
+        short(6, 4, "Structured"),
+        written(2, 15, "Open response. At least one figure."),
+      ]),
+      sitting("gcse-csci-b2", "Biology Paper 2", 75, 70, [
+        mcq(8, 4, 1, "Closed. Several with figures"),
+        short(6, 4, "Structured"),
+        written(2, 15, "Open response. At least one figure."),
+      ]),
+      sitting("gcse-csci-c1", "Chemistry Paper 1", 75, 70, [
+        mcq(8, 4, 1, "Closed. Several with figures"),
+        short(6, 4, "Structured"),
+        written(2, 15, "Open response. At least one figure."),
+      ]),
+      sitting("gcse-csci-c2", "Chemistry Paper 2", 75, 70, [
+        mcq(8, 4, 1, "Closed. Several with figures"),
+        short(6, 4, "Structured"),
+        written(2, 15, "Open response. At least one figure."),
+      ]),
+      sitting("gcse-csci-p1", "Physics Paper 1", 75, 70, [
+        mcq(8, 4, 1, "Closed. Several with figures"),
+        short(6, 4, "Structured"),
+        written(2, 15, "Open response. At least one figure."),
+      ]),
+      sitting("gcse-csci-p2", "Physics Paper 2", 75, 70, [
+        mcq(8, 4, 1, "Closed. Several with figures"),
+        short(6, 4, "Structured"),
+        written(2, 15, "Open response. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-biology",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/biology/gcse/biology-8461/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Biology 8461: two 1h45 / 100-mark papers.",
+    difficulty: cal(
+      "MCQ + structured + open. Cells, graphs, practical diagrams.",
+      "At least half the items MUST have an original SVG figure.",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("gcse-bio-p1", "Paper 1 · topics 1–4", 105, 100, [
+        mcq(10, 4, 1, "Closed. Several with figures"),
+        short(8, 5, "Structured"),
+        written(2, 25, "Open. At least one figure."),
+      ]),
+      sitting("gcse-bio-p2", "Paper 2 · topics 5–7", 105, 100, [
+        mcq(10, 4, 1, "Closed. Several with figures"),
+        short(8, 5, "Structured"),
+        written(2, 25, "Open. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-chemistry",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/chemistry/gcse/chemistry-8462/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Chemistry 8462: two 1h45 / 100-mark papers.",
+    difficulty: cal(
+      "MCQ + structured + open. Apparatus, bonding diagrams, graphs.",
+      "At least half the items MUST have an original SVG figure.",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("gcse-chem-p1", "Paper 1 · topics 1–5", 105, 100, [
+        mcq(10, 4, 1, "Closed. Several with figures"),
+        short(8, 5, "Structured"),
+        written(2, 25, "Open. At least one figure."),
+      ]),
+      sitting("gcse-chem-p2", "Paper 2 · topics 6–10", 105, 100, [
+        mcq(10, 4, 1, "Closed. Several with figures"),
+        short(8, 5, "Structured"),
+        written(2, 25, "Open. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-physics",
+    qualification: "gcse",
+    source: "https://www.aqa.org.uk/subjects/physics/gcse/physics-8463/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA GCSE Physics 8463: two 1h45 / 100-mark papers.",
+    difficulty: cal(
+      "MCQ + structured + open. Circuits, waves, force diagrams, graphs.",
+      "At least half the items MUST have an original SVG figure.",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("gcse-phys-p1", "Paper 1 · topics 1–4", 105, 100, [
+        mcq(10, 4, 1, "Closed. Several with figures"),
+        short(8, 5, "Structured"),
+        written(2, 25, "Open. At least one figure."),
+      ]),
+      sitting("gcse-phys-p2", "Paper 2 · topics 5–8", 105, 100, [
+        mcq(10, 4, 1, "Closed. Several with figures"),
+        short(8, 5, "Structured"),
+        written(2, 25, "Open. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "gcse-geography",
+    qualification: "gcse",
+    source: "https://filestore.aqa.org.uk/resources/geography/specifications/AQA-8035-SP-2016.PDF",
+    year: 2016,
+    note: "AQA GCSE Geography 8035: three 90-min papers (88 / 88 / 76 marks). Maps, photos, graphs on every paper.",
+    difficulty: cal(
+      "MCQ + short + levels of response. Paper 3 is issue evaluation + fieldwork.",
+      "Most items MUST have an original SVG: sketch map, climate graph, photo-like landscape, or field sketch. Never a copyrighted OS map.",
+      "Do not copy AQA resources booklets.",
+    ),
+    papers: [
+      sitting("gcse-geo-p1", "Paper 1 · Living with the physical environment", 90, 88, [
+        mcq(6, 4, 1, "Closed, often on a figure"),
+        short(6, 4, "Short + levels"),
+        written(3, 14, "Extended. Each needs a map or photo-like SVG."),
+      ]),
+      sitting("gcse-geo-p2", "Paper 2 · Challenges in the human environment", 90, 88, [
+        mcq(6, 4, 1, "Closed, often on a figure"),
+        short(6, 4, "Short + levels"),
+        written(3, 14, "Extended. Each needs a map or photo-like SVG."),
+      ]),
+      sitting("gcse-geo-p3", "Paper 3 · Geographical applications", 90, 76, [
+        short(6, 5, "Issue evaluation on an original resource"),
+        written(2, 23, "Fieldwork + issue. Both need a figure."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-math",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/mathematics/a-level/mathematics-7357/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Maths 7357: three 2h / 100-mark papers (Pure+Pure/Mech+Pure/Stats).",
+    difficulty: cal(
+      "Short to multi-step. Graphs, mechanics diagrams, stats plots.",
+      "At least half the items MUST have an original SVG figure.",
+      "No GCSE-easy arithmetic. Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("al-math-p1", "Paper 1 · Pure", 120, 100, [
+        short(8, 5, "Short / mid"),
+        written(4, 15, "Multi-step. At least two with figures."),
+      ]),
+      sitting("al-math-p2", "Paper 2 · Pure + Mechanics", 120, 100, [
+        short(8, 5, "Short / mid. Mechanics needs force/motion SVG."),
+        written(4, 15, "Multi-step. At least two with figures."),
+      ]),
+      sitting("al-math-p3", "Paper 3 · Pure + Statistics", 120, 100, [
+        short(8, 5, "Short / mid. Stats needs a plot SVG."),
+        written(4, 15, "Multi-step. At least two with figures."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-further-math",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/mathematics/as-and-a-level/further-mathematics-7367/specification/specification-at-a-glance",
+    year: 2017,
+    note: "AQA A-level Further Maths 7367: three 2h / 100-mark papers.",
+    difficulty: cal(
+      "Harder than 7357. Complex, matrices, further calculus, optional applied.",
+      "Figures on geometry / mechanics / discrete graphs.",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("al-fm-p1", "Paper 1 · Core", 120, 100, [
+        short(8, 5, "Short / mid"),
+        written(4, 15, "Multi-step"),
+      ]),
+      sitting("al-fm-p2", "Paper 2 · Core", 120, 100, [
+        short(8, 5, "Short / mid"),
+        written(4, 15, "Multi-step"),
+      ]),
+      sitting("al-fm-p3", "Paper 3 · Applied options", 120, 100, [
+        short(8, 5, "Short / mid"),
+        written(4, 15, "Multi-step"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-biology",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/biology/a-level/biology-7402/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Biology 7402: three 2h papers (91 / 91 / 78).",
+    difficulty: cal(
+      "Short + long + essay on Paper 3. Graphs, micrographs, practical diagrams.",
+      "At least half the items MUST have an original SVG figure (graph, cell, apparatus).",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("al-bio-p1", "Paper 1 · topics 1–4", 120, 91, [
+        short(8, 6, "Short / long"),
+        written(2, 21, "Extended. At least one figure."),
+      ]),
+      sitting("al-bio-p2", "Paper 2 · topics 5–8", 120, 91, [
+        short(8, 6, "Short / long"),
+        written(2, 21, "Comprehension + extended. At least one figure."),
+      ]),
+      sitting("al-bio-p3", "Paper 3 · synoptic", 120, 78, [
+        short(6, 6, "Practical / data"),
+        written(2, 21, "Essay + data. Figure required on the data item."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-chemistry",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/chemistry/a-level/chemistry-7405/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Chemistry 7405: three 2h papers (105 / 105 / 90).",
+    difficulty: cal(
+      "Physical / inorganic / organic + synoptic Paper 3 with MCQ.",
+      "Apparatus, mechanisms, spectra as original SVG on several items.",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("al-chem-p1", "Paper 1 · Physical + Inorganic", 120, 105, [
+        short(10, 6, "Short / long"),
+        written(3, 15, "Extended. At least one figure."),
+      ]),
+      sitting("al-chem-p2", "Paper 2 · Physical + Organic", 120, 105, [
+        short(10, 6, "Short / long"),
+        written(3, 15, "Extended. At least one figure."),
+      ]),
+      sitting("al-chem-p3", "Paper 3 · synoptic", 120, 90, [
+        mcq(20, 4, 1, "Multiple choice across the spec"),
+        short(6, 5, "Practical / data. Several with figures."),
+        written(2, 20, "Extended. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-physics",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/physics/a-level/physics-7408/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level Physics 7408: three 2h papers (85 / 85 / 80). Papers 1–2 include 25 MCQ.",
+    difficulty: cal(
+      "60 marks short/long + 25 MCQ on Papers 1–2. Paper 3 practical + option.",
+      "Force, circuit, wave, and graph SVG on at least half the items.",
+      "Do not copy AQA items.",
+    ),
+    papers: [
+      sitting("al-phys-p1", "Paper 1 · sections 1–6.1", 120, 85, [
+        mcq(25, 4, 1, "25 multiple choice"),
+        short(8, 5, "Short / long. Several with figures."),
+        written(2, 10, "Longer. At least one figure."),
+      ]),
+      sitting("al-phys-p2", "Paper 2 · 6.2, 7, 8", 120, 85, [
+        mcq(25, 4, 1, "25 multiple choice"),
+        short(8, 5, "Short / long. Several with figures."),
+        written(2, 10, "Longer. At least one figure."),
+      ]),
+      sitting("al-phys-p3", "Paper 3 · practical + option", 120, 80, [
+        short(8, 6, "Practical / data. Figures required."),
+        written(2, 16, "Option. At least one figure."),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-history",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/history/a-level/history-7042/specification/specification-at-a-glance",
+    year: 2015,
+    note: "AQA A-level History 7042: two 2h30 / 80-mark papers + NEA. Interpretations and sources.",
+    difficulty: cal(
+      "Comp 1 interpretations + two essays. Comp 2 sources + two essays.",
+      "Source items need an original stimulus and often an SVG (cartoon, map, photo-like scene).",
+      "Do not copy AQA sources. NEA is not sat here.",
+    ),
+    papers: [
+      sitting("al-hist-c1", "Component 1 · Breadth study", 150, 80, [
+        written(1, 30, "Compulsory interpretations question"),
+        written(2, 25, "Two essays from three"),
+      ]),
+      sitting("al-hist-c2", "Component 2 · Depth study", 150, 80, [
+        written(1, 30, "Compulsory sources. Figure or facsimile-like SVG required."),
+        written(2, 25, "Two essays from three"),
+      ]),
+    ],
+  },
+  {
+    id: "alevel-geography",
+    qualification: "alevel",
+    source: "https://www.aqa.org.uk/subjects/geography/as-and-a-level/geography-7037/specification/specification-at-a-glance",
+    year: 2016,
+    note: "AQA A-level Geography 7037: two 2h30 / 120-mark papers + NEA.",
+    difficulty: cal(
+      "Short + levels + extended. Maps, photos, graphs on every section.",
+      "Most items MUST have an original SVG (sketch map, photo-like landscape, graph).",
+      "Do not copy AQA resources. NEA is not sat here.",
+    ),
+    papers: [
+      sitting("al-geo-c1", "Component 1 · Physical geography", 150, 120, [
+        short(6, 6, "Section A water/carbon"),
+        written(4, 21, "Sections B+C. Each extended item needs a figure."),
+      ]),
+      sitting("al-geo-c2", "Component 2 · Human geography", 150, 120, [
+        short(6, 6, "Section A systems/governance"),
+        written(4, 21, "Sections B+C. Each extended item needs a figure."),
       ]),
     ],
   },
@@ -415,6 +807,21 @@ const SUBJECT_MATCHERS: readonly { id: string; re: RegExp }[] = [
   { id: "gmat-verbal", re: /verbal|read/i },
   { id: "gmat-di", re: /data|insight/i },
   { id: "gcse-history", re: /histor|істор|истор/i },
+  { id: "gcse-combined-sci", re: /combined science|trilogy|double science/i },
+  { id: "gcse-eng-lit", re: /english lit|літератур|литератур/i },
+  { id: "gcse-eng-lang", re: /english lang|english(?! lit)/i },
+  { id: "gcse-math", re: /math|матем/i },
+  { id: "gcse-biology", re: /biolog|біолог|биолог/i },
+  { id: "gcse-chemistry", re: /chem|хімі|хими/i },
+  { id: "gcse-physics", re: /physic|фізик|физик/i },
+  { id: "gcse-geography", re: /geograph|географ/i },
+  { id: "alevel-further-math", re: /further math|further maths|вища матем|высш/i },
+  { id: "alevel-math", re: /math|матем/i },
+  { id: "alevel-biology", re: /biolog|біолог|биолог/i },
+  { id: "alevel-chemistry", re: /chem|хімі|хими/i },
+  { id: "alevel-physics", re: /physic|фізик|физик/i },
+  { id: "alevel-history", re: /histor|істор|истор/i },
+  { id: "alevel-geography", re: /geograph|географ/i },
 ];
 
 const BY_ID: Readonly<Record<string, PaperShape>> = Object.fromEntries(
@@ -536,8 +943,9 @@ FORMAT: {"questions":[{"kind":"groups","question":"...","columns":[["a","b","c"]
 RULES: three columns of three labels; correct[i] is the chosen row in column i.`;
   }
   return `${base}
-FORMAT: {"questions":[{"kind":"written","question":"...","stimulus":"optional source extract","maxMarks":${section.maxMarksEach},"markscheme":["bullet 1","bullet 2"],"topic":"..."}]}
-RULES: exam-board command words (Explain / How far / Write an account). Stimulus is a short original source, not a copyrighted extract.`;
+FORMAT: {"questions":[{"kind":"written","question":"...","stimulus":"optional source extract","maxMarks":${section.maxMarksEach},"markscheme":["bullet 1","bullet 2"],"topic":"...","figure":""}]}
+RULES: exam-board command words (Explain / How far / Write an account). Stimulus is a short original source, not a copyrighted extract.
+figure is "" or a raw <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg>: map, cartoon, photo-like scene, graph, apparatus. Never a scanned AQA/Edexcel photo. When the stem says "Study Figure 1" / "Source A", figure MUST be a real drawing.`;
 }
 
 export type SimAnswer =
@@ -632,6 +1040,7 @@ export function normalizeSimQuestion(raw: unknown, fallback: ItemKind): SimQuest
     maxMarks: typeof row.maxMarks === "number" ? row.maxMarks : 8,
     topic,
     explanation,
+    figure,
   };
 }
 
