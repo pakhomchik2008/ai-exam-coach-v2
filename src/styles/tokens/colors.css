@@ -33,7 +33,7 @@
   --slate-800: #1C1C1A;
   --slate-900: #0E0F10;
   --white: #FFFFFF;
-  --app-bg: #FAFAF8;
+  --app-bg: #F7F5F0;
 
   --ink-900: #141822;
   --ink-800: #163E3C;
@@ -95,7 +95,7 @@
   --surface-muted:  var(--slate-50);
   --surface-sunken: var(--slate-100);
   --surface-ink:    var(--ink-900);
-  --surface-nav:    rgba(255, 255, 255, 0.82);
+  --surface-nav:    #F7F5F0;
 
   --text-strong:  var(--slate-900);
   --text-body:    var(--slate-700);
@@ -108,10 +108,10 @@
   --border-default:var(--slate-200);
   --border-strong: var(--slate-300);
 
-  --action-primary:        var(--indigo-600);
-  --action-primary-hover:  var(--indigo-700);
-  --action-accent:         var(--indigo-600);
-  --action-accent-hover:   var(--indigo-700);
+  --action-primary:        #141822;
+  --action-primary-hover:  #0E1016;
+  --action-accent:         #141822;
+  --action-accent-hover:   #0E1016;
 
   --focus-ring: var(--indigo-500);
 

@@ -717,6 +717,67 @@ function _manualId(examId) {
   return `manual::${examId}::${Date.now()}::${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// A journal miss becomes a dated calendar block on nextReviewAt.
+// Retention is the miss coming back — not a streak number. Dedupe by
+// exam + topic + notes so a second wrong on the same topic moves the
+// block instead of stacking clones.
+const MISTAKE_REVIEW_NOTE = "mistake-review";
+
+function scheduleReviewFromMistake(entry) {
+  if (!entry || entry.status === "recovered") return null;
+  if (typeof entry.topic !== "string" || !entry.topic) return null;
+  if (!window.fmtDateKey) return null;
+  const when = typeof entry.nextReviewAt === "number" ? entry.nextReviewAt : Date.now() + 86400000;
+  const date = window.fmtDateKey(new Date(when));
+  const examId = typeof entry.examId === "string" && entry.examId ? entry.examId : null;
+  const topic = `Review: ${entry.topic}`;
+  const ownerId = examId || PERSONAL_EVENT_ID;
+  const schedule = getSchedule();
+  const existing = schedule.sessions.find((s) =>
+    s.status === "pending"
+    && s.notes === MISTAKE_REVIEW_NOTE
+    && s.topic === topic
+    && s.examId === ownerId
+  );
+  if (existing) {
+    if (existing.date === date) return existing;
+    updateSession(existing.id, { date });
+    return getSchedule().sessions.find((s) => s.id === existing.id) || existing;
+  }
+  addManualSession({
+    examId: examId || undefined,
+    type: examId ? "study" : "personal",
+    category: examId ? null : "custom",
+    topic,
+    date,
+    startTime: "18:00",
+    durationMin: 20,
+    notes: MISTAKE_REVIEW_NOTE,
+  });
+  return getSchedule().sessions.find((s) =>
+    s.status === "pending"
+    && s.notes === MISTAKE_REVIEW_NOTE
+    && s.topic === topic
+    && s.examId === ownerId
+  ) || null;
+}
+
+function cancelMistakeReviewIfClear(entry) {
+  if (!entry || typeof entry.topic !== "string") return;
+  const examId = typeof entry.examId === "string" && entry.examId ? entry.examId : null;
+  const stillDue = (window.getMistakes ? window.getMistakes() : []).some((m) =>
+    m.status === "pending"
+    && m.topic === entry.topic
+    && (examId ? m.examId === examId : true)
+  );
+  if (stillDue) return;
+  const topic = `Review: ${entry.topic}`;
+  const ownerId = examId || PERSONAL_EVENT_ID;
+  getSchedule().sessions
+    .filter((s) => s.status === "pending" && s.notes === MISTAKE_REVIEW_NOTE && s.topic === topic && s.examId === ownerId)
+    .forEach((s) => deleteSession(s.id));
+}
+
 function addManualSession({ examId, topic, date, startTime, durationMin, type, category, personalColor, notes, seriesId }) {
   const schedule = getSchedule();
   const isPersonal = type === "personal";
@@ -1124,6 +1185,7 @@ Object.assign(window, {
   allocateBudget, availableStudyDaysPerWeek, replanAllSchedules,
   INTENSITY_MULTIPLIERS, addManualSession, updateSession, deleteSession,
   addRecurringSessions, deleteSeries, PERSONAL_EVENT_ID,
+  scheduleReviewFromMistake, cancelMistakeReviewIfClear, MISTAKE_REVIEW_NOTE,
   proposeOptimizeWeek, proposeResolveConflicts, proposeFillEmptySlots,
   proposeRescheduleMissed, proposeSuggestBestTime, applyProposal,
 });

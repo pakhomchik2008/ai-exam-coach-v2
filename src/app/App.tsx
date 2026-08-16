@@ -230,7 +230,7 @@ export function App() {
   });
 
   return (
-    <div>
+    <div className="app-shell">
       {billingBanner}
       <AppNav
         current={tab}
@@ -255,13 +255,7 @@ export function App() {
           timer, and remounting that on a background sync would drop the
           student's session. remountKeyFor also pins the tabs that hold unsaved
           input — see ./data-version.ts. */}
-      <main
-        style={{
-          maxWidth: "var(--container-app)",
-          margin: "0 auto",
-          padding: "var(--space-8) var(--space-4)",
-        }}
-      >
+      <main className="app-main" data-room={tab}>
         {/* Keyed wrapper: changing the key discards the subtree so legacy
             screens re-read localStorage. ux-page is a short fade+rise on tab
             switch; dataVersion only bumps on other-tab storage events. */}

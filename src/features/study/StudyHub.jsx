@@ -7,6 +7,7 @@ import { extractStudyFile, describeStudyFileError, toClaudeBlocks } from "../../
 import { describeAiError } from "../../lib/ai-error";
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { filterMcqBatch, filterFlashcards, reportRejections } from "../../lib/question-lint";
+import { PageHeader } from "../../components/PageHeader";
 // Direct port of the canonical AiStudyTool.dc.html (DCLogic class) into a plain
 // React function component for this app shell. Logic/markup ported 1:1; only
 // the height wrapper and file-input wiring changed to nest inside the app shell
@@ -557,19 +558,10 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
   const hasInput = !!(inputText.trim() || (files && files.length) || youtubeData);
 
   const uploadScreen = React.createElement('div', { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
-    React.createElement('div', { style: { padding: '20px 20px 14px', flexShrink: 0 } },
-      React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '12px' } },
-        React.createElement('div', { style: { width: '46px', height: '46px', background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', flexShrink: 0, boxShadow: '0 4px 14px rgba(79,70,229,0.3)' } }, '🧠'),
-        React.createElement('div', null,
-          React.createElement('div', { style: { fontWeight: 800, fontSize: '19px', color: 'var(--slate-900)', lineHeight: 1.1 } }, L('AI Study Tool','AI-інструмент навчання','AI-инструмент обучения','Outil d\'étude IA','KI-Lernwerkzeug')),
-          React.createElement('div', { style: { fontSize: '12px', color: 'var(--slate-500)', marginTop: '2px' } }, L('Powered by Claude AI','На базі Claude AI','На базе Claude AI','Propulsé par Claude AI','Unterstützt von Claude AI'))
-        )
-      )
-    ),
-    React.createElement('div', { style: { flex: 1, overflowY: 'auto', padding: '0 18px 32px' } },
-      React.createElement('div', { style: { marginBottom: '20px', animation: 'fadeUp 0.35s ease-out both' } },
-        React.createElement('h1', { style: { fontSize: '26px', fontWeight: 900, color: 'var(--slate-900)', lineHeight: 1.2, margin: '0 0 8px', letterSpacing: '-0.5px' } }, L('Drop anything.','Закиньте будь-що.','Закиньте что угодно.','Déposez n\'importe quoi.','Leg alles ab.'), React.createElement('br'), L('Learn everything.','Вивчіть усе.','Изучите всё.','Apprenez tout.','Lerne alles.')),
-        React.createElement('p', { style: { fontSize: '13px', color: 'var(--slate-500)', margin: 0, lineHeight: 1.7 } }, L('PDF, Word, PowerPoint, Excel, images, notes, YouTube — or type a topic. Claude builds your study set.','PDF, Word, PowerPoint, Excel, зображення, нотатки, YouTube — або введіть тему. Claude збере навчальний набір.','PDF, Word, PowerPoint, Excel, изображения, заметки, YouTube — или введите тему. Claude соберёт учебный набор.','PDF, Word, PowerPoint, Excel, images, notes, YouTube — ou tapez un sujet. Claude crée votre kit.','PDF, Word, PowerPoint, Excel, Bilder, Notizen, YouTube — oder ein Thema eingeben. Claude erstellt dein Lernset.'))
+    React.createElement(PageHeader, { title: t.nav_tools || L('Tools','Інструменти','Инструменты','Outils','Werkzeuge') }),
+    React.createElement('div', { style: { flex: 1, overflowY: 'auto' } },
+      React.createElement('div', { style: { marginBottom: '20px' } },
+        React.createElement('p', { className: 'app-empty-body' }, L('PDF, Word, notes, YouTube — or type a topic.','PDF, Word, нотатки, YouTube — або введи тему.','PDF, Word, заметки, YouTube — или введи тему.','PDF, Word, notes, YouTube — ou tape un sujet.','PDF, Word, Notizen, YouTube — oder ein Thema eingeben.'))
       ),
       React.createElement('input', { type: 'file', id: 'study-file-input', multiple: true, accept: ACCEPT_ATTRIBUTE, onChange: (e) => { readFiles(e.target.files); e.target.value = ''; }, style: { display: 'none' } }),
       buildDropZoneEl(isDragOver, isExtractingFile, {
