@@ -38,8 +38,21 @@ describe("paperShapeFor", () => {
     expect(shape?.papers[0]?.sections.every((s) => s.kind === "written")).toBe(true);
   });
 
+  it("sits GCSE Geography as three AQA papers with figures, not 11 MCQs", () => {
+    const shape = paperShapeFor({ qualificationId: "gcse", name: "GCSE Geography" });
+    expect(shape?.papers).toHaveLength(3);
+    expect(shape?.papers.every((p) => p.minutes === 90)).toBe(true);
+    expect(shape?.difficulty.do).toMatch(/SVG/);
+  });
+
+  it("sits A-level Maths as three 2-hour papers", () => {
+    const shape = paperShapeFor({ qualificationId: "alevel", name: "A-Level Mathematics" });
+    expect(shape?.papers).toHaveLength(3);
+    expect(shape?.papers.every((p) => p.minutes === 120)).toBe(true);
+  });
+
   it("does not call a bare GCSE official", () => {
-    const spec = specFor("gcse", 6, "GCSE Geography");
+    const spec = specFor("gcse", 6, "GCSE Sociology");
     expect(spec.official).toBe(false);
   });
 
@@ -112,6 +125,20 @@ describe("sectionGenerationPrompt", () => {
     expect(prompt).toMatch(/BANNED/);
     expect(prompt).toMatch(/figure/);
     expect(prompt).toMatch(/3D/);
+  });
+
+  it("asks GCSE written items for an original source figure", () => {
+    const shape = paperShapeFor({ qualificationId: "gcse", name: "GCSE History" });
+    const written = shape?.papers[0]?.sections[0];
+    const prompt = sectionGenerationPrompt({
+      examName: "GCSE History",
+      styleNote: shape?.note || "",
+      topics: ["Germany"],
+      section: written || { kind: "written", count: 6, maxMarksEach: 7, note: "" },
+      difficulty: shape?.difficulty ?? null,
+    });
+    expect(prompt).toMatch(/figure/);
+    expect(prompt).toMatch(/Study Figure 1|Source A/);
   });
 });
 
