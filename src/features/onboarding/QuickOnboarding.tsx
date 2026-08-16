@@ -1,5 +1,5 @@
 /**
- * AI Exam Coach — the five-step onboarding (Phase 3 §3d).
+ * Examik — the five-step onboarding (Phase 3 §3d).
  *
  * A deliberate fork of `exam-wizard.jsx`, not a mode inside it (Decision Log
  * #40). That wizard is shared with "Add Exam" and carries multi-subject state

@@ -6,7 +6,7 @@ Source (edit these, then re-run generators):
 
 - `brand/logo.svg` — app icon (teal square + book + bars + arrow)
 - `brand/mark.svg` — mark only, no square (nav / wordmark lockups)
-- `brand/wordmark.svg` — EXAM COACH / SINCE 2026 lockup
+- `brand/wordmark.svg` — Examik / SINCE 2026 lockup (placeholder)
 - `brand/generate-icons.py` — rasterises PNG + AppIcon.appiconset
 - `brand/generate-sounds.py` — writes WAV, ffmpeg → MP3 + loudnorm
 

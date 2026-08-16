@@ -1,4 +1,4 @@
-// AI Exam Coach — Mission briefing screen shown before the study timer.
+// Examik — Mission briefing screen shown before the study timer.
 // Replaces the "jump straight to a timer" pattern: the student sees WHAT
 // they're about to study, WHY today, and HOW long — then chooses to begin.
 

@@ -1,4 +1,4 @@
-// AI Exam Coach — Study Calendar: a real Google-Calendar-style weekly grid.
+// Examik — Study Calendar: a real Google-Calendar-style weekly grid.
 // Sessions from the AI budget engine (schedule-store.jsx's allocateBudget)
 // render here as draggable/resizable blocks; the user can also click an
 // empty slot to hand-create a session, or delete one. Any touch — drag,

@@ -1,8 +1,12 @@
-// Stripe Checkout Session — subscription + 3-day trial.
+// Stripe Checkout Session — Pro subscription with a 3-day free trial.
 //
 // The secret key never leaves this function. The browser gets a hosted
 // Checkout URL and redirects. No AI quota: a pay click is not an Anthropic
 // call (see authenticate() in api/_guard.js).
+//
+// STRIPE_PRICE_ID must be the Pro monthly $5.99 Price. Max is off the
+// public page until 5c + 5d + Weekly Deep Report exist. The trial is
+// Pro, not a paid Sprint — Decision Log #100.
 
 import { authenticate, resolveAppOrigin } from "./_guard.js";
 import { encodeStripeForm, isProStatus } from "./_stripe.js";

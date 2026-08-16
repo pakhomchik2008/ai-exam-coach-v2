@@ -95,6 +95,6 @@ Single persona (B2C) — not applicable in the multi-stakeholder B2B sense. If p
 | Privacy-friendly | All data stored locally in-browser, nothing synced (until backend/sync is added) |
 
 ## Goals
-**Business goal:** Ship AI Exam Coach to the App Store (per longer-term plan); currently free/no ads, with paid tiers designed but not yet built (Free = Haiku-generated sections, Paid = Sonnet + lazy-loaded sections, to be implemented at end of project).
+**Business goal:** Ship Examik to the App Store (per longer-term plan); currently free/no ads, with paid tiers designed but not yet built (Free = Haiku-generated sections, Paid = Sonnet + lazy-loaded sections, to be implemented at end of project).
 **Conversion action:** Sign up (or "Try demo — no account needed" for low-friction trial) → complete onboarding (add first exam) → first study session.
 **Current metrics:** None yet — pre-launch, no analytics in place.

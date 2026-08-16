@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { freeNodeCount, isPremiumNode, topicIsLocked } from "./premium";
+import { examSlotLocked, freeNodeCount, isPremiumNode, topicIsLocked } from "./premium";
 import NMT_MATH from "./tree/nmt-math";
 import IELTS from "./tree/ielts";
 
@@ -27,6 +27,13 @@ describe("first-unit free gate", () => {
     (window as unknown as { getProfile: () => { pro: boolean } }).getProfile = () => ({ pro: true });
     expect(topicIsLocked(NMT_MATH, "al-01")).toBe(false);
     expect(topicIsLocked(IELTS, "s-01")).toBe(false);
+  });
+
+  it("blocks a second exam on Free and lets Pro add more", () => {
+    expect(examSlotLocked(0)).toBe(false);
+    expect(examSlotLocked(1)).toBe(true);
+    (window as unknown as { getProfile: () => { pro: boolean } }).getProfile = () => ({ pro: true });
+    expect(examSlotLocked(3)).toBe(false);
   });
 
   it("fails closed on an empty tree or unknown node", () => {

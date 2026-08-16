@@ -1,4 +1,4 @@
-// AI Exam Coach — the ONE shared "pick subject -> resolve syllabus" flow.
+// Examik — the ONE shared "pick subject -> resolve syllabus" flow.
 //
 // Used by both the first-run exam-wizard.jsx (compact=false) and the fast
 // Exams.jsx add-exam modal (compact=true) — this is what actually kills the

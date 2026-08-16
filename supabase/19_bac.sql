@@ -1,4 +1,4 @@
--- AI Exam Coach — Baccalauréat général (run NINETEENTH).
+-- Examik — Baccalauréat général (run NINETEENTH).
 --
 -- Bundled snapshot already has the exam (onboarding-data.jsx + curriculum-data.jsx).
 -- This row is what qualifications-store merges over that snapshot, and it

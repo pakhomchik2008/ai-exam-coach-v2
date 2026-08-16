@@ -1,4 +1,4 @@
--- AI Exam Coach — actually hide curriculum.created_by (run ELEVENTH, after 10).
+-- Examik — actually hide curriculum.created_by (run ELEVENTH, after 10).
 --
 -- 10_audit_fixes.sql tried:
 --     revoke select (created_by) on public.curriculum from anon, authenticated;

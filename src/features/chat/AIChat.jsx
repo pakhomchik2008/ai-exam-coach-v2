@@ -1,4 +1,4 @@
-// AI Exam Coach — AI Coach v6: Lesson Engine
+// Examik — AI Coach v6: Lesson Engine
 //
 // Chat attachments use CHAT_LIMITS rather than the study upload limits: every
 // attached file is re-sent with the whole conversation on each turn, so the cap

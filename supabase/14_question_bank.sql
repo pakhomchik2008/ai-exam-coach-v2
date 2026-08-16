@@ -1,4 +1,4 @@
--- AI Exam Coach — AI question novelty engine (run FOURTEENTH).
+-- Examik — AI question novelty engine (run FOURTEENTH).
 --
 -- Closes the "never-repeating AI questions" product promise. Today all five
 -- question generators in AIChat.jsx rely entirely on in-prompt instructions

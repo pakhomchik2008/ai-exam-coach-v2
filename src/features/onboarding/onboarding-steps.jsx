@@ -1,4 +1,4 @@
-// AI Exam Coach — Onboarding bits: coach bubble, grade picker, upload, plan review
+// Examik — Onboarding bits: coach bubble, grade picker, upload, plan review
 // All exported to window for Onboarding.jsx to compose. Inline styles, mobile-first.
 
 // First real ES import in this legacy module — the upload limits are shared with

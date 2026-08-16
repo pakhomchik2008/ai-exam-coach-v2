@@ -1,4 +1,4 @@
-// AI Exam Coach — Study session screen: timer + mid-session quizzes + Socratic
+// Examik — Study session screen: timer + mid-session quizzes + Socratic
 // AI chat tutor. The chat makes the student THINK during the session (not just
 // passively read), and passes the conversation to the recap so every session
 // leaves a real record of what was discussed.

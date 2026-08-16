@@ -18,7 +18,7 @@ logo diamond and dark-section sparks. Not cream-SaaS, not Duolingo-loud.
 
 ### 4.1 Logo
 - Mark: one upward line-graph that reads as a quiet "e", amber diamond at
-  the peak. Wordmark `exam.coach` in JetBrains Mono.
+  the peak. Wordmark `Examik` in JetBrains Mono.
 - Delivered under `brand/` (source) and `public/brand/` (built).
 - Web favicon + apple-touch-icon. iOS `AppIcon.appiconset` ready for Phase 5
   Capacitor (folder exists now so Xcode has something to copy).
@@ -51,7 +51,7 @@ dead and crawlers have a page.
 | Real 30s demo video | Needs a capture of the live product after this lands |
 | Real beta testimonials | No cohort yet — founder note + exam list instead of fake quotes |
 | Stripe / 3-day trial enforcement | Phase 6 billing |
-| Custom domain exam.coach | Buy during Phase 5 |
+| Custom domain examik.app | Buy during Phase 5 |
 | Inter Display | Spec said Inter as MVP; product already ships Gabarito. Identity stays. Wordmark uses JetBrains Mono as the spec's later option |
 | Playwright Lighthouse in CI | Playwright still not installed. Manual Lighthouse before merge |
 | Sound wiring inside AIChat | Kit + Settings + landing CTAs this PR. Coach/Learn hooks are one-liners later |

@@ -1,4 +1,4 @@
-// AI Exam Coach — DayDetail: tap a WeekStrip cell to see what happened or what's planned.
+// Examik — DayDetail: tap a WeekStrip cell to see what happened or what's planned.
 function DayDetail({ day, dayIndex, onClose, onStart, t }) {
   const { Button, Badge } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[(t && t.code) || "en"] || en);

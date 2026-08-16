@@ -1,4 +1,4 @@
--- AI Exam Coach — Stripe subscriptions (run EIGHTEENTH).
+-- Examik — Stripe subscriptions (run EIGHTEENTH).
 --
 -- Phase 3.7i. Checkout + webhook need a row they can look up by
 -- Stripe customer id; the cron needs trial_end for the 6th email.

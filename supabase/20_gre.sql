@@ -1,4 +1,4 @@
--- AI Exam Coach — GRE General (run TWENTIETH).
+-- Examik — GRE General (run TWENTIETH).
 --
 -- Bundled snapshot already has the exam (onboarding-data.jsx + curriculum-data.jsx).
 -- This row is what qualifications-store merges over that snapshot.

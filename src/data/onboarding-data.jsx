@@ -1,4 +1,4 @@
-// AI Exam Coach — onboarding data model: exam types, dynamic grading, prefs, copy
+// Examik — onboarding data model: exam types, dynamic grading, prefs, copy
 
 // ─── Exam types & dynamic grading ──────────────────────────────────────────────
 // kind: "scale"  → ordered list of grade labels (best→worst), pick via segmented buttons

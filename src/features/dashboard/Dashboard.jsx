@@ -1,4 +1,4 @@
-// AI Exam Coach — Dashboard: plan-centric design with "Today's AI Plan" hero,
+// Examik — Dashboard: plan-centric design with "Today's AI Plan" hero,
 // adaptive scheduling, TodaysMission briefing, and projected outcomes.
 function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGoToLearn, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;

@@ -1,4 +1,4 @@
--- AI Exam Coach — semantic (paraphrase) dedup for ai_question_bank (run SIXTEENTH).
+-- Examik — semantic (paraphrase) dedup for ai_question_bank (run SIXTEENTH).
 --
 -- Phase 3 §3a follow-up. The hash-dedup already in question-novelty.ts catches
 -- exact repeats (same text, punctuation-different, case-different) but NOT

@@ -1,4 +1,4 @@
-// AI Exam Coach — CourseDetail: deep-dive modal for an exam coach card.
+// Examik — CourseDetail: deep-dive modal for an exam coach card.
 // Investigate readiness/risk, and change target grade, confidence & study
 // intensity with the success probability recomputing live.
 

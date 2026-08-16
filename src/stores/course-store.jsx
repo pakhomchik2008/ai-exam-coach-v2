@@ -1,4 +1,4 @@
-// AI Exam Coach — Course: the new central entity.
+// Examik — Course: the new central entity.
 //
 // A Course holds the syllabus (topics/subtopics/learning objectives), the
 // extracted Knowledge Base (chapters/facts/formulas/glossary), and shared

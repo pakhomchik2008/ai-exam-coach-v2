@@ -1,4 +1,4 @@
-# Codebase Assessment — AI Exam Coach (`ai-exam-coach-deploy`)
+# Codebase Assessment — Examik (`ai-exam-coach-deploy`)
 
 **Commit:** `4cb4ea1` — "Block 3: DB-driven exam catalog + qualifications table"
 **Date:** 2026-08-01

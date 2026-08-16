@@ -1,4 +1,4 @@
-// AI Exam Coach — i18n strings (EN + UK subset for the UI kit)
+// Examik — i18n strings (EN + UK subset for the UI kit)
 import { LANDING_STRINGS } from "./landing";
 
 const LANGS = {

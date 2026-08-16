@@ -1,4 +1,4 @@
-// AI Exam Coach — Web Speech API narration for the Learn theory reader
+// Examik — Web Speech API narration for the Learn theory reader
 // (Phase 3.7d). SpeechSynthesis is a built-in browser API — no vendor, no
 // server round-trip, no per-play cost. Voice quality varies by OS (native
 // voices on macOS/iOS/Windows sound decent, Chrome-on-Linux is rougher),

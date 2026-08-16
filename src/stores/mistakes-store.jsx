@@ -1,4 +1,4 @@
-// AI Exam Coach — persisted log of real quiz mistakes, plus the derived
+// Examik — persisted log of real quiz mistakes, plus the derived
 // analytics MistakeJournal.jsx's dashboard runs on. Entries only ever come
 // from an actual wrong answer a user actually picked in an AI-generated
 // quiz (StudyHub.jsx, AIChat.jsx, StudySession.jsx) — never fabricated, so

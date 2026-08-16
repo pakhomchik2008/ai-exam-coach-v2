@@ -1,4 +1,4 @@
--- AI Exam Coach — qualifications catalog (run FOURTH, after 01-03).
+-- Examik — qualifications catalog (run FOURTH, after 01-03).
 -- Plan 3.2: the exam/qualification metadata that used to be five scattered
 -- hardcoded JS structures (EXAM_TYPES, SUBJECT_PRESETS, COUNTRY_TO_EXAM_TYPE,
 -- SECTION_BASED, EN_MEDIUM) becomes ONE table. Adding a new exam (IELTS, TOEFL,

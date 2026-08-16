@@ -1,4 +1,4 @@
-// AI Exam Coach — the AI layer that sits on top of the brain.
+// Examik — the AI layer that sits on top of the brain.
 //
 // This is the single choke point every AI call goes through. It:
 //   • injects buildLearnerContext() — who the learner is, what they know,
