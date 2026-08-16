@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { specFor } from "./exam-specs";
 import {
   PAPER_SHAPES,
+  isBabyShort,
   normalizeSimQuestion,
   paperShapeFor,
   scoreSimAnswer,
@@ -97,6 +98,31 @@ describe("sectionGenerationPrompt", () => {
     expect(prompt).toMatch(/No 2\+2/);
     expect(prompt).toMatch(/No olympiad/);
   });
+
+  it("bans order-of-operations shorts and asks for figures", () => {
+    const shape = paperShapeFor({ qualificationId: "nmt", name: "НМТ Математика" });
+    const short = shape?.papers[0]?.sections.find((s) => s.kind === "short");
+    const prompt = sectionGenerationPrompt({
+      examName: "НМТ Математика",
+      styleNote: shape?.note || "",
+      topics: ["Стереометрія"],
+      section: short || { kind: "short", count: 4, maxMarksEach: 2, note: "" },
+      difficulty: shape?.difficulty ?? null,
+    });
+    expect(prompt).toMatch(/BANNED/);
+    expect(prompt).toMatch(/figure/);
+    expect(prompt).toMatch(/3D/);
+  });
+});
+
+describe("isBabyShort", () => {
+  it("rejects a bare order-of-operations stem", () => {
+    expect(isBabyShort("Обчисліть значення виразу: (2³ - 5) · 4 + 12 : 3")).toBe(true);
+  });
+
+  it("keeps a real last-paper short", () => {
+    expect(isBabyShort("Задано функцію. Обчисліть значення виразу f(−3) − f'(2).")).toBe(false);
+  });
 });
 
 describe("scoreSimAnswer", () => {
@@ -107,6 +133,14 @@ describe("scoreSimAnswer", () => {
     expect(q).toBeTruthy();
     expect(scoreSimAnswer(q!, 3).correct).toBe(true);
     expect(scoreSimAnswer(q!, 0).correct).toBe(false);
+  });
+
+  it("keeps an SVG figure on a short item", () => {
+    const q = normalizeSimQuestion({
+      kind: "short", question: "Об'єм призми", answer: "3600",
+      figure: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 720 400\"><rect x=\"10\" y=\"10\" width=\"40\" height=\"20\"/></svg>",
+    }, "short");
+    expect(q?.figure).toMatch(/<svg/);
   });
 
   it("scores a short numeric with accept list", () => {

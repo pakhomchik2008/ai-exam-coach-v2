@@ -15,6 +15,7 @@ import { isSpeechSupported, speak } from "../../lib/speech";
 import { specFor } from "../../lib/exam-specs";
 import {
   OPTION_LETTERS,
+  isBabyShort,
   normalizeSimQuestion,
   paperShapeFor,
   scoreSimAnswer,
@@ -1800,6 +1801,16 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
       revealed && React.createElement("div", { style: { marginTop: 16 } }, _btn(L("Continue →", "Продовжити →", "Продолжить →", "Continuer →", "Weiter →"), advance, true, false))));
 }
 
+function _simFigure(raw) {
+  const clean = sanitizeSvg(raw);
+  if (!clean) return null;
+  return React.createElement("figure", {
+    className: "theory-diagram",
+    style: { margin: "0 0 16px" },
+    dangerouslySetInnerHTML: { __html: clean },
+  });
+}
+
 function _simItemFields(q, idx, answers, setAnswers) {
   const current = answers[idx];
   const set = (value) => setAnswers((a) => { const next = [...a]; next[idx] = value; return next; });
@@ -2003,9 +2014,15 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
                 examName: selectedExam.name, styleNote, topics, section,
                 difficulty: paperShape && paperShape.difficulty,
               });
-              const raw = await raceJson(system, `Generate ${section.count} ${section.kind} items.`);
+              const user = section.kind === "short"
+                ? `Write ${section.count} HARD last-paper short items. No order-of-operations warmup. At least half need an SVG figure.`
+                : `Generate ${section.count} ${section.kind} items.`;
+              const raw = await raceJson(system, user);
               const rows = Array.isArray(raw && raw.questions) ? raw.questions : [];
-              return rows.map((row) => normalizeSimQuestion(row, section.kind)).filter(Boolean).slice(0, section.count);
+              return rows
+                .map((row) => normalizeSimQuestion(row, section.kind))
+                .filter((q) => q && !(q.kind === "short" && isBabyShort(q.question)))
+                .slice(0, section.count);
             } catch (err) {
               console.warn("exam-sim: section failed —", err.message || err);
               return [];
@@ -2215,6 +2232,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         q.kind && q.kind !== "mcq" && React.createElement("div", { style: { marginBottom: 8 } }, _badge("var(--slate-100)", "var(--text-muted)", q.kind)),
         React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+        _simFigure(q.figure),
         _simItemFields(q, idx, answers, setAnswers))),
 
     // Prev / Next navigation
