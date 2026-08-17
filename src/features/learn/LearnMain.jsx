@@ -435,13 +435,37 @@ ${mcqRulesBlock(plan)}`;
     );
   }
 
+  // Redesigned AI-error screen (STATES DC spec 02) — reason line, headline,
+  // dark "concept" recap card (skipped when there's nothing yet to recap),
+  // purple Retry pill, optional text-link second action.
+  function errorScreen(headerEl, message, onRetry, skipLabel, onSkip) {
+    return wrap([
+      headerEl,
+      React.createElement("span", { key: "reason", style: { fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.14em", color: "var(--red-500)" } },
+        L("AI TOOK TOO LONG", "AI НЕ ВІДПОВІВ", "AI НЕ ОТВЕТИЛ", "L'IA A MIS TROP DE TEMPS", "KI HAT ZU LANGE GEBRAUCHT")),
+      React.createElement("h2", { key: "h", style: { margin: "14px 0 10px", fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--text-strong)" } }, message),
+      React.createElement("p", { key: "p", style: { margin: "0 0 22px", fontSize: 16, lineHeight: 1.55, color: "var(--text-muted)" } },
+        L("Nothing was saved. Your progress is intact. Try again, or come back to it in a moment.", "Нічого не збережено. Прогрес не постраждав. Спробуй ще раз або повернись пізніше.", "Ничего не сохранено. Прогресс не пострадал. Попробуй ещё раз или вернись позже.", "Rien n'a été enregistré. Ta progression est intacte. Réessaie, ou reviens dans un instant.", "Nichts wurde gespeichert. Dein Fortschritt ist unberührt. Versuch es erneut oder komm gleich zurück.")),
+      React.createElement("button", {
+        key: "retry", onClick: onRetry,
+        style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-purple)", color: "#fff", border: "none", fontSize: 17, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", marginBottom: onSkip ? 10 : 0 },
+      }, L("Retry", "Ще раз", "Ещё раз", "Réessayer", "Erneut versuchen")),
+      onSkip && React.createElement("button", {
+        key: "skip", onClick: onSkip,
+        style: { width: "100%", padding: 15, borderRadius: 12, background: "none", border: "none", color: "var(--text-faint)", fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
+      }, skipLabel),
+    ]);
+  }
+
   // ── Phase: Teach ──
   if (phase === "teach") {
     const teachHeader = phaseHeader(3, 1, "TEACH");
-    if (teachError) return wrap([teachHeader,
-      React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, teachError),
-      React.createElement("button", { key: "r", onClick: () => { setTeach(null); setTeachError(null); }, style: { padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", cursor: "pointer" } }, "Retry"),
-    ]);
+    if (teachError) return errorScreen(
+      teachHeader, teachError,
+      () => { setTeach(null); setTeachError(null); },
+      L("Skip to Drill", "До вправ", "К упражнениям", "Aller au Drill", "Zum Drill"),
+      () => setPhase("drill"),
+    );
     if (!teach) return wrap([teachHeader, React.createElement(WaitPress, {
       key: "l",
       title: L("Preparing your lesson…", "Готуємо урок…", "Готовим урок…", "Préparation…", "Bereite Lektion vor…"),
@@ -537,7 +561,7 @@ ${mcqRulesBlock(plan)}`;
   // ── Phase: Drill ──
   if (phase === "drill") {
     const drillHeader = drillQs ? phaseHeader(drillQs.length, drillIdx + 1, `${drillIdx + 1}/${drillQs.length}`) : phaseHeader(1, 0, "DRILL");
-    if (drillError) return wrap([drillHeader, React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, drillError)]);
+    if (drillError) return errorScreen(drillHeader, drillError, () => setDrillError(null));
     if (!drillQs) return wrap([drillHeader, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } }, L("Loading exercises…", "Завантажуємо…", "Загружаем…", "Chargement…", "Lade…"))]);
     const q = drillQs[drillIdx];
     const usedRights = new Set(Object.values(drillDraft.matchPairs));

@@ -4100,7 +4100,7 @@ If no actions fit, omit the ACTIONS line entirely.`,
     typing && React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
       React.createElement(CoachIcon, { size: 28 }),
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, borderTopLeftRadius: 4, padding: "14px 18px", display: "flex", gap: 5 } },
-        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--indigo-500)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
+        ...[0, 1, 2].map((d) => React.createElement("span", { key: d, style: { width: 7, height: 7, borderRadius: "50%", background: "var(--chrome-purple)", animation: "loadDot 1.2s ease-in-out infinite", animationDelay: d * 0.2 + "s" } })))));
 
   // Renders the "which exam / which topic" step as an AI-styled chat bubble
   // + selectable pills, appended right below the messages — a natural part
