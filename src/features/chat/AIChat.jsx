@@ -3027,18 +3027,20 @@ function LearnFlashcards({ topic, onExit, t }) {
     React.createElement("div", { key: "dots", style: { display: "flex", gap: 6, marginBottom: 20, marginTop: 4 } },
       ...plan.cards.map((_, i) => React.createElement("span", {
         key: i,
-        style: { width: 8, height: 8, borderRadius: "50%", background: i === idx ? "var(--indigo-600)" : i < idx ? "var(--indigo-300)" : "var(--slate-200)" },
+        style: { width: 8, height: 8, borderRadius: "50%", background: i === idx ? "#3B7BFF" : i < idx ? "#93B8FF" : "var(--slate-200)" },
       })),
     ),
     React.createElement("div", { key: "card", style: {
-      background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16,
+      background: "color-mix(in srgb, #4C8DFF 11%, var(--surface-card))",
+      border: "1.5px solid color-mix(in srgb, #4C8DFF 38%, var(--border-default))",
+      borderRadius: 20,
       padding: "28px 26px", minHeight: 260, display: "flex", flexDirection: "column", gap: 14,
-      boxShadow: "var(--shadow-sm)",
+      boxShadow: "0 8px 24px color-mix(in srgb, #4C8DFF 12%, transparent)",
     } },
-      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-faint)", fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
+      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#3B7BFF", fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
       React.createElement("h2", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, card.heading),
       React.createElement("div", { style: { fontSize: 16, lineHeight: 1.7, color: "var(--text-body)" }, dangerouslySetInnerHTML: html(card.body) }),
-      card.example && React.createElement("div", { style: { marginTop: "auto", padding: "12px 14px", background: "var(--surface-muted)", borderRadius: 10, fontSize: 14, lineHeight: 1.65 }, dangerouslySetInnerHTML: html(card.example) }),
+      card.example && React.createElement("div", { style: { marginTop: "auto", padding: "12px 14px", background: "var(--surface-page)", border: "1px solid color-mix(in srgb, #4C8DFF 22%, var(--border-default))", borderRadius: 12, fontSize: 14, lineHeight: 1.65 }, dangerouslySetInnerHTML: html(card.example) }),
     ),
     React.createElement("div", { key: "nav", style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, gap: 12 } },
       React.createElement("button", {
@@ -3054,11 +3056,11 @@ function LearnFlashcards({ topic, onExit, t }) {
               )
             : React.createElement("button", {
                 onClick: markAsRead,
-                style: { padding: "12px 24px", borderRadius: 999, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
+                style: { padding: "12px 24px", borderRadius: 999, background: "#3B7BFF", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
               }, L("Got it · +50 XP", "Зрозумів · +50 XP", "Понял · +50 XP", "Compris · +50 XP", "Verstanden · +50 XP")))
         : React.createElement("button", {
             onClick: () => setIdx((i) => Math.min(plan.cards.length - 1, i + 1)),
-            style: { padding: "12px 20px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 700 },
+            style: { padding: "12px 20px", borderRadius: 12, background: "#3B7BFF", color: "#fff", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 700 },
           }, L("Next", "Далі", "Далее", "Suivant", "Weiter") + " →"),
     ),
   ]);
