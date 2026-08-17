@@ -1,5 +1,4 @@
-/* App chrome — same drawing as the landing cover.
-   Nav, page title, primary button, empty state. Not Coach, not KaTeX. */
+/* App chrome — paper/ink rooms. Landing cover is its own drawing. */
 
 :root {
   --chrome-paper: #F7F5F0;
@@ -31,9 +30,8 @@
   }
 }
 
-/* —— buttons: landing CTA and in-app Start are the same drawing —— */
-.app-btn,
-.land-btn {
+/* —— in-app Start —— */
+.app-btn {
   border: 0;
   cursor: pointer;
   font-family: var(--font-sans);
@@ -50,27 +48,23 @@
   transition: transform 140ms var(--chrome-ease), filter 140ms var(--chrome-ease);
 }
 
-.app-btn-primary,
-.land-btn-primary {
+.app-btn-primary {
   background: var(--chrome-ink);
   color: var(--chrome-paper);
 }
 
-.app-btn-ghost,
-.land-btn-ghost {
+.app-btn-ghost {
   background: transparent;
   color: inherit;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
 }
 
-.app-btn:disabled,
-.land-btn:disabled {
+.app-btn:disabled {
   opacity: 0.55;
   cursor: wait;
 }
 
-.app-btn-primary:active,
-.land-btn-primary:active {
+.app-btn-primary:active {
   transform: scale(0.98);
 }
 
@@ -79,8 +73,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .app-btn-primary:hover,
-  .land-btn-primary:hover {
+  .app-btn-primary:hover {
     filter: brightness(1.04);
   }
 }
