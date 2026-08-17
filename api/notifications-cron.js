@@ -49,6 +49,7 @@ const APP_URL = process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 const CRON_HOUR_UTC = 16;
 
 import { trialEmailDue } from "./_stripe.js";
+import { fetchPredictorCommentary, gradeProbability, predictorCommentaryPrompt, weakestTopics } from "./_predictor.js";
 
 const RELEVANT_KEYS = ["user_profile_v1", "exams_list_v2", "study_schedule_v1", "mistakes_v1"];
 const DAY_MS = 86400000;
@@ -214,6 +215,36 @@ function weeklyDigestEmail(hoursStudied, sessionsCompleted, streak) {
     html: `<p>This week: <strong>${hoursStudied}h</strong> studied, <strong>${sessionsCompleted}</strong> sessions completed, <strong>${streak}</strong>-day streak.</p>`,
   };
 }
+
+// Ultra-only addition to the same Sunday weekly_digest email — Decision #115
+// (docs/phase-5-billing-tiers-plan.md): the Weekly Deep Report is not a
+// separate send, just an extra block appended when the recipient is Ultra.
+//
+// The number is the same 0-99 readiness gradeProbability() produces
+// elsewhere, reported as a plain percentage rather than converted onto the
+// exam's own scale (172/200, 6.5 band, ...) — that conversion lives in
+// src/lib/scales.ts, a browser-bundled TS module this cron has no bundler to
+// pull in (same reasoning as _predictor.js's header comment). Honest
+// simplification, not a hidden gap: flagged here for whoever wires the exact
+// exam-scale score in later.
+export function weeklyDeepReportHtml(examName, probability, weakTopics, commentary) {
+  const bars = weakTopics.length
+    ? weakTopics.map((topic, i) => {
+      // Widest bar (most-missed topic) is full width; each one after it
+      // steps down — a relative-rank heatmap, not a claim about exact counts.
+      const width = 100 - i * 25;
+      return `<tr><td style="padding:2px 0;font-size:13px;color:#334155;">${topic}</td></tr>
+      <tr><td style="padding:0 0 8px;"><div style="height:8px;width:${width}%;background:#8921F5;border-radius:4px;"></div></td></tr>`;
+    }).join("")
+    : `<tr><td style="padding:2px 0;font-size:13px;color:#94a3b8;">No recurring weak topics this week.</td></tr>`;
+
+  return `<div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
+    <p style="margin:0 0 4px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#C6A572;">ULTRA · WEEKLY DEEP REPORT</p>
+    <p style="margin:0 0 12px;font-size:15px;color:#141822;">Predicted readiness for <strong>${examName}</strong>: <strong>${probability}%</strong></p>
+    ${commentary ? `<p style="margin:0 0 14px;font-size:14px;color:#334155;">${commentary}</p>` : ""}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:320px;">${bars}</table>
+  </div>`;
+}
 function streakDangerEmail(streak) {
   return {
     subject: `Keep your ${streak}-day streak alive`,
@@ -240,6 +271,15 @@ async function fetchTrialing(headers) {
   return resp.json();
 }
 
+// One batched query for every recipient's tier, same shape as fetchTrialing —
+// avoids an N-request-per-user round trip inside the send loop.
+async function fetchTiers(headers) {
+  const url = `${SUPABASE_URL}/rest/v1/subscriptions?select=user_id,tier&limit=1000`;
+  const resp = await fetch(url, { headers });
+  if (!resp.ok) return []; // table/column missing until Hlib runs 24_billing_tier.sql
+  return resp.json();
+}
+
 export default async function handler(req, res) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
@@ -255,6 +295,7 @@ export default async function handler(req, res) {
   const resendKey = process.env.RESEND_API_KEY;
   const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
   const oneSignalRestKey = process.env.ONESIGNAL_REST_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const headers = serviceHeaders();
   if (!resendKey || !headers) {
     res.status(500).json({ error: "RESEND_API_KEY or SUPABASE_SERVICE_ROLE_KEY is not set." });
@@ -271,6 +312,10 @@ export default async function handler(req, res) {
   const trialByUser = new Map();
   for (const row of await fetchTrialing(headers)) {
     if (row && row.user_id) trialByUser.set(row.user_id, row.trial_end);
+  }
+  const tierByUser = new Map();
+  for (const row of await fetchTiers(headers)) {
+    if (row && row.user_id) tierByUser.set(row.user_id, row.tier);
   }
   const results = { checked: 0, sent: 0, skipped: 0, errors: 0 };
 
@@ -326,12 +371,37 @@ export default async function handler(req, res) {
     }
 
     // 3. Weekly digest — Sundays only, real numbers from this week's sessions.
+    // Ultra recipients get one extra block appended (Decision #115): same
+    // trigger, same dedupe key, no second send path.
     if (profile.notifyWeeklyDigest && isSunday) {
       const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
       const thisWeek = sessions.filter((s) => s.status === "completed" && s.date && new Date(s.date) >= weekAgo);
       const hoursStudied = Math.round((thisWeek.reduce((sum, s) => sum + (s.durationSec || (s.durationMin || 0) * 60), 0) / 3600) * 10) / 10;
       const { streak } = computeStreakUtc(sessions, now);
-      await fire("weekly_digest", weekKey, () => weeklyDigestEmail(hoursStudied, thisWeek.length, streak));
+
+      // Checked before the AI call, not just inside fire()'s own dedupe check
+      // below — a retried cron invocation must not spend a Sonnet call on an
+      // email that was already sent this week.
+      let deepReportHtml = "";
+      if (!dryRun && tierByUser.get(userId) === "ultra" && activeExams.length
+        && !(await alreadySent(headers, userId, "weekly_digest", weekKey))) {
+        const nearestExam = [...activeExams].sort((a, b) => new Date(a.examDate) - new Date(b.examDate))[0];
+        const probability = gradeProbability(nearestExam, now);
+        const weakTopics = weakestTopics(mistakes);
+        const prompt = predictorCommentaryPrompt({
+          examName: nearestExam.name || "your exam",
+          probability,
+          weakTopics,
+          lang: profile.lang,
+        });
+        const commentary = await fetchPredictorCommentary(anthropicKey, prompt);
+        deepReportHtml = weeklyDeepReportHtml(nearestExam.name || "your exam", probability, weakTopics, commentary);
+      }
+
+      await fire("weekly_digest", weekKey, () => {
+        const base = weeklyDigestEmail(hoursStudied, thisWeek.length, streak);
+        return { subject: base.subject, html: base.html + deepReportHtml };
+      });
     }
 
     // 4. Streak in danger — has a real streak, hasn't studied today yet.
