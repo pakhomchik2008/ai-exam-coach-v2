@@ -19,6 +19,8 @@ export default defineConfig({
       "/api": {
         target: "http://127.0.0.1:8745",
         changeOrigin: true,
+        timeout: 60_000,
+        proxyTimeout: 60_000,
         // Without this, a down :8745 becomes an empty 500 and the UI shows
         // the useless "proxy error" string from claude-proxy.ts.
         configure(proxy) {

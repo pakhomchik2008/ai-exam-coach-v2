@@ -31,8 +31,8 @@ if (existsSync(envFile)) {
   console.log(`[dev-api] loaded .env.local`);
 }
 
-// Origin allowlist already covers 127.0.0.1:5050 and localhost:5050 by default
-// (api/_guard.js DEFAULT_ORIGINS), so nothing extra is needed for local runs.
+// Origin allowlist covers any localhost/127.0.0.1 port (api/_guard.js
+// isLocalDev) so Vite hopping off 5173 still reaches /api/complete.
 
 const routes = {
   "/api/complete": () => import("../api/complete.js"),
