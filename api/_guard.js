@@ -63,6 +63,18 @@ function isVercelPreview(origin) {
   }
 }
 
+// Vite hops off 5173 when that port is taken (5174, 5176…). Pinning only
+// 5173 repeats the old 5050 footgun: local AI 403s while prod looks fine.
+function isLocalDev(origin) {
+  try {
+    const u = new URL(origin);
+    return (u.hostname === "localhost" || u.hostname === "127.0.0.1")
+      && (u.protocol === "http:" || u.protocol === "https:");
+  } catch {
+    return false;
+  }
+}
+
 // Enforced only when the header is present. A missing Origin means a non-browser
 // caller (curl, a script) — those are stopped by the auth check below instead,
 // and rejecting them here would only push an attacker into deleting one header.
@@ -70,7 +82,7 @@ function originRejected(req) {
   const origin = req.headers.origin;
   if (!origin) return null;
   const list = allowedOrigins();
-  if (list.includes(origin) || isVercelPreview(origin)) return null;
+  if (list.includes(origin) || isVercelPreview(origin) || isLocalDev(origin)) return null;
   return { status: 403, body: { error: "Origin not allowed" } };
 }
 

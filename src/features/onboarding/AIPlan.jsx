@@ -1,19 +1,12 @@
 // Examik — AI Planning Screen (post-exam-creation experience)
-// Two phases: animated "planning" sequence, then full plan reveal with
-// stats, calendar, reasoning, and "Start My AI Plan" CTA.
+// Two phases: animated "planning" sequence, then a compact plan reveal —
+// intensity, forecast, session totals, week-by-week load, CTA. Calendar and
+// "why this plan" copy were cut: the numbers already say enough.
 
 function AIPlan({ examIds, onStart, t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [phase, setPhase] = React.useState("planning");
   const [done, setDone] = React.useState(0);
-  const reasonsRef = React.useRef(null);
-  const [whyGlow, setWhyGlow] = React.useState(false);
-  const scrollToWhy = () => {
-    if (!reasonsRef.current) return;
-    reasonsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    setWhyGlow(true);
-    setTimeout(() => setWhyGlow(false), 1800);
-  };
 
   const STEPS = [
     { icon: "📚", text: L("Analyzing your syllabus…","Аналізую програму…","Анализирую программу…","Analyse du programme…","Lehrplan wird analysiert…") },
@@ -75,9 +68,6 @@ function AIPlan({ examIds, onStart, t }) {
   // the review step already makes ("Forecast unlocks after your first
   // sessions") — this just actually keeps it here too.
   const anyStarted = active.some((c) => c.started);
-
-  // Weakest course for reasoning
-  const weakest = active.length > 0 ? active.reduce((a, b) => b.gradeProbability < a.gradeProbability ? b : a, active[0]) : null;
 
   // ── Plan intensity tiers ─────────────────────────────────────────────────
   // Each tile's h/wk and sessions/wk come from actually running the real
@@ -149,98 +139,7 @@ function AIPlan({ examIds, onStart, t }) {
       }));
   }, [pending, sessionMinDefault]);
 
-  // ── Calendar data (2 weeks) ──────────────────────────────────────────────
-  // Only used to invent a start time for legacy/hint-seeded sessions that carry
-  // no real startTime — a scheduled session uses its OWN startTime (below).
-  const WEEKDAY_SLOTS = ["17:00", "18:00", "19:00"];
-  const WEEKEND_SLOTS = ["10:00", "11:15", "14:00", "15:15"];
-  // End time is start + THIS session's own planned length — never a hardcoded
-  // 45, or a 60-min session would still render as X:00–X:45.
-  function endTime(start, durationMin) {
-    const [h, m] = start.split(":").map(Number);
-    const total = h * 60 + m + (durationMin || sessionMinDefault);
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
-  }
-
-  const calWeeks = React.useMemo(() => {
-    const { sessionsByDay } = window.buildScheduleData();
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const mon = new Date(today);
-    mon.setDate(mon.getDate() - ((today.getDay() + 6) % 7));
-    const weeks = [];
-    for (let w = 0; w < 2; w++) {
-      const days = [];
-      for (let d = 0; d < 7; d++) {
-        const dt = new Date(mon); dt.setDate(dt.getDate() + w * 7 + d);
-        const key = window.fmtDateKey(dt);
-        const raw = (sessionsByDay[key] || []).filter(s => s.status !== "completed");
-        const isWE = dt.getDay() === 0 || dt.getDay() === 6;
-        const slots = isWE ? WEEKEND_SLOTS : WEEKDAY_SLOTS;
-        days.push({
-          key, dayName: [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat][dt.getDay()],
-          dayNum: dt.getDate(), isToday: key === window.fmtDateKey(today),
-          isSunday: dt.getDay() === 0,
-          sessions: raw
-            .map((s, i) => {
-              // Use the session's OWN scheduled time/length; only fall back to a
-              // rotating slot for legacy/hint-seeded sessions that never got one.
-              const time = s.startTime || slots[i % slots.length];
-              return { ...s, time, end: endTime(time, s.durationMin) };
-            })
-            // Read top-to-bottom in real chronological order (real startTimes can
-            // arrive interleaved when two exams share a day).
-            .sort((a, b) => a.time.localeCompare(b.time)),
-        });
-      }
-      weeks.push(days);
-    }
-    return weeks;
-  }, []);
-
-  // ── Reasoning cards ──────────────────────────────────────────────────────
-  const reasons = [];
-  if (weakest && weakest.started) reasons.push({
-    icon: "🎯", title: L("Priority scheduling","Пріоритетне планування","Приоритетное планирование","Planification prioritaire","Prioritätsplanung"),
-    text: L(
-      `${weakest.name} is scheduled most frequently — it has the lowest success probability at ${weakest.gradeProbability}%. Focusing here gives the biggest grade improvement.`,
-      `${weakest.name} заплановано найчастіше — найнижча ймовірність успіху ${weakest.gradeProbability}%.`,
-      `${weakest.name} запланирован чаще всего — самая низкая вероятность успеха ${weakest.gradeProbability}%.`,
-      `${weakest.name} est programmé le plus souvent — probabilité la plus faible à ${weakest.gradeProbability}%.`,
-      `${weakest.name} ist am häufigsten geplant — niedrigste Erfolgswahrscheinlichkeit bei ${weakest.gradeProbability}%.`
-    ),
-  });
-  reasons.push({
-    icon: "🧠", title: L("Spaced repetition","Інтервальне повторення","Интервальное повторение","Répétition espacée","Verteilte Wiederholung"),
-    text: L(
-      "Sessions are distributed across days to maximize long-term retention. Cramming is 40% less effective than spaced practice.",
-      "Сесії розподілені по днях для максимального запам'ятовування.",
-      "Сессии распределены по дням для максимального запоминания.",
-      "Les séances sont réparties pour maximiser la rétention à long terme.",
-      "Sitzungen sind verteilt, um die Langzeitretention zu maximieren."
-    ),
-  });
-  reasons.push({
-    icon: "💤", title: L("Strategic rest","Стратегічний відпочинок","Стратегический отдых","Repos stratégique","Strategische Erholung"),
-    text: L(
-      "Rest days are built in to prevent burnout and let your brain consolidate. Overwork hurts performance.",
-      "Дні відпочинку заплановані для запобігання вигоранню.",
-      "Дни отдыха запланированы для предотвращения выгорания.",
-      "Des jours de repos sont intégrés pour éviter l'épuisement.",
-      "Ruhetage sind eingeplant, um Burnout zu vermeiden."
-    ),
-  });
-  reasons.push({
-    icon: "🔄", title: L("Adaptive planning","Адаптивне планування","Адаптивное планирование","Planification adaptative","Adaptive Planung"),
-    text: L(
-      "If you skip a session, your plan automatically rebuilds around what's left. No guilt — just a new optimal path forward.",
-      "Якщо ви пропустите сесію, план автоматично перебудується.",
-      "Если вы пропустите сессию, план автоматически перестроится.",
-      "Si vous manquez une séance, le plan se reconstruit automatiquement.",
-      "Wenn Sie eine Sitzung verpassen, passt sich der Plan automatisch an."
-    ),
-  });
-
-  const { Button, GaugeRing, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
+  const { GaugeRing, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PLANNING ANIMATION PHASE
@@ -314,11 +213,6 @@ function AIPlan({ examIds, onStart, t }) {
             <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-600)" }}>
               {L("Your AI Study Plan","Ваш AI план навчання","Ваш AI план обучения","Votre plan d'étude IA","Ihr KI-Lernplan")}
             </span>
-            <button onClick={scrollToWhy} aria-label={L("Why this plan?","Чому цей план?","Почему этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
-              style={{ display: "inline-flex", alignItems: "center", gap: 5, border: "1px solid var(--indigo-200, var(--indigo-200))", background: "var(--surface-card)", color: "var(--indigo-600)", borderRadius: "var(--radius-full)", padding: "3px 10px 3px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
-              <span style={{ display: "inline-flex", width: 15, height: 15, borderRadius: "50%", background: "var(--indigo-600)", color: "var(--white)", alignItems: "center", justifyContent: "center", fontSize: 10, fontStyle: "italic", fontWeight: 700 }}>i</span>
-              {L("Why this plan?","Чому цей?","Почему?","Pourquoi ?","Warum?")}
-            </button>
           </div>
           <h1 style={{ margin: "0 0 24px", fontSize: 36, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2 }}>
             {L("Everything is planned.","Все заплановано.","Всё спланировано.","Tout est planifié.","Alles ist geplant.")}
@@ -476,77 +370,6 @@ function AIPlan({ examIds, onStart, t }) {
             </div>
           </div>
         )}
-
-        {/* ── Weekly Calendar ─────────────────────────────────── */}
-        <div style={{ marginBottom: 24, animation: "fadeUp 0.6s ease 0.3s both" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>
-            {L("Your study schedule","Ваш розклад","Ваше расписание","Votre emploi du temps","Ihr Lernplan")}
-          </h2>
-          {calWeeks.map((week, wi) => (
-            <div key={wi} style={{ marginBottom: 16 }}>
-              <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--text-faint)" }}>
-                {wi === 0 ? L("This week","Цей тиждень","Эта неделя","Cette semaine","Diese Woche") : L("Next week","Наступний тиждень","Следующая неделя","Semaine prochaine","Nächste Woche")}
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
-                {week.map(day => (
-                  <div key={day.key} style={{
-                    borderRadius: "var(--radius-lg)", padding: 8, minHeight: 100,
-                    background: day.isToday ? "var(--indigo-50)" : day.isSunday ? "var(--surface-sunken)" : "var(--surface-card)",
-                    border: day.isToday ? "2px solid var(--indigo-500)" : "1px solid var(--border-default)",
-                  }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: day.isToday ? "var(--indigo-600)" : "var(--text-faint)", textTransform: "uppercase", marginBottom: 4 }}>
-                      {day.dayName} {day.dayNum}
-                    </div>
-                    {day.isSunday && day.sessions.length === 0 && (
-                      <div style={{ fontSize: 10, color: "var(--text-faint)", fontStyle: "italic", marginTop: 8 }}>
-                        {L("Rest day","Відпочинок","Отдых","Repos","Ruhetag")} 😴
-                      </div>
-                    )}
-                    {day.sessions.map((s, si) => (
-                      <div key={si} style={{
-                        marginBottom: 4, padding: "4px 6px", borderRadius: 6,
-                        background: s.color + "18", borderLeft: `3px solid ${s.color}`,
-                        fontSize: 10, lineHeight: 1.4,
-                      }}>
-                        <div style={{ fontWeight: 700, color: "var(--text-strong)" }}>{s.time}–{s.end}</div>
-                        <div style={{ color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.subject}</div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Reasoning cards ─────────────────────────────────── */}
-        <div ref={reasonsRef} style={{ marginBottom: 40, scrollMarginTop: 16, animation: "fadeUp 0.6s ease 0.4s both", borderRadius: "var(--radius-2xl)", padding: whyGlow ? 16 : 0, background: whyGlow ? "var(--indigo-50)" : "transparent", transition: "background 0.4s ease" }}>
-          <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }}>
-            💡 {L("Why this plan?","Чому саме цей план?","Почему именно этот план?","Pourquoi ce plan ?","Warum dieser Plan?")}
-          </h2>
-          {/* Plain-language summary of the exact numbers above, so "why THIS plan"
-              is answered concretely, not just with generic principles. */}
-          <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--text-body)", lineHeight: 1.6, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", padding: 16 }}>
-            {L(
-              `You told us you can study ${profile.weeklyHours}h a week, and your last exam is ${lastExamDays} days out. So we scheduled ${totalSessions} focused sessions (~${totalHours}h) — about ${sessionsPerWeek} a week — starting this week and spaced out to just before each exam. ${weakest ? `${weakest.name} gets the most slots because it's your lowest predicted grade right now.` : ""} ${restDayCount} rest day${restDayCount === 1 ? "" : "s"} are built in so you don't burn out.`,
-              `Ви вказали ${profile.weeklyHours}год/тиждень, а останній іспит через ${lastExamDays} днів. Тож ми запланували ${totalSessions} сесій (~${totalHours}год) — близько ${sessionsPerWeek}/тиждень — починаючи з цього тижня. ${weakest ? `${weakest.name} отримує найбільше сесій — найнижчий прогноз.` : ""}`,
-              `Вы указали ${profile.weeklyHours}ч/неделю, а последний экзамен через ${lastExamDays} дней. Поэтому мы запланировали ${totalSessions} сессий (~${totalHours}ч) — около ${sessionsPerWeek}/неделю — начиная с этой недели. ${weakest ? `${weakest.name} получает больше всего сессий — самый низкий прогноз.` : ""}`,
-              `Vous étudiez ${profile.weeklyHours}h/semaine, dernier examen dans ${lastExamDays} jours. Nous avons planifié ${totalSessions} séances (~${totalHours}h) — env. ${sessionsPerWeek}/semaine — dès cette semaine. ${weakest ? `${weakest.name} a le plus de séances.` : ""}`,
-              `Du lernst ${profile.weeklyHours}h/Woche, letzte Prüfung in ${lastExamDays} Tagen. Wir haben ${totalSessions} Einheiten (~${totalHours}h) geplant — ca. ${sessionsPerWeek}/Woche — ab dieser Woche. ${weakest ? `${weakest.name} bekommt die meisten Einheiten.` : ""}`
-            )}
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            {reasons.map((r, i) => (
-              <div key={i} style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 18 }}>{r.icon}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-strong)" }}>{r.title}</span>
-                </div>
-                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>{r.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* ── CTA ─────────────────────────────────────────────── */}
         <div style={{ textAlign: "center", animation: "fadeUp 0.6s ease 0.5s both" }}>

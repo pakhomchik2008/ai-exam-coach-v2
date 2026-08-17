@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { modelForTier, resolveUserTier } from "../../api/_tier.js";
+import { modelForTier, resolveUserTier, thinkingConfigFor } from "../../api/_tier.js";
 
 describe("modelForTier", () => {
   it("routes ultra to Sonnet 5", () => {
@@ -10,6 +10,11 @@ describe("modelForTier", () => {
     for (const tier of ["free", "sprint", "pro", undefined, null, "bogus"]) {
       expect(modelForTier(tier)).toBe("claude-haiku-4-5-20251001");
     }
+  });
+
+  it("disables adaptive thinking on Sonnet only — Haiku 4.5 400s that field", () => {
+    expect(thinkingConfigFor("claude-sonnet-5")).toEqual({ type: "disabled" });
+    expect(thinkingConfigFor("claude-haiku-4-5-20251001")).toBeUndefined();
   });
 });
 

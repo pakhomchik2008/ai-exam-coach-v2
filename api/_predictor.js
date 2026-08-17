@@ -84,6 +84,7 @@ export async function fetchPredictorCommentary(apiKey, prompt) {
       body: JSON.stringify({
         model: "claude-sonnet-5",
         max_tokens: 200,
+        thinking: { type: "disabled" },
         messages: [{ role: "user", content: prompt }],
       }),
     });
