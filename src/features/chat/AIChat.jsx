@@ -2890,6 +2890,22 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
 
 const FLASHCARDS_MODE_TAG = "flashcards";
 
+// Each card in the deck gets its own hue, cycling through this palette by
+// index — the deck reads as a distinct sequence while flipping through it,
+// not one repeated blue card. Text stops are dark enough on their own tint
+// to clear body-text contrast (impeccable colorize rule: never gray-on-tint).
+const FLASHCARD_HUES = [
+  { bg: "#EFF6FF", border: "#93C5FD", text: "#1D4ED8", soft: "#BFDBFE" },
+  { bg: "#FDF2F8", border: "#F9A8D4", text: "#BE185D", soft: "#FBCFE8" },
+  { bg: "#F5F3FF", border: "#C4B5FD", text: "#5B21B6", soft: "#DDD6FE" },
+  { bg: "#FFF7ED", border: "#FDBA74", text: "#9A3412", soft: "#FED7AA" },
+  { bg: "#ECFDF5", border: "#6EE7B7", text: "#047857", soft: "#A7F3D0" },
+  { bg: "#ECFEFF", border: "#67E8F9", text: "#0E7490", soft: "#A5F3FC" },
+  { bg: "#FFF1F2", border: "#FDA4AF", text: "#BE123C", soft: "#FECDD3" },
+  { bg: "#FFFBEB", border: "#FDE68A", text: "#B45309", soft: "#FDE68A" },
+];
+function flashcardHue(i) { return FLASHCARD_HUES[i % FLASHCARD_HUES.length]; }
+
 async function generateFlashcards({ topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
   const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
@@ -3018,29 +3034,35 @@ function LearnFlashcards({ topic, onExit, t }) {
   const card = plan.cards[idx];
   const isLast = idx === plan.cards.length - 1;
   const html = (s) => ({ __html: _md(s || "") });
+  const hue = flashcardHue(idx);
 
   return wrap([
     header,
     React.createElement("h1", { key: "title", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.25 } }, plan.title),
-    // Progress dots — one per card, current is filled. Compact hint that
-    // the deck has an end without hiding it behind a counter.
+    // Progress dots — one per card, current is filled with THAT card's hue,
+    // already-seen cards keep their own hue at half strength. The dot row
+    // reads as a little rainbow trail of the deck, not a single-color bar.
     React.createElement("div", { key: "dots", style: { display: "flex", gap: 6, marginBottom: 20, marginTop: 4 } },
-      ...plan.cards.map((_, i) => React.createElement("span", {
-        key: i,
-        style: { width: 8, height: 8, borderRadius: "50%", background: i === idx ? "#3B7BFF" : i < idx ? "#93B8FF" : "var(--slate-200)" },
-      })),
+      ...plan.cards.map((_, i) => {
+        const h = flashcardHue(i);
+        return React.createElement("span", {
+          key: i,
+          style: { width: 8, height: 8, borderRadius: "50%", background: i === idx ? h.text : i < idx ? h.border : "var(--slate-200)" },
+        });
+      }),
     ),
     React.createElement("div", { key: "card", style: {
-      background: "color-mix(in srgb, #4C8DFF 11%, var(--surface-card))",
-      border: "1.5px solid color-mix(in srgb, #4C8DFF 38%, var(--border-default))",
+      background: hue.bg,
+      border: `1.5px solid ${hue.border}`,
       borderRadius: 20,
       padding: "28px 26px", minHeight: 260, display: "flex", flexDirection: "column", gap: 14,
-      boxShadow: "0 8px 24px color-mix(in srgb, #4C8DFF 12%, transparent)",
+      boxShadow: `0 8px 24px color-mix(in srgb, ${hue.border} 30%, transparent)`,
+      transition: "background 200ms ease, border-color 200ms ease, box-shadow 200ms ease",
     } },
-      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "#3B7BFF", fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
+      React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: hue.text, fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
       React.createElement("h2", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, card.heading),
       React.createElement("div", { style: { fontSize: 16, lineHeight: 1.7, color: "var(--text-body)" }, dangerouslySetInnerHTML: html(card.body) }),
-      card.example && React.createElement("div", { style: { marginTop: "auto", padding: "12px 14px", background: "var(--surface-page)", border: "1px solid color-mix(in srgb, #4C8DFF 22%, var(--border-default))", borderRadius: 12, fontSize: 14, lineHeight: 1.65 }, dangerouslySetInnerHTML: html(card.example) }),
+      card.example && React.createElement("div", { style: { marginTop: "auto", padding: "12px 14px", background: "var(--surface-page)", border: `1px solid ${hue.soft}`, borderRadius: 12, fontSize: 14, lineHeight: 1.65 }, dangerouslySetInnerHTML: html(card.example) }),
     ),
     React.createElement("div", { key: "nav", style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, gap: 12 } },
       React.createElement("button", {
@@ -3056,11 +3078,11 @@ function LearnFlashcards({ topic, onExit, t }) {
               )
             : React.createElement("button", {
                 onClick: markAsRead,
-                style: { padding: "12px 24px", borderRadius: 999, background: "#3B7BFF", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
+                style: { padding: "12px 24px", borderRadius: 999, background: hue.text, color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer", fontFamily: "var(--font-sans)" },
               }, L("Got it · +50 XP", "Зрозумів · +50 XP", "Понял · +50 XP", "Compris · +50 XP", "Verstanden · +50 XP")))
         : React.createElement("button", {
             onClick: () => setIdx((i) => Math.min(plan.cards.length - 1, i + 1)),
-            style: { padding: "12px 20px", borderRadius: 12, background: "#3B7BFF", color: "#fff", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 700 },
+            style: { padding: "12px 20px", borderRadius: 12, background: hue.text, color: "#fff", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontWeight: 700 },
           }, L("Next", "Далі", "Далее", "Suivant", "Weiter") + " →"),
     ),
   ]);
