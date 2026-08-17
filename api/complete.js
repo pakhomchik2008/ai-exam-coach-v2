@@ -13,6 +13,7 @@
 // project's Anthropic key indefinitely.
 
 import { guard, recordUsage } from "./_guard.js";
+import { modelForTier, resolveUserTier } from "./_tier.js";
 
 // Extend to 60 s so lesson generation (8-12 structured steps) doesn't time out
 // on Vercel Hobby. Pro plan supports up to 300 s.
@@ -83,6 +84,12 @@ export default async function handler(req, res) {
     return;
   }
 
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceHeaders = serviceKey
+    ? { "Content-Type": "application/json", apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+    : null;
+  const tier = await resolveUserTier(gate.user, serviceHeaders);
+
   try {
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -92,7 +99,7 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: modelForTier(tier),
         max_tokens: 8192,
         system,
         messages: msgs,
