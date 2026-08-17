@@ -9,7 +9,7 @@
 // one component here rather than fanning out to 4 small files. 3.7b scoring
 // lives in drill-exercises.ts; the boards stay here so one runner owns phase.
 
-import { EmptyState, PageHeader } from "../../components/PageHeader";
+import { PageHeader } from "../../components/PageHeader";
 import { findLessonByTitle, treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
 import { canOpenNode, isMastered } from "./tree/locks";
@@ -89,16 +89,26 @@ function prefersReducedMotion() {
 
 function EmptyLearn({ L, onGoToExams, kind }) {
   const noTree = kind === "no-tree";
-  const title = L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen");
+  const kicker = L("Learn", "Навчання", "Обучение", "Apprendre", "Lernen");
+  const title = noTree
+    ? L("No tree for this one.", "Немає дерева.", "Дерева пока нет.", "Pas encore d'arbre.", "Noch kein Baum.")
+    : L("No tree yet.", "Дерева ще немає.", "Дерева пока нет.", "Pas encore d'arbre.", "Noch kein Baum.");
   const body = noTree
     ? L("This exam has no topic tree yet. Pick a subject Learn supports — More → Exams.", "Для цього іспиту ще немає дерева тем. Обери предмет, який Learn підтримує — Ще → Іспити.", "Для этого экзамена ещё нет дерева тем. Выбери предмет, который Learn поддерживает — Ещё → Экзамены.", "Cet examen n’a pas encore d’arbre. Choisis une matière prise en charge — Plus → Examens.", "Für diese Prüfung gibt es noch keinen Themenbaum. Wähle ein unterstütztes Fach — Mehr → Prüfungen.")
     : L("Add an exam first — More → Exams. Learn opens a topic tree per exam.", "Спочатку додай іспит — Ще → Іспити. Навчання відкриває дерево тем окремо для кожного.", "Сначала добавь экзамен — Ещё → Экзамены. Обучение открывает дерево тем отдельно для каждого.", "Ajoute d'abord un examen — Plus → Examens.", "Füge zuerst eine Prüfung hinzu — Mehr → Prüfungen.");
   const cta = noTree
     ? L("Go to Exams", "До іспитів", "К экзаменам", "Vers Examens", "Zu Prüfungen")
     : L("Add an exam", "Додати іспит", "Добавить экзамен", "Ajouter un examen", "Prüfung hinzufügen");
-  return React.createElement(EmptyState, {
-    title, body, actionLabel: onGoToExams ? cta : undefined, onAction: onGoToExams,
-  });
+  return React.createElement("div", { style: { maxWidth: 460, margin: "0 auto", padding: "56px 24px", display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "60vh" } },
+    React.createElement("span", { style: { fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.14em", color: "var(--text-faint)", textTransform: "uppercase" } }, kicker),
+    React.createElement("h2", { style: { margin: "12px 0 10px", fontFamily: "var(--font-display)", fontSize: 32, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.1, color: "var(--text-strong)" } }, title),
+    React.createElement("p", { style: { margin: "0 0 26px", fontSize: 17, lineHeight: 1.55, color: "var(--text-muted)" } }, body),
+    onGoToExams && React.createElement("button", {
+      type: "button",
+      onClick: onGoToExams,
+      style: { padding: 17, borderRadius: 999, background: "var(--chrome-ink)", color: "var(--chrome-paper)", border: "none", fontSize: 17, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
+    }, cta),
+  );
 }
 
 // Best-effort dedup pass for the 3-question Prove batch. Same shape as
@@ -402,34 +412,59 @@ ${mcqRulesBlock(plan)}`;
     ),
   );
 
+  // Redesigned header for Teach/Drill only — circle back button + segmented
+  // purple progress bar. Prove/Done keep the original `header` unchanged.
+  function phaseHeader(segments, activeSegments, rightLabel) {
+    return React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 22 } },
+      React.createElement("button", {
+        type: "button",
+        onClick: () => leave(null),
+        "aria-label": L("Back", "Назад", "Назад", "Retour", "Zurück"),
+        style: { width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--border-default)", background: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "var(--text-muted)", cursor: "pointer", flexShrink: 0, padding: 0 },
+      }, "←"),
+      React.createElement("span", { style: { flex: 1, display: "flex", gap: 4 } },
+        ...Array.from({ length: segments }, (_, i) => React.createElement("i", {
+          key: i,
+          style: { flex: 1, height: 4, borderRadius: 2, background: i < activeSegments ? "var(--chrome-purple)" : "var(--border-default)" },
+        })),
+      ),
+      React.createElement("span", { style: { fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, color: "var(--text-faint)", flexShrink: 0 } }, rightLabel),
+    );
+  }
+
   // ── Phase: Teach ──
   if (phase === "teach") {
-    if (teachError) return wrap([header,
+    const teachHeader = phaseHeader(3, 1, "TEACH");
+    if (teachError) return wrap([teachHeader,
       React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, teachError),
       React.createElement("button", { key: "r", onClick: () => { setTeach(null); setTeachError(null); }, style: { padding: "10px 16px", borderRadius: 10, border: "1px solid var(--border-default)", cursor: "pointer" } }, "Retry"),
     ]);
-    if (!teach) return wrap([header, React.createElement(WaitPress, {
+    if (!teach) return wrap([teachHeader, React.createElement(WaitPress, {
       key: "l",
       title: L("Preparing your lesson…", "Готуємо урок…", "Готовим урок…", "Préparation…", "Bereite Lektion vor…"),
       lang: t?.code,
       compact: true,
     })]);
     return wrap([
-      header,
-      React.createElement("p", { key: "hook", style: { fontSize: 16, lineHeight: 1.55, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(teach.hook) }),
-      React.createElement("div", { key: "ex", style: { marginTop: 20, background: "var(--surface-muted)", borderRadius: 12, padding: 16 } },
-        React.createElement("div", { style: { fontSize: 12, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.06em", marginBottom: 8 } }, L("Worked example", "Приклад", "Пример", "Exemple", "Beispiel")),
-        React.createElement("p", { style: { margin: "0 0 8px", fontWeight: 600 }, dangerouslySetInnerHTML: mdHtml(teach.example?.prompt) }),
-        React.createElement("ol", { style: { paddingLeft: 20, margin: 0, color: "var(--text-body)" } },
-          (teach.example?.steps || []).map((s, i) => React.createElement("li", { key: i, style: { marginBottom: 4 }, dangerouslySetInnerHTML: mdHtml(s) })),
+      teachHeader,
+      React.createElement("h2", { key: "title", style: { margin: "0 0 16px", fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--text-strong)" } }, nodeTitle),
+      React.createElement("p", { key: "hook", style: { margin: "0 0 22px", fontFamily: "var(--font-brand)", fontSize: 22, lineHeight: 1.45, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(teach.hook) }),
+      React.createElement("div", { key: "ex", style: { background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 22, padding: 20 } },
+        React.createElement("div", { style: { fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, textTransform: "uppercase", color: "var(--text-faint)", letterSpacing: "0.14em", marginBottom: 10 } }, L("Worked example", "Приклад", "Пример", "Exemple", "Beispiel")),
+        React.createElement("p", { style: { margin: "0 0 14px", fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 17 }, dangerouslySetInnerHTML: mdHtml(teach.example?.prompt) }),
+        React.createElement("ol", { style: { paddingLeft: 18, margin: 0, fontSize: 15, lineHeight: 1.7, color: "var(--text-body)" } },
+          (teach.example?.steps || []).map((s, i) => React.createElement("li", { key: i, dangerouslySetInnerHTML: mdHtml(s) })),
         ),
-        React.createElement("p", { style: { marginTop: 10, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`= ${teach.example?.answer || ""}`) }),
+        React.createElement("p", { style: { margin: "14px 0 0", paddingTop: 14, borderTop: "1px solid var(--border-subtle)", fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 22, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`= ${teach.example?.answer || ""}`) }),
       ),
-      React.createElement("p", { key: "take", style: { marginTop: 20, padding: "12px 14px", background: "var(--indigo-50)", borderRadius: 10, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(`💡 ${teach.takeaway || ""}`) }),
+      React.createElement("div", { key: "take", style: { marginTop: 18, padding: "16px 18px", borderRadius: 18, background: "color-mix(in srgb, var(--chrome-purple) 8%, transparent)" } },
+        React.createElement("p", { style: { margin: 0, fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.14em", color: "var(--chrome-purple)", textTransform: "uppercase" } }, L("Remember", "Запам'ятай", "Запомни", "Retiens", "Merke dir")),
+        React.createElement("p", { style: { margin: "6px 0 0", fontSize: 16, lineHeight: 1.5, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(teach.takeaway || "") }),
+      ),
       React.createElement("button", {
         key: "next", onClick: () => setPhase("drill"),
-        style: { marginTop: 24, width: "100%", padding: "14px", borderRadius: 12, background: "var(--indigo-600)", color: "#fff", border: "none", fontWeight: 700, fontSize: 15, cursor: "pointer" },
-      }, L("Start drill →", "Почати вправи →", "Начать упражнения →", "Commencer →", "Übung starten →")),
+        style: { marginTop: 24, width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-ink)", color: "var(--chrome-paper)", border: "none", fontWeight: 600, fontSize: 17, cursor: "pointer", fontFamily: "var(--font-sans)" },
+      }, L("Start drill", "Почати вправи", "Начать упражнения", "Commencer", "Übung starten")),
     ]);
   }
 
@@ -479,22 +514,28 @@ ${mcqRulesBlock(plan)}`;
     });
   }
 
+  // Rounded-18 white cards with a purple/emerald/red 2px border — matches
+  // the Node Sheet / Teach card language. Drill's primary actions (Check,
+  // Next) get a purple background via drillPrimaryStyle below.
   const chip = (tone, extra) => ({
     textAlign: "left",
-    padding: "10px 12px",
-    borderRadius: 10,
-    fontSize: 14,
+    padding: "12px 14px",
+    borderRadius: 18,
+    fontSize: 15,
     fontFamily: "var(--font-sans)",
-    background: tone === "ok" ? "var(--emerald-50)" : tone === "bad" ? "var(--red-50)" : tone === "on" ? "var(--indigo-50)" : "var(--surface-card)",
-    border: `1.5px solid ${tone === "ok" ? "var(--emerald-500)" : tone === "bad" ? "var(--red-500)" : tone === "on" ? "var(--indigo-500)" : "var(--border-default)"}`,
+    background: "var(--surface-card)",
+    border: `2px solid ${tone === "ok" ? "var(--emerald-500)" : tone === "bad" ? "var(--red-500)" : tone === "on" ? "var(--chrome-purple)" : "var(--border-default)"}`,
+    color: tone === "ok" ? "var(--emerald-500)" : tone === "bad" ? "var(--red-500)" : "inherit",
     cursor: drillRevealed ? "default" : "pointer",
     ...extra,
   });
+  const drillPrimaryStyle = { background: "var(--chrome-purple)" };
 
   // ── Phase: Drill ──
   if (phase === "drill") {
-    if (drillError) return wrap([header, React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, drillError)]);
-    if (!drillQs) return wrap([header, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } }, L("Loading exercises…", "Завантажуємо…", "Загружаем…", "Chargement…", "Lade…"))]);
+    const drillHeader = drillQs ? phaseHeader(drillQs.length, drillIdx + 1, `${drillIdx + 1}/${drillQs.length}`) : phaseHeader(1, 0, "DRILL");
+    if (drillError) return wrap([drillHeader, React.createElement("p", { style: { color: "var(--red-600)" }, key: "e" }, drillError)]);
+    if (!drillQs) return wrap([drillHeader, React.createElement("p", { key: "l", style: { color: "var(--text-muted)" } }, L("Loading exercises…", "Завантажуємо…", "Загружаем…", "Chargement…", "Lade…"))]);
     const q = drillQs[drillIdx];
     const usedRights = new Set(Object.values(drillDraft.matchPairs));
     const matchReady = q.type === "match" && Object.keys(drillDraft.matchPairs).length === q.pairs.length;
@@ -502,10 +543,9 @@ ${mcqRulesBlock(plan)}`;
     const checkLabel = L("Check", "Перевірити", "Проверить", "Vérifier", "Prüfen");
     const stemParts = q.type === "drag_drop" ? splitDragStem(q.question) : null;
     return wrap([
-      header,
-      React.createElement("div", { key: "prog", style: { fontSize: 12, color: "var(--text-faint)", marginBottom: 10 } }, `${drillIdx + 1} / ${drillQs.length}`),
+      drillHeader,
       droppedNote("dropped-drill"),
-      q.type !== "drag_drop" && React.createElement("p", { key: "q", style: { fontSize: 16, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
+      q.type !== "drag_drop" && React.createElement("p", { key: "q", style: { margin: "0 0 22px", fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.25, color: "var(--text-strong)" }, dangerouslySetInnerHTML: mdHtml(q.question) }),
       q.type === "mcq" && React.createElement("div", { key: "opts", style: { display: "flex", flexDirection: "column", gap: 8 } },
         ...q.options.map((opt, i) => {
           const wasChosen = drillSelected === i;
@@ -530,7 +570,7 @@ ${mcqRulesBlock(plan)}`;
         !drillRevealed && React.createElement("button", {
           className: "learn-btn learn-btn--primary",
           onClick: () => submitDrillAnswer(drillFillInput),
-          style: { marginTop: 8 },
+          style: { marginTop: 8, ...drillPrimaryStyle },
         }, checkLabel),
       ),
       q.type === "match" && React.createElement("div", { key: "match", className: "learn-match" },
@@ -564,6 +604,7 @@ ${mcqRulesBlock(plan)}`;
           className: "learn-btn learn-btn--primary",
           disabled: !matchReady,
           onClick: () => matchReady && submitDrillAnswer(drillDraft.matchPairs),
+          style: drillPrimaryStyle,
         }, checkLabel),
       ),
       q.type === "order" && React.createElement("div", { key: "order", style: { display: "flex", flexDirection: "column", gap: 8 } },
@@ -586,6 +627,7 @@ ${mcqRulesBlock(plan)}`;
         !drillRevealed && React.createElement("button", {
           className: "learn-btn learn-btn--primary",
           onClick: () => submitDrillAnswer(drillDraft.order),
+          style: drillPrimaryStyle,
         }, checkLabel),
       ),
       q.type === "drag_drop" && React.createElement("div", { key: "drop" },
@@ -621,7 +663,7 @@ ${mcqRulesBlock(plan)}`;
           className: "learn-btn learn-btn--primary",
           disabled: !dropReady,
           onClick: () => dropReady && submitDrillAnswer(drillDraft.slots),
-          style: { marginTop: 12 },
+          style: { marginTop: 12, ...drillPrimaryStyle },
         }, checkLabel),
       ),
       q.type === "explain" && React.createElement("div", { key: "explain", style: { marginTop: 8 } },
@@ -637,7 +679,7 @@ ${mcqRulesBlock(plan)}`;
           className: "learn-btn learn-btn--primary",
           disabled: drillGrading || !(drillDraft.explain || "").trim(),
           onClick: submitExplain,
-          style: { marginTop: 8 },
+          style: { marginTop: 8, ...drillPrimaryStyle },
         }, drillGrading
           ? L("Grading…", "Оцінюємо…", "Оцениваем…", "Correction…", "Bewerte…")
           : checkLabel),
@@ -647,13 +689,16 @@ ${mcqRulesBlock(plan)}`;
           dangerouslySetInnerHTML: mdHtml(`**${drillGrade.score}/10** — ${drillGrade.feedback}`),
         }),
       ),
-      drillRevealed && q.explanation && React.createElement("div", { key: "exp", style: { marginTop: 16, padding: 12, background: "var(--surface-muted)", borderRadius: 8, fontSize: 13, color: "var(--text-body)" }, dangerouslySetInnerHTML: mdHtml(q.explanation) }),
+      drillRevealed && q.explanation && React.createElement("div", { key: "exp", style: { marginTop: 20, padding: 18, borderRadius: 20, background: "var(--chrome-ink)", color: "var(--chrome-paper)" } },
+        React.createElement("p", { style: { margin: 0, fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.14em", color: "color-mix(in srgb, var(--chrome-paper) 60%, transparent)", textTransform: "uppercase" } }, L("Why", "Чому", "Почему", "Pourquoi", "Warum")),
+        React.createElement("p", { style: { margin: "8px 0 0", fontSize: 16, lineHeight: 1.5 }, dangerouslySetInnerHTML: mdHtml(q.explanation) }),
+      ),
       drillRevealed && React.createElement("button", {
         key: "next",
         className: "learn-btn learn-btn--primary",
         onClick: nextDrill,
-        style: { marginTop: 16 },
-      }, drillIdx + 1 >= drillQs.length ? L("To Prove →", "До перевірки →", "К проверке →", "Vers le test →", "Zum Test →") : L("Next →", "Далі →", "Далее →", "Suivant →", "Weiter →")),
+        style: { marginTop: 16, borderRadius: 999, padding: 17, fontSize: 17, ...drillPrimaryStyle },
+      }, drillIdx + 1 >= drillQs.length ? L("To Prove", "До перевірки", "К проверке", "Vers le test", "Zum Test") : L("Next question", "Далі", "Далее", "Suivant", "Weiter")),
     ]);
   }
 
@@ -1027,28 +1072,42 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
       "aria-modal": "true",
       "aria-labelledby": "learn-sheet-title",
       onClick: (e) => e.stopPropagation(),
-      style: { background: "var(--surface-card)", padding: "12px 20px calc(28px + env(safe-area-inset-bottom, 0px))", borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
+      style: { background: "var(--surface-card)", padding: "14px 24px calc(30px + env(safe-area-inset-bottom, 0px))", borderRadius: "28px 28px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box", boxShadow: "0 -30px 60px rgba(11,13,18,0.18)" },
     },
       React.createElement("div", {
         "aria-hidden": "true",
-        style: { width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" },
+        style: { width: 40, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 18px" },
       }),
-      React.createElement("h3", { id: "learn-sheet-title", style: { margin: 0, fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, localize(openNode.node.title, copyLang)),
-      React.createElement("p", { style: { margin: "4px 0 16px", fontSize: 12, color: "var(--text-muted)" } },
-        `${localize(openNode.unit.title, copyLang)} · complexity ${openNode.node.complexity}/5 · ~${openNode.node.estimatedMinutes} min`),
+      React.createElement("span", { style: { fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.14em", color: "var(--text-faint)", textTransform: "uppercase" } },
+        `UNIT · LVL ${openNode.node.complexity} · ${openNode.node.estimatedMinutes} MIN`),
+      React.createElement("h3", { id: "learn-sheet-title", style: { margin: "10px 0 6px", fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--text-strong)" } }, localize(openNode.node.title, copyLang)),
+      React.createElement("p", { style: { margin: "0 0 20px", fontSize: 15, lineHeight: 1.5, color: "var(--text-muted)" } },
+        localize(openNode.unit.title, copyLang)),
+      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 18 } },
+        ...["TEACH", "DRILL", "PROVE"].map((label, i) => React.createElement("span", {
+          key: label,
+          style: {
+            flex: 1, padding: "10px 0", textAlign: "center", borderRadius: 12,
+            fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11,
+            background: i === 0 ? "color-mix(in srgb, var(--chrome-purple) 10%, transparent)" : "color-mix(in srgb, var(--text-strong) 5%, transparent)",
+            color: i === 0 ? "var(--chrome-purple)" : "var(--text-muted)",
+          },
+        }, label)),
+      ),
       React.createElement("button", {
         ref: startBtnRef,
         type: "button",
-        className: "learn-btn learn-btn--primary",
         onClick: () => setRunning(openNode),
+        style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-ink)", color: "var(--chrome-paper)", border: "none", fontSize: 17, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
       }, L("Start", "Почати", "Начать", "Commencer", "Starten")),
-      React.createElement("p", { style: { margin: "14px 0 2px", fontSize: 12, color: "var(--text-faint)", textAlign: "center" } },
-        L("Already know this?", "Вже знаєш тему?", "Уже знаешь тему?", "Tu connais déjà ?", "Kennst du das schon?")),
-      React.createElement("button", {
-        type: "button",
-        className: "learn-btn learn-btn--ghost",
-        onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
-      }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
+      React.createElement("p", { style: { margin: "14px 0 2px", fontSize: 14, color: "var(--text-faint)", textAlign: "center" } },
+        L("Already know this? ", "Вже знаєш тему? ", "Уже знаешь тему? ", "Tu connais déjà ? ", "Kennst du das schon? "),
+        React.createElement("button", {
+          type: "button",
+          onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
+          style: { background: "none", border: "none", padding: 0, font: "inherit", fontWeight: 700, color: "var(--chrome-purple)", cursor: "pointer" },
+        }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
+      ),
     )),
     proSheet && React.createElement(ProSheet, { key: "pro", freeCount, lockedCount: proCount, onClose: () => setProSheet(false), t }),
   );
