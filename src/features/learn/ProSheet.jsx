@@ -72,22 +72,24 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
   }
 
   return React.createElement(React.Fragment, null,
-    React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--indigo-600)", marginBottom: 6 } }, "Pro"),
-    React.createElement("h3", { style: { margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "var(--text-strong)" } }, title),
-    React.createElement("p", { style: { margin: "0 0 18px", fontSize: 15, lineHeight: 1.55, color: "var(--text-muted)" } }, body),
-    error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "var(--red-600)" } }, error) : null,
+    React.createElement("div", { style: { fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--chrome-gold)", marginBottom: 12 } }, "PRO"),
+    React.createElement("h3", { style: { margin: "0 0 10px", fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--chrome-paper)" } }, title),
+    React.createElement("p", { style: { margin: "0 0 20px", fontSize: 16, lineHeight: 1.55, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } }, body),
+    error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "#F87171" } }, error) : null,
     React.createElement("button", {
       type: "button",
-      className: "app-btn app-btn-primary app-btn-block",
       disabled: busy,
       onClick: upgrade,
+      style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-purple)", color: "#fff", border: "none", fontSize: 17, fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "var(--font-sans)" },
     }, busy
       ? L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
-      : L5(t, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")),
+      : L5(t, "Try 3 days of Pro free", "Спробуй 3 дні Pro безкоштовно", "Попробуй 3 дня Pro бесплатно", "Essaie 3 jours de Pro gratuits", "Teste 3 Tage Pro gratis")),
+    React.createElement("p", { style: { margin: "14px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" } },
+      L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR")),
     onClose && !page ? React.createElement("button", {
       type: "button",
       onClick: onClose,
-      style: { width: "100%", marginTop: 8, padding: "12px 16px", borderRadius: 12, border: "none", background: "transparent", color: "var(--text-muted)", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "var(--font-sans)" },
+      style: { width: "100%", marginTop: 10, padding: "12px 16px", borderRadius: 12, border: "none", background: "transparent", color: "color-mix(in srgb, var(--chrome-paper) 55%, transparent)", fontWeight: 600, fontSize: 14, cursor: "pointer", fontFamily: "var(--font-sans)" },
     }, L5(t, "Not now", "Не зараз", "Не сейчас", "Pas maintenant", "Nicht jetzt")) : null,
   );
 }
@@ -101,16 +103,18 @@ export function ProSheet({ lockedCount, freeCount, onClose, t, reason = "learn" 
     role: "dialog",
     "aria-modal": "true",
     onClick: (e) => e.stopPropagation(),
-    style: { background: "var(--surface-card)", padding: "16px 20px calc(28px + env(safe-area-inset-bottom, 0px))", borderRadius: "16px 16px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
+    style: { background: "var(--chrome-ink)", padding: "16px 24px calc(30px + env(safe-area-inset-bottom, 0px))", borderRadius: "28px 28px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
   },
-    React.createElement("div", { "aria-hidden": "true", style: { width: 36, height: 4, borderRadius: 99, background: "var(--border-strong)", margin: "0 auto 14px" } }),
+    React.createElement("div", { "aria-hidden": "true", style: { width: 40, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.24)", margin: "0 auto 20px" } }),
     React.createElement(PaywallBody, { reason, freeCount, lockedCount, onClose, t }),
   ));
 }
 
-/** Full-tab stand-in when Calendar or Journal is locked. Not a modal. */
+/** Full-tab stand-in when Calendar or Journal is locked. Not a modal. Dark
+ * ink card — PaywallBody's text colors assume the dark scheme now (matches
+ * the ProSheet redesign), so this wrapper stays in sync with it. */
 export function ProGatePage({ reason, t }) {
   return React.createElement("div", {
-    style: { maxWidth: 520, margin: "24px auto", padding: "28px 24px", background: "var(--surface-card)", borderRadius: 16, border: "1px solid var(--border-subtle)" },
+    style: { maxWidth: 520, margin: "24px auto", padding: "32px 28px", background: "var(--chrome-ink)", borderRadius: 28 },
   }, React.createElement(PaywallBody, { reason, t, page: true }));
 }
