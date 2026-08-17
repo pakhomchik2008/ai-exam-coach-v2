@@ -103,7 +103,7 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           <BrandLockup mark={25} title={t.land_wordmark} />
         </a>
         <nav className="land-nav-links" aria-label={t.land_wordmark}>
-          <a href="#hero">{t.land_nav_features}</a>
+          <a href="#features">{t.land_nav_features}</a>
           <a href="#pricing">{t.land_nav_pricing}</a>
           <a href="#faq">{t.land_nav_faq}</a>
         </nav>
@@ -259,13 +259,13 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           </div>
           <div className="land-vs-row" role="row">
             <span>{t.land_vs_row_tree}</span>
-            <span className="is-yes">{t.land_vs_nodes}</span>
+            <span className="is-yes">{t.land_vs_yes}</span>
             <span className="is-no">{t.land_vs_no}</span>
           </div>
           <div className="land-vs-row" role="row">
             <span>{t.land_vs_row_repeat}</span>
-            <span className="is-yes">{t.land_vs_hashed}</span>
-            <span className="is-no">{t.land_vs_often}</span>
+            <span className="is-yes">{t.land_vs_yes}</span>
+            <span className="is-no">{t.land_vs_no}</span>
           </div>
         </div>
       </section>
