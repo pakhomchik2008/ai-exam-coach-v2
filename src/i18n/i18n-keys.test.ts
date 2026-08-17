@@ -47,9 +47,13 @@ describe("i18n key parity", () => {
         expect(text, `${code}.${key}`).not.toMatch(/54|90|9\.99|9,99/);
         expect(text, `${code}.${key}`).not.toMatch(/\bMax\b/);
       }
+      // Hero copy must not gatekeep on NMT/IELTS — the tree registry covers
+      // 16 exam families (src/features/learn/tree/index.ts), so the landing
+      // names a few flagship exams and the "16 exams" count, not just two.
       expect(String(pack.land_hero_sub), code).toMatch(/IELTS/);
-      expect(String(pack.land_hero_sub), code).not.toMatch(/SAT|A-Level|GCSE/);
-      expect(String(pack.land_faq_9_a), code).toMatch(/hash|хеш|hach|gehash/i);
+      expect(String(pack.land_hero_sub), code).toMatch(/SAT/);
+      expect(String(pack.land_kicker), code).toMatch(/16/);
+      expect(String(pack.land_faq_9_a), code).toMatch(/16/);
       expect(String(pack.land_faq_8_a), code).not.toMatch(/вересня|September|septembre/);
       expect(String(pack.land_about_p1), code).not.toMatch(/Ідеальний|ideal|Идеальный|tuteur qu’il te faut|Der Tutor für/i);
       expect(String(pack.land_about_p3), code).not.toMatch(/вересня|September|septembre|2026/);
