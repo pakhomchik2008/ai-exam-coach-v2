@@ -13,7 +13,7 @@
 // project's Anthropic key indefinitely.
 
 import { guard, recordUsage } from "./_guard.js";
-import { modelForTier, resolveUserTier } from "./_tier.js";
+import { modelForTier, resolveUserTier, thinkingConfigFor } from "./_tier.js";
 
 // Extend to 60 s so lesson generation (8-12 structured steps) doesn't time out
 // on Vercel Hobby. Pro plan supports up to 300 s.
@@ -38,6 +38,9 @@ export const config = { maxDuration: 60 };
 // still correctly fail here rather than being silently truncated upstream.
 const MAX_PAYLOAD_CHARS = 4_000_000;
 const MAX_MESSAGES = 80;
+// Sit under Vercel Hobby's 60s kill so we return JSON instead of an HTML 504
+// the client then reports as "took too long".
+const UPSTREAM_TIMEOUT_MS = 55_000;
 
 function payloadError(system, msgs) {
   if (!Array.isArray(msgs)) return "messages must be an array";
@@ -55,6 +58,21 @@ function payloadError(system, msgs) {
     return `Payload too large (${size} chars, max ${MAX_PAYLOAD_CHARS})`;
   }
   return null;
+}
+
+function anthropicErrorMessage(data) {
+  if (!data) return "Upstream AI error";
+  if (typeof data.error === "string") return data.error;
+  if (data.error && typeof data.error.message === "string") return data.error.message;
+  if (typeof data.message === "string") return data.message;
+  try { return JSON.stringify(data).slice(0, 400); } catch { return "Upstream AI error"; }
+}
+
+function textFromContent(content) {
+  const blocks = content || [];
+  const typed = blocks.filter((b) => b && b.type === "text").map((b) => b.text || "").join("");
+  if (typed) return typed;
+  return blocks.map((b) => (b && b.text) || "").join("");
 }
 
 export default async function handler(req, res) {
@@ -89,6 +107,8 @@ export default async function handler(req, res) {
     ? { "Content-Type": "application/json", apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
     : null;
   const tier = await resolveUserTier(gate.user, serviceHeaders);
+  const model = modelForTier(tier);
+  const thinking = thinkingConfigFor(model);
 
   try {
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
@@ -99,15 +119,17 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: modelForTier(tier),
+        model,
         max_tokens: 8192,
+        ...(thinking ? { thinking } : {}),
         system,
         messages: msgs,
       }),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     const data = await upstream.json();
     if (!upstream.ok) {
-      res.status(upstream.status).json({ error: data });
+      res.status(upstream.status).json({ error: anthropicErrorMessage(data) });
       return;
     }
     // Bill the tokens this call actually cost against the user's daily budget.
@@ -115,9 +137,13 @@ export default async function handler(req, res) {
     // is not reliably delivered. gate.usage.day pins it to the day the request
     // slot was spent, not the day this line happens to run.
     await recordUsage(gate.user, "complete", data.usage, gate.usage && gate.usage.day);
-    const text = (data.content || []).map((b) => b.text || "").join("");
-    res.status(200).json({ text });
+    res.status(200).json({ text: textFromContent(data.content) });
   } catch (err) {
+    const timedOut = err && (err.name === "TimeoutError" || err.name === "AbortError");
+    if (timedOut) {
+      res.status(504).json({ error: "AI took too long. Try again." });
+      return;
+    }
     res.status(500).json({ error: String(err) });
   }
 }

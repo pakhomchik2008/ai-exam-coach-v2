@@ -12,6 +12,14 @@ export function modelForTier(tier) {
   return tier === "ultra" ? SONNET : HAIKU;
 }
 
+// Sonnet 5 turns adaptive thinking ON unless we say otherwise (Anthropic
+// docs, Aug 2026). Thinking tokens count against max_tokens AND wall-clock;
+// on Vercel Hobby (hard 60s) that blanks Theory / Exam Sim for Ultra.
+// Haiku 4.5 rejects `thinking: {disabled}` with 400 — only attach on Sonnet.
+export function thinkingConfigFor(model) {
+  return model === SONNET ? { type: "disabled" } : undefined;
+}
+
 // Same SUPABASE_URL default used across every api/ function.
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://cyftpdiabopydwytyudt.supabase.co";
 
