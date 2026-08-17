@@ -53,7 +53,7 @@ async function upsertSubscription(headers, row) {
   return resp.ok;
 }
 
-async function patchProfilePro(headers, userId, pro) {
+async function patchProfileTier(headers, userId, pro, tier) {
   const readResp = await fetch(
     `${SUPABASE_URL}/rest/v1/user_data?user_id=eq.${userId}&key=eq.user_profile_v1&select=value&limit=1`,
     { headers },
@@ -61,7 +61,7 @@ async function patchProfilePro(headers, userId, pro) {
   if (!readResp.ok) return;
   const rows = await readResp.json();
   const existing = rows[0] && rows[0].value && typeof rows[0].value === "object" ? rows[0].value : {};
-  const next = { ...existing, pro };
+  const next = { ...existing, pro, tier };
   await fetch(`${SUPABASE_URL}/rest/v1/user_data`, {
     method: "POST",
     headers: { ...headers, Prefer: "resolution=merge-duplicates" },
@@ -69,14 +69,31 @@ async function patchProfilePro(headers, userId, pro) {
   });
 }
 
+// Which product a subscription is for, from its Price id. Ultra's Price
+// doesn't exist yet — STRIPE_PRICE_ID_ULTRA is unset until Hlib creates it in
+// Stripe (see "Hlib does by hand" in docs/phase-5-billing-tiers-plan.md), so
+// this falls through to 'pro' for every live subscription until then.
+export function tierFromPriceId(priceId, status) {
+  if (!isProStatus(status)) return "free";
+  if (priceId && priceId === process.env.STRIPE_PRICE_ID_ULTRA) return "ultra";
+  return "pro";
+}
+
+function subscriptionPriceId(sub) {
+  const item = sub.items && Array.isArray(sub.items.data) ? sub.items.data[0] : null;
+  return (item && item.price && item.price.id) || null;
+}
+
 function subscriptionRow(userId, sub, customerId) {
+  const status = typeof sub.status === "string" ? sub.status : "none";
   return {
     user_id: userId,
     stripe_customer_id: customerId || sub.customer || null,
     stripe_subscription_id: sub.id || null,
-    status: typeof sub.status === "string" ? sub.status : "none",
+    status,
     trial_end: unixToIso(sub.trial_end),
     current_period_end: unixToIso(sub.current_period_end),
+    tier: tierFromPriceId(subscriptionPriceId(sub), status),
   };
 }
 
@@ -84,7 +101,7 @@ async function apply(headers, userId, sub, customerId) {
   if (!UUID_RE.test(userId) || !sub) return;
   const row = subscriptionRow(userId, sub, customerId);
   await upsertSubscription(headers, row);
-  await patchProfilePro(headers, userId, isProStatus(row.status));
+  await patchProfileTier(headers, userId, isProStatus(row.status), row.tier);
 }
 
 async function handleEvent(event, secret, headers) {
