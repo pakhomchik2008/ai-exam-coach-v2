@@ -2487,31 +2487,122 @@ function prefetchLesson(topic, tcode) {
 //
 // Cached the same way as generateLessonPlan (localStorage-backed via
 // getCachedLesson / setCachedLesson) — a warm reopen of the same topic is
-// instant and doesn't burn a fresh AI call.
+// instant and doesn't burn a fresh AI call. The figure is a second AI
+// pass so a slow SVG cannot blank the page.
 
 const THEORY_MODE_TAG = "theory";
 
+// SVG in the theory JSON used to blow the client race: Sonnet on Ultra
+// spends 45s+ on prose + a 720-wide drawing, then brainCompleteJSON's
+// repair round-trip doubles it. Exam Sim already split figures to a
+// second pass ("No SVG in the JSON"). Same split here — page first,
+// drawing after, so a slow figure never blanks the lesson.
+const THEORY_DIAGRAM_PLAYBOOK = `DIAGRAM PLAYBOOK — one drawing the student remembers. A RELATIONSHIP in space, not a layout of notes.
+
+BANNED:
+- A 2×2 or N×M grid of equal rounded rectangles filled with bullet lists
+- Four identical "type of X" cards
+- The word "Diagram" / "Схема" inside the SVG
+- ASCII arrows as text ("->", "=>", "→" as characters in a <text>)
+- More than ~18 words of running prose in the whole SVG
+- Identical boxes with no connecting geometry
+
+REQUIRED:
+- One composition, one story. Labels are 1–4 words.
+- Directed edges use a real arrowhead: <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="currentColor"/></marker></defs> then marker-end="url(#arr)" on the <line> or <path>.
+- Soft region fills: fill="currentColor" fill-opacity="0.08" to "0.16". Strokes 1.75–2.25, stroke="currentColor", stroke-linecap="round", stroke-linejoin="round".
+- Points: small filled circles r="3.5". Hidden 3D edges: stroke-dasharray="5 4".
+- font-family="ui-sans-serif, system-ui, sans-serif" font-size 13–15, font-weight 650 on titles. currentColor for every stroke, fill, and text.
+- viewBox "0 0 720 400" (taller only if needed). 20px padding inside the viewBox. No width/height on <svg>. Never <script>, never on* attributes, never external images.
+
+SHAPE BY TOPIC:
+- Geometry → the actual figure with labelled vertices/sides/angles.
+- Coordinate geometry / vectors → axes with numbered ticks and the points/lines plotted.
+- Functions → the graph on axes; mark intercepts, vertex, asymptote.
+- Derivatives / integrals → the curve plus a tangent, or a shaded region.
+- Stereometry → 3D-projected wireframe, dashed hidden edges.
+- Number-line → a horizontal line with the solution set as a thick shaded interval.
+- Probability → a tree with weighted branches, or overlapping Venn sets.
+- Statistics → bars, a histogram, or a box plot.
+- Physics-shaped → a free-body diagram or a time-vs-position graph.
+- Logic / proof → different geometries, never four copies of a card.
+- Classification → a tree or nested sets.
+- Procedure / grammar / essay → numbered nodes on a path with arrows.
+- IELTS Listening/Reading → the map, flow, or table skeleton the task uses.`;
+
+function extractTheorySvg(raw) {
+  if (typeof raw !== "string") return "";
+  const start = raw.indexOf("<svg");
+  const end = raw.lastIndexOf("</svg>");
+  if (start === -1 || end === -1 || end < start) return "";
+  return raw.slice(start, end + 6);
+}
+
+function theoryCacheKey(topic, resolved, tcode) {
+  const { cacheLang } = lessonPaperOpts(resolved);
+  return lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: cacheLang, ui: tcode });
+}
+
+async function generateTheoryDiagram({ topic, resolved, tcode, brief }) {
+  const { paperQual, langOverride } = lessonPaperOpts(resolved);
+  const cacheKey = theoryCacheKey(topic, resolved, tcode);
+  const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
+  let timer;
+  const timeout = new Promise((_, rej) => {
+    timer = setTimeout(() => rej(new Error("diagram timeout")), 50000);
+  });
+  try {
+    const raw = await Promise.race([
+      window.brainComplete({
+        system: `Draw ONE teaching figure for "${topic}".
+BRIEF: ${brief || topic}
+OUTPUT: a single <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400">…</svg>. No JSON, no markdown fences, no prose.
+${THEORY_DIAGRAM_PLAYBOOK}`,
+        messages: [{ role: "user", content: `Draw the figure for: ${topic}` }],
+        topicContext,
+        langOverride,
+        paperQual,
+        includeContext: false,
+      }),
+      timeout,
+    ]);
+    const svg = extractTheorySvg(raw);
+    if (!svg) return null;
+    const cached = getCachedLesson(cacheKey);
+    if (cached) saveCachedLesson(cacheKey, { ...cached, diagram: svg });
+    return svg;
+  } catch (err) {
+    console.warn("Theory diagram failed:", err && err.message);
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function generateTheoryReader({ topic, resolved, tcode, force }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[tcode] || en);
-  const { paperQual, langOverride, cacheLang } = lessonPaperOpts(resolved);
-  const cacheKey = lessonCacheKey({ mode: THEORY_MODE_TAG, topic, examId: resolved?.examId, vote: 0, lang: cacheLang, ui: tcode });
+  const cacheKey = theoryCacheKey(topic, resolved, tcode);
+  // Join an in-flight call even on Retry — a timeout used to spawn a second
+  // Sonnet request while the first was still running, which 429'd / raced
+  // both into the same 45s wall.
+  if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   if (!force) {
     const cached = getCachedLesson(cacheKey);
     if (cached) return cached;
-    if (_lessonInFlight.has(cacheKey)) return _lessonInFlight.get(cacheKey);
   }
-  const run = (async () => {
+  const { paperQual, langOverride } = lessonPaperOpts(resolved);
+  const work = (async () => {
     const topicContext = resolved ? { examId: resolved.examId, topicName: resolved.topicName } : undefined;
     const system = `You are the best exam-prep teacher in the world. Write ONE excellent, self-contained theory page for the topic "${topic}". No questions, no drills — just pure, clear teaching a student can read once and remember.
 
-OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }.
+OUTPUT ONLY valid JSON — no markdown fences, no text before or after. Start with { end with }. Do NOT put SVG in this JSON — a second pass draws the figure.
 
 STRUCTURE — every field required unless marked optional:
 {
   "title": "One clear title, matching the topic",
   "tldr": "2-3 sentences summarising the whole idea in plain language a beginner can grasp",
-  "diagram": "REQUIRED. Raw SVG: <svg xmlns=\\"http://www.w3.org/2000/svg\\" viewBox=\\"0 0 720 400\\">…</svg>. This is a DRAWING the student remembers — geometry, arrows, axes, shaded regions — never a layout of notes. See DIAGRAM PLAYBOOK.",
-  "diagramCaption": "One sentence naming what the figure shows (not the word Diagram).",
+  "diagramBrief": "8-20 word drawing brief of the one figure this page needs, or empty if the topic is purely verbal",
+  "diagramCaption": "One sentence naming what the figure shows (not the word Diagram). Empty if diagramBrief is empty.",
   "concepts": [
     {"heading": "Concept name", "body": "2-4 short paragraphs explaining it. Use analogies and concrete examples. **Bold** key terms."}
   ],
@@ -2530,46 +2621,13 @@ RULES:
 - 2-3 relatedConcepts — topic names the student would naturally study NEXT to build on this one. Real topic names only, no filler like "practice problems".
 - Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 - Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
-- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.
-
-DIAGRAM PLAYBOOK — the figure is the visual memory of the page. It must show a RELATIONSHIP in space.
-
-BANNED (these fail the page — do not emit them):
-- A 2×2 or N×M grid of equal rounded rectangles filled with bullet lists
-- Four identical "type of X" cards
-- Putting the word "Diagram" / "Схема" inside the SVG
-- ASCII arrows as text ("->", "=>", "→" as characters in a <text>)
-- More than ~18 words of running prose in the whole SVG
-- Identical boxes with no connecting geometry
-
-REQUIRED:
-- One composition, one story. Labels are 1–4 words. Explanation lives in concepts, not in the drawing.
-- Directed edges use a real arrowhead: <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="currentColor"/></marker></defs> then marker-end="url(#arr)" on the <line> or <path>.
-- Soft region fills: fill="currentColor" fill-opacity="0.08" to "0.16". Strokes 1.75–2.25, stroke="currentColor", stroke-linecap="round", stroke-linejoin="round".
-- Points: small filled circles r="3.5". Hidden 3D edges: stroke-dasharray="5 4".
-- font-family="ui-sans-serif, system-ui, sans-serif" font-size 13–15, font-weight 650 on titles. currentColor for every stroke, fill, and text (light and dark themes).
-- viewBox "0 0 720 400" (taller only if the figure needs vertical space). Leave 20px padding inside the viewBox so arrowheads and labels are not clipped. No width or height attributes on <svg>. Never <script>, never on* attributes, never external images.
-
-SHAPE BY TOPIC:
-- Geometry (triangle, circle, quadrilateral, angle) → the actual figure with labelled vertices/sides/angles and the numbers from your worked example.
-- Coordinate geometry / vectors → axes with numbered ticks and the points/lines plotted.
-- Functions (linear, quadratic, trig, exp, log) → the graph on axes; mark intercepts, vertex, asymptote.
-- Derivatives / integrals → the curve plus a tangent, or a shaded region under the curve.
-- Stereometry (prism, cone, sphere, pyramid) → 3D-projected wireframe, dashed hidden edges.
-- Number-line topics → a horizontal line with the solution set as a thick shaded interval.
-- Probability / combinatorics → a tree with weighted branches, or overlapping Venn sets — not a table of numbers.
-- Statistics → bars, a histogram, or a box plot of the sample data.
-- Physics-shaped topics → a free-body diagram or a time-vs-position graph.
-- Logic / proof / methods → FOUR DIFFERENT geometries in one canvas, never four copies of a card. Direct = a left-to-right implication chain of 3–4 pills with arrowed paths. Contradiction = a path that assumes ¬Q and ends at a ⊥. Induction = three rising steps (n=1, k, k+1). Contrapositive = a reversed arrow ¬Q → ¬P. Two-word titles only.
-- Classification / taxonomy → a tree or nested sets.
-- Procedure / algorithm / grammar / essay structure → numbered nodes on a path with arrows (a sentence skeleton, a paragraph map) — not a list of tips.
-- IELTS Listening/Reading → the map, flow, or table skeleton the task actually uses.`;
-    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
-    const parsed = await Promise.race([
-      window.brainCompleteJSON({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual }),
-      timeout,
-    ]);
+- Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
+    // No brainCompleteJSON repair: a second round-trip inside the client race
+    // is what used to surface as "took too long".
+    const raw = await window.brainComplete({ system, messages: [{ role: "user", content: `Write the theory page for: ${topic}` }], topicContext, langOverride, paperQual });
+    const parsed = window.parseJSON(raw, null);
     if (!parsed || !parsed.title || !Array.isArray(parsed.concepts)) throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
+    parsed.diagram = typeof parsed.diagram === "string" && parsed.diagram.includes("<svg") ? parsed.diagram : "";
     const theoryLang = paperLanguageFor(paperQual);
     const theorySurfaces = [parsed.title, parsed.tldr, parsed.diagramCaption]
       .concat((parsed.concepts || []).flatMap((c) => [c.heading, c.body]))
@@ -2580,12 +2638,23 @@ SHAPE BY TOPIC:
       throw new Error(L("Invalid theory page", "Некоректний контент", "Некорректный контент", "Contenu invalide", "Ungültiger Inhalt"));
     }
     saveCachedLesson(cacheKey, parsed);
-    _lessonInFlight.delete(cacheKey);
     return parsed;
   })();
-  _lessonInFlight.set(cacheKey, run);
-  run.catch(() => _lessonInFlight.delete(cacheKey));
-  return run;
+  _lessonInFlight.set(cacheKey, work);
+  work.finally(() => _lessonInFlight.delete(cacheKey));
+
+  // 55s sits under Vercel Hobby's 60s kill. 45s was aborting a still-alive
+  // Sonnet call. The work promise stays in _lessonInFlight so Retry joins
+  // it instead of starting a second billed request.
+  let timer;
+  const timeout = new Promise((_, rej) => {
+    timer = setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 55000);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
@@ -2609,9 +2678,13 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     grantedRef.current = false;
     (async () => {
       try {
-        const parsed = await generateTheoryReader({ topic, resolved, tcode: copy, force: retry > 0 });
+        const parsed = await generateTheoryReader({ topic, resolved, tcode: copy, force: false });
         if (cancelled) return;
         setPlan(parsed); setLoading(false);
+        if (parsed.diagram) return;
+        const svg = await generateTheoryDiagram({ topic, resolved, tcode: copy, brief: parsed.diagramBrief });
+        if (cancelled || !svg) return;
+        setPlan((prev) => prev ? { ...prev, diagram: svg } : prev);
       } catch (e) {
         if (cancelled) return;
         console.error("Theory generation failed:", e);

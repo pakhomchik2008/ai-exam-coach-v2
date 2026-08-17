@@ -9,21 +9,23 @@
 // One config object per entry point — this is the only place "onboarding"
 // and "addExam" exist as concepts; everything else reads named flags.
 const EXAM_WIZARD_PRESETS = {
-  onboarding: { showWelcome: true, globalSettings: "ask", aiEnrichment: true, finishLabelKey: "accept" },
-  addExam: { showWelcome: false, globalSettings: "collapsed", aiEnrichment: true, finishLabelKey: "finish_add" },
+  onboarding: { showWelcome: true, globalSettings: "ask", aiEnrichment: true, showMaterials: true, finishLabelKey: "accept" },
+  // Add Exam already has a profile — materials/prefs chips and the extra
+  // dump-files zone are leftover onboarding questions. Syllabus upload stays
+  // on CurriculumStep where it actually builds the course.
+  addExam: { showWelcome: false, globalSettings: "collapsed", aiEnrichment: true, showMaterials: false, finishLabelKey: "finish_add" },
 };
 
-// Weekly-hours slider + materials/preferences chip grids — exactly the same
-// controls used in "ask" (full, always expanded) and "collapsed" (prefilled,
-// starts collapsed with an Edit toggle) modes. One component, used both
-// ways: improving it improves both flows.
-function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWeeklyHours, materials, setMaterials, prefs, setPrefs, toggle, onAiEstimate, daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots }) {
+// Weekly-hours slider + (onboarding-only) materials/preferences chip grids.
+// Same controls in "ask" (always expanded) and "collapsed" (prefilled, Edit
+// toggle). Add Exam hides the chips — profile already has them.
+function GlobalSettingsSection({ c, lang, collapsedByDefault, showMaterials, weeklyHours, setWeeklyHours, materials, setMaterials, prefs, setPrefs, toggle, onAiEstimate, daysPerWeek, setDaysPerWeek, sessionLengthMin, setSessionLengthMin, blackoutSlots, setBlackoutSlots }) {
   const [expanded, setExpanded] = React.useState(!collapsedByDefault);
   const accent = "var(--indigo-600)";
 
   if (!expanded) {
-    const materialLabels = window.MATERIALS.filter((m) => materials.has(m.id)).map((m) => m[lang] || m.en);
-    const prefLabels = window.PREFERENCES.filter((p) => prefs.has(p.id)).map((p) => p[lang] || p.en);
+    const materialLabels = showMaterials ? window.MATERIALS.filter((m) => materials.has(m.id)).map((m) => m[lang] || m.en) : [];
+    const prefLabels = showMaterials ? window.PREFERENCES.filter((p) => prefs.has(p.id)).map((p) => p[lang] || p.en) : [];
     const summary = [`${weeklyHours} ${c.s3_hours}`, `${daysPerWeek}d/wk`, `${sessionLengthMin}m`, materialLabels.join(", "), prefLabels.join(", ")].filter(Boolean).join(" · ");
     return (
       <div style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", padding: "var(--space-4)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)" }}>
@@ -82,14 +84,18 @@ function GlobalSettingsSection({ c, lang, collapsedByDefault, weeklyHours, setWe
         sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
         blackoutSlots={blackoutSlots} setBlackoutSlots={setBlackoutSlots} copy={c}
         showBlackout={false} />
-      <div>
-        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_materials}</p>
-        <window.ChipGrid items={window.MATERIALS} selected={materials} onToggle={toggle(setMaterials)} lang={lang} />
-      </div>
-      <div>
-        <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_prefs}</p>
-        <window.ChipGrid items={window.PREFERENCES} selected={prefs} onToggle={toggle(setPrefs)} lang={lang} />
-      </div>
+      {showMaterials && (
+        <>
+          <div>
+            <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_materials}</p>
+            <window.ChipGrid items={window.MATERIALS} selected={materials} onToggle={toggle(setMaterials)} lang={lang} />
+          </div>
+          <div>
+            <p style={{ margin: "0 0 var(--space-2)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-semibold)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: "var(--text-faint)" }}>{c.s4_prefs}</p>
+            <window.ChipGrid items={window.PREFERENCES} selected={prefs} onToggle={toggle(setPrefs)} lang={lang} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -751,6 +757,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
               </p>
             </div>
             <GlobalSettingsSection c={c} lang={lang} collapsedByDefault={cfg.globalSettings === "collapsed"}
+              showMaterials={cfg.showMaterials !== false}
               weeklyHours={weeklyHours} setWeeklyHours={setWeeklyHours}
               daysPerWeek={daysPerWeek} setDaysPerWeek={setDaysPerWeek}
               sessionLengthMin={sessionLengthMin} setSessionLengthMin={setSessionLengthMin}
@@ -758,7 +765,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
               materials={materials} setMaterials={setMaterials}
               prefs={prefs} setPrefs={setPrefs} toggle={toggle}
               onAiEstimate={cfg.aiEnrichment ? () => setAiModalOpen(true) : null} />
-            {cfg.aiEnrichment && (
+            {cfg.aiEnrichment && cfg.showMaterials !== false && (
               <window.UploadZone files={files} copy={c}
                 onAdd={(fs) => setFiles((prev) => [...prev, ...fs])}
                 onRemove={(i) => setFiles((prev) => prev.filter((_, j) => j !== i))} />
