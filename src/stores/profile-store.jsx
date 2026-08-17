@@ -101,6 +101,10 @@ function migrateProfile(raw) {
     // table still lets Hlib flip this by hand. Client refresh only
     // overwrites when a real row exists.
     pro: p.pro === true,
+    // Phase 5 slice A. Additive alongside `pro`, not a replacement yet —
+    // existing profiles with no `tier` field derive it from the old boolean
+    // so nobody's model routing silently changes on this migration alone.
+    tier: ["free", "sprint", "pro", "ultra"].includes(p.tier) ? p.tier : (p.pro === true ? "pro" : "free"),
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",
     currentYear: typeof p.currentYear === "string" ? p.currentYear : "",
