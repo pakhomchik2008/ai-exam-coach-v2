@@ -142,9 +142,12 @@ async function dedupePairs(questions, examTaxonomy, regenerate) {
 
 // ─── Node runner (Teach → Drill → Prove) ──────────────────────────────────────
 
-function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve }) {
+function NodeRunner({ tree, unit, node, lang, onExit, t, skipToProve, startPhase }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
-  const [phase, setPhase] = React.useState(skipToProve ? "prove" : "teach"); // teach | drill | prove | done
+  // startPhase (from the Node Sheet's TEACH/DRILL/PROVE pills) takes
+  // priority over the legacy skipToProve flag, which the "Skip to Prove"
+  // link below still sets — both land on the same initial phase.
+  const [phase, setPhase] = React.useState(startPhase || (skipToProve ? "prove" : "teach")); // teach | drill | prove | done
   const [teach, setTeach] = React.useState(null);
   const [teachError, setTeachError] = React.useState(null);
   const [drillQs, setDrillQs] = React.useState(null);
@@ -971,6 +974,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
     return React.createElement(NodeRunner, {
       tree, unit: running.unit, node: running.node, lang: copyLang, t,
       skipToProve: !!running.skipToProve,
+      startPhase: running.startPhase,
       onExit: exitRunner,
     });
   }
@@ -1084,30 +1088,28 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
       React.createElement("p", { style: { margin: "0 0 20px", fontSize: 15, lineHeight: 1.5, color: "var(--text-muted)" } },
         localize(openNode.unit.title, copyLang)),
       React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 18 } },
-        ...["TEACH", "DRILL", "PROVE"].map((label, i) => React.createElement("span", {
-          key: label,
+        ...[
+          { id: "teach", label: "TEACH" },
+          { id: "drill", label: "DRILL" },
+          { id: "prove", label: "PROVE" },
+        ].map(({ id, label }) => React.createElement("button", {
+          key: id,
+          type: "button",
+          onClick: () => setRunning({ unit: openNode.unit, node: openNode.node, startPhase: id }),
           style: {
-            flex: 1, padding: "10px 0", textAlign: "center", borderRadius: 12,
+            flex: 1, padding: "10px 0", textAlign: "center", borderRadius: 12, border: "none", cursor: "pointer",
             fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11,
-            background: i === 0 ? "color-mix(in srgb, var(--chrome-purple) 10%, transparent)" : "color-mix(in srgb, var(--text-strong) 5%, transparent)",
-            color: i === 0 ? "var(--chrome-purple)" : "var(--text-muted)",
+            background: "color-mix(in srgb, var(--chrome-purple) 10%, transparent)",
+            color: "var(--chrome-purple)",
           },
         }, label)),
       ),
       React.createElement("button", {
         ref: startBtnRef,
         type: "button",
-        onClick: () => setRunning(openNode),
+        onClick: () => setRunning({ unit: openNode.unit, node: openNode.node, startPhase: "teach" }),
         style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-ink)", color: "var(--chrome-paper)", border: "none", fontSize: 17, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)" },
       }, L("Start", "Почати", "Начать", "Commencer", "Starten")),
-      React.createElement("p", { style: { margin: "14px 0 2px", fontSize: 14, color: "var(--text-faint)", textAlign: "center" } },
-        L("Already know this? ", "Вже знаєш тему? ", "Уже знаешь тему? ", "Tu connais déjà ? ", "Kennst du das schon? "),
-        React.createElement("button", {
-          type: "button",
-          onClick: () => { setRunning({ unit: openNode.unit, node: openNode.node, skipToProve: true }); },
-          style: { background: "none", border: "none", padding: 0, font: "inherit", fontWeight: 700, color: "var(--chrome-purple)", cursor: "pointer" },
-        }, L("Skip to Prove", "Одразу до перевірки", "Сразу к проверке", "Aller au test", "Direkt zum Test")),
-      ),
     )),
     proSheet && React.createElement(ProSheet, { key: "pro", freeCount, lockedCount: proCount, onClose: () => setProSheet(false), t }),
   );
