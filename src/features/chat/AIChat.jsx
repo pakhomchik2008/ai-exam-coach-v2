@@ -179,6 +179,22 @@ function CoachIcon({ size = 32, className }) {
 // user-injected HTML in the first place).
 const _md = (text) => renderCoachMarkdown(text);
 
+// AI-written multi-part questions ("(a) Show that... (b) Find w... (c) Prove
+// by contradiction...") often come back as one dense run-on paragraph — hard
+// to read, easy to lose your place between parts. When the parenthesized
+// labels form a real a, b, c... sequence, break each part onto its own line
+// before handing off to _md: its own paragraph splitter (math-render.ts)
+// then gives each part real spacing via .coach-md-p, no new markup needed
+// here. A question with an unrelated "(e.g. ...)" aside never matches —
+// this only fires when the labels are actually sequential.
+function _mdQuestion(text) {
+  if (typeof text !== "string") return _md(text);
+  const labels = [...text.matchAll(/\(([a-z])\)\s/g)].map((m) => m[1]);
+  const isSequential = labels.length >= 2 && labels.every((l, i) => l === String.fromCharCode(97 + i));
+  if (!isSequential) return _md(text);
+  return _md(text.replace(/\s*(\([a-z]\)\s)/g, "\n\n$1").trim());
+}
+
 const _isMath = (text) => /[=°²³√×÷±∑∫πΔ∞≠≤≥∈∩∪]/.test(text) || /\d\s*[\+\-\*\/]\s*\d/.test(text);
 
 const _sfx = (() => {
@@ -265,7 +281,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
     React.createElement("div", { style: { marginBottom: 12, display: "flex", alignItems: "center", gap: 8 } },
       _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", L(`CHECKPOINT ${cpIdx + 1}/${questions.length}`, `КОНТРОЛЬНА ${cpIdx + 1}/${questions.length}`, `КОНТРОЛЬНАЯ ${cpIdx + 1}/${questions.length}`, `CONTRÔLE ${cpIdx + 1}/${questions.length}`, `KONTROLLE ${cpIdx + 1}/${questions.length}`))),
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+      React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _mdQuestion(q.question) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...(q.options || []).map((opt, i) => {
           const isCor = i === q.correct, isSel = i === cpSelected;
@@ -591,7 +607,7 @@ RULES:
             _badge("var(--indigo-50)", "var(--indigo-600)", L(`📝 QUICK CHECK ${quizIdx + 1}/${quizzes.length}`, `📝 ШВИДКА ПЕРЕВІРКА ${quizIdx + 1}/${quizzes.length}`, `📝 БЫСТРАЯ ПРОВЕРКА ${quizIdx + 1}/${quizzes.length}`, `📝 VÉRIFICATION RAPIDE ${quizIdx + 1}/${quizzes.length}`, `📝 SCHNELLTEST ${quizIdx + 1}/${quizzes.length}`)),
             _badge("var(--emerald-50)", "var(--emerald-700)", sec.title)),
           React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
-            React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+            React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _mdQuestion(q.question) } }),
             React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
               ...(q.options || []).map((opt, i) => {
                 const isCor = i === q.correct, isSel = i === selected;
@@ -959,7 +975,7 @@ RULES:
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
           clip,
           React.createElement("div", { style: { marginBottom: 14 } }, _badge(isListen ? "var(--indigo-50)" : "var(--amber-50)", isListen ? "var(--indigo-700)" : "var(--amber-700)", isListen ? L("🎧 LISTEN", "🎧 СЛУХАЙ", "🎧 СЛУШАЙ", "🎧 ÉCOUTE", "🎧 HÖR ZU") : L("✍️ FILL IN", "✍️ ЗАПОВНІТЬ", "✍️ ЗАПОЛНИТЕ", "✍️ COMPLÉTEZ", "✍️ AUSFÜLLEN"))),
-          React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question).replace("___", "<u style='border-bottom:2px dashed var(--indigo-500);padding:0 8px;color:var(--indigo-500)'>___</u>") } }),
+          React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _mdQuestion(q.question).replace("___", "<u style='border-bottom:2px dashed var(--indigo-500);padding:0 8px;color:var(--indigo-500)'>___</u>") } }),
           !revealed && React.createElement("div", { style: { display: "flex", gap: 10 } },
             React.createElement("input", {
               value: fillInput, onChange: (e) => setFillInput(e.target.value),
@@ -985,7 +1001,7 @@ RULES:
         React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 14 } },
           _badge("linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", "var(--white)", isListen ? L("🎧 LISTEN", "🎧 СЛУХАЙ", "🎧 СЛУШАЙ", "🎧 ÉCOUTE", "🎧 HÖR ZU") : L("⚡ QUESTION", "⚡ ПИТАННЯ", "⚡ ВОПРОС", "⚡ QUESTION", "⚡ FRAGE")),
           q.topic && _badge("var(--surface-muted)", "var(--text-muted)", q.topic)),
-        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _mdQuestion(q.question) } }),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
           ...(q.options || []).map((opt, i) => {
             const isCor = i === q.correct, isSel = i === selected;
@@ -1776,7 +1792,7 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
       // Question card
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, animation: "fadeUp 0.3s ease-out" } },
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
-        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _mdQuestion(q.question) } }),
 
         // Options
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
@@ -2269,7 +2285,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
         q.topic && React.createElement("div", { style: { marginBottom: 10 } }, _badge("var(--indigo-50)", "var(--indigo-600)", q.topic)),
         q.kind && q.kind !== "mcq" && React.createElement("div", { style: { marginBottom: 8 } }, _badge("var(--slate-100)", "var(--text-muted)", q.kind)),
         q.stimulus ? React.createElement("div", { style: { fontSize: 14, lineHeight: 1.65, color: "var(--text-body)", margin: "0 0 16px", padding: 14, background: "var(--slate-50)", borderRadius: 12 }, dangerouslySetInnerHTML: { __html: _md(q.stimulus) } }) : null,
-        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.question) } }),
+        React.createElement("p", { style: { fontWeight: 600, fontSize: 16, margin: "0 0 16px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _mdQuestion(q.question) } }),
         _simFigurePlate(q, paperLanguageFor(examQual) || t?.code),
         _simItemFields(q, idx, answers, setAnswers))),
 
