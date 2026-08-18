@@ -27,6 +27,15 @@ export function isProUser(): boolean {
   return w.getProfile?.().pro === true;
 }
 
+// Phase 5 slice D. profile.tier is additive alongside profile.pro (see
+// profile-store.jsx's migrateProfile) — an Ultra subscriber is also `pro:
+// true`, so this must check tier specifically, not just isProUser().
+export function isUltraUser(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as Window & { getProfile?: () => { tier?: string } };
+  return w.getProfile?.().tier === "ultra";
+}
+
 export function topicIsLocked(tree: LearnTree, nodeId: string): boolean {
   return isPremiumNode(tree, nodeId) && !isProUser();
 }

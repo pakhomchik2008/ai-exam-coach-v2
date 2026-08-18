@@ -2,7 +2,7 @@
 // the tab stays one route. Helpers stay at module scope: Field/Section
 // used to remount inputs; Card/Row would too.
 
-import { isProUser } from "../learn/premium";
+import { isProUser, isUltraUser } from "../learn/premium";
 import { startProCheckout, startBillingPortal } from "../../lib/billing";
 import { applyAppearance } from "../../lib/appearance";
 import { THEME_META, THEMES, resolveThemeId } from "../../styles/themes";
@@ -198,6 +198,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
   const [pushStatus, setPushStatus] = React.useState("unsupported");
   const [exported, setExported] = React.useState(false);
   const pro = isProUser();
+  const ultra = isUltraUser();
   const xp = window.xpLevel ? window.xpLevel() : { level: 1, xp: 0, into: 0, need: 100 };
   const tier = window.xpTier ? window.xpTier() : { id: "novice", emoji: "🌱" };
   const exams = (window.getExams ? window.getExams() : []).filter((e) => e && e.examDate);
@@ -678,6 +679,26 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
               sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
               chevron onClick={buy} />
           </Card>
+          {/* Phase 5 slice D, Decision #116: opt-in only, existing Pro subs
+              stay on Pro at their current price until they tap this. Routes
+              through the same Stripe portal as "Manage subscription" — an
+              upgrade changes the existing subscription's price via proration,
+              never a second parallel Checkout/subscription. */}
+          {pro && !ultra && (
+            <Card>
+              <Row
+                label="Ultra"
+                sub={L(lang, "Sonnet 5 on every AI answer, plus a Weekly Deep Report with your predicted score. $9.99/month.", "Sonnet 5 на кожній AI-відповіді, плюс щотижневий звіт із прогнозом балу. $9.99/міс.", "Sonnet 5 на каждом AI-ответе, плюс еженедельный отчёт с прогнозом балла. $9.99/мес.", "Sonnet 5 sur chaque réponse IA, plus un rapport hebdomadaire avec ton score prédit. $9.99/mois.", "Sonnet 5 bei jeder KI-Antwort, plus ein wöchentlicher Bericht mit deiner Prognose. $9.99/Monat.")}
+                value={L(lang, "Available", "Доступно", "Доступно", "Disponible", "Verfügbar")}
+              />
+              <div className="settings-row">
+                <button type="button" disabled={billingBusy} onClick={portal}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--chrome-purple, #8921F5)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
+                  {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, "Switch to Ultra", "Перейти на Ultra", "Перейти на Ultra", "Passer à Ultra", "Zu Ultra wechseln")}
+                </button>
+              </div>
+            </Card>
+          )}
         </SettingsPage>
       )}
 
