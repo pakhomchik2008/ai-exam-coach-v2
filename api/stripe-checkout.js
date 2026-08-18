@@ -1,12 +1,14 @@
-// Stripe Checkout Session — Pro subscription with a 3-day free trial.
+// Stripe Checkout Session — Pro or Ultra, monthly or yearly, 3-day trial.
 //
 // The secret key never leaves this function. The browser gets a hosted
 // Checkout URL and redirects. No AI quota: a pay click is not an Anthropic
 // call (see authenticate() in api/_guard.js).
 //
-// STRIPE_PRICE_ID must be the Pro monthly $5.99 Price. Max is off the
-// public page until 5c + 5d + Weekly Deep Report exist. The trial is
-// Pro, not a paid Sprint — Decision Log #100.
+// Phase 5 slice E (Decision #118/#119): public Ultra + yearly. Four Price
+// ids, each optional — missing ones 503 individually rather than the whole
+// endpoint refusing to boot. Body is `{ tier, interval }`, both optional and
+// defaulting to the original Pro-monthly shape so existing callers (the
+// Free-tier "Start 3-day trial" button) keep working unchanged.
 
 import { authenticate, resolveAppOrigin } from "./_guard.js";
 import { encodeStripeForm, isProStatus } from "./_stripe.js";
@@ -19,12 +21,22 @@ function serviceHeaders() {
   return { "Content-Type": "application/json", apikey: key, Authorization: `Bearer ${key}` };
 }
 
+export function priceEnvVar(tier, interval) {
+  const yearly = interval === "yearly";
+  if (tier === "ultra") return yearly ? "STRIPE_PRICE_ID_ULTRA_YEARLY" : "STRIPE_PRICE_ID_ULTRA";
+  return yearly ? "STRIPE_PRICE_ID_YEARLY" : "STRIPE_PRICE_ID";
+}
+
 export default async function handler(req, res) {
-  const auth = await authenticate(req, res, "Sign in to start Pro.");
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const tier = body.tier === "ultra" ? "ultra" : "pro";
+  const interval = body.interval === "yearly" ? "yearly" : "monthly";
+
+  const auth = await authenticate(req, res, tier === "ultra" ? "Sign in to start Ultra." : "Sign in to start Pro.");
   if (!auth) return;
 
   const secret = process.env.STRIPE_SECRET_KEY;
-  const priceId = process.env.STRIPE_PRICE_ID;
+  const priceId = process.env[priceEnvVar(tier, interval)];
   if (!secret || !priceId) {
     res.status(503).json({ error: "Billing is not configured." });
     return;
@@ -32,7 +44,7 @@ export default async function handler(req, res) {
 
   const { user } = auth;
   if (user.is_anonymous === true) {
-    res.status(403).json({ error: "Create an account to start Pro." });
+    res.status(403).json({ error: `Create an account to start ${tier === "ultra" ? "Ultra" : "Pro"}.` });
     return;
   }
 
@@ -46,14 +58,21 @@ export default async function handler(req, res) {
   const headers = serviceHeaders();
   if (headers) {
     const existingResp = await fetch(
-      `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${user.id}&select=status,stripe_customer_id&limit=1`,
+      `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${user.id}&select=status,tier,stripe_customer_id&limit=1`,
       { headers },
     );
     if (existingResp.ok) {
       const rows = await existingResp.json();
       const row = rows[0];
       if (row && isProStatus(row.status)) {
-        res.status(409).json({ error: "Already Pro." });
+        // Same tier already active — nothing to do. A different paid tier
+        // must go through the Stripe portal (Settings > Subscription),
+        // never a second parallel Checkout session — that would double-bill.
+        if (row.tier === tier) {
+          res.status(409).json({ error: `Already ${tier === "ultra" ? "Ultra" : "Pro"}.` });
+          return;
+        }
+        res.status(409).json({ error: "You already have a paid plan. Manage it from Settings." });
         return;
       }
       if (row && typeof row.stripe_customer_id === "string") {

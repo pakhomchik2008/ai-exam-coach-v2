@@ -47,7 +47,7 @@ export function consumeBillingQuery(): BillingFlag | null {
   return billing;
 }
 
-async function postBilling(path: string): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
+async function postBilling(path: string, jsonBody?: unknown): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
   const session = w().getSession?.();
   if (!session || session.mode === "demo") {
     return { error: "Create an account to start Pro." };
@@ -58,7 +58,9 @@ async function postBilling(path: string): Promise<{ ok?: true; error?: string; a
   }
   let res: Response;
   try {
-    res = await fetch(path, { method: "POST", headers });
+    res = jsonBody
+      ? await fetch(path, { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(jsonBody) })
+      : await fetch(path, { method: "POST", headers });
   } catch {
     return { error: "Could not reach billing." };
   }
@@ -69,8 +71,15 @@ async function postBilling(path: string): Promise<{ ok?: true; error?: string; a
   return { ok: true };
 }
 
+export type BillingTier = "pro" | "ultra";
+export type BillingInterval = "monthly" | "yearly";
+
+export async function startCheckout(tier: BillingTier, interval: BillingInterval): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
+  return postBilling("/api/stripe-checkout", { tier, interval });
+}
+
 export async function startProCheckout(): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
-  return postBilling("/api/stripe-checkout");
+  return startCheckout("pro", "monthly");
 }
 
 export async function startBillingPortal(): Promise<{ ok?: true; error?: string }> {
