@@ -83,6 +83,13 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const langs = Object.values(window.LANGS);
   const navigate = (id) => { onNavigate(id); setMobileOpen(false); setLangOpen(false); };
 
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setMobileOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen]);
+
   return (
     <nav className="app-nav">
       <div className="app-nav-bar">
@@ -143,7 +150,17 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           bar, matching the tab that opened it (Apple materials: dim to
           focus, anchor to source). Closes on scrim tap or picking a link. */}
       {mobileOpen && <div className="app-nav-more-scrim" onClick={() => setMobileOpen(false)} />}
-      <div className={"app-nav-more-sheet" + (mobileOpen ? " is-open" : "")}>
+      <div
+        className={"app-nav-more-sheet" + (mobileOpen ? " is-open" : "")}
+        role={mobileOpen ? "dialog" : undefined}
+        aria-modal={mobileOpen ? "true" : undefined}
+        aria-label={mobileOpen ? t.nav_more : undefined}
+        // The sheet hides via `transform`, not `display`, so the transition can
+        // play — but that alone leaves every button inside keyboard-reachable
+        // while invisible and off-screen. `inert` removes the whole subtree
+        // from tab order and the accessibility tree until it's actually open.
+        inert={mobileOpen ? undefined : ""}
+      >
         <div className="app-nav-more-grabber" aria-hidden="true" />
         {moreLinks.map((l) => {
           const active = isActive(l.id);

@@ -74,6 +74,7 @@ function migrateProfile(raw) {
     // supabase/15_notification_log.sql's header for why there's no separate
     // prefs table. Default true: a student who never opens Settings should
     // still get the reminders that make the product actually work.
+    notifyDailyBrief: typeof p.notifyDailyBrief === "boolean" ? p.notifyDailyBrief : true,
     notifyExamCountdown: typeof p.notifyExamCountdown === "boolean" ? p.notifyExamCountdown : true,
     notifyWeeklyDigest: typeof p.notifyWeeklyDigest === "boolean" ? p.notifyWeeklyDigest : true,
     notifyStreakDanger: typeof p.notifyStreakDanger === "boolean" ? p.notifyStreakDanger : true,

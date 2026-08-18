@@ -15,6 +15,14 @@ import { PageHeader } from "../../components/PageHeader";
 
 function L(lang, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[lang] || en; }
 
+// Tier names are the same literal word in every language (product convention,
+// not an oversight) — a static module-level object costs nothing to hoist
+// out of the Subscription sheet's per-render IIFE, unlike TAB_FEATURES below
+// it (which does depend on `lang` and would need a real subcomponent + a
+// proper useMemo to hoist safely, not worth the risk for a P3 grow-with-time
+// cost yet).
+const PLAN_TAB_LABEL = { free: "Free", pro: "Pro", ultra: "Ultra" };
+
 function HubIcon({ children }) {
   return (
     <span className="settings-hub-icon" aria-hidden="true">
@@ -37,8 +45,8 @@ function HubCard({ title, sub, status, cta, danger, pulse, icon, onClick }) {
   );
 }
 
-function Card({ children, danger }) {
-  return <section className={`settings-card${danger ? " settings-danger" : ""}`}>{children}</section>;
+function Card({ children, danger, ...rest }) {
+  return <section className={`settings-card${danger ? " settings-danger" : ""}`} {...rest}>{children}</section>;
 }
 
 function Row({ label, sub, value, chevron, onClick, children }) {
@@ -162,6 +170,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
   });
   const [reminderEnabled, setReminderEnabled] = React.useState(profile.reminderEnabled);
   const [reminderHour, setReminderHour] = React.useState(profile.reminderHour);
+  const [notifyDailyBrief, setNotifyDailyBrief] = React.useState(profile.notifyDailyBrief);
   const [notifyExamCountdown, setNotifyExamCountdown] = React.useState(profile.notifyExamCountdown);
   const [notifyWeeklyDigest, setNotifyWeeklyDigest] = React.useState(profile.notifyWeeklyDigest);
   const [notifyStreakDanger, setNotifyStreakDanger] = React.useState(profile.notifyStreakDanger);
@@ -258,7 +267,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
     }
     persist({
       fullName, timezone: tz.id, reminderEnabled, reminderHour,
-      notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
+      notifyDailyBrief, notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
       notifyMaster, soundsEnabled, soundVolume, hapticEnabled, theme, accent, dyslexiaFont,
       tierThemeDisabled: tierOff, hoursPerDay, country, avatarDataUrl: avatar,
       quietHoursStart: quietOn ? quietStart : null, quietHoursEnd: quietOn ? quietEnd : null,
@@ -614,6 +623,9 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
           {notifyMaster && (
             <Card>
               {[
+                { v: notifyDailyBrief, set: setNotifyDailyBrief, k: "notifyDailyBrief",
+                  label: L(lang, "Daily brief", "Щоденний огляд", "Ежедневный обзор", "Résumé quotidien", "Tagesüberblick"),
+                  sub: L(lang, "Today's plan, streak, exam countdown", "План на день, серія, до іспиту", "План на день, серия, до экзамена", "Plan du jour, série, examen", "Tagesplan, Serie, Prüfung") },
                 { v: notifyExamCountdown, set: setNotifyExamCountdown, k: "notifyExamCountdown",
                   label: L(lang, "Exam approaching", "Іспит наближається", "Экзамен близко", "Examen proche", "Prüfung naht"),
                   sub: L(lang, "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1", "T-30 / 14 / 7 / 3 / 1") },
@@ -688,7 +700,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
               sub: L(lang, "Your predicted score, updated every week", "Прогноз балу, оновлюється щотижня", "Прогноз балла, обновляется каждую неделю", "Ton score prédit, mis à jour chaque semaine", "Deine Prognose, jede Woche aktualisiert") },
           ],
         };
-        const TAB_LABEL = { free: "Free", pro: "Pro", ultra: "Ultra" };
+        const TAB_LABEL = PLAN_TAB_LABEL;
         const TAB_PRICE = { free: null, pro: yearlyBilling ? "$54/yr" : "$5.99/mo", ultra: yearlyBilling ? "$90/yr" : "$9.99/mo" };
         return (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} onClose={() => setSheet(null)}>
@@ -709,10 +721,10 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
           {/* Segmented tab — replaces the old separate "Compare plans" screen.
               Same tap gets you feature list + price + the right CTA, instead
               of drilling Settings → Subscription → Compare (3 taps deep). */}
-          <div style={{ display: "flex", gap: 4, padding: 4, background: "var(--surface-muted)", borderRadius: 999, margin: "0 16px 12px" }}>
+          <div role="tablist" aria-label={L(lang, "Plan", "План", "План", "Forfait", "Plan")} style={{ display: "flex", gap: 4, padding: 4, background: "var(--surface-muted)", borderRadius: 999, margin: "0 16px 12px" }}>
             {["free", "pro", "ultra"].map((id) => (
-              <button key={id} type="button" onClick={() => setPlanTab(id)}
-                style={{ flex: 1, border: "none", borderRadius: 999, padding: "8px 10px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
+              <button key={id} type="button" role="tab" aria-selected={tab === id} aria-controls="plan-tab-panel" onClick={() => setPlanTab(id)}
+                style={{ flex: 1, minHeight: 44, border: "none", borderRadius: 999, padding: "8px 10px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
                   background: tab === id ? "var(--surface-card)" : "transparent", color: tab === id ? "var(--text-strong)" : "var(--text-muted)",
                   boxShadow: tab === id ? "var(--shadow-sm)" : "none" }}>
                 {TAB_LABEL[id]}
@@ -720,7 +732,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             ))}
           </div>
 
-          <Card>
+          <Card id="plan-tab-panel" role="tabpanel">
             <Row label={TAB_LABEL[tab]} value={isCurrentTab ? L(lang, "Current plan", "Поточний план", "Текущий план", "Plan actuel", "Aktueller Plan") : TAB_PRICE[tab]} />
             {TAB_FEATURES[tab].map((f, i) => <Row key={i} label={f.label} sub={f.sub} />)}
             {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}

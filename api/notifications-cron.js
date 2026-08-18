@@ -1,8 +1,9 @@
 // Examik — Phase 3 §3.5 notifications. Vercel Cron hits this ONCE a
-// day (see vercel.json). Runs all six triggers in one pass and sends real
+// day (see vercel.json). Runs all seven triggers in one pass and sends real
 // email via Resend; every send is deduplicated through notification_log
-// (supabase/15_notification_log.sql, trigger list extended in 18_subscriptions.sql)
-// so a retried invocation is a no-op.
+// (supabase/15_notification_log.sql, trigger list extended in
+// 18_subscriptions.sql and supabase/25_daily_brief.sql) so a retried
+// invocation is a no-op.
 //
 // Deliberately reads prefs/data from the SAME `user_data` sync table every
 // other feature already writes to (see profile-store.jsx's header on the
@@ -202,6 +203,21 @@ function dailyReminderEmail(name) {
     html: `<p>Hi${name ? " " + name : ""},</p><p>You've got a study session queued for today. A few minutes now keeps your plan on track.</p>`,
   };
 }
+
+// Sent every morning regardless of whether a session is pending — a broader
+// "here's your day" summary, distinct from daily_reminder above (which only
+// fires when there's a specific pending session to nudge about, and stays
+// silent on a rest day). Plan line is the first pending session of the day,
+// or a rest-day line when there is none.
+function dailyBriefEmail(name, planLine, streak, nearestExamLine) {
+  const streakLine = streak > 0
+    ? `<p style="margin:4px 0;">🔥 <strong>${streak}-day</strong> streak.</p>`
+    : "";
+  return {
+    subject: "Your day, at a glance",
+    html: `<p>Hi${name ? " " + name : ""},</p><p style="margin:4px 0;">${planLine}</p>${streakLine}${nearestExamLine ? `<p style="margin:4px 0;">${nearestExamLine}</p>` : ""}`,
+  };
+}
 function examCountdownEmail(examName, days) {
   const noun = days === 1 ? "day" : "days";
   return {
@@ -351,6 +367,26 @@ export default async function handler(req, res) {
     // 6 (trial_end) is a billing notice — still send, or the card charges
     // with no warning the next day.
     if (!unsubscribed) {
+    // 0. Daily brief — one broader morning summary, unconditional on whether
+    // a session is actually pending (unlike #1 below, which stays silent on
+    // a rest day). Reuses the same todayKey dedupe as #1/#4/#5 — one send
+    // per user per UTC day regardless of how many triggers fire that day.
+    if (profile.notifyDailyBrief) {
+      const todaysSessions = sessions.filter((s) => s.date === todayKey);
+      const pending = todaysSessions.find((s) => s.status === "pending");
+      const planLine = pending
+        ? `Today: <strong>${pending.topic || pending.subject || "a study session"}</strong>${pending.durationMin ? ` · ${pending.durationMin} min` : ""}.`
+        : "No session scheduled today — a good day to rest, or get ahead.";
+      const { streak: briefStreak } = computeStreakUtc(sessions, now);
+      const nearestExam = activeExams.length
+        ? [...activeExams].sort((a, b) => new Date(a.examDate) - new Date(b.examDate))[0]
+        : null;
+      const nearestExamLine = nearestExam
+        ? `${nearestExam.name || "Your exam"}: ${Math.ceil((new Date(nearestExam.examDate) - now) / DAY_MS)} days away.`
+        : "";
+      await fire("daily_brief", todayKey, () => dailyBriefEmail(profile.fullName, planLine, briefStreak, nearestExamLine));
+    }
+
     // 1. Daily reminder — only if there's a pending session today AND they
     // haven't already completed one (redundant to nudge someone who's done).
     const todaysSessions = sessions.filter((s) => s.date === todayKey);
