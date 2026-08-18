@@ -197,46 +197,6 @@ function _mdQuestion(text) {
 
 const _isMath = (text) => /[=°²³√×÷±∑∫πΔ∞≠≤≥∈∩∪]/.test(text) || /\d\s*[\+\-\*\/]\s*\d/.test(text);
 
-const _sfx = (() => {
-  const ctx = () => { try { return new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } };
-  let _ctx = null;
-  const getCtx = () => { if (!_ctx) _ctx = ctx(); return _ctx; };
-  return {
-    correct() {
-      const c = getCtx(); if (!c) return;
-      const o = c.createOscillator(), g = c.createGain();
-      o.connect(g); g.connect(c.destination);
-      o.type = "sine"; o.frequency.setValueAtTime(523, c.currentTime);
-      o.frequency.setValueAtTime(659, c.currentTime + 0.08);
-      o.frequency.setValueAtTime(784, c.currentTime + 0.16);
-      g.gain.setValueAtTime(0.12, c.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.35);
-      o.start(c.currentTime); o.stop(c.currentTime + 0.35);
-    },
-    wrong() {
-      const c = getCtx(); if (!c) return;
-      const o = c.createOscillator(), g = c.createGain();
-      o.connect(g); g.connect(c.destination);
-      o.type = "sine"; o.frequency.setValueAtTime(330, c.currentTime);
-      o.frequency.setValueAtTime(277, c.currentTime + 0.12);
-      g.gain.setValueAtTime(0.1, c.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.25);
-      o.start(c.currentTime); o.stop(c.currentTime + 0.25);
-    },
-    complete() {
-      const c = getCtx(); if (!c) return;
-      [523, 659, 784, 1047].forEach((freq, i) => {
-        const o = c.createOscillator(), g = c.createGain();
-        o.connect(g); g.connect(c.destination);
-        o.type = "sine"; o.frequency.value = freq;
-        g.gain.setValueAtTime(0.1, c.currentTime + i * 0.12);
-        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + i * 0.12 + 0.3);
-        o.start(c.currentTime + i * 0.12); o.stop(c.currentTime + i * 0.12 + 0.3);
-      });
-    },
-  };
-})();
-
 const _badge = (bg, fg, text) => React.createElement("span", {
   style: { display: "inline-block", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 12, background: bg, color: fg }
 }, text);
@@ -296,6 +256,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
             onClick: () => {
               if (cpRevealed) return;
               const correct = i === q.correct;
+              window.playSound && window.playSound(correct ? "correct" : "wrong");
               setCpSelected(i); setCpRevealed(true);
               setCpResults((r) => [...r, correct]);
               onResult(correct);
@@ -456,6 +417,7 @@ RULES:
   const answerQuiz = (idx, correct) => {
     if (selected !== null) return;
     const isCorrect = idx === correct;
+    window.playSound && window.playSound(isCorrect ? "correct" : "wrong");
     setSelected(idx); setRevealed(true);
     setResults((r) => [...r, { correct: isCorrect }]);
     setXp((x) => x + (isCorrect ? 20 : 5));
@@ -842,7 +804,7 @@ RULES:
     setSelected(optIdx);
     setRevealed(true);
     setResults((r) => [...r, { correct: isCorrect, topic: q.topic || topic }]);
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    isCorrect ? window.playSound && window.playSound("correct") : window.playSound && window.playSound("wrong");
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
     // Quick Check used to record the review but never the mistake, so a wrong
     // answer here lowered mastery yet left nothing in the journal to retry.
@@ -863,7 +825,7 @@ RULES:
     setRevealed(true);
     setSelected(isCorrect ? "correct" : "wrong");
     setResults((r) => [...r, { correct: isCorrect, topic: q.topic || topic }]);
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    isCorrect ? window.playSound && window.playSound("correct") : window.playSound && window.playSound("wrong");
     if (resolved && window.recordReview) window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
   };
 
@@ -871,7 +833,7 @@ RULES:
     setSelected(null); setRevealed(false); setFillInput("");
     if (idx + 1 >= questions.questions.length) {
       setDone(true);
-      _sfx.complete();
+      window.playSound && window.playSound("complete");
     } else {
       setIdx(idx + 1);
     }
@@ -912,7 +874,7 @@ RULES:
       if (window.addXp) window.addXp(xpEarned);
       if (resolved && window.recordQuickCheckResult) {
         const { leveledUp } = window.recordQuickCheckResult({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, perfect: pct === 100 });
-        if (leveledUp) { setLevelUp(true); _sfx.complete(); }
+        if (leveledUp) { setLevelUp(true); window.playSound && window.playSound("complete"); }
       }
     }
 
@@ -1034,7 +996,7 @@ RULES:
           difficulty > 1 && React.createElement("span", { style: { background: "var(--indigo-100)", color: "var(--indigo-700)", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, DIFFICULTY_LABELS[difficulty - 1])),
         React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center" } },
           results.length > 0 && React.createElement("span", { style: { background: "var(--emerald-50)", color: "var(--emerald-700)", padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 11 } }, `${results.filter((r) => r.correct).length}/${results.length} ✓`),
-          React.createElement("button", { onClick: () => { setDone(true); _sfx.complete(); },
+          React.createElement("button", { onClick: () => { setDone(true); window.playSound && window.playSound("complete"); },
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("End", "Завершити", "Завершить", "Terminer", "Beenden")))),
       // Step dots
       React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 4 } },
@@ -1172,9 +1134,9 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
       setTimer((t) => {
         if (t <= 1) {
           clearInterval(timerRef.current);
-          _sfx.wrong();
+          window.playSound && window.playSound("wrong");
           setResults((r) => [...r, { qIdx: idx, correct: false, timedOut: true }]);
-          if (idx + 1 >= questions.length) { _sfx.complete(); setPhase("summary"); }
+          if (idx + 1 >= questions.length) { window.playSound && window.playSound("complete"); setPhase("summary"); }
           else { setIdx((i) => i + 1); setSelected(null); }
           return 0;
         }
@@ -1189,7 +1151,7 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
     clearInterval(timerRef.current);
     const q = questions[idx];
     const isCorrect = optIdx === q.correct;
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    isCorrect ? window.playSound && window.playSound("correct") : window.playSound && window.playSound("wrong");
     setSelected(optIdx);
     setResults((r) => [...r, { qIdx: idx, correct: isCorrect, chosen: optIdx, time: perQ - timer }]);
     const match = allTopics.find((t) => t.name.toLowerCase().includes((q.topic || "").toLowerCase()));
@@ -1197,7 +1159,7 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
       window.recordReview({ examId: match.examId, topicIdx: match.topicIdx, topicName: match.name, correct: isCorrect, quality: isCorrect ? 0.7 : 0.1 });
     }
     setTimeout(() => {
-      if (idx + 1 >= questions.length) { _sfx.complete(); setPhase("summary"); }
+      if (idx + 1 >= questions.length) { window.playSound && window.playSound("complete"); setPhase("summary"); }
       else { setIdx((i) => i + 1); setSelected(null); }
     }, 400);
   };
@@ -1742,6 +1704,7 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
     const elapsedSec = (Date.now() - questionShownAt) / 1000;
     const confidence = elapsedSec < 4 ? "easy" : elapsedSec < 12 ? "okay" : "guessing";
     const isCorrect = optIdx === q.correct;
+    window.playSound && window.playSound(isCorrect ? "correct" : "wrong");
     const resolved = window.resolveTopicForBrain ? window.resolveTopicForBrain(q.topic) : null;
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: isCorrect });
@@ -1989,7 +1952,7 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
     const pct = Math.round((correctCount / questions.length) * 100);
     const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0);
     if (window.addXp) window.addXp(xpEarned);
-    _sfx.complete();
+    window.playSound && window.playSound("complete");
     setPhase("summary");
   };
 
@@ -2751,7 +2714,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: true });
     }
-    _sfx.correct();
+    window.playSound && window.playSound("correct");
   };
 
   const wrap = (children) => React.createElement("div", {
@@ -3027,7 +2990,7 @@ function LearnFlashcards({ topic, onExit, t }) {
     if (resolved && window.recordReview) {
       window.recordReview({ examId: resolved.examId, topicIdx: resolved.topicIdx, topicName: resolved.topicName, correct: true });
     }
-    _sfx.correct();
+    window.playSound && window.playSound("correct");
   };
 
   const wrap = (children) => React.createElement("div", {
@@ -3351,7 +3314,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
     if (step + 1 >= (plan?.steps?.length || 0)) {
       commitResults();
       setDone(true);
-      _sfx.complete();
+      window.playSound && window.playSound("complete");
     } else {
       setStep(step + 1);
     }
@@ -3370,7 +3333,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
       setXpPop({ amount: gained, correct: isCorrect, combo: nc, id: Date.now() });
       return nc;
     });
-    isCorrect ? _sfx.correct() : _sfx.wrong();
+    isCorrect ? window.playSound && window.playSound("correct") : window.playSound && window.playSound("wrong");
   };
 
   const answerMcq = (idx, correct, explanation, question, options) => {

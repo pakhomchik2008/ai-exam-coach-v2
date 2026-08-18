@@ -4,7 +4,17 @@
  *
  * Files live in /public/sounds (wav + mp3). MP3 preferred; wav is the
  * fallback when ffmpeg wasn't around at generate time.
+ *
+ * Sound and haptic are independently toggled in Settings (soundsEnabled,
+ * hapticEnabled) but this used to gate haptic behind soundsEnabled too —
+ * since sounds defaults OFF, haptics silently never fired for anyone who
+ * hadn't also turned sounds on. Each now checks only its own flag.
+ * @capacitor/haptics wasn't installed either (the old code reached for
+ * window.Capacitor.Plugins.Haptics speculatively, per the "Phase 5" comment
+ * that used to sit here) — installed now, called through the real API.
  */
+import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
+
 export const SOUND_NAMES = [
   "tap",
   "select",
@@ -65,16 +75,21 @@ function elementFor(name: SoundName): HTMLAudioElement {
   return audio;
 }
 
+// Haptics.impact()/notification() no-op safely on web (Capacitor's web
+// implementation resolves without throwing), so this needs no platform
+// check — it's the manual navigator.vibrate fallback below that actually
+// matters for browsers/Android where the plugin has nothing to call.
 function haptic(name: SoundName): void {
   if (!profileHaptic()) return;
   try {
-    const cap = (window as unknown as {
-      Capacitor?: { Plugins?: { Haptics?: { impact?: (opts: { style: string }) => void } } };
-    }).Capacitor;
-    const style = name === "wrong" || name === "complete" || name === "level" ? "Medium" : "Light";
-    cap?.Plugins?.Haptics?.impact?.({ style });
+    if (name === "correct") void Haptics.notification({ type: NotificationType.Success }).catch(() => {});
+    else if (name === "wrong") void Haptics.notification({ type: NotificationType.Error }).catch(() => {});
+    else {
+      const style = name === "complete" || name === "level" ? ImpactStyle.Heavy : ImpactStyle.Light;
+      void Haptics.impact({ style }).catch(() => {});
+    }
   } catch {
-    // web, or Capacitor not installed yet (Phase 5)
+    // Haptics plugin unavailable for some reason — never block the UI
   }
   try {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
@@ -100,13 +115,13 @@ function play(name: SoundName): void {
   } catch {
     // jsdom implements play() as a sync throw ("Not implemented")
   }
-  haptic(name);
 }
 
-/** Honours Settings. Default off. */
+/** Honours Settings. Sound defaults off, haptic defaults on — each fires
+ * independently of the other's toggle. */
 export function playSound(name: SoundName): void {
-  if (!profileSoundsOn()) return;
-  play(name);
+  if (profileSoundsOn()) play(name);
+  haptic(name);
 }
 
 /** Settings preview — ignores the toggle so you can hear the kit before enabling. */
