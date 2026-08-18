@@ -516,7 +516,7 @@ export function QuickOnboarding({ onFinish, lang }: Props) {
   );
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-8) var(--space-4)" }}>
+    <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "calc(var(--space-8) + env(safe-area-inset-top, 0px)) var(--space-4) var(--space-8)" }}>
       <div className="onb-shell" style={{ width: "100%", maxWidth: 480 }}>
         {/* Progress — a plain counter and a bar. A student mid-signup wants to
             know how much is left, which a step count answers and a decorative

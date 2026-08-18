@@ -98,8 +98,20 @@ export default tseslint.config(
 
   // ── Node-side scripts and config ───────────────────────────────────────────
   {
-    files: ["scripts/**/*.mjs", "*.config.{js,ts}", "api/**/*.js"],
+    files: ["scripts/**/*.mjs", "*.config.js", "api/**/*.js"],
     extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: { ...globals.node },
+    },
+  },
+
+  // capacitor.config.ts uses TS type-annotation syntax (`const config:
+  // CapacitorConfig = ...`) that the plain-JS block above can't parse.
+  {
+    files: ["*.config.ts"],
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

@@ -28,3 +28,9 @@ coverage/
 # Agent worktrees (isolated checkouts for background subagent work)
 .claude/worktrees/
 test-results/
+
+# Capacitor iOS — App/public is `dist/` copied in by `cap sync`, regenerated
+# on every build. Everything else under ios/ (Xcode project, Info.plist,
+# entitlements, asset catalog) is real source and stays committed.
+ios/App/App/public/
+ios/DerivedData/

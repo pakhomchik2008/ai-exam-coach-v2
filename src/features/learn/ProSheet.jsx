@@ -2,6 +2,7 @@
 // Copy stays tied to what Free actually opens. Checkout is a server redirect.
 
 import { startCheckout } from "../../lib/billing";
+import { isNativeIOS } from "../../lib/platform";
 
 function L5(t, en, uk, ru, fr, de) {
   return { en, uk, ru, fr, de }[t?.code] || en;
@@ -56,6 +57,7 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
   const { title, body } = paywallCopy(reason, t, freeCount, lockedCount);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
+  const native = isNativeIOS();
 
   async function upgrade(tier = "pro") {
     setBusy(true);
@@ -76,22 +78,26 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     React.createElement("h3", { style: { margin: "0 0 10px", fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--chrome-paper)" } }, title),
     React.createElement("p", { style: { margin: "0 0 20px", fontSize: 16, lineHeight: 1.55, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } }, body),
     error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "#F87171" } }, error) : null,
-    React.createElement("button", {
-      type: "button",
-      disabled: busy,
-      onClick: () => upgrade("pro"),
-      style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-purple)", color: "#fff", border: "none", fontSize: 17, fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "var(--font-sans)" },
-    }, busy
-      ? L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
-      : L5(t, "Try 3 days of Pro free", "Спробуй 3 дні Pro безкоштовно", "Попробуй 3 дня Pro бесплатно", "Essaie 3 jours de Pro gratuits", "Teste 3 Tage Pro gratis")),
-    React.createElement("button", {
-      type: "button",
-      disabled: busy,
-      onClick: () => upgrade("ultra"),
-      style: { width: "100%", marginTop: 10, padding: "12px 16px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--chrome-gold) 45%, transparent)", background: "transparent", color: "var(--chrome-gold)", fontSize: 14, fontWeight: 600, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-sans)" },
-    }, L5(t, "Or go Ultra — smarter AI + Weekly Deep Report, $9.99/mo", "Або Ultra — розумніший AI + щотижневий звіт, $9.99/міс", "Или Ultra — более умный AI + еженедельный отчёт, $9.99/мес", "Ou passe à Ultra — IA plus performante + rapport hebdo, $9.99/mois", "Oder Ultra — klügere KI + Wochenbericht, $9.99/Monat")),
-    React.createElement("p", { style: { margin: "14px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" } },
-      L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR")),
+    native
+      ? React.createElement("p", { style: { margin: 0, padding: "17px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } },
+          L5(t, "Manage your plan on examik.app", "Керуй планом на examik.app", "Управляй планом на examik.app", "Gère ton abonnement sur examik.app", "Verwalte deinen Plan auf examik.app"))
+      : React.createElement(React.Fragment, null,
+          React.createElement("button", {
+            type: "button",
+            disabled: busy,
+            onClick: () => upgrade("pro"),
+            style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-purple)", color: "#fff", border: "none", fontSize: 17, fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "var(--font-sans)" },
+          }, busy
+            ? L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
+            : L5(t, "Try 3 days of Pro free", "Спробуй 3 дні Pro безкоштовно", "Попробуй 3 дня Pro бесплатно", "Essaie 3 jours de Pro gratuits", "Teste 3 Tage Pro gratis")),
+          React.createElement("button", {
+            type: "button",
+            disabled: busy,
+            onClick: () => upgrade("ultra"),
+            style: { width: "100%", marginTop: 10, padding: "12px 16px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--chrome-gold) 45%, transparent)", background: "transparent", color: "var(--chrome-gold)", fontSize: 14, fontWeight: 600, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-sans)" },
+          }, L5(t, "Or go Ultra — smarter AI + Weekly Deep Report, $9.99/mo", "Або Ultra — розумніший AI + щотижневий звіт, $9.99/міс", "Или Ultra — более умный AI + еженедельный отчёт, $9.99/мес", "Ou passe à Ultra — IA plus performante + rapport hebdo, $9.99/mois", "Oder Ultra — klügere KI + Wochenbericht, $9.99/Monat")),
+          React.createElement("p", { style: { margin: "14px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" } },
+            L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR"))),
     onClose && !page ? React.createElement("button", {
       type: "button",
       onClick: onClose,
