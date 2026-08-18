@@ -127,8 +127,11 @@ function Schedule({ t, embedded }) {
                   const canStart = s.status !== "completed" && s.type !== "personal";
                   const Ls = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t.code] || en);
                   return (
-                  <div key={i} style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", borderLeft: `4px solid ${s.color}`, padding: "8px 10px" }}>
-                    <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{s.subject}</p>
+                  <div key={i} style={{ borderRadius: "var(--radius-lg)", border: "1px solid var(--border-default)", padding: "8px 10px" }}>
+                    <p style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.color, display: "inline-block", flexShrink: 0 }} />
+                      {s.subject}
+                    </p>
                     <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-strong)" }}>{s.topic}</p>
                     <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: s.status === "completed" ? "var(--emerald-600)" : "var(--text-faint)" }}>
                       {s.status === "completed" ? "✓ " + t.schedule_completed : t.schedule_pending}

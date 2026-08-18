@@ -3790,7 +3790,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
         React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, background: "var(--ink-900)", color: "var(--white)", fontSize: 11, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "0.02em", flexShrink: 0 } },
           L("LV", "РІВ", "УР", "NIV", "LV"), " ", _lvl.level),
         React.createElement("div", { style: { flex: 1, height: 7, borderRadius: 4, background: "var(--surface-sunken)", overflow: "hidden" } },
-          React.createElement("div", { style: { height: "100%", width: _lvlPct + "%", background: "linear-gradient(90deg,var(--emerald-500),var(--emerald-600))", borderRadius: 4, transition: "width 0.5s var(--ease-out)" } })),
+          React.createElement("div", { style: { height: "100%", width: "100%", background: "linear-gradient(90deg,var(--emerald-500),var(--emerald-600))", borderRadius: 4, transform: `scaleX(${_lvlPct / 100})`, transformOrigin: "left", transition: "transform 0.5s var(--ease-out)" } })),
         comboActive && React.createElement("span", { key: "combo-" + consecutiveCorrect, style: { display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 9px", borderRadius: 999, background: "var(--amber-50)", color: "var(--amber-700)", fontSize: 11, fontWeight: 800, flexShrink: 0, animation: "pulse 0.4s var(--ease-out)" } }, "🔥 x", consecutiveCorrect),
         // Floating "+N XP" pop on each answer
         xpPop && React.createElement("span", { key: xpPop.id, style: { position: "absolute", right: comboActive ? 74 : 8, top: -2, fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)", color: xpPop.correct ? "var(--emerald-600)" : "var(--text-faint)", animation: "xppop 1s var(--ease-out) forwards", pointerEvents: "none" } }, "+", xpPop.amount)),
@@ -4598,7 +4598,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
             ce("div", { style: { flex: 1, minWidth: 0 } },
               ce("div", { style: { fontSize: 15, fontWeight: 700, fontFamily: "var(--font-display)", letterSpacing: "-0.01em", color: "var(--text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, e.name),
               ce("div", { style: { marginTop: 5, height: 5, borderRadius: 3, background: "var(--surface-sunken)", overflow: "hidden" } },
-                ce("div", { style: { height: "100%", width: pct + "%", background: "var(--emerald-500)", borderRadius: 3, transition: "width var(--dur-slow) var(--ease-out)" } }))),
+                ce("div", { style: { height: "100%", width: "100%", background: "var(--emerald-500)", borderRadius: 3, transform: `scaleX(${pct / 100})`, transformOrigin: "left", transition: "transform var(--dur-slow) var(--ease-out)" } }))),
             ce("span", { style: { fontSize: 12, fontWeight: 700, color: "var(--text-muted)", fontFamily: "var(--font-mono)", flexShrink: 0 } }, doneCount + "/" + rows.length)),
           treeRows && proN > 0 && !isProUser() && ce("div", { style: { padding: "8px 16px", fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)" } },
             L(`${freeN} free · ${proN} Pro`, `${freeN} безкоштовно · ${proN} Pro`, `${freeN} бесплатно · ${proN} Pro`, `${freeN} gratuits · ${proN} Pro`, `${freeN} gratis · ${proN} Pro`)),

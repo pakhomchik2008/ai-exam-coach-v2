@@ -53,6 +53,19 @@
   from { transform: scaleX(0); }
 }
 
+/* pulse / loadDot — referenced across AIChat.jsx (grade-reveal emoji, combo
+   streak badge, "AI is thinking" dot trio) but never defined here, so all
+   three sites silently ran static. Same fadeUp bug, different keyframes. */
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+
+@keyframes loadDot {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40%           { opacity: 1; transform: scale(1); }
+}
+
 .ux-page {
   animation: ux-page 220ms var(--ease-out) both;
 }

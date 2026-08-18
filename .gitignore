@@ -27,3 +27,4 @@ coverage/
 
 # Agent worktrees (isolated checkouts for background subagent work)
 .claude/worktrees/
+test-results/
