@@ -5,8 +5,9 @@
 // at schedule-store.jsx:842), which is why the auth gate on those endpoints was
 // impossible to test without deploying.
 //
-//   npm run dev:api                   # listens on 8745
-//   npm run dev                       # Vite on 5173; proxies /api/* to 8745
+//   npm run dev                       # scripts/dev-all.mjs — this AND Vite together
+//   npm run dev:api                   # just this, listens on 8745, for when
+//                                      # something else already runs Vite
 //
 // Secrets come from the real environment or from a .env.local next to this
 // repo's root (gitignored). Zero npm dependencies, same as the functions.

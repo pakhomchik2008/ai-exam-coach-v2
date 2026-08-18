@@ -3,7 +3,8 @@
   "version": "3.0.0",
   "scripts": {
     "test": "vitest run",
-    "dev": "vite",
+    "dev": "node scripts/dev-all.mjs",
+    "dev:web": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

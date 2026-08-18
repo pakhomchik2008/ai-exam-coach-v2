@@ -9,17 +9,15 @@ npm install
 npm run dev
 ```
 
-Serves on <http://localhost:5173> with HMR. `/api/*` is proxied to `scripts/dev-api.mjs`, which runs the real `api/*.js` handlers — start it in a second terminal:
-
-```bash
-npm run dev:api
-```
+Serves on <http://localhost:5173> with HMR. `npm run dev` also starts `scripts/dev-api.mjs` (port 8745) in the same process, so `/api/*` works out of the box — no second terminal needed. If you only want Vite (e.g. something else is already running the API on 8745), use `npm run dev:web` instead, or `npm run dev:api` for just the API half.
 
 Put `ANTHROPIC_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY` in a `.env.local` at the repo root (gitignored) if you want AI calls to succeed locally; without them the auth gate still works and returns clear errors.
 
 | Script | What it does |
 |---|---|
-| `npm run dev` | Vite dev server |
+| `npm run dev` | Vite dev server + the local API (scripts/dev-api.mjs), together |
+| `npm run dev:web` | Vite dev server only |
+| `npm run dev:api` | Local API only, port 8745 |
 | `npm run build` | `tsc --noEmit` then `vite build` → `dist/` |
 | `npm run preview` | Serves the production build |
 | `npm run typecheck` | TypeScript only |
