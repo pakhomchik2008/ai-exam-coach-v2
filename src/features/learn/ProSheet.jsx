@@ -1,7 +1,7 @@
 // Pro gate — Learn lock, second exam, calendar, journal.
 // Copy stays tied to what Free actually opens. Checkout is a server redirect.
 
-import { startProCheckout } from "../../lib/billing";
+import { startCheckout } from "../../lib/billing";
 
 function L5(t, en, uk, ru, fr, de) {
   return { en, uk, ru, fr, de }[t?.code] || en;
@@ -57,10 +57,10 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
 
-  async function upgrade() {
+  async function upgrade(tier = "pro") {
     setBusy(true);
     setError("");
-    const result = await startProCheckout();
+    const result = await startCheckout(tier, "monthly");
     if (result.alreadyPro) {
       onClose?.();
       return;
@@ -79,11 +79,17 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     React.createElement("button", {
       type: "button",
       disabled: busy,
-      onClick: upgrade,
+      onClick: () => upgrade("pro"),
       style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-purple)", color: "#fff", border: "none", fontSize: 17, fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "var(--font-sans)" },
     }, busy
       ? L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
       : L5(t, "Try 3 days of Pro free", "Спробуй 3 дні Pro безкоштовно", "Попробуй 3 дня Pro бесплатно", "Essaie 3 jours de Pro gratuits", "Teste 3 Tage Pro gratis")),
+    React.createElement("button", {
+      type: "button",
+      disabled: busy,
+      onClick: () => upgrade("ultra"),
+      style: { width: "100%", marginTop: 10, padding: "12px 16px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--chrome-gold) 45%, transparent)", background: "transparent", color: "var(--chrome-gold)", fontSize: 14, fontWeight: 600, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-sans)" },
+    }, L5(t, "Or go Ultra — Sonnet 5 + Weekly Deep Report, $9.99/mo", "Або Ultra — Sonnet 5 + щотижневий звіт, $9.99/міс", "Или Ultra — Sonnet 5 + еженедельный отчёт, $9.99/мес", "Ou passe à Ultra — Sonnet 5 + rapport hebdo, $9.99/mois", "Oder Ultra — Sonnet 5 + Wochenbericht, $9.99/Monat")),
     React.createElement("p", { style: { margin: "14px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" } },
       L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR")),
     onClose && !page ? React.createElement("button", {
