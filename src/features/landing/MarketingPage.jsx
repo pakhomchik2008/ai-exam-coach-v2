@@ -87,6 +87,10 @@ function CtaPair({ t, onSignup, onDemo, size = "md" }) {
 
 export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo, onLegal }) {
   const landRef = React.useRef(null);
+  // Toggle is display-only — the real interval choice happens in Checkout
+  // after signup (see startCheckout in src/lib/billing.ts). Landing CTAs
+  // still route through onSignup for every plan, same as before Ultra.
+  const [yearly, setYearly] = React.useState(false);
   React.useEffect(() => {
     let stop = () => undefined;
     startLenis().then((fn) => { stop = fn; });
@@ -274,6 +278,10 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
         <p className="land-kicker">{t.land_nav_pricing}</p>
         <h2 id="land-price-title">{t.land_price_title}</h2>
         <p className="land-lede">{t.land_price_sub}</p>
+        <div className="land-price-toggle" role="group" aria-label={t.land_price_sub}>
+          <button type="button" aria-pressed={!yearly} onClick={() => setYearly(false)}>{t.land_price_bill_month}</button>
+          <button type="button" aria-pressed={yearly} onClick={() => setYearly(true)}>{t.land_price_bill_year}</button>
+        </div>
         <div className="land-plans">
           <article className="land-plan">
             <h3>{t.land_price_free_name}</h3>
@@ -284,11 +292,24 @@ export function MarketingPage({ t, lang, onLangChange, onSignup, onLogin, onDemo
           <article className="land-plan is-pro">
             <h3>{t.land_price_pro_name}</h3>
             <p className="land-plan-price">
-              {t.land_price_pro_month}
-              <span>{t.land_price_per_month}</span>
+              {yearly ? t.land_price_pro_year : t.land_price_pro_month}
+              <span>{yearly ? t.land_price_per_year : t.land_price_per_month}</span>
+              {yearly && <span className="land-price-badge">{t.land_price_save_badge}</span>}
             </p>
+            {yearly && <p className="land-price-was">{t.land_price_pro_year_full}</p>}
             <p>{t.land_price_pro_body}</p>
-            <button type="button" className="land-btn land-btn-purple" onClick={tap(onSignup)}>{t.land_price_cta}</button>
+            <button type="button" className="land-btn land-btn-purple" onClick={tap(onSignup)}>{t.land_price_pro_cta}</button>
+          </article>
+          <article className="land-plan is-ultra">
+            <h3>{t.land_price_ultra_name}</h3>
+            <p className="land-plan-price">
+              {yearly ? t.land_price_ultra_year : t.land_price_ultra_month}
+              <span>{yearly ? t.land_price_per_year : t.land_price_per_month}</span>
+              {yearly && <span className="land-price-badge">{t.land_price_save_badge}</span>}
+            </p>
+            {yearly && <p className="land-price-was">{t.land_price_ultra_year_full}</p>}
+            <p>{t.land_price_ultra_body}</p>
+            <button type="button" className="land-btn land-btn-purple" onClick={tap(onSignup)}>{t.land_price_ultra_cta}</button>
           </article>
         </div>
         <p className="land-price-note">{t.land_price_note}</p>
