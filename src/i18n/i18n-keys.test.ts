@@ -29,24 +29,22 @@ describe("i18n key parity", () => {
     expect(String(langs.uk?.land_hero_title)).toContain("Examik");
   });
 
-  it("price copy is one sentence and does not list Max or yearly", () => {
-    const publicKeys = [
-      "land_price_sub", "land_price_pro_body", "land_price_note",
-      "land_faq_1_a", "land_faq_7_a", "land_about_p3", "legal_refund_body",
-    ];
+  it("Pro and Ultra pricing is present and internally consistent (Decision #118, reverses #112)", () => {
     for (const code of Object.keys(langs)) {
       const pack = langs[code];
       if (!pack) throw new Error(`missing LANGS.${code}`);
       expect(String(pack.land_price_free_body), code).toMatch(/7/);
       expect(String(pack.land_price_free_body), code).toMatch(/10/);
-      expect(String(pack.land_price_sub), code).toMatch(/5\.99/);
-      expect(String(pack.land_price_sub), code).toMatch(/3/);
       expect(String(pack.land_price_note), code).toMatch(/Checkout|checkout/);
-      for (const key of publicKeys) {
-        const text = String(pack[key]);
-        expect(text, `${code}.${key}`).not.toMatch(/54|90|9\.99|9,99/);
-        expect(text, `${code}.${key}`).not.toMatch(/\bMax\b/);
-      }
+      expect(String(pack.land_price_pro_month), code).toMatch(/5\.99/);
+      expect(String(pack.land_price_pro_year), code).toMatch(/54/);
+      expect(String(pack.land_price_pro_body), code).toMatch(/5\.99/);
+      expect(String(pack.land_price_ultra_month), code).toMatch(/9\.99/);
+      expect(String(pack.land_price_ultra_year), code).toMatch(/90/);
+      // Decision #114: Ultra never claims speed.
+      expect(String(pack.land_price_ultra_body), code).not.toMatch(/fast|faster|швидш|быстр|rapide|schnell/i);
+      expect(pack.land_price_max_name, code).toBeUndefined();
+      expect(pack.land_price_max_cta, code).toBeUndefined();
       // Hero copy must not gatekeep on NMT/IELTS — the tree registry covers
       // 16 exam families (src/features/learn/tree/index.ts), so the landing
       // names a few flagship exams and the "16 exams" count, not just two.
