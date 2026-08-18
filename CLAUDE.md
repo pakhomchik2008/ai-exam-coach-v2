@@ -131,6 +131,7 @@ Sensitive. Client-visible values start with `VITE_`.
 | `ONESIGNAL_APP_ID` | server | Push send target |
 | `ONESIGNAL_REST_API_KEY` | server | Push send auth |
 | `VITE_ONESIGNAL_APP_ID` | client build | Baked into bundle at build time — needs a new deploy to take effect |
+| `OPENAI_API_KEY` | server (opt) | Emergency fallback only — `api/complete.js` retries through OpenAI (`api/_openai.js`) when Anthropic fails for any reason (out of credit, 5xx, timeout). Explicit Hlib call, 18 Aug 2026 — see the "Do NOT" note below. |
 
 Supabase project: `cyftpdiabopydwytyudt`. Migration files 01–17 in
 `supabase/`. **Any new migration must include a `-- verification` block
@@ -246,7 +247,14 @@ slice map + Decision Log (currently at entry #46).
 - Never `import` from another store; use `window.getFoo()` — the load
   order in bootstrap.ts is the only serialization guarantee
 - Never add a new AI vendor (OpenAI, Google, etc.) autonomously —
-  Decision Log #39 requires an explicit call
+  Decision Log #39 requires an explicit call. **Exception, 18 Aug 2026,
+  Hlib's explicit call:** `api/_openai.js` + `OPENAI_API_KEY` — an
+  emergency-only fallback in `api/complete.js` for when Anthropic is out
+  of credit or unreachable. Not a general second vendor: only that one
+  endpoint, only as a last resort after Anthropic fails, model choice
+  fixed (gpt-4o-mini / gpt-4o mirroring Haiku / Sonnet), no prompt
+  content changes. Any broader OpenAI use still needs its own explicit
+  call.
 
 ## When in doubt
 
