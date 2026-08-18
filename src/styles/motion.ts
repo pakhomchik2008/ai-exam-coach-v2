@@ -5,7 +5,7 @@
 export const MOTION = {
   ease: {
     snap: "cubic-bezier(0.16, 1, 0.3, 1)",
-    springy: "cubic-bezier(0.68, -0.55, 0.27, 1.55)",
+    springy: "cubic-bezier(0.16, 1, 0.3, 1)",
     smooth: "cubic-bezier(0.4, 0, 0.2, 1)",
     swift: "cubic-bezier(0.6, 0, 0.4, 1)",
   },

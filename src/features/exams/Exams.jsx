@@ -41,10 +41,13 @@ function Exams({ t, onPlanReady }) {
     const [hover, setHover] = React.useState(false);
     return (
       <div className="ux-card" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onClick={() => setEditing(exam)}
-        style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", borderLeft: `6px solid ${exam.color}`, background: "var(--surface-card)", boxShadow: hover ? "var(--shadow-md)" : "var(--shadow-sm)", padding: "var(--space-4)", cursor: "pointer", opacity: past ? 0.6 : 1, fontFamily: "var(--font-sans)" }}>
+        style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: hover ? "var(--shadow-md)" : "var(--shadow-sm)", padding: "var(--space-4)", cursor: "pointer", opacity: past ? 0.6 : 1, fontFamily: "var(--font-sans)" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "var(--space-2)" }}>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <h3 style={{ margin: 0, fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{exam.name}</h3>
+            <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: 8, fontWeight: "var(--weight-semibold)", color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <span style={{ width: 9, height: 9, borderRadius: "50%", background: exam.color, display: "inline-block", flexShrink: 0 }} />
+              {exam.name}
+            </h3>
             <p style={{ margin: "2px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{fmtDate(exam.examDate)}</p>
             {!past && priority >= 8 && (
               <p style={{ margin: "2px 0 0", fontSize: "var(--text-xs)", color: "var(--red-600)", fontWeight: "var(--weight-semibold)" }}>● {L("High priority", "Високий пріоритет", "Высокий приоритет", "Priorité haute", "Hohe Priorität")}</p>

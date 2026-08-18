@@ -968,11 +968,14 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
           style: {
             display: "flex", alignItems: "center", gap: 14, padding: "16px 16px",
             background: "var(--surface-card)", border: "1px solid var(--border-default)",
-            borderLeft: `6px solid ${o.exam.color || "var(--indigo-500)"}`,
             borderRadius: "var(--radius-xl)", cursor: "pointer", textAlign: "left",
             fontFamily: "var(--font-sans)",
           },
         },
+          React.createElement("span", {
+            "aria-hidden": "true",
+            style: { width: 10, height: 10, borderRadius: "50%", background: o.exam.color || "var(--indigo-500)", flexShrink: 0 },
+          }),
           React.createElement("div", { style: { flex: 1, minWidth: 0 } },
             React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, o.label),
             React.createElement("div", { style: { fontSize: 12, color: "var(--text-muted)", marginTop: 4 } },
