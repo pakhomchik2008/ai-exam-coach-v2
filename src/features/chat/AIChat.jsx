@@ -247,7 +247,7 @@ const _btn = (label, onClick, primary, disabled) => React.createElement("button"
     padding: "12px 20px", background: primary ? (disabled ? "var(--indigo-200)" : "var(--indigo-600)") : "var(--surface-card)",
     color: primary ? "var(--white)" : "var(--text-strong)", border: primary ? "none" : "1.5px solid var(--border-default)",
     borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: disabled ? "default" : "pointer",
-    fontFamily: "var(--font-sans)", width: "100%", transition: "all var(--dur-fast)", opacity: disabled ? 0.6 : 1,
+    fontFamily: "var(--font-sans)", width: "100%", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)", opacity: disabled ? 0.6 : 1,
   }
 }, label);
 
@@ -312,7 +312,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
                 });
               }
             },
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -619,7 +619,7 @@ RULES:
                 }
                 return React.createElement("button", {
                   key: i, disabled: revealed, onClick: () => answerQuiz(i, q.correct),
-                  style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+                  style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
                 },
                   React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
                   React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -1013,7 +1013,7 @@ RULES:
             }
             return React.createElement("button", {
               key: i, disabled: revealed, onClick: () => answerMcq(i),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -1385,7 +1385,12 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
         ...questions.map((_, i) => {
           const r = results[i];
           const bg = i === idx ? timerColor : r ? (r.correct ? "var(--emerald-500)" : "var(--red-500)") : "var(--border-subtle)";
-          return React.createElement("div", { key: i, style: { width: i === idx ? 18 : 8, height: 6, borderRadius: 3, background: bg, transition: "all var(--dur-quick)" } });
+          // Fixed-size box (no layout change) with a transform-scaled inner
+          // pill — was animating `width` via `transition: all` on the timer
+          // tick, i.e. every ~1s during the whole Speed Round.
+          const active = i === idx;
+          return React.createElement("div", { key: i, style: { position: "relative", width: 18, height: 6 } },
+            React.createElement("span", { style: { position: "absolute", left: 0, top: 0, width: 8, height: 6, borderRadius: 3, background: bg, transform: active ? "scaleX(2.25)" : "scaleX(1)", transformOrigin: "left center", transition: "transform var(--dur-quick), background var(--dur-quick)" } }));
         }))),
     // Question card
     React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "20px" } },
@@ -1402,7 +1407,7 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
           return React.createElement("button", {
             key: i, disabled: selected !== null,
             onClick: () => answer(i),
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all var(--dur-fast)" }
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "var(--emerald-500)" : selected === i ? "var(--red-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             React.createElement("span", { dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -1808,7 +1813,7 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
             return React.createElement("button", {
               key: i, disabled: revealed,
               onClick: () => submitAnswer(i),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -3548,7 +3553,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
           }
           return React.createElement("button", {
             key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation, question, options),
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -3575,7 +3580,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
           }
           return React.createElement("button", {
             key: String(val), disabled: revealed, onClick: () => answerTf(val, s.correct),
-            style: { flex: 1, padding: "16px", background: bg, border: `2px solid ${bc}`, borderRadius: 14, fontSize: 16, fontWeight: 700, color: col, cursor: revealed ? "default" : "pointer", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+            style: { flex: 1, padding: "16px", background: bg, border: `2px solid ${bc}`, borderRadius: 14, fontSize: 16, fontWeight: 700, color: col, cursor: revealed ? "default" : "pointer", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
           }, val ? L("✅ True", "✅ Правда", "✅ Правда", "✅ Vrai", "✅ Wahr") : L("❌ False", "❌ Неправда", "❌ Ложь", "❌ Faux", "❌ Falsch"));
         })),
       revealed && React.createElement("div", {
@@ -3683,7 +3688,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
         !allVisible && React.createElement("div", { style: { marginTop: 14 } },
           React.createElement("button", {
             onClick: () => setStepsRevealed((n) => n + 1),
-            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed var(--indigo-200)", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "var(--indigo-600)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
+            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed var(--indigo-200)", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "var(--indigo-600)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast)" }
           }, stepsRevealed === 0 ? L("Reveal first step →", "Показати перший крок →", "Показать первый шаг →", "Révéler la première étape →", "Ersten Schritt zeigen →") : L(`Reveal step ${stepsRevealed + 1} →`, `Показати крок ${stepsRevealed + 1} →`, `Показать шаг ${stepsRevealed + 1} →`, `Révéler l'étape ${stepsRevealed + 1} →`, `Schritt ${stepsRevealed + 1} zeigen →`))),
         allVisible && s.challenge && React.createElement("div", { style: { marginTop: 14, background: "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "var(--amber-700)" } }, L("🎯 Now you try: ", "🎯 Тепер ваша черга: ", "🎯 Теперь ваша очередь: ", "🎯 À votre tour : ", "🎯 Jetzt bist du dran: "), React.createElement("strong", null, s.challenge))),
       allVisible && React.createElement("div", { style: { marginTop: 16 } },

@@ -280,7 +280,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     const icon = isExtracting ? '⏳' : isDragOver ? '📂' : '☁️';
     return React.createElement('div', {
       onDragOver: handlers.onDragOver, onDragLeave: handlers.onDragLeave, onDrop: handlers.onDrop, onClick: isExtracting ? null : handlers.onClick,
-      style: { border: `2px dashed ${isDragOver ? 'var(--indigo-500)' : 'var(--slate-300)'}`, background: isDragOver ? 'var(--indigo-50)' : 'var(--slate-50)', borderRadius: '18px', padding: '26px 20px', cursor: isExtracting ? 'default' : 'pointer', transition: 'all var(--dur-quick)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }
+      style: { border: `2px dashed ${isDragOver ? 'var(--indigo-500)' : 'var(--slate-300)'}`, background: isDragOver ? 'var(--indigo-50)' : 'var(--slate-50)', borderRadius: '18px', padding: '26px 20px', cursor: isExtracting ? 'default' : 'pointer', transition: 'border-color var(--dur-quick), background var(--dur-quick)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }
     },
       React.createElement('div', { style: { fontSize: '38px', transition: 'transform var(--dur-quick)', transform: isDragOver ? 'scale(1.2)' : 'scale(1)' } }, icon),
       React.createElement('div', { style: { textAlign: 'center' } },
@@ -356,7 +356,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
 
   const buildStartBtnEl = (hasInput, isExtracting, onClick) => {
     const active = hasInput && !isExtracting;
-    return React.createElement('button', { onClick, style: { width: '100%', padding: '15px', background: active ? 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))' : 'var(--slate-200)', color: active ? 'var(--white)' : 'var(--slate-400)', border: 'none', borderRadius: '16px', fontSize: '15px', fontWeight: 800, cursor: active ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', boxShadow: active ? '0 4px 20px rgba(79,70,229,0.35)' : 'none', transition: 'all var(--dur-quick)' } },
+    return React.createElement('button', { onClick, style: { width: '100%', padding: '15px', background: active ? 'linear-gradient(135deg,var(--indigo-500),var(--indigo-600))' : 'var(--slate-200)', color: active ? 'var(--white)' : 'var(--slate-400)', border: 'none', borderRadius: '16px', fontSize: '15px', fontWeight: 800, cursor: active ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '12px', boxShadow: active ? '0 4px 20px rgba(79,70,229,0.35)' : 'none', transition: 'background var(--dur-quick), color var(--dur-quick), box-shadow var(--dur-quick)' } },
       isExtracting ? L('Reading file…','Читаю файл…','Читаю файл…','Lecture…','Lese Datei…') : L('Get Started','Почати','Начать','Commencer','Loslegen'),
       !isExtracting && React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round', style: { flexShrink: 0 } }, React.createElement('line', { x1: '5', y1: '12', x2: '19', y2: '12' }), React.createElement('polyline', { points: '12 5 19 12 12 19' }))
     );
@@ -383,7 +383,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     return ['flashcards', 'quiz', 'videos'].map(id => {
       const labels = { flashcards: '🃏 ' + L('Flashcards','Картки','Карточки','Cartes','Karteikarten'), quiz: '⚡ ' + L('Quiz','Квіз','Квиз','Quiz','Quiz'), videos: videosLoading ? '🎬 ' + L('Loading…','Завантаження…','Загрузка…','Chargement…','Laden…') : '🎬 ' + L('Videos','Відео','Видео','Vidéos','Videos') };
       const active = activeTab === id;
-      return React.createElement('button', { key: id, onClick: () => { setState({ activeTab: id }); setTimeout(() => { const el = document.getElementById('results-scroll'); if (el) el.scrollTop = 0; }, 50); }, style: { flex: 1, padding: '11px 4px', border: 'none', borderBottom: `2px solid ${active ? 'var(--indigo-500)' : 'transparent'}`, background: 'none', fontSize: '12px', fontWeight: 700, color: active ? 'var(--indigo-500)' : 'var(--slate-500)', cursor: 'pointer', transition: 'all 0.18s' } }, labels[id]);
+      return React.createElement('button', { key: id, onClick: () => { setState({ activeTab: id }); setTimeout(() => { const el = document.getElementById('results-scroll'); if (el) el.scrollTop = 0; }, 50); }, style: { flex: 1, padding: '11px 4px', border: 'none', borderBottom: `2px solid ${active ? 'var(--indigo-500)' : 'transparent'}`, background: 'none', fontSize: '12px', fontWeight: 700, color: active ? 'var(--indigo-500)' : 'var(--slate-500)', cursor: 'pointer', transition: 'border-color 0.18s, color 0.18s' } }, labels[id]);
     });
   };
 
@@ -404,8 +404,15 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
     );
   };
 
+  // Fixed-size hit box (20x8, no layout change ever) with a transform-scaled
+  // inner pill — was animating `width` via `transition: all`, a layout
+  // property on the most-tapped element in a flashcard session.
   const buildCardDots = (total, current) => {
-    return React.createElement('div', { style: { display: 'flex', gap: '4px', alignItems: 'center' } }, ...Array.from({ length: total }, (_, i) => React.createElement('button', { key: i, onClick: (e) => { e.stopPropagation(); setState({ currentCard: i, flippedCards: {} }); }, style: { width: i === current ? '20px' : '8px', height: '8px', borderRadius: '4px', background: i === current ? 'var(--indigo-500)' : 'var(--slate-200)', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.25s' } })));
+    return React.createElement('div', { style: { display: 'flex', gap: '4px', alignItems: 'center' } }, ...Array.from({ length: total }, (_, i) => {
+      const active = i === current;
+      return React.createElement('button', { key: i, onClick: (e) => { e.stopPropagation(); setState({ currentCard: i, flippedCards: {} }); }, style: { position: 'relative', width: '20px', height: '8px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 } },
+        React.createElement('span', { style: { position: 'absolute', left: 0, top: 0, width: '8px', height: '8px', borderRadius: '4px', background: active ? 'var(--indigo-500)' : 'var(--slate-200)', transform: active ? 'scaleX(2.5)' : 'scaleX(1)', transformOrigin: 'left center', transition: 'transform 0.25s, background 0.25s' } }));
+    }));
   };
 
   const buildQuizEl = (quiz, quizAnswers) => {
@@ -438,8 +445,8 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
                 window.logMistake({ topic: state.topic, question: q.question, options: q.options, correctIndex: q.correct, selectedIndex: oi, explanation: q.explanation });
               }
               setState(s => ({ quizAnswers: { ...s.quizAnswers, [qi]: oi } }));
-            }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: bg, border: `1.5px solid ${bc}`, borderRadius: '12px', color: col, fontSize: '13px', textAlign: 'left', cursor: answered ? 'default' : 'pointer', transition: 'all var(--dur-fast)', width: '100%' } },
-            React.createElement('span', { style: { width: '24px', height: '24px', borderRadius: '7px', background: lb, color: lc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, transition: 'all var(--dur-fast)' } }, L[oi]),
+            }, style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: bg, border: `1.5px solid ${bc}`, borderRadius: '12px', color: col, fontSize: '13px', textAlign: 'left', cursor: answered ? 'default' : 'pointer', transition: 'background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast)', width: '100%' } },
+            React.createElement('span', { style: { width: '24px', height: '24px', borderRadius: '7px', background: lb, color: lc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0, transition: 'background var(--dur-fast), color var(--dur-fast)' } }, L[oi]),
             React.createElement('span', { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: renderCoachMarkdown(opt) } })
           );
         })),
@@ -509,7 +516,7 @@ Rules: EXACTLY 4 videos. lvl is Beginner, Intermediate, or Advanced. Make search
             L('Next','Далі','Далее','Suiv.','Weiter'), React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: '2.5', strokeLinecap: 'round', strokeLinejoin: 'round' }, React.createElement('polyline', { points: '9 18 15 12 9 6' })))
         ),
         React.createElement('p', { style: { fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--slate-400)', margin: '0 0 10px' } }, L('All Cards','Усі картки','Все карточки','Toutes les cartes','Alle Karten')),
-        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px' } }, ...flashcards.map((c, i) => React.createElement('button', { key: i, onClick: () => setState({ currentCard: i, flippedCards: {} }), style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: i === currentCard ? 'var(--indigo-50)' : 'var(--surface-card)', border: `1.5px solid ${i === currentCard ? 'var(--indigo-500)' : 'var(--slate-200)'}`, borderRadius: '12px', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'all var(--dur-fast)' } },
+        React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: '7px' } }, ...flashcards.map((c, i) => React.createElement('button', { key: i, onClick: () => setState({ currentCard: i, flippedCards: {} }), style: { display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 13px', background: i === currentCard ? 'var(--indigo-50)' : 'var(--surface-card)', border: `1.5px solid ${i === currentCard ? 'var(--indigo-500)' : 'var(--slate-200)'}`, borderRadius: '12px', cursor: 'pointer', textAlign: 'left', width: '100%', transition: 'background var(--dur-fast), border-color var(--dur-fast)' } },
           React.createElement('span', { style: { width: '22px', height: '22px', borderRadius: '7px', background: i === currentCard ? 'var(--indigo-500)' : 'var(--slate-100)', color: i === currentCard ? 'var(--white)' : 'var(--slate-400)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, flexShrink: 0 } }, i + 1),
           React.createElement('span', { style: { fontSize: '12px', fontWeight: 600, color: 'var(--slate-700)', lineHeight: 1.4 } }, c.front)
         )))
