@@ -166,4 +166,20 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ux-live { animation: none; }
+
+  /* Global fallback for the other ~40 keyframe/transition sites across the
+     app (AIChat.jsx, StudyHub.jsx, Dashboard.jsx, ...) — most set
+     `animation`/`transition` inline via React style props, which a scoped
+     class-based override can't reach. An !important rule in a stylesheet
+     DOES beat an inline style without !important (CSS spec, not just
+     specificity), so this one rule is the actual highest-leverage fix
+     instead of touching 40+ call sites individually. Near-zero duration
+     rather than literally 0 keeps opacity/color crossfades visible as a
+     snap instead of vanishing — content still changes, motion doesn't. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
