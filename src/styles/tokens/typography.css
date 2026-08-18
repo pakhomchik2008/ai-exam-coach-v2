@@ -11,10 +11,17 @@
      Body: Hanken Grotesk — refined neutral grotesque for reading. */
   --font-brand: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino,
     Georgia, serif;
+  /* "Apple Color Emoji" listed explicitly (not just implied by -apple-system) —
+     Capacitor's bare WKWebView, unlike Mobile Safari, does not fall back to the
+     system emoji font for codepoints a custom @font-face doesn't cover. Without
+     this, every emoji/flag in the app rendered as a tofu-box "?" on the native
+     iOS build (found testing the onboarding + dashboard screens). */
   --font-display: "Gabarito", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji",
+    "Segoe UI Emoji", sans-serif;
   --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple Color Emoji",
+    "Segoe UI Emoji", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
     "Liberation Mono", monospace;
 
