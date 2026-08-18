@@ -202,7 +202,19 @@
   font-weight: var(--weight-semibold);
 }
 
+/* "More" sheet — bottom-anchored, rises from the tab bar that opened it
+   (Apple: sheets originate from their trigger, not the top of the screen).
+   Hidden by default (desktop never opens it — its links live inline in
+   .app-nav-links there); mobile toggles .is-open via transform, not
+   display, so the slide transition actually plays. */
+.app-nav-more-scrim {
+  display: none;
+}
+
 .app-nav-more-sheet {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
   background: var(--chrome-paper);
 }
 
@@ -221,32 +233,106 @@
   font-family: var(--font-sans);
 }
 
-.app-nav-hamburger {
+/* —— bottom tab bar (mobile/tablet) —— */
+.app-nav-bottom-bar {
   display: none;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 2px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  background: color-mix(in srgb, var(--chrome-paper) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-top: 1px solid var(--chrome-line);
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+}
+
+.app-nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--chrome-line);
-  border-radius: var(--radius-md);
-  background: var(--chrome-paper);
-  cursor: pointer;
-  font-size: 18px;
-  padding: 0;
-  color: var(--chrome-ink);
-}
-
-.app-nav-mobile-panel {
-  display: none;
-  flex-direction: column;
   gap: 2px;
-  padding: 8px 16px 14px;
-  border-top: 1px solid var(--chrome-line);
-  background: var(--chrome-paper);
+  min-height: 48px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: color-mix(in srgb, var(--chrome-ink) 50%, var(--chrome-paper));
+  cursor: pointer;
+  padding: 4px 2px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: var(--weight-medium);
+  transition: color 140ms var(--chrome-ease), background 140ms var(--chrome-ease);
 }
 
+.app-nav-tab[aria-current] {
+  color: var(--chrome-ink);
+  background: color-mix(in srgb, var(--chrome-ink) 7%, transparent);
+  font-weight: var(--weight-semibold);
+}
+
+/* "More" scrim + sheet ride above the bar; a real modal task (dim + push
+   back), unlike the parallel top-bar language popover on desktop. */
 @media (max-width: 1040px) {
   .app-nav-links { display: none; }
-  .app-nav-hamburger { display: flex; }
-  .app-nav-mobile-panel.is-open { display: flex; }
+
+  .app-main {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .app-nav-bottom-bar { display: flex; }
+
+  .app-nav-more-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 61;
+    background: rgba(15, 23, 42, 0.45);
+    animation: appNavScrimIn 180ms var(--chrome-ease);
+  }
+
+  .app-nav-more-sheet {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 62;
+    max-height: 70vh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    box-shadow: var(--shadow-lg);
+    padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(100%);
+    transition: transform 220ms var(--chrome-ease);
+  }
+
+  .app-nav-more-sheet.is-open {
+    transform: translateY(0);
+  }
+}
+
+.app-nav-more-grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--chrome-line);
+  margin: 2px auto 10px;
+}
+
+@keyframes appNavScrimIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-nav-more-sheet { transition: opacity 160ms ease; transform: none; }
+  .app-nav-more-sheet:not(.is-open) { opacity: 0; pointer-events: none; }
+  .app-nav-more-scrim { animation: none; }
 }

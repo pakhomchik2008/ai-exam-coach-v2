@@ -133,7 +133,7 @@ function DayDetail({ day, dayIndex, onClose, onStart, t }) {
                         </div>
                         {(isToday || isFuture) && onStart && (
                           <button
-                            onClick={() => { onClose(); onStart({ id: s.subject + i, subject: s.subject, color: s.color, topic: s.topic, difficulty: 3, review: 1, est: s.durationMin }); }}
+                            onClick={() => { onClose(); onStart({ id: s.subject + i, examId: s.examId, subject: s.subject, color: s.color, topic: s.topic, difficulty: 3, review: 1, est: s.durationMin }); }}
                             style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-xs)", cursor: "pointer", fontFamily: "var(--font-sans)", flexShrink: 0, padding: "2px 0" }}
                           >{L("Study →", "Вчити →", "Учить →", "Étudier →", "Lernen →")}</button>
                         )}

@@ -9,6 +9,34 @@ function NavLogoMark({ size = 24 }) {
 window.NavLogoMark = NavLogoMark;
 window.BrandLockup = BrandLockup;
 
+// Bottom-tab icons — same stroke system as Settings.jsx's HubIcon (22px,
+// strokeWidth 1.75) so the tab bar and the Settings tile grid read as one
+// icon family. Hand-drawn paths, not a real icon set — kept minimal on
+// purpose so they stay legible at 20px.
+const TAB_ICONS = {
+  dashboard: <path d="M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />,
+  chat: <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />,
+  study: <><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3H12v18H5.5A2.5 2.5 0 0 1 3 18.5v-13Z" /><path d="M21 5.5A2.5 2.5 0 0 0 18.5 3H12v18h6.5a2.5 2.5 0 0 0 2.5-2.5v-13Z" /></>,
+  studyhub: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2 2.8-2.8Z" />,
+};
+
+function TabIcon({ id, size = 21 }) {
+  if (id === "more") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="6" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="18" cy="12" r="1.6" fill="currentColor" />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {TAB_ICONS[id]}
+    </svg>
+  );
+}
+
 function NavLogoutButton({ onLogout, label }) {
   const [confirm, setConfirm] = React.useState(false);
   React.useEffect(() => {
@@ -38,6 +66,18 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     { id: "exams", label: t.nav_exams },
     { id: "settings", label: t.nav_settings },
   ];
+  // The 4 rooms a student opens every day live on the always-visible bottom
+  // bar (classic iOS tab bar — Apple HIG default, zero taps to switch).
+  // Everything else — Journal, Calendar, Exams, Settings, language, logout —
+  // sits one tap behind "More", which opens as a sheet anchored to the bar
+  // it was triggered from (spatial consistency: it rises from where you
+  // tapped, not from the top of the screen).
+  const PRIMARY_TAB_IDS = ["dashboard", "chat", "study", "studyhub"];
+  const primaryTabs = PRIMARY_TAB_IDS.map((id) => links.find((l) => l.id === id));
+  const moreLinks = links.filter((l) => !PRIMARY_TAB_IDS.includes(l.id));
+  const isActive = (id) => current === id || (id === "calendar" && current === "schedule");
+  const moreActive = moreLinks.some((l) => isActive(l.id));
+
   const [langOpen, setLangOpen] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const langs = Object.values(window.LANGS);
@@ -97,18 +137,16 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
 
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
-
-        <button
-          type="button"
-          className="app-nav-hamburger"
-          aria-label={mobileOpen ? t.nav_close : "Open menu"}
-          onClick={() => setMobileOpen((o) => !o)}
-        >{mobileOpen ? "✕" : "☰"}</button>
       </div>
 
-      <div className={"app-nav-mobile-panel" + (mobileOpen ? " is-open" : "")}>
-        {links.map((l) => {
-          const active = current === l.id || (l.id === "calendar" && current === "schedule");
+      {/* Scrim + sheet for "More" — dims the page and rises from the bottom
+          bar, matching the tab that opened it (Apple materials: dim to
+          focus, anchor to source). Closes on scrim tap or picking a link. */}
+      {mobileOpen && <div className="app-nav-more-scrim" onClick={() => setMobileOpen(false)} />}
+      <div className={"app-nav-more-sheet" + (mobileOpen ? " is-open" : "")}>
+        <div className="app-nav-more-grabber" aria-hidden="true" />
+        {moreLinks.map((l) => {
+          const active = isActive(l.id);
           return (
             <button
               key={l.id}
@@ -134,6 +172,34 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
         <div style={{ marginTop: 8 }}>
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
+      </div>
+
+      {/* Classic iOS bottom tab bar — the 4 rooms used every day, always one
+          tap away, no hamburger. Translucent material over the page content
+          (Apple: materials convey a floating functional layer). */}
+      <div className="app-nav-bottom-bar">
+        {primaryTabs.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            className="app-nav-tab"
+            aria-current={isActive(l.id) ? "page" : undefined}
+            onClick={() => navigate(l.id)}
+          >
+            <TabIcon id={l.id} />
+            <span>{l.label}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          className="app-nav-tab"
+          aria-current={moreActive && !mobileOpen ? "page" : undefined}
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen((o) => !o)}
+        >
+          <TabIcon id="more" />
+          <span>{t.nav_more}</span>
+        </button>
       </div>
     </nav>
   );
