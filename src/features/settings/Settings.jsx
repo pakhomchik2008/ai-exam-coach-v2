@@ -706,7 +706,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             <Card>
               <Row
                 label="Ultra"
-                sub={L(lang, "Sonnet 5 on every AI answer, plus a Weekly Deep Report with your predicted score. $9.99/month.", "Sonnet 5 на кожній AI-відповіді, плюс щотижневий звіт із прогнозом балу. $9.99/міс.", "Sonnet 5 на каждом AI-ответе, плюс еженедельный отчёт с прогнозом балла. $9.99/мес.", "Sonnet 5 sur chaque réponse IA, plus un rapport hebdomadaire avec ton score prédit. $9.99/mois.", "Sonnet 5 bei jeder KI-Antwort, plus ein wöchentlicher Bericht mit deiner Prognose. $9.99/Monat.")}
+                sub={L(lang, "Our smartest AI on every answer, plus a Weekly Deep Report with your predicted score. $9.99/month.", "Наш найрозумніший AI на кожній відповіді, плюс щотижневий звіт із прогнозом балу. $9.99/міс.", "Наш самый умный AI на каждом ответе, плюс еженедельный отчёт с прогнозом балла. $9.99/мес.", "Notre IA la plus performante sur chaque réponse, plus un rapport hebdomadaire avec ton score prédit. $9.99/mois.", "Unsere klügste KI bei jeder Antwort, plus ein wöchentlicher Bericht mit deiner Prognose. $9.99/Monat.")}
                 value={L(lang, "Available", "Доступно", "Доступно", "Disponible", "Verfügbar")}
               />
               <div className="settings-row">
@@ -742,6 +742,13 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
       {sheet === "support" && (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Support", "Підтримка", "Поддержка", "Support", "Support")} onClose={() => setSheet(null)}>
           <Card>
+            <Row label={L(lang, "Rate Examik", "Оцінити Examik", "Оценить Examik", "Évaluer Examik", "Examik bewerten")}
+              sub={L(lang, "Tell us what you think", "Розкажи що думаєш", "Расскажи что думаешь", "Dis-nous ce que tu en penses", "Sag uns deine Meinung")}
+              chevron onClick={() => {
+                const subject = encodeURIComponent(`Examik feedback (v${PKG_VERSION})`);
+                const body = encodeURIComponent(`\n\n—\nv${PKG_VERSION}${email ? ` · ${email}` : ""}`);
+                window.location.href = `mailto:hlibpakh@gmail.com?subject=${subject}&body=${body}`;
+              }} />
             <Row label={L(lang, "FAQ", "Питання", "Вопросы", "FAQ", "FAQ")} chevron onClick={() => setSheet("faq")} />
             <Row label={L(lang, "Write to support", "Написати в підтримку", "Написать в поддержку", "Écrire au support", "Support schreiben")}
               sub="email" chevron onClick={() => { window.location.href = "mailto:hlibpakh@gmail.com"; }} />
