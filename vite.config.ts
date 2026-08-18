@@ -28,7 +28,7 @@ export default defineConfig({
             if (!res || !("writeHead" in res) || res.headersSent) return;
             res.writeHead(503, { "Content-Type": "application/json" });
             res.end(JSON.stringify({
-              error: "Local API is not running. Second terminal: npm run dev:api",
+              error: "Local API is not running. Run: npm run dev (starts Vite + the API together), or npm run dev:api in a second terminal if you started Vite alone with npm run dev:web.",
             }));
           });
         },
