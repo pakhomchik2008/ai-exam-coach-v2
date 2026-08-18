@@ -598,7 +598,19 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         <window.DayDetail
           day={dayDetail.day} dayIndex={dayDetail.dayIndex} t={t}
           onClose={() => setDayDetail(null)}
-          onStart={(s) => { setDayDetail(null); startMission(s); }}
+          onStart={(s) => {
+            setDayDetail(null);
+            // s.examId/s.topic come straight from the persisted schedule (see
+            // schedule-store.jsx buildScheduleView) — a real syllabus topic,
+            // same as startRecommended()'s onGoToLearn branch. Route there
+            // instead of the old timer overlay, which crashed on a synthesised
+            // session with no matching course (no examId to look it up by).
+            if (onGoToLearn && s.examId && s.topic) {
+              onGoToLearn({ examId: s.examId, examName: s.subject, topicName: s.topic });
+              return;
+            }
+            startMission(s);
+          }}
         />
       )}
 
