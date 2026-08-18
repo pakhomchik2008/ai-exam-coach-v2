@@ -148,6 +148,12 @@ function ExamRecap({
             role: "user",
             content: `Exam: ${examName || "practice drill"}\nScore: ${correct}/${total} (${pct}%)\n${deltaLine}\nWeakest topics: ${weak.length ? weak.join(", ") : "none stood out"}`,
           }],
+          // Paper language beats the UI (NMT stays Ukrainian even if the
+          // app is set to Russian) — same rule brainComplete already
+          // applies everywhere else. Without this, the call had no
+          // exam-language signal at all and defaulted to English
+          // regardless of UI language or exam.
+          paperQual: taxonomy,
         });
         if (!cancelled) setComment(String(reply).trim());
       } catch {
