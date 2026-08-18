@@ -73,9 +73,11 @@ async function patchProfileTier(headers, userId, pro, tier) {
 // doesn't exist yet — STRIPE_PRICE_ID_ULTRA is unset until Hlib creates it in
 // Stripe (see "Hlib does by hand" in docs/phase-5-billing-tiers-plan.md), so
 // this falls through to 'pro' for every live subscription until then.
+const ULTRA_PRICE_ENV_VARS = ["STRIPE_PRICE_ID_ULTRA", "STRIPE_PRICE_ID_ULTRA_YEARLY"];
+
 export function tierFromPriceId(priceId, status) {
   if (!isProStatus(status)) return "free";
-  if (priceId && priceId === process.env.STRIPE_PRICE_ID_ULTRA) return "ultra";
+  if (priceId && ULTRA_PRICE_ENV_VARS.some((name) => priceId === process.env[name])) return "ultra";
   return "pro";
 }
 
