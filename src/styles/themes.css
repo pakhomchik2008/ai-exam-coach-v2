@@ -12,6 +12,15 @@
 }
 
 html[data-theme] {
+  /* chrome.css's .app-shell/.app-nav/.app-main/AppNav's bottom bar all read
+     --chrome-paper/--chrome-ink/--chrome-line, a separate token family that
+     nothing above this line touches — so switching themes changed every
+     card's colors but left the page's own background and the nav bar stuck
+     on the default cream palette. Same bridge pattern as the rest of this
+     block, just for the one family it was missing. */
+  --chrome-paper: var(--theme-bg) !important;
+  --chrome-ink: var(--theme-text) !important;
+  --chrome-line: color-mix(in srgb, var(--theme-text) 12%, var(--theme-bg)) !important;
   --app-bg: var(--theme-bg) !important;
   --surface-page: var(--theme-bg) !important;
   --surface-card: var(--theme-card) !important;
