@@ -89,7 +89,7 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
       disabled: busy,
       onClick: () => upgrade("ultra"),
       style: { width: "100%", marginTop: 10, padding: "12px 16px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--chrome-gold) 45%, transparent)", background: "transparent", color: "var(--chrome-gold)", fontSize: 14, fontWeight: 600, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-sans)" },
-    }, L5(t, "Or go Ultra — Sonnet 5 + Weekly Deep Report, $9.99/mo", "Або Ultra — Sonnet 5 + щотижневий звіт, $9.99/міс", "Или Ultra — Sonnet 5 + еженедельный отчёт, $9.99/мес", "Ou passe à Ultra — Sonnet 5 + rapport hebdo, $9.99/mois", "Oder Ultra — Sonnet 5 + Wochenbericht, $9.99/Monat")),
+    }, L5(t, "Or go Ultra — smarter AI + Weekly Deep Report, $9.99/mo", "Або Ultra — розумніший AI + щотижневий звіт, $9.99/міс", "Или Ultra — более умный AI + еженедельный отчёт, $9.99/мес", "Ou passe à Ultra — IA plus performante + rapport hebdo, $9.99/mois", "Oder Ultra — klügere KI + Wochenbericht, $9.99/Monat")),
     React.createElement("p", { style: { margin: "14px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" } },
       L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR")),
     onClose && !page ? React.createElement("button", {
