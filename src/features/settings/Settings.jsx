@@ -4,6 +4,7 @@
 
 import { isProUser, isUltraUser } from "../learn/premium";
 import { startCheckout, startBillingPortal } from "../../lib/billing";
+import { isNativeIOS } from "../../lib/platform";
 import { applyAppearance } from "../../lib/appearance";
 import { THEME_META, THEMES, resolveThemeId } from "../../styles/themes";
 import { exportPersonalData } from "../../lib/export-data";
@@ -659,6 +660,16 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
 
       {sheet === "billing" && (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} onClose={() => setSheet(null)}>
+          {isNativeIOS() ? (
+            <Card>
+              <Row
+                label={pro ? "Pro" : "Free"}
+                sub={L(lang, "Subscriptions are managed on examik.app, not in this app.", "Підписки керуються на examik.app, не в застосунку.", "Подписки управляются на examik.app, не в приложении.", "Les abonnements se gèrent sur examik.app, pas dans l’appli.", "Abos werden auf examik.app verwaltet, nicht in der App.")}
+                value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
+              />
+            </Card>
+          ) : (
+          <>
           <Card>
             <Row
               label={pro ? "Pro" : "Free"}
@@ -716,6 +727,8 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
                 </button>
               </div>
             </Card>
+          )}
+          </>
           )}
         </SettingsPage>
       )}

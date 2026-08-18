@@ -42,6 +42,12 @@ const DEFAULT_ORIGINS = [
   // /api/complete at all.
   "http://127.0.0.1:5173",
   "http://localhost:5173",
+  // The iOS app (Capacitor) bundles the built web assets and loads them from
+  // this fixed scheme+host in WKWebView — every fetch() to /api/* therefore
+  // carries this as its Origin, not a real domain. ionic:// is the same
+  // WKWebView setup under an older Capacitor default, kept for safety.
+  "capacitor://localhost",
+  "ionic://localhost",
 ];
 
 function allowedOrigins() {
