@@ -49,6 +49,15 @@ const MAX_MESSAGES = 80;
 // Sit under Vercel Hobby's 60s kill so we return JSON instead of an HTML 504
 // the client then reports as "took too long".
 const UPSTREAM_TIMEOUT_MS = 55_000;
+// With an OpenAI fallback configured, Anthropic and OpenAI are tried
+// SEQUENTIALLY inside the same 60s function — giving Anthropic the full 55s
+// before even starting OpenAI blew both Vercel's own ceiling and every
+// client-side race timeout (AIChat.jsx: 40-55s per call site) long before
+// OpenAI got a chance to answer. A hung/slow Anthropic call now gets cut
+// short fast so there is real time left for the fallback; a clean failure
+// (e.g. "out of credit") returns in ~1-2s regardless and is unaffected.
+const ANTHROPIC_TIMEOUT_WITH_FALLBACK_MS = 12_000;
+const OPENAI_FALLBACK_TIMEOUT_MS = 35_000;
 
 function payloadError(system, msgs) {
   if (!Array.isArray(msgs)) return "messages must be an array";
@@ -143,7 +152,7 @@ export default async function handler(req, res) {
           system,
           messages: msgs,
         }),
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+        signal: AbortSignal.timeout(openAiKey ? ANTHROPIC_TIMEOUT_WITH_FALLBACK_MS : UPSTREAM_TIMEOUT_MS),
       });
       const data = await upstream.json();
       if (!upstream.ok) {
@@ -170,7 +179,7 @@ export default async function handler(req, res) {
         model: openAiModelForTier(tier),
         system,
         msgs,
-        timeoutMs: UPSTREAM_TIMEOUT_MS,
+        timeoutMs: OPENAI_FALLBACK_TIMEOUT_MS,
       });
       await recordUsage(gate.user, "complete", result.usage, gate.usage && gate.usage.day);
       res.status(200).json({ text: result.text, provider: "openai-fallback" });
