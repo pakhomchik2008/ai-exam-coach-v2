@@ -27,6 +27,138 @@ function PasswordInput({ value, onChange, placeholder, autoComplete, hasError, t
   );
 }
 
+// Email step of "forgot password" — separate from AuthForm because it has
+// none of AuthForm's password/confirm fields and a different success state
+// (a "check your email" message, not a redirect).
+function ForgotPasswordForm({ onBack, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [email, setEmail] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [sent, setSent] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (submitting) return;
+    setError("");
+    if (!email.trim() || !EMAIL_RE.test(email.trim())) {
+      setError(L("Enter a valid email.", "Введіть дійсний email.", "Введите действительный email.", "Entrez un email valide.", "Gib eine gültige E-Mail ein."));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await window.requestPasswordReset(email);
+      setSent(true);
+    } catch (err) {
+      setError(err.message || L("Something went wrong — please try again.", "Щось пішло не так — спробуйте ще раз.", "Что-то пошло не так — попробуйте ещё раз.", "Une erreur s'est produite — veuillez réessayer.", "Etwas ist schiefgelaufen — bitte versuche es erneut."));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const inputStyle = (hasError) => ({
+    width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "var(--text-base)",
+    fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)",
+    border: hasError ? "1px solid var(--red-400)" : "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none",
+  });
+
+  return (
+    <div style={{ minHeight: "100vh", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-5)" }}>
+      <form onSubmit={submit} style={{ width: "100%", maxWidth: 420, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+        <div>
+          <button type="button" onClick={onBack} style={{ border: "none", background: "transparent", color: "var(--text-faint)", fontSize: "var(--text-sm)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0, marginBottom: "var(--space-3)" }}>← {L("Back", "Назад", "Назад", "Retour", "Zurück")}</button>
+          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{L("Reset your password", "Скидання пароля", "Сброс пароля", "Réinitialiser le mot de passe", "Passwort zurücksetzen")}</h1>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{L("We'll email you a link to set a new one.", "Надішлемо посилання для встановлення нового.", "Отправим ссылку для установки нового.", "Nous t'enverrons un lien pour en définir un nouveau.", "Wir senden dir einen Link zum Zurücksetzen.")}</p>
+        </div>
+
+        {sent ? (
+          <div style={{ borderRadius: "var(--radius-lg)", background: "var(--emerald-50)", border: "1px solid var(--emerald-100)", padding: "12px 14px", fontSize: "var(--text-sm)", color: "var(--emerald-700)" }}>
+            {L(`Check ${email.trim()} for a reset link.`, `Перевірте ${email.trim()} — там посилання.`, `Проверьте ${email.trim()} — там ссылка.`, `Vérifiez ${email.trim()} pour le lien.`, `Prüfe ${email.trim()} auf den Link.`)}
+          </div>
+        ) : (
+          <>
+            {error && (
+              <div style={{ borderRadius: "var(--radius-lg)", background: "var(--rose-50)", border: "1px solid var(--red-200)", padding: "10px 14px", fontSize: "var(--text-sm)", color: "var(--red-700)" }}>
+                ⚠️ {error}
+              </div>
+            )}
+            <div>
+              <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)", fontFamily: "var(--font-sans)" }}>Email</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" style={inputStyle(!!error)} />
+            </div>
+            <button type="submit" disabled={submitting}
+              style={{ width: "100%", padding: "14px", borderRadius: "var(--radius-full)", border: "none", background: submitting ? "var(--slate-300)" : "var(--ink-900)", color: "var(--white)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-base)", cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
+              {submitting ? L("Sending…", "Надсилання…", "Отправка…", "Envoi…", "Wird gesendet…") : L("Send reset link", "Надіслати посилання", "Отправить ссылку", "Envoyer le lien", "Link senden")}
+            </button>
+          </>
+        )}
+      </form>
+    </div>
+  );
+}
+
+// The screen a recovery-link click lands on (App.tsx routes here whenever
+// isPasswordRecovery() is true, regardless of what view Landing itself would
+// otherwise show — see auth-store.jsx's PASSWORD_RECOVERY handling).
+function ResetPasswordForm({ onDone, t }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const [password, setPassword] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (submitting) return;
+    setError("");
+    if (password.length < MIN_PASSWORD_LEN) {
+      setError(L(`Use at least ${MIN_PASSWORD_LEN} characters.`, `Використайте щонайменше ${MIN_PASSWORD_LEN} символів.`, `Используйте не менее ${MIN_PASSWORD_LEN} символов.`, `Utilisez au moins ${MIN_PASSWORD_LEN} caractères.`, `Verwende mindestens ${MIN_PASSWORD_LEN} Zeichen.`));
+      return;
+    }
+    if (password !== confirm) {
+      setError(L("Passwords don't match.", "Паролі не збігаються.", "Пароли не совпадают.", "Les mots de passe ne correspondent pas.", "Passwörter stimmen nicht überein."));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await window.completePasswordReset(password);
+      onDone();
+    } catch (err) {
+      setError(err.message || L("Something went wrong — please try again.", "Щось пішло не так — спробуйте ще раз.", "Что-то пошло не так — попробуйте ещё раз.", "Une erreur s'est produite — veuillez réessayer.", "Etwas ist schiefgelaufen — bitte versuche es erneut."));
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: "var(--space-5)" }}>
+      <form onSubmit={submit} style={{ width: "100%", maxWidth: 420, background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-bold)", fontFamily: "var(--font-display)", letterSpacing: "var(--tracking-tight)", color: "var(--text-strong)" }}>{L("Set a new password", "Новий пароль", "Новый пароль", "Nouveau mot de passe", "Neues Passwort")}</h1>
+          <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{L("Choose a new password for your account.", "Оберіть новий пароль для акаунта.", "Выберите новый пароль для аккаунта.", "Choisis un nouveau mot de passe.", "Wähle ein neues Passwort.")}</p>
+        </div>
+        {error && (
+          <div style={{ borderRadius: "var(--radius-lg)", background: "var(--rose-50)", border: "1px solid var(--red-200)", padding: "10px 14px", fontSize: "var(--text-sm)", color: "var(--red-700)" }}>
+            ⚠️ {error}
+          </div>
+        )}
+        <div>
+          <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)", fontFamily: "var(--font-sans)" }}>{L("New password", "Новий пароль", "Новый пароль", "Nouveau mot de passe", "Neues Passwort")}</label>
+          <PasswordInput value={password} onChange={setPassword} placeholder={L(`At least ${MIN_PASSWORD_LEN} characters`, `Щонайменше ${MIN_PASSWORD_LEN} символів`, `Не менее ${MIN_PASSWORD_LEN} символов`, `Au moins ${MIN_PASSWORD_LEN} caractères`, `Mindestens ${MIN_PASSWORD_LEN} Zeichen`)} autoComplete="new-password" t={t} />
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", marginBottom: "var(--space-1)", fontFamily: "var(--font-sans)" }}>{L("Confirm password", "Підтвердіть пароль", "Подтвердите пароль", "Confirmez le mot de passe", "Passwort bestätigen")}</label>
+          <PasswordInput value={confirm} onChange={setConfirm} placeholder={L("Type it again", "Введіть ще раз", "Введите ещё раз", "Retapez-le", "Gib es erneut ein")} autoComplete="new-password" t={t} />
+        </div>
+        <button type="submit" disabled={submitting}
+          style={{ width: "100%", padding: "14px", borderRadius: "var(--radius-full)", border: "none", background: submitting ? "var(--slate-300)" : "var(--ink-900)", color: "var(--white)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-base)", cursor: submitting ? "default" : "pointer", fontFamily: "var(--font-sans)" }}>
+          {submitting ? L("Saving…", "Збереження…", "Сохранение…", "Enregistrement…", "Wird gespeichert…") : L("Save new password", "Зберегти пароль", "Сохранить пароль", "Enregistrer", "Speichern")}
+        </button>
+      </form>
+    </div>
+  );
+}
+window.ResetPasswordForm = ResetPasswordForm;
+
 function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLangChange }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const isSignUp = mode === "signup";
@@ -129,8 +261,17 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
         </div>
 
         <div>
-          <label style={label}>{L("Password", "Пароль", "Пароль", "Mot de passe", "Passwort")}</label>
-          <PasswordInput value={password} onChange={setPassword} placeholder={isSignUp ? L(`At least ${MIN_PASSWORD_LEN} characters`, `Щонайменше ${MIN_PASSWORD_LEN} символів`, `Не менее ${MIN_PASSWORD_LEN} символов`, `Au moins ${MIN_PASSWORD_LEN} caractères`, `Mindestens ${MIN_PASSWORD_LEN} Zeichen`) : "••••••••"} autoComplete={isSignUp ? "new-password" : "current-password"} hasError={!!errors.password} t={t} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <label style={{ ...label, marginBottom: 0 }}>{L("Password", "Пароль", "Пароль", "Mot de passe", "Passwort")}</label>
+            {!isSignUp && (
+              <button type="button" onClick={() => onSwitchMode("forgot")} style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0 }}>
+                {L("Forgot password?", "Забули пароль?", "Забыли пароль?", "Mot de passe oublié ?", "Passwort vergessen?")}
+              </button>
+            )}
+          </div>
+          <div style={{ marginTop: "var(--space-1)" }}>
+            <PasswordInput value={password} onChange={setPassword} placeholder={isSignUp ? L(`At least ${MIN_PASSWORD_LEN} characters`, `Щонайменше ${MIN_PASSWORD_LEN} символів`, `Не менее ${MIN_PASSWORD_LEN} символов`, `Au moins ${MIN_PASSWORD_LEN} caractères`, `Mindestens ${MIN_PASSWORD_LEN} Zeichen`) : "••••••••"} autoComplete={isSignUp ? "new-password" : "current-password"} hasError={!!errors.password} t={t} />
+          </div>
           {errors.password && <p style={fieldErr}>{errors.password}</p>}
         </div>
 
@@ -192,7 +333,7 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
 }
 
 function Landing({ onContinue, t, lang, onLangChange }) {
-  const [view, setView] = React.useState("marketing"); // "marketing" | "signup" | "login" | "legal"
+  const [view, setView] = React.useState("marketing"); // "marketing" | "signup" | "login" | "forgot" | "legal"
   const [legalPage, setLegalPage] = React.useState("privacy");
 
   // Awaited: window.startDemo() now signs in anonymously with Supabase, and the
@@ -204,6 +345,10 @@ function Landing({ onContinue, t, lang, onLangChange }) {
 
   if (view === "legal") {
     return <Legal page={legalPage} t={t} onBack={() => setView("marketing")} />;
+  }
+
+  if (view === "forgot") {
+    return <ForgotPasswordForm onBack={() => setView("login")} t={t} />;
   }
 
   if (view !== "marketing") {
