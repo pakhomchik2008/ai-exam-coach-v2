@@ -3091,6 +3091,19 @@ function LearnFlashcards({ topic, onExit, t }) {
 // Picker — asked every time the student opens Learn mode. Five methods,
 // no persistence: the "right" method depends on the topic and the mood, not
 // on a permanent setting somewhere the student would forget to change.
+// Each learning method gets its own identity hue — a calm reading method
+// reads different from a talk-to-the-coach method, at a glance. Restrained:
+// one tint per card, same 5-color set used nowhere else in Coach, so this
+// grid stays the one place in the app where method choice = color choice.
+const LEARN_METHOD_HUES = {
+  theory:    { bg: "#EFF6FF", border: "#93C5FD", text: "#1D4ED8" },
+  flashcards:{ bg: "#FDF2F8", border: "#F9A8D4", text: "#BE185D" },
+  socratic:  { bg: "#F5F3FF", border: "#C4B5FD", text: "#5B21B6" },
+  fading:    { bg: "#FFF7ED", border: "#FDBA74", text: "#9A3412" },
+  feynman:   { bg: "#ECFDF5", border: "#6EE7B7", text: "#047857" },
+  speaking:  { bg: "#ECFEFF", border: "#67E8F9", text: "#0E7490" },
+};
+
 function LearnMethodPicker({ topic, onExit, onPick, t }) {
   const resolved = React.useMemo(() => window.resolveTopicForBrain ? window.resolveTopicForBrain(topic) : null, [topic]);
   const copy = learnCopyCode(resolved, t?.code);
@@ -3099,18 +3112,19 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },
   }, children);
-  const cardStyle = { flex: "1 1 240px", padding: "24px 22px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms" };
+  const cardStyle = { flex: "1 1 240px", padding: "24px 22px", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms, background 120ms" };
   const card = (id, emoji, title, blurb) => {
     const rec = recommended === id;
+    const hue = LEARN_METHOD_HUES[id] || { bg: "var(--surface-card)", border: "var(--border-default)", text: "var(--indigo-600)" };
     return React.createElement("button", {
       key: id,
       onClick: () => onPick(id),
-      style: { ...cardStyle, borderColor: rec ? "var(--indigo-400)" : "var(--border-default)" },
+      style: { ...cardStyle, background: hue.bg, borderWidth: rec ? "1.5px" : "1px", borderStyle: "solid", borderColor: hue.border },
     },
-      rec && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em" } },
+      rec && React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: hue.text, textTransform: "uppercase", letterSpacing: "0.06em" } },
         L("Recommended", "Рекомендовано", "Рекомендуем", "Recommandé", "Empfohlen")),
       React.createElement("div", { style: { fontSize: 28 } }, emoji),
-      React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: "var(--text-strong)" } }, title),
+      React.createElement("div", { style: { fontSize: 17, fontWeight: 700, color: hue.text } }, title),
       React.createElement("div", { style: { fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 } }, blurb),
     );
   };
