@@ -459,7 +459,7 @@ async function fetchUrlText(url) {
     const headers = window.apiHeaders
       ? await window.apiHeaders()          // Supabase access token — required by api/_guard.js
       : { "Content-Type": "application/json" };
-    const resp = await fetch("/api/fetch-url", {
+    const resp = await fetch(window.apiUrl ? window.apiUrl("/api/fetch-url") : "/api/fetch-url", {
       method: "POST", headers, body: JSON.stringify({ url }),
     });
     const data = await resp.json();

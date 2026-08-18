@@ -8,6 +8,8 @@
  * plus leaving the demo session.
  */
 
+import { apiUrl } from "./platform";
+
 function w(): Window & {
   apiHeaders?: () => Promise<Record<string, string>>;
   getSession?: () => { mode?: string } | null;
@@ -23,7 +25,7 @@ export async function deleteAccount(): Promise<{ ok?: true; error?: string }> {
   }
   let res: Response;
   try {
-    res = await fetch("/api/delete-account", { method: "POST", headers });
+    res = await fetch(apiUrl("/api/delete-account"), { method: "POST", headers });
   } catch {
     return { error: "Could not reach the server." };
   }

@@ -193,6 +193,10 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
   // trial; display-only for Pro subs upgrading to Ultra (that CTA opens the
   // Stripe portal, not Checkout — see the #116 comment further down).
   const [yearlyBilling, setYearlyBilling] = React.useState(false);
+  // null = "follow the account's current tier" so the tab jumps to wherever
+  // the user actually is without a stale snapshot; once they tap a tab it
+  // pins to their choice for the rest of this sheet visit.
+  const [planTab, setPlanTab] = React.useState(null);
   const [saved, setSaved] = React.useState(false);
   const [confirmErase, setConfirmErase] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
@@ -658,28 +662,69 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
         </SettingsPage>
       )}
 
-      {sheet === "billing" && (
+      {sheet === "billing" && (() => {
+        const tab = planTab || (ultra ? "ultra" : pro ? "pro" : "free");
+        const isCurrentTab = tab === (ultra ? "ultra" : pro ? "pro" : "free");
+        const TAB_FEATURES = {
+          free: [
+            { label: L(lang, "1 exam tracked", "1 іспит у трекері", "1 экзамен в трекере", "1 examen suivi", "1 Prüfung getrackt") },
+            { label: L(lang, "First unit of each subject's syllabus", "Перший юніт кожного предмета", "Первый юнит каждого предмета", "Premier chapitre de chaque matière", "Erste Einheit jedes Fachs"),
+              sub: L(lang, "7 topics on NMT Maths, 10 on IELTS Listening", "7 тем у НМТ-математиці, 10 у IELTS Listening", "7 тем в НМТ-математике, 10 в IELTS Listening", "7 sujets NMT maths, 10 IELTS Listening", "7 Themen NMT-Mathe, 10 IELTS Listening") },
+            { label: L(lang, "Today's AI Plan + AI Coach chat", "AI-план на день + чат з AI Coach", "AI-план на день + чат с AI Coach", "Plan IA du jour + chat AI Coach", "KI-Tagesplan + AI-Coach-Chat") },
+            { label: L(lang, "Session recap after each study session", "Розбір сесії після кожного заняття", "Разбор сессии после каждого занятия", "Récap après chaque séance", "Sitzungs-Recap nach jeder Einheit") },
+          ],
+          pro: [
+            { label: L(lang, "Everything in Free, plus:", "Усе з Free, і ще:", "Всё из Free, и ещё:", "Tout de Free, plus :", "Alles aus Free, plus:") },
+            { label: L(lang, "Unlimited exams", "Необмежена кількість іспитів", "Неограниченное число экзаменов", "Examens illimités", "Unbegrenzte Prüfungen") },
+            { label: L(lang, "Full syllabus — every unit, every subject", "Уся програма — кожен юніт, кожен предмет", "Вся программа — каждый юнит, каждый предмет", "Programme complet — tous les chapitres", "Voller Lehrplan — jede Einheit") },
+            { label: L(lang, "Weekly plan, drag-and-drop calendar, exam-date grid", "Тижневий план, календар із перетягуванням, сітка дат іспитів", "Недельный план, календарь с перетаскиванием, сетка дат экзаменов", "Plan hebdo, calendrier drag-and-drop, grille de dates", "Wochenplan, Drag-and-Drop-Kalender, Prüfungsdaten-Raster") },
+            { label: L(lang, "Mistake journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal"),
+              sub: L(lang, "What you missed, how often, what came back", "Що впало, скільки разів, що повернулось", "Что упало, сколько раз, что вернулось", "Ce que tu as raté, combien de fois, ce qui est revenu", "Was du verpasst hast, wie oft, was zurückkam") },
+          ],
+          ultra: [
+            { label: L(lang, "Everything in Pro, plus:", "Усе з Pro, і ще:", "Всё из Pro, и ещё:", "Tout de Pro, plus :", "Alles aus Pro, plus:") },
+            { label: L(lang, "Our smartest AI on every answer", "Наш найрозумніший AI на кожній відповіді", "Наш самый умный AI на каждом ответе", "Notre IA la plus performante sur chaque réponse", "Unsere klügste KI bei jeder Antwort") },
+            { label: L(lang, "Weekly Deep Report", "Щотижневий поглиблений звіт", "Еженедельный углублённый отчёт", "Rapport hebdomadaire approfondi", "Wöchentlicher Tiefenbericht"),
+              sub: L(lang, "Your predicted score, updated every week", "Прогноз балу, оновлюється щотижня", "Прогноз балла, обновляется каждую неделю", "Ton score prédit, mis à jour chaque semaine", "Deine Prognose, jede Woche aktualisiert") },
+          ],
+        };
+        const TAB_LABEL = { free: "Free", pro: "Pro", ultra: "Ultra" };
+        const TAB_PRICE = { free: null, pro: yearlyBilling ? "$54/yr" : "$5.99/mo", ultra: yearlyBilling ? "$90/yr" : "$9.99/mo" };
+        return (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Subscription", "Підписка", "Подписка", "Abonnement", "Abo")} onClose={() => setSheet(null)}>
-          {isNativeIOS() ? (
-            <Card>
-              <Row
-                label={pro ? "Pro" : "Free"}
-                sub={L(lang, "Subscriptions are managed on examik.app, not in this app.", "Підписки керуються на examik.app, не в застосунку.", "Подписки управляются на examik.app, не в приложении.", "Les abonnements se gèrent sur examik.app, pas dans l’appli.", "Abos werden auf examik.app verwaltet, nicht in der App.")}
-                value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
-              />
-            </Card>
-          ) : (
-          <>
           <Card>
             <Row
-              label={pro ? "Pro" : "Free"}
-              sub={pro
+              label={ultra ? "Ultra" : pro ? "Pro" : "Free"}
+              sub={isNativeIOS()
+                ? L(lang, "Subscriptions are managed on examik.app, not in this app.", "Підписки керуються на examik.app, не в застосунку.", "Подписки управляются на examik.app, не в приложении.", "Les abonnements se gèrent sur examik.app, pas dans l’appli.", "Abos werden auf examik.app verwaltet, nicht in der App.")
+                : ultra
+                ? L(lang, "Our smartest AI, every answer. $9.99/month.", "Наш найрозумніший AI на кожній відповіді. $9.99/міс.", "Наш самый умный AI на каждом ответе. $9.99/мес.", "Notre IA la plus performante. $9.99/mois.", "Unsere klügste KI. $9.99/Monat.")
+                : pro
                 ? L(lang, "Full plan unlocked. $5.99/month after trial.", "Повний план відкритий. $5.99/міс після тріалу.", "Полный план открыт. $5.99/мес после триала.", "Plan complet. $5.99/mois après l’essai.", "Voller Plan. $5.99/Monat nach dem Trial.")
-                : L(lang, "1 exam, first unit of each subject. Calendar and journal unlock with Pro — 3 days free, then $5.99/month. Card at checkout.", "1 іспит, перший юніт кожного предмета. Календар і журнал — у Pro. 3 дні безкоштовно, далі $5.99/міс. Картка на Checkout.", "1 экзамен, первый юнит каждого предмета. Календарь и журнал — в Pro. 3 дня бесплатно, дальше $5.99/мес. Карта на Checkout.", "1 examen, premier chapitre de chaque matière. Calendrier et journal avec Pro — 3 jours gratuits, puis $5.99/mois.", "1 Prüfung, erste Einheit jedes Fachs. Kalender und Journal mit Pro — 3 Tage gratis, dann $5.99/Monat.")}
-              value={pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
+                : L(lang, "1 exam, first unit of each subject.", "1 іспит, перший юніт кожного предмета.", "1 экзамен, первый юнит каждого предмета.", "1 examen, premier chapitre de chaque matière.", "1 Prüfung, erste Einheit jedes Fachs.")}
+              value={ultra ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : pro ? L(lang, "Active", "Активна", "Активна", "Actif", "Aktiv") : "Free"}
             />
+          </Card>
+
+          {/* Segmented tab — replaces the old separate "Compare plans" screen.
+              Same tap gets you feature list + price + the right CTA, instead
+              of drilling Settings → Subscription → Compare (3 taps deep). */}
+          <div style={{ display: "flex", gap: 4, padding: 4, background: "var(--surface-muted)", borderRadius: 999, margin: "0 16px 12px" }}>
+            {["free", "pro", "ultra"].map((id) => (
+              <button key={id} type="button" onClick={() => setPlanTab(id)}
+                style={{ flex: 1, border: "none", borderRadius: 999, padding: "8px 10px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)",
+                  background: tab === id ? "var(--surface-card)" : "transparent", color: tab === id ? "var(--text-strong)" : "var(--text-muted)",
+                  boxShadow: tab === id ? "var(--shadow-sm)" : "none" }}>
+                {TAB_LABEL[id]}
+              </button>
+            ))}
+          </div>
+
+          <Card>
+            <Row label={TAB_LABEL[tab]} value={isCurrentTab ? L(lang, "Current plan", "Поточний план", "Текущий план", "Plan actuel", "Aktueller Plan") : TAB_PRICE[tab]} />
+            {TAB_FEATURES[tab].map((f, i) => <Row key={i} label={f.label} sub={f.sub} />)}
             {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
-            {!pro && (
+            {!isNativeIOS() && !isCurrentTab && tab !== "free" && (
               <div className="settings-row" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "var(--surface-muted)", borderRadius: 999, alignSelf: "flex-start" }}>
                   <button type="button" onClick={() => setYearlyBilling(false)}
@@ -691,47 +736,39 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
                     {L(lang, "Yearly −25%", "Щороку −25%", "Ежегодно −25%", "Annuel −25 %", "Jährlich −25 %")}
                   </button>
                 </div>
-                <button type="button" disabled={billingBusy} onClick={() => buy("pro")}
-                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
-                  {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, `Try 3 days of Pro free — $${yearlyBilling ? "54/yr" : "5.99/mo"}`, `Спробуй 3 дні Pro безкоштовно — $${yearlyBilling ? "54/рік" : "5.99/міс"}`, `Попробуй 3 дня Pro бесплатно — $${yearlyBilling ? "54/год" : "5.99/мес"}`, `Essaie 3 jours de Pro gratuits — $${yearlyBilling ? "54/an" : "5.99/mois"}`, `Teste 3 Tage Pro gratis — $${yearlyBilling ? "54/Jahr" : "5.99/Monat"}`)}
-                </button>
-                <button type="button" disabled={billingBusy} onClick={() => buy("ultra")}
-                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1.5px solid var(--chrome-purple, #8921F5)", background: "transparent", color: "var(--chrome-purple, #8921F5)", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
-                  {L(lang, `Try 3 days of Ultra free — $${yearlyBilling ? "90/yr" : "9.99/mo"}`, `Спробуй 3 дні Ultra безкоштовно — $${yearlyBilling ? "90/рік" : "9.99/міс"}`, `Попробуй 3 дня Ultra бесплатно — $${yearlyBilling ? "90/год" : "9.99/мес"}`, `Essaie 3 jours d’Ultra gratuits — $${yearlyBilling ? "90/an" : "9.99/mois"}`, `Teste 3 Tage Ultra gratis — $${yearlyBilling ? "90/Jahr" : "9.99/Monat"}`)}
+                {/* Pro subs upgrading to Ultra go through the Stripe portal (an
+                    upgrade on the existing subscription via proration), never
+                    a second parallel Checkout — Phase 5 slice D, Decision #116. */}
+                <button type="button" disabled={billingBusy} onClick={() => (pro && tab === "ultra" ? portal() : buy(tab))}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: tab === "ultra" ? "var(--chrome-purple, #8921F5)" : "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
+                  {billingBusy
+                    ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
+                    : pro && tab === "ultra"
+                    ? L(lang, "Switch to Ultra", "Перейти на Ultra", "Перейти на Ultra", "Passer à Ultra", "Zu Ultra wechseln")
+                    : L(lang, `Try 3 days of ${TAB_LABEL[tab]} free — ${TAB_PRICE[tab]}`, `Спробуй 3 дні ${TAB_LABEL[tab]} безкоштовно — ${TAB_PRICE[tab]}`, `Попробуй 3 дня ${TAB_LABEL[tab]} бесплатно — ${TAB_PRICE[tab]}`, `Essaie 3 jours de ${TAB_LABEL[tab]} gratuits — ${TAB_PRICE[tab]}`, `Teste 3 Tage ${TAB_LABEL[tab]} gratis — ${TAB_PRICE[tab]}`)}
                 </button>
               </div>
             )}
-            <Row label={L(lang, "Manage subscription", "Керувати підпискою", "Управлять подпиской", "Gérer l’abonnement", "Abo verwalten")}
-              sub={L(lang, "Stripe portal — invoices, cancel, card", "Портал Stripe — рахунки, скасування, картка", "Портал Stripe", "Portail Stripe", "Stripe-Portal")}
-              chevron onClick={portal} />
-            <Row label={L(lang, "Promo code", "Промокод", "Промокод", "Code promo", "Promo-Code")}
-              sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
-              chevron onClick={() => buy("pro")} />
           </Card>
-          {/* Phase 5 slice D, Decision #116: opt-in only, existing Pro subs
-              stay on Pro at their current price until they tap this. Routes
-              through the same Stripe portal as "Manage subscription" — an
-              upgrade changes the existing subscription's price via proration,
-              never a second parallel Checkout/subscription. */}
-          {pro && !ultra && (
+
+          {!isNativeIOS() && (
             <Card>
-              <Row
-                label="Ultra"
-                sub={L(lang, "Our smartest AI on every answer, plus a Weekly Deep Report with your predicted score. $9.99/month.", "Наш найрозумніший AI на кожній відповіді, плюс щотижневий звіт із прогнозом балу. $9.99/міс.", "Наш самый умный AI на каждом ответе, плюс еженедельный отчёт с прогнозом балла. $9.99/мес.", "Notre IA la plus performante sur chaque réponse, plus un rapport hebdomadaire avec ton score prédit. $9.99/mois.", "Unsere klügste KI bei jeder Antwort, plus ein wöchentlicher Bericht mit deiner Prognose. $9.99/Monat.")}
-                value={L(lang, "Available", "Доступно", "Доступно", "Disponible", "Verfügbar")}
-              />
-              <div className="settings-row">
-                <button type="button" disabled={billingBusy} onClick={portal}
-                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--chrome-purple, #8921F5)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
-                  {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, "Switch to Ultra", "Перейти на Ultra", "Перейти на Ultra", "Passer à Ultra", "Zu Ultra wechseln")}
-                </button>
-              </div>
+              <Row label={L(lang, "Manage subscription", "Керувати підпискою", "Управлять подпиской", "Gérer l’abonnement", "Abo verwalten")}
+                sub={L(lang, "Stripe portal — invoices, cancel, card", "Портал Stripe — рахунки, скасування, картка", "Портал Stripe", "Portail Stripe", "Stripe-Portal")}
+                chevron onClick={portal} />
+              <Row label={L(lang, "Promo code", "Промокод", "Промокод", "Code promo", "Promo-Code")}
+                sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
+                chevron onClick={() => buy("pro")} />
             </Card>
           )}
-          </>
+          {isNativeIOS() && (
+            <p style={{ margin: "4px 16px 0", fontSize: 12, color: "var(--text-faint)" }}>
+              {L(lang, "Manage your plan on examik.app", "Керуй планом на examik.app", "Управляй планом на examik.app", "Gère ton abonnement sur examik.app", "Verwalte deinen Plan auf examik.app")}
+            </p>
           )}
         </SettingsPage>
-      )}
+        );
+      })()}
 
       {sheet === "data" && (
         <SettingsPage backLabel={t.onboard_back} title={L(lang, "Data & privacy", "Дані та приватність", "Данные и приватность", "Données et confidentialité", "Daten & Privatsphäre")} onClose={() => setSheet(null)}>

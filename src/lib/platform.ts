@@ -12,3 +12,19 @@ import { Capacitor } from "@capacitor/core";
 export function isNativeIOS(): boolean {
   return Capacitor.getPlatform() === "ios" && Capacitor.isNativePlatform();
 }
+
+// Capacitor bundles the built SPA and loads it from capacitor://localhost —
+// a relative fetch("/api/...") resolves against THAT origin, which has no
+// server behind it, instead of the deployed Vercel functions. Every /api/*
+// call must go through this so it hits the real backend on native while
+// staying a normal relative path (and same-origin, no CORS) on web.
+const PROD_API_ORIGIN = "https://ai-exam-coach-v2.vercel.app";
+
+export function apiUrl(path: string): string {
+  return isNativeIOS() ? `${PROD_API_ORIGIN}${path}` : path;
+}
+
+// curriculum-store.jsx is a plain window-global script (no imports, per its
+// own module marker) — publish here so it can reach apiUrl the same way it
+// reaches every other cross-module helper.
+Object.assign(window, { apiUrl });

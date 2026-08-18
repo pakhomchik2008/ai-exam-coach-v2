@@ -1,5 +1,7 @@
 // Client for /api/transcribe. The OpenAI key never leaves Vercel.
 
+import { apiUrl } from "./platform";
+
 const MAX_B64_CHARS = 3_500_000;
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -22,7 +24,7 @@ export async function transcribeAudio(blob: Blob, language = "en"): Promise<stri
   }
   const getHeaders = (window as unknown as { apiHeaders?: () => Promise<Record<string, string>> }).apiHeaders;
   const headers = getHeaders ? await getHeaders() : { "Content-Type": "application/json" };
-  const res = await fetch("/api/transcribe", {
+  const res = await fetch(apiUrl("/api/transcribe"), {
     method: "POST",
     headers,
     body: JSON.stringify({ audio, mime: blob.type || "audio/webm", language }),

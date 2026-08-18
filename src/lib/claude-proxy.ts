@@ -12,6 +12,8 @@
  * (published by auth-store.jsx); api/_guard.js rejects requests without one.
  */
 
+import { apiUrl } from "./platform";
+
 type CompleteArg = string | { system?: string; messages: unknown[] };
 
 interface ProxyError extends Error {
@@ -28,7 +30,7 @@ async function complete(arg: CompleteArg): Promise<string> {
 
   const headers = getHeaders ? await getHeaders() : { "Content-Type": "application/json" };
 
-  const res = await fetch("/api/complete", {
+  const res = await fetch(apiUrl("/api/complete"), {
     method: "POST",
     headers,
     body: JSON.stringify({ system, messages }),
