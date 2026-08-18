@@ -5,6 +5,13 @@
 // Setup on Vercel: Project Settings → Environment Variables →
 //   ANTHROPIC_API_KEY         = <your Anthropic key>
 //   SUPABASE_SERVICE_ROLE_KEY = <Supabase Settings → API → service_role>
+//   OPENAI_API_KEY            optional — see api/_openai.js. When set, any
+//                              Anthropic failure (out of credit, 5xx, rate
+//                              limit, timeout, or the key missing entirely)
+//                              retries the same request through OpenAI
+//                              instead of failing the call. Emergency-only:
+//                              does not change what model a healthy
+//                              Anthropic account serves.
 // Redeploy after adding them. See api/_guard.js for the optional ones.
 //
 // This endpoint is authenticated: every caller must present a live Supabase
@@ -14,6 +21,7 @@
 
 import { guard, recordUsage } from "./_guard.js";
 import { modelForTier, resolveUserTier, thinkingConfigFor } from "./_tier.js";
+import { callOpenAi, openAiModelForTier } from "./_openai.js";
 
 // Extend to 60 s so lesson generation (8-12 structured steps) doesn't time out
 // on Vercel Hobby. Pro plan supports up to 300 s.
@@ -80,8 +88,9 @@ export default async function handler(req, res) {
   if (!gate) return; // guard already wrote 401/403/405/429
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    res.status(500).json({ error: "ANTHROPIC_API_KEY is not set in this Vercel project's environment variables." });
+  const openAiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey && !openAiKey) {
+    res.status(500).json({ error: "Neither ANTHROPIC_API_KEY nor OPENAI_API_KEY is set in this Vercel project's environment variables." });
     return;
   }
 
@@ -110,40 +119,83 @@ export default async function handler(req, res) {
   const model = modelForTier(tier);
   const thinking = thinkingConfigFor(model);
 
-  try {
-    const upstream = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 8192,
-        ...(thinking ? { thinking } : {}),
-        system,
-        messages: msgs,
-      }),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
-    const data = await upstream.json();
-    if (!upstream.ok) {
-      res.status(upstream.status).json({ error: anthropicErrorMessage(data) });
+  // Anthropic first (when configured) — on ANY failure (missing key, out of
+  // credit, 5xx, rate limit, timeout), fall through to OpenAI if that key
+  // exists, rather than failing the call. `anthropicAttempted` distinguishes
+  // "we tried and it broke" from "no key, skipped straight to fallback" for
+  // the combined error message if both providers end up failing.
+  let anthropicAttempted = false;
+  let anthropicErr = null;
+  if (apiKey) {
+    anthropicAttempted = true;
+    try {
+      const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 8192,
+          ...(thinking ? { thinking } : {}),
+          system,
+          messages: msgs,
+        }),
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      });
+      const data = await upstream.json();
+      if (!upstream.ok) {
+        const httpErr = new Error(anthropicErrorMessage(data));
+        httpErr.status = upstream.status;
+        throw httpErr;
+      }
+      // Bill the tokens this call actually cost against the user's daily budget.
+      // Awaited: the Lambda freezes at response time, so an un-awaited call here
+      // is not reliably delivered. gate.usage.day pins it to the day the request
+      // slot was spent, not the day this line happens to run.
+      await recordUsage(gate.user, "complete", data.usage, gate.usage && gate.usage.day);
+      res.status(200).json({ text: textFromContent(data.content) });
       return;
+    } catch (err) {
+      anthropicErr = err;
     }
-    // Bill the tokens this call actually cost against the user's daily budget.
-    // Awaited: the Lambda freezes at response time, so an un-awaited call here
-    // is not reliably delivered. gate.usage.day pins it to the day the request
-    // slot was spent, not the day this line happens to run.
-    await recordUsage(gate.user, "complete", data.usage, gate.usage && gate.usage.day);
-    res.status(200).json({ text: textFromContent(data.content) });
-  } catch (err) {
-    const timedOut = err && (err.name === "TimeoutError" || err.name === "AbortError");
-    if (timedOut) {
-      res.status(504).json({ error: "AI took too long. Try again." });
-      return;
-    }
-    res.status(500).json({ error: String(err) });
   }
+
+  if (openAiKey) {
+    try {
+      const result = await callOpenAi({
+        apiKey: openAiKey,
+        model: openAiModelForTier(tier),
+        system,
+        msgs,
+        timeoutMs: UPSTREAM_TIMEOUT_MS,
+      });
+      await recordUsage(gate.user, "complete", result.usage, gate.usage && gate.usage.day);
+      res.status(200).json({ text: result.text, provider: "openai-fallback" });
+      return;
+    } catch (openAiErr) {
+      res.status(502).json({
+        error: anthropicAttempted
+          ? `Anthropic failed (${anthropicErr && anthropicErr.message}); OpenAI fallback also failed (${openAiErr.message}).`
+          : `OpenAI failed (${openAiErr.message}).`,
+      });
+      return;
+    }
+  }
+
+  // No OpenAI key configured — report the Anthropic failure exactly as
+  // before this change: upstream's own status/message when it responded,
+  // 504 on a timeout, 500 for anything else (network error, no key at all).
+  const timedOut = anthropicErr && (anthropicErr.name === "TimeoutError" || anthropicErr.name === "AbortError");
+  if (timedOut) {
+    res.status(504).json({ error: "AI took too long. Try again." });
+    return;
+  }
+  if (anthropicErr && anthropicErr.status) {
+    res.status(anthropicErr.status).json({ error: anthropicErr.message });
+    return;
+  }
+  res.status(500).json({ error: anthropicErr ? String(anthropicErr) : "Neither AI provider is configured." });
 }
