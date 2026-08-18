@@ -3,7 +3,7 @@
 // used to remount inputs; Card/Row would too.
 
 import { isProUser, isUltraUser } from "../learn/premium";
-import { startProCheckout, startBillingPortal } from "../../lib/billing";
+import { startCheckout, startBillingPortal } from "../../lib/billing";
 import { applyAppearance } from "../../lib/appearance";
 import { THEME_META, THEMES, resolveThemeId } from "../../styles/themes";
 import { exportPersonalData } from "../../lib/export-data";
@@ -188,6 +188,10 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
   const [sheet, setSheet] = React.useState(null);
   const [billingBusy, setBillingBusy] = React.useState(false);
   const [billingError, setBillingError] = React.useState("");
+  // Phase 5 slice E3. Free users pick monthly/yearly before starting either
+  // trial; display-only for Pro subs upgrading to Ultra (that CTA opens the
+  // Stripe portal, not Checkout — see the #116 comment further down).
+  const [yearlyBilling, setYearlyBilling] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
   const [confirmErase, setConfirmErase] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
@@ -281,10 +285,10 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
     }
   }
 
-  async function buy() {
+  async function buy(tier = "pro") {
     setBillingBusy(true);
     setBillingError("");
-    const result = await startProCheckout();
+    const result = await startCheckout(tier, yearlyBilling ? "yearly" : "monthly");
     if (result.error) { setBillingError(result.error); setBillingBusy(false); }
   }
   async function portal() {
@@ -665,10 +669,24 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             />
             {billingError && <p style={{ margin: "0 16px 10px", fontSize: 12, color: "var(--red-600)" }}>{billingError}</p>}
             {!pro && (
-              <div className="settings-row">
-                <button type="button" disabled={billingBusy} onClick={buy}
+              <div className="settings-row" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "var(--surface-muted)", borderRadius: 999, alignSelf: "flex-start" }}>
+                  <button type="button" onClick={() => setYearlyBilling(false)}
+                    style={{ border: "none", borderRadius: 999, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", background: yearlyBilling ? "transparent" : "var(--surface-card)", color: yearlyBilling ? "var(--text-muted)" : "var(--text-strong)" }}>
+                    {L(lang, "Monthly", "Щомісяця", "Ежемесячно", "Mensuel", "Monatlich")}
+                  </button>
+                  <button type="button" onClick={() => setYearlyBilling(true)}
+                    style={{ border: "none", borderRadius: 999, padding: "6px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-sans)", background: yearlyBilling ? "var(--surface-card)" : "transparent", color: yearlyBilling ? "var(--text-strong)" : "var(--text-muted)" }}>
+                    {L(lang, "Yearly −25%", "Щороку −25%", "Ежегодно −25%", "Annuel −25 %", "Jährlich −25 %")}
+                  </button>
+                </div>
+                <button type="button" disabled={billingBusy} onClick={() => buy("pro")}
                   style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
-                  {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, "Start 3-day trial", "Почати 3-денний тріал", "Начать 3-дневный триал", "Commencer l’essai", "3-Tage-Trial starten")}
+                  {billingBusy ? L(lang, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…") : L(lang, `Try 3 days of Pro free — $${yearlyBilling ? "54/yr" : "5.99/mo"}`, `Спробуй 3 дні Pro безкоштовно — $${yearlyBilling ? "54/рік" : "5.99/міс"}`, `Попробуй 3 дня Pro бесплатно — $${yearlyBilling ? "54/год" : "5.99/мес"}`, `Essaie 3 jours de Pro gratuits — $${yearlyBilling ? "54/an" : "5.99/mois"}`, `Teste 3 Tage Pro gratis — $${yearlyBilling ? "54/Jahr" : "5.99/Monat"}`)}
+                </button>
+                <button type="button" disabled={billingBusy} onClick={() => buy("ultra")}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1.5px solid var(--chrome-purple, #8921F5)", background: "transparent", color: "var(--chrome-purple, #8921F5)", fontWeight: 700, fontSize: 15, cursor: billingBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
+                  {L(lang, `Try 3 days of Ultra free — $${yearlyBilling ? "90/yr" : "9.99/mo"}`, `Спробуй 3 дні Ultra безкоштовно — $${yearlyBilling ? "90/рік" : "9.99/міс"}`, `Попробуй 3 дня Ultra бесплатно — $${yearlyBilling ? "90/год" : "9.99/мес"}`, `Essaie 3 jours d’Ultra gratuits — $${yearlyBilling ? "90/an" : "9.99/mois"}`, `Teste 3 Tage Ultra gratis — $${yearlyBilling ? "90/Jahr" : "9.99/Monat"}`)}
                 </button>
               </div>
             )}
@@ -677,7 +695,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
               chevron onClick={portal} />
             <Row label={L(lang, "Promo code", "Промокод", "Промокод", "Code promo", "Promo-Code")}
               sub={L(lang, "Enter it on Stripe Checkout", "Вводиш на Stripe Checkout", "Вводишь на Stripe Checkout", "Saisi sur Stripe Checkout", "Auf Stripe Checkout eingeben")}
-              chevron onClick={buy} />
+              chevron onClick={() => buy("pro")} />
           </Card>
           {/* Phase 5 slice D, Decision #116: opt-in only, existing Pro subs
               stay on Pro at their current price until they tap this. Routes
