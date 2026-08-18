@@ -233,7 +233,7 @@ Rules:
     <div style={{ maxWidth: "var(--container-read)", margin: "0 auto" }}>
 
       {/* Subject header */}
-      <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", borderLeft: `var(--border-accent-width) solid ${s.color}`, background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)" }}>
+      <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "var(--space-6)" }}>
         <p style={{ margin: 0, fontSize: "var(--text-sm)", textTransform: "uppercase", letterSpacing: "var(--tracking-wide)", color: s.color, fontWeight: "var(--weight-medium)" }}>{s.subject}</p>
         <p style={{ margin: "4px 0 0", fontSize: "var(--text-xs)", color: "var(--text-muted)" }}>{L("Review","Повторення","Повторение","Révision","Wiederholung")} {s.review}</p>
       </div>
