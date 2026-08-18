@@ -237,9 +237,35 @@ export function resolveAppOrigin(req) {
   return process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 }
 
+// Every caller on the web (examik.app, the Vercel domain, local dev) is
+// same-origin with these functions — the browser never needed CORS headers
+// to read the response. The native iOS app is the one caller that ISN'T:
+// it loads from capacitor://localhost and fetches this project's real
+// domain, which is cross-origin by definition. WKWebView enforces real CORS
+// there — it sends a preflight OPTIONS request, and without an
+// Access-Control-Allow-Origin response (on both the preflight AND the real
+// POST response) the request never reaches JS at all — it surfaces as a
+// bare "Load failed", not a 4xx the app can show an error for. This is
+// called first, before the method/auth checks, so even the preflight (which
+// carries no Authorization header) gets a valid CORS response.
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || originRejected(req)) return;
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Vary", "Origin");
+}
+
 // Origin + live JWT, no AI quota. Checkout uses this so a pay click cannot
 // burn the daily complete budget (Decision Log #66).
 export async function authenticate(req, res, signInMessage = "Sign in to use AI features.") {
+  applyCors(req, res);
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return null;
+  }
+
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
     return null;
