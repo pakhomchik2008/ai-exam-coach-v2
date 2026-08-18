@@ -241,14 +241,17 @@ copy cannot disagree with Checkout.
 | 115 | Score Predictor (formula) + AI commentary + weak-topic heatmap = the "Weekly Deep Report" named in #101, not a separate feature | One deliverable, not two. Formula-based number stays free of AI cost/latency; only the commentary sentence is a `brainComplete` call. Ships inside the existing daily-brief pipeline (email + in-app card), gated to a weekly Ultra-only block. |
 | 116 | Ultra gets its own 3-day free trial (same shape as Pro's), not auto-granted to existing Pro subscribers | Existing Pro subs stay on Pro at current price; they see an opt-in "Ultra available" upgrade card, never a silent price change or forced migration. |
 | 117 | Ultra Coach-chat / `complete` request quota equals Pro's, not raised further | Quota was never the Pro→Ultra differentiator — model (Sonnet vs Haiku) and the Weekly Deep Report are. Keeps `ai_limits` at two tier keys (`user`, `anon`) rather than fragmenting per paid tier. |
+| 118 | Reverses #112: public page gets a real Ultra card + monthly/yearly toggle, on landing, in-app paywalls (ProSheet), and Settings > Subscription | Hlib explicitly asked for this (18 Aug 2026) after seeing the Free/Pro-only pricing card. Prices unchanged from #86: Pro $5.99/mo·$54/yr, Ultra $9.99/mo·$90/yr, badge "−25%". |
+| 119 | Ultra/yearly CTAs hit real Stripe Checkout, not a waitlist — soft 503 ("Billing is not configured") until Hlib creates the missing Price ids | Reverses the waitlist half of #109. Same graceful-degradation shape every other Stripe env var in this project already uses; no dead-end UI, no separate waitlist table to build. |
 
 Build order agreed 17 Aug for when usage resets, mapped onto the
 slices below: **A** = 5a-equivalent tier plumbing (Ultra model
 routing in `complete.js`, no allowlist per #113) → **B** = Predictor
 formula + AI commentary (#115) → **C** = heatmap, folded into the
 same Weekly Deep Report block → **D** = existing-Pro opt-in upgrade
-card + landing/pricing copy. **D is blocked by #112** — no public
-Ultra card ships until Hlib explicitly reverses it, same as today.
+card (Settings, Portal-based, no public copy yet) → **E** = public
+Ultra + yearly (#118/#119): Checkout tier/interval plumbing, landing
+pricing section, ProSheet, Settings toggle. A-D shipped 17-18 Aug.
 
 ## Reversibility
 
@@ -275,7 +278,11 @@ Ultra card ships until Hlib explicitly reverses it, same as today.
 ## Hlib does by hand (when 5d starts)
 
 1. Stripe Test mode: five Prices (Sprint $2.99 / 3-day phase,
-   Pro $5.99 / $54, Ultra $9.99 / $90). Put ids in Vercel.
+   Pro $5.99 / $54, Ultra $9.99 / $90). Put ids in Vercel as
+   `STRIPE_PRICE_ID` (Pro monthly, exists), `STRIPE_PRICE_ID_YEARLY`
+   (Pro $54/yr), `STRIPE_PRICE_ID_ULTRA` (Ultra $9.99/mo),
+   `STRIPE_PRICE_ID_ULTRA_YEARLY` (Ultra $90/yr) — all four optional,
+   `/api/stripe-checkout` 503s per-missing-id, never crashes (#119).
 2. Webhook events: existing four, plus
    `subscription_schedule.updated` if we use schedules.
 3. Run the new `supabase/NN_entitlements.sql` (tier column,
