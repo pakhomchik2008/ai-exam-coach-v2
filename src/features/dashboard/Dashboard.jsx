@@ -544,30 +544,53 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         </div>
       </section>
 
-      {/* ── Ultra: live weak-topic heatmap ──────────────────────────── */}
-      {isUltraUser() && weakTopics.length > 0 && (
-        <section>
+      {/* ── Ultra: Daily Deep Report (live predictor + weak-topic heatmap) ──
+          Same two ingredients as the Weekly Deep Report email (predicted
+          score + heatmap, api/notifications-cron.js's weeklyDeepReportHtml),
+          computed live instead of waiting for Sunday. One combined card so
+          Ultra reads as one perk, not two half-features bolted together. */}
+      {isUltraUser() && (anyCourseStarted || weakTopics.length > 0) && (
+        <section style={{ borderRadius: "var(--radius-xl)", background: "var(--surface-card)", border: "1px solid color-mix(in srgb, var(--chrome-gold, #C6A572) 30%, var(--border-default))", padding: "var(--space-4)" }}>
           <div style={{ fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--chrome-gold, #C6A572)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
-            {L("ULTRA · LIVE", "ULTRA · ЖИВО", "ULTRA · ЖИВО", "ULTRA · EN DIRECT", "ULTRA · LIVE")}
+            {L("ULTRA · DAILY DEEP REPORT", "ULTRA · ЩОДЕННИЙ ЗВІТ", "ULTRA · ЕЖЕДНЕВНЫЙ ОТЧЁТ", "ULTRA · RAPPORT QUOTIDIEN", "ULTRA · TÄGLICHER BERICHT")}
           </div>
-          <H2>{L("Weak spots", "Слабкі місця", "Слабые места", "Points faibles", "Schwachstellen")}</H2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
-            {weakTopics.map((topic) => {
-              const color = topic.priority === "high" ? "var(--red-500)" : topic.priority === "medium" ? "var(--amber-500)" : "var(--emerald-500)";
-              const width = Math.max(8, 100 - topic.masteryPct);
-              return (
-                <div key={topic.topic} onClick={() => onGoToJournal && onGoToJournal()} style={{ cursor: onGoToJournal ? "pointer" : "default" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-sm)", color: "var(--text-body)", marginBottom: 4 }}>
-                    <span>{topic.topic}</span>
-                    <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{topic.pendingHere} {L("pending", "залишок", "осталось", "restant", "offen")}</span>
-                  </div>
-                  <div style={{ height: 6, borderRadius: 3, background: "var(--surface-muted)", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${width}%`, background: color, borderRadius: 3 }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <H2>{L("Daily Deep Report", "Щоденний звіт", "Ежедневный отчёт", "Rapport quotidien", "Täglicher Bericht")}</H2>
+
+          {anyCourseStarted && (
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "var(--space-3) 0" }}>
+              <span style={{ fontSize: 34, fontWeight: 800, fontFamily: "var(--font-mono)", lineHeight: 1, color: overallProb >= 60 ? "var(--emerald-600)" : overallProb >= 40 ? "var(--amber-600)" : "var(--red-500)" }}>
+                {overallProb}/100
+              </span>
+              <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
+                {L("predicted readiness", "прогнозована готовність", "прогнозируемая готовность", "préparation prévue", "prognostizierte Bereitschaft")}
+              </span>
+            </div>
+          )}
+
+          {weakTopics.length > 0 && (
+            <>
+              <div style={{ fontSize: "var(--text-xs)", color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: anyCourseStarted ? "var(--space-3)" : "var(--space-2)", marginBottom: "var(--space-2)" }}>
+                {L("Weak topics", "Слабкі теми", "Слабые темы", "Sujets faibles", "Schwache Themen")}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                {weakTopics.map((topic) => {
+                  const color = topic.priority === "high" ? "var(--red-500)" : topic.priority === "medium" ? "var(--amber-500)" : "var(--emerald-500)";
+                  const width = Math.max(8, 100 - topic.masteryPct);
+                  return (
+                    <div key={topic.topic} onClick={() => onGoToJournal && onGoToJournal()} style={{ cursor: onGoToJournal ? "pointer" : "default" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-sm)", color: "var(--text-body)", marginBottom: 4 }}>
+                        <span>{topic.topic}</span>
+                        <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{topic.pendingHere} {L("pending", "залишок", "осталось", "restant", "offen")}</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: "var(--surface-muted)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${width}%`, background: color, borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </section>
       )}
 
