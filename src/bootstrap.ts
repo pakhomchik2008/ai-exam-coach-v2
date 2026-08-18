@@ -73,6 +73,7 @@ import "./features/exams/CurriculumStep.jsx";
 import "./features/exams/exam-wizard.jsx";
 
 // ── Tier 5: screens
+import "./features/dashboard/DailyBriefCard.jsx"; // must precede Dashboard.jsx, which renders it
 import "./features/dashboard/Dashboard.jsx";
 import "./features/study/CourseDetail.jsx";
 import "./features/calendar/DayDetail.jsx";
@@ -135,6 +136,7 @@ export const REQUIRED_GLOBALS = [
   "playSound",
   "Landing",
   "AIPlan",
+  "DailyBriefCard",
   "Dashboard",
   "AIChat",
   "StudyHub",

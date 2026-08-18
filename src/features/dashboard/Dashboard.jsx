@@ -342,6 +342,17 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         )}
       </section>
 
+      {/* ── Daily Brief — the same at-a-glance summary as the daily_brief
+          email (api/notifications-cron.js), computed live instead of waiting
+          for the cron: today's plan status, streak, nearest exam countdown.
+          Ultra adds one AI-written line — the in-app half of the "push
+          something extra for Ultra" plan, same predictor-commentary idea as
+          the Weekly Deep Report email, but daily and inline instead of a
+          Sunday send. */}
+      <window.DailyBriefCard
+        L={L} streak={streak} focusSession={focusSession} activeCourses={activeCourses}
+      />
+
       {/* Due journal — Today absorbs the queue; full list is one tap in More. */}
       {(() => {
         if (!isProUser() || !window.computeMistakeSummary) return null;
