@@ -78,10 +78,6 @@ export async function startCheckout(tier: BillingTier, interval: BillingInterval
   return postBilling("/api/stripe-checkout", { tier, interval });
 }
 
-export async function startProCheckout(): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
-  return startCheckout("pro", "monthly");
-}
-
 export async function startBillingPortal(): Promise<{ ok?: true; error?: string }> {
   return postBilling("/api/stripe-portal");
 }
