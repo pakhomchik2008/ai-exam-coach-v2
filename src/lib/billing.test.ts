@@ -8,7 +8,7 @@ import {
   utcDateKey,
   verifyStripeSignature,
 } from "../../api/_stripe.js";
-import { consumeBillingQuery, isProStatus as clientIsProStatus } from "./billing";
+import { consumeBillingQuery, isProStatus as clientIsProStatus, refreshProStatus } from "./billing";
 
 describe("isProStatus", () => {
   it("treats trial, active, and past_due as Pro", () => {
@@ -78,6 +78,77 @@ describe("verifyStripeSignature", () => {
     const sig = crypto.createHmac("sha256", secret).update(`${t}.${payload}`).digest("hex");
     expect(verifyStripeSignature(payload, `t=${t},v1=deadbeef`, secret, t)).toBe(false);
     expect(verifyStripeSignature(payload, `t=${t - 400},v1=${sig}`, secret, t)).toBe(false);
+  });
+});
+
+describe("refreshProStatus", () => {
+  const w = window as unknown as {
+    getSession?: () => { id: string };
+    getProfile?: () => { pro?: boolean; tier?: string };
+    saveProfile?: (patch: { pro?: boolean; tier?: string }) => void;
+    _supabase?: unknown;
+  };
+
+  afterEach(() => {
+    delete w.getSession;
+    delete w.getProfile;
+    delete w.saveProfile;
+    delete w._supabase;
+  });
+
+  it("caches tier alongside pro when the row has both (Phase 5 slice D)", async () => {
+    w.getSession = () => ({ id: "u1" });
+    w.getProfile = () => ({ pro: false, tier: "free" });
+    const saved: unknown[] = [];
+    w.saveProfile = (patch) => saved.push(patch);
+    w._supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: { status: "active", tier: "ultra" }, error: null }),
+          }),
+        }),
+      }),
+    };
+    const pro = await refreshProStatus();
+    expect(pro).toBe(true);
+    expect(saved).toEqual([{ pro: true, tier: "ultra" }]);
+  });
+
+  it("falls back to free for an unrecognized tier value, never crashes", async () => {
+    w.getSession = () => ({ id: "u1" });
+    w.getProfile = () => ({ pro: false, tier: "free" });
+    const saved: unknown[] = [];
+    w.saveProfile = (patch) => saved.push(patch);
+    w._supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: { status: "active", tier: "legacy_max" }, error: null }),
+          }),
+        }),
+      }),
+    };
+    await refreshProStatus();
+    expect(saved).toEqual([{ pro: true, tier: "free" }]);
+  });
+
+  it("does not write when nothing changed", async () => {
+    w.getSession = () => ({ id: "u1" });
+    w.getProfile = () => ({ pro: true, tier: "ultra" });
+    const saved: unknown[] = [];
+    w.saveProfile = (patch) => saved.push(patch);
+    w._supabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: { status: "active", tier: "ultra" }, error: null }),
+          }),
+        }),
+      }),
+    };
+    await refreshProStatus();
+    expect(saved).toEqual([]);
   });
 });
 

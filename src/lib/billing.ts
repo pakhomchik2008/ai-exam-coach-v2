@@ -11,7 +11,7 @@ export function isProStatus(status: string | undefined | null): boolean {
 }
 
 type SessionLike = { id?: string; mode?: string };
-type ProfileLike = { pro?: boolean };
+type ProfileLike = { pro?: boolean; tier?: string };
 type BillingFlag = "success" | "cancel";
 
 function w(): Window & {
@@ -24,7 +24,7 @@ function w(): Window & {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
           maybeSingle: () => Promise<{
-            data: { status?: string; trial_end?: string; current_period_end?: string } | null;
+            data: { status?: string; trial_end?: string; current_period_end?: string; tier?: string } | null;
             error: { code?: string } | null;
           }>;
         };
@@ -82,11 +82,12 @@ export async function refreshProStatus(): Promise<boolean> {
   const sb = w()._supabase;
   const cached = w().getProfile?.()?.pro === true;
   if (!session?.id || !sb) return cached;
-  const { data, error } = await sb.from("subscriptions").select("status").eq("user_id", session.id).maybeSingle();
+  const { data, error } = await sb.from("subscriptions").select("status,tier").eq("user_id", session.id).maybeSingle();
   if (error) return cached;
   if (!data) return cached;
   const pro = isProStatus(data.status);
+  const tier = data.tier === "sprint" || data.tier === "pro" || data.tier === "ultra" ? data.tier : "free";
   const current = w().getProfile?.();
-  if (current && current.pro !== pro) w().saveProfile?.({ pro });
+  if (current && (current.pro !== pro || current.tier !== tier)) w().saveProfile?.({ pro, tier });
   return pro;
 }
