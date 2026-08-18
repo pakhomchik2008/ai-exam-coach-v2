@@ -269,7 +269,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
     // Checkpoint complete — show mini summary
     const cpCorrect = cpResults.filter(Boolean).length;
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "linear-gradient(135deg, var(--emerald-50) 0%, var(--surface-card) 100%)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--emerald-500)", textAlign: "center" } },
+      React.createElement("div", { style: { background: "linear-gradient(135deg, var(--emerald-50) 0%, var(--surface-card) 100%)", border: "1px solid var(--emerald-200)", borderRadius: 16, padding: 24, textAlign: "center" } },
         React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--emerald-50)", "var(--emerald-700)", L("📊 CHECKPOINT RESULTS", "📊 РЕЗУЛЬТАТИ КОНТРОЛЬНОЇ", "📊 РЕЗУЛЬТАТЫ КОНТРОЛЬНОЙ", "📊 RÉSULTATS DU CONTRÔLE", "📊 KONTROLLERGEBNISSE"))),
         React.createElement("p", { style: { fontSize: 36, fontWeight: 700, color: cpCorrect === questions.length ? "var(--emerald-700)" : "var(--amber-700)", margin: "8px 0" } }, `${cpCorrect}/${questions.length}`),
         React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 16px" } },
@@ -3516,7 +3516,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
 
   // ─── Step renderers ────────────────────────────────────────────────────────
   const renderTeach = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--indigo-500)" } },
+    React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
       React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", L("📖 CONCEPT", "📖 КОНЦЕПЦІЯ", "📖 КОНЦЕПЦИЯ", "📖 CONCEPT", "📖 KONZEPT"))),
       s.title && React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
       React.createElement("div", { style: { fontSize: 15, lineHeight: 1.75, color: "var(--text-body)", marginBottom: 16 }, dangerouslySetInnerHTML: { __html: _md(s.body) } }),
@@ -3665,7 +3665,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
     const steps = s.steps || [];
     const allVisible = stepsRevealed >= steps.length;
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
-      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24, borderLeft: "var(--border-accent-width) solid var(--indigo-500)" } },
+      React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
         React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", L("📝 WORKED EXAMPLE", "📝 РОЗВ'ЯЗАНИЙ ПРИКЛАД", "📝 РЕШЁННЫЙ ПРИМЕР", "📝 EXEMPLE RÉSOLU", "📝 GELÖSTES BEISPIEL"))),
         s.title && React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 0 } },
