@@ -555,8 +555,8 @@
   border-radius: 4px 10px 10px 4px;
   background: #fff;
 }
-.land-mini-journal li.is-miss { border-left: 3px solid #c0392b; }
-.land-mini-journal li.is-gold { border-left: 3px solid var(--land-gold); }
+.land-mini-journal li.is-miss { background: #fdf1ee; }
+.land-mini-journal li.is-gold { background: color-mix(in srgb, var(--land-gold) 12%, #fff); }
 .land-mini-journal b { display: block; font-family: var(--land-display); font-size: 15px; }
 .land-mini-journal span { font-size: 12px; color: #6c6960; }
 .land-mini-cal-days,

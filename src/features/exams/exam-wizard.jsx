@@ -654,7 +654,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
               {subjects.map((s) => (
-                <div key={s.id} style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderLeft: `5px solid ${s.color}`, boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                <div key={s.id} style={{ borderRadius: "var(--radius-2xl)", background: "var(--surface-card)", border: "1px solid var(--border-subtle)", boxShadow: "var(--shadow-sm)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                   {subjects.length > 1 && (
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <button type="button" onClick={() => removeSubject(s.id)} aria-label="Remove" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--text-faint)", fontSize: 16, padding: 4 }}>✕</button>
