@@ -645,6 +645,52 @@
   border-color: rgba(168, 85, 247, 0.45);
   background: linear-gradient(165deg, #241a3a, #14121c);
 }
+.land-plan.is-ultra {
+  border-color: rgba(198, 165, 114, 0.5);
+  background: linear-gradient(165deg, #2c2415, #16130c);
+}
+.land-plan.is-ultra p:not(.land-plan-price) { color: #c9c4ba; }
+.land-price-was {
+  font-family: var(--land-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--land-faint);
+  text-decoration: line-through;
+}
+.land-price-badge {
+  font-family: var(--land-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #c6a572;
+  background: rgba(198, 165, 114, 0.14);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.land-price-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 28px;
+  background: #15181f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+.land-price-toggle button {
+  border: none;
+  background: transparent;
+  color: var(--land-muted);
+  font-family: var(--land-sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.land-price-toggle button[aria-pressed="true"] {
+  background: #292231;
+  color: #fff;
+}
 .land-plan h3 {
   margin: 0;
   font-family: var(--land-display);
@@ -960,9 +1006,9 @@
   .land-pricing .land-lede { font-size: 18px; margin: 0 0 46px; }
   .land-plans {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 22px;
-    max-width: 900px;
+    max-width: 1080px;
     flex-direction: unset;
   }
   .land-plan.is-pro { order: 0; }
@@ -978,6 +1024,9 @@
   .land-price-note { margin-top: 22px; font-size: 12px; }
   .land-plan.is-pro {
     box-shadow: 0 0 80px rgba(137, 33, 245, 0.16) inset;
+  }
+  .land-plan.is-ultra {
+    box-shadow: 0 0 80px rgba(198, 165, 114, 0.14) inset;
   }
 
   .land-who {
