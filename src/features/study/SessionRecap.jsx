@@ -102,7 +102,7 @@ function SessionRecap({ data, onClose, t }) {
                     border: on ? "2px solid var(--indigo-600)" : "1.5px solid var(--border-default)",
                     background: on ? "var(--indigo-600)" : "var(--surface-card)",
                     color: on ? "var(--white)" : "var(--text-body)",
-                    transition: "all 0.15s ease",
+                    transition: "all var(--dur-fast) ease",
                   }}
                 >
                   <span style={{ fontSize: 13 }}>{on ? "✓" : "＋"}</span>
