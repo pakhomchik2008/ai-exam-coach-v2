@@ -42,7 +42,13 @@
 
   /* ---- Motion ---- */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
-  --dur-fast:   0.15s; /* @kind other */
-  --dur-normal: 0.3s; /* @kind other */
-  --dur-slow:   0.6s; /* @kind other */  /* gauge/progress fills */
+  --dur-micro:   0.12s; /* @kind other */
+  --dur-instant: 0.1s;  /* @kind other */
+  --dur-fast:    0.15s; /* @kind other */
+  --dur-quick:   0.2s;  /* @kind other */
+  --dur-normal:  0.3s;  /* @kind other */
+  --dur-moderate: 0.4s; /* @kind other */
+  --dur-slower:  0.5s;  /* @kind other */
+  --dur-slow:    0.6s;  /* @kind other */  /* gauge/progress fills */
+  --dur-slowest: 1s;    /* @kind other */
 }

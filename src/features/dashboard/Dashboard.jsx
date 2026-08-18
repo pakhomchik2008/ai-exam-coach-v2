@@ -285,7 +285,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
                 {rec.readinessGain > 0 && (
                   <div style={{ position: "absolute", inset: 0, width: `${rec.readinessProjected}%`, background: "repeating-linear-gradient(45deg, var(--emerald-300), var(--emerald-300) 4px, transparent 4px, transparent 8px)", borderRadius: "var(--radius-full)" }} />
                 )}
-                <div style={{ position: "absolute", inset: 0, transform: `scaleX(${rec.readinessNow / 100})`, transformOrigin: "left", background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform 0.5s ease" }} />
+                <div style={{ position: "absolute", inset: 0, transform: `scaleX(${rec.readinessNow / 100})`, transformOrigin: "left", background: "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform var(--dur-slower) ease" }} />
               </div>
               {rec.readinessGain > 0 && (
                 <p style={{ margin: "6px 0 0", fontSize: "var(--text-xs)", color: "var(--emerald-700)", fontWeight: "var(--weight-semibold)" }}>
@@ -479,7 +479,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {weakSpots.map((ws, i) => (
                 <div key={i} onClick={() => onGoToChat && onGoToChat({ mode: "learn", topic: ws.name })}
-                  style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "12px 14px", borderRadius: "var(--radius-lg)", background: ws.retention < 20 ? "var(--red-50)" : ws.retention < 35 ? "var(--amber-50)" : "var(--surface-muted)", border: `1px solid ${ws.retention < 20 ? "var(--red-200)" : ws.retention < 35 ? "var(--amber-200)" : "var(--border-subtle)"}`, cursor: "pointer", transition: "transform 0.1s ease" }}>
+                  style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", padding: "12px 14px", borderRadius: "var(--radius-lg)", background: ws.retention < 20 ? "var(--red-50)" : ws.retention < 35 ? "var(--amber-50)" : "var(--surface-muted)", border: `1px solid ${ws.retention < 20 ? "var(--red-200)" : ws.retention < 35 ? "var(--amber-200)" : "var(--border-subtle)"}`, cursor: "pointer", transition: "transform var(--dur-instant) ease" }}>
                   <div style={{ width: 40, textAlign: "center", flexShrink: 0 }}>
                     <div style={{ fontSize: "var(--text-base)", fontWeight: "var(--weight-bold)", color: ws.retention < 20 ? "var(--red-600)" : ws.retention < 35 ? "var(--amber-600)" : "var(--text-body)", fontFamily: "var(--font-mono)" }}>{ws.retention}%</div>
                     <div style={{ height: 3, background: "var(--border-subtle)", borderRadius: 2, overflow: "hidden", marginTop: 3 }}>
@@ -520,7 +520,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
               <div key={c.id} onClick={() => openCourse(c)} style={{
                 display: "grid", gridTemplateColumns: "1fr auto auto 110px 48px", alignItems: "center", gap: "var(--space-3)",
                 padding: "var(--space-3)", borderRadius: "var(--radius-xl)", background: "var(--surface-card)",
-                border: "1px solid var(--border-default)", cursor: "pointer", transition: "box-shadow 0.15s ease",
+                border: "1px solid var(--border-default)", cursor: "pointer", transition: "box-shadow var(--dur-fast) ease",
               }}>
                 <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--text-sm)", fontWeight: "var(--weight-medium)", color: "var(--text-body)", minWidth: 0 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
@@ -622,7 +622,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
         transform: toast ? "translateY(0)" : "translateY(80px)",
         opacity: toast ? 1 : 0,
-        transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease",
+        transition: "transform 0.25s var(--ease-out), opacity var(--dur-fast) ease",
         pointerEvents: "none",
       }}>
         <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--emerald-500)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</span>

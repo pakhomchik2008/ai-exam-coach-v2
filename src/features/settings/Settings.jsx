@@ -919,7 +919,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
         boxShadow: "0 8px 30px rgba(0,0,0,0.18)",
         transform: saved ? "translateY(0)" : "translateY(80px)",
         opacity: saved ? 1 : 0,
-        transition: "transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease",
+        transition: "transform 0.25s var(--ease-out), opacity var(--dur-fast) ease",
         pointerEvents: "none",
       }}>
         <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--emerald-500)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</span>
