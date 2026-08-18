@@ -20,7 +20,7 @@ type AnyProps = Record<string, unknown>;
 type Dict = Record<string, string>;
 type Tweaks = { accent: string; density: string; depth: string };
 
-type Route = "landing" | "onboarding" | "planning" | "app";
+type Route = "landing" | "onboarding" | "planning" | "app" | "reset-password";
 
 interface ExamLike {
   id: string;
@@ -31,6 +31,7 @@ interface ExamLike {
 // conversion to-do: when its module becomes a real ES module, import it here
 // instead and delete the line.
 const Landing = legacyComponent<AnyProps>("Landing");
+const ResetPasswordForm = legacyComponent<AnyProps>("ResetPasswordForm");
 const AIPlan = legacyComponent<AnyProps>("AIPlan");
 const AppNav = legacyComponent<AnyProps>("AppNav");
 const StudyLayer = legacyComponent<AnyProps>("StudyLayer");
@@ -53,9 +54,16 @@ export function App() {
   const saveProfile = legacyFn<(patch: Dict) => void>("saveProfile");
   const hasProfile = legacyFn<() => boolean>("hasProfile");
   const clearSession = legacyFn<() => void>("clearSession");
+  const isPasswordRecovery = legacyFn<() => boolean>("isPasswordRecovery");
 
   const [tw] = useTweaks(TWEAK_DEFAULTS);
-  const [route, setRoute] = React.useState<Route>(() => (getSession() ? "app" : "landing"));
+  // A password-recovery link's PASSWORD_RECOVERY event (auth-store.jsx)
+  // establishes a real session, same as a normal sign-in — without this
+  // check that session would route straight to "app" and skip the
+  // "set new password" step the link exists for entirely.
+  const [route, setRoute] = React.useState<Route>(() => (
+    isPasswordRecovery() ? "reset-password" : (getSession() ? "app" : "landing")
+  ));
   const [tab, setTab] = React.useState("dashboard");
 
   // Lazy-initialized from the saved profile so a reload keeps whatever language
@@ -110,15 +118,19 @@ export function App() {
       if (!isTrackedKey(e.key, trackedKeys)) return;
       if (e.key === sessionKey) {
         // A logout (or login) in another tab should be reflected here too, not
-        // just the data underneath an already-rendered screen.
-        setRoute(getSession() ? "app" : "landing");
+        // just the data underneath an already-rendered screen. Recovery mode
+        // still wins even though the PASSWORD_RECOVERY handler just fired this
+        // same storage event via _persistSession — otherwise this listener
+        // would immediately bounce the user to "app" before they ever see the
+        // "set new password" screen.
+        setRoute(isPasswordRecovery() ? "reset-password" : (getSession() ? "app" : "landing"));
       }
       setDataVersion((v) => v + 1);
     };
 
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [getSession]);
+  }, [getSession, isPasswordRecovery]);
 
   React.useEffect(() => {
     void refreshProStatus();
@@ -193,6 +205,14 @@ export function App() {
     setTab("dashboard");
   };
 
+  if (route === "reset-password") {
+    return (
+      <ResetPasswordForm
+        t={t}
+        onDone={() => setRoute(getSession() ? (hasProfile() ? "app" : "onboarding") : "landing")}
+      />
+    );
+  }
   if (route === "landing") {
     return (
       <>

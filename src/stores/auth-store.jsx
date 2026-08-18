@@ -88,9 +88,25 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
   }
 });
 
+// Set only while a password-recovery link's session is active — App.tsx
+// checks this to route to the "set new password" screen instead of the
+// dashboard. sessionStorage (not the SESSION_KEY the rest of auth uses):
+// this must NOT survive a normal tab close/reopen, only the current
+// recovery-link tab, and it must not collide with PERSONAL_DATA_KEYS
+// clearing logic since it isn't a session key.
+const RECOVERY_FLAG_KEY = "auth_password_recovery_v1";
+
 // Stay in sync for the lifetime of the page
 _supabase.auth.onAuthStateChange((event, session) => {
-  if (event === "SIGNED_IN" && session?.user) {
+  if (event === "PASSWORD_RECOVERY" && session?.user) {
+    // The recovery link signs the user in with a real (temporary-intent)
+    // session so updateUser({password}) below has something to act on —
+    // same session Supabase would give a normal sign-in. Flagged separately
+    // so the app routes to "set new password" instead of the dashboard.
+    try { sessionStorage.setItem(RECOVERY_FLAG_KEY, "1"); } catch {}
+    _persistSession(_supabaseUserToSession(session.user));
+    void startDataSync(_supabase, session.user.id);
+  } else if (event === "SIGNED_IN" && session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
     void startDataSync(_supabase, session.user.id);
     // Tags this browser's OneSignal push subscription with the Supabase user
@@ -105,6 +121,35 @@ _supabase.auth.onAuthStateChange((event, session) => {
     if (window.logoutPushUser) window.logoutPushUser();
   }
 });
+
+function isPasswordRecovery() {
+  try { return sessionStorage.getItem(RECOVERY_FLAG_KEY) === "1"; } catch { return false; }
+}
+
+function clearPasswordRecovery() {
+  try { sessionStorage.removeItem(RECOVERY_FLAG_KEY); } catch {}
+}
+
+// Sends the reset email. redirectTo must be an exact match (or wildcard
+// match) in Supabase → Authentication → URL Configuration → Redirect URLs,
+// or Supabase silently falls back to the project's Site URL instead —
+// the same class of misconfiguration that made the very first version of
+// this link land nowhere useful.
+async function requestPasswordReset(email) {
+  const { error } = await _supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: window.location.origin + window.location.pathname,
+  });
+  if (error) throw new Error(error.message);
+}
+
+// Finishes the flow the recovery link started: the PASSWORD_RECOVERY
+// session above is what makes this call valid, exactly like Settings'
+// updateAccount() password change already relies on an active session.
+async function completePasswordReset(password) {
+  const { error } = await _supabase.auth.updateUser({ password });
+  if (error) throw new Error(error.message);
+  clearPasswordRecovery();
+}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -374,6 +419,7 @@ Object.assign(window, {
   signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount,
   updateAccount, MIN_PASSWORD_LEN,
   getAccessToken, apiHeaders,
+  requestPasswordReset, completePasswordReset, isPasswordRecovery, clearPasswordRecovery,
 });
 
 // Module marker: these files carry no import/export of their own (they still
