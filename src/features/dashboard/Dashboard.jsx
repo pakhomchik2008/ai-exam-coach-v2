@@ -1,5 +1,5 @@
 // Examik — Dashboard: next action, week strip, gauges, today's sessions.
-import { isProUser } from "../learn/premium";
+import { isProUser, isUltraUser } from "../learn/premium";
 
 function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGoToLearn, onGoToJournal, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
@@ -26,6 +26,16 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
   // above already re-renders this component on any change, so a plain useMemo
   // keyed on `brain` is all the reactivity we need (no subscribe effect).
   const courses = React.useMemo(() => window.brainCourses(), [brain]);
+  // Ultra-only live version of the Weekly Deep Report's heatmap (which only
+  // reaches Ultra users once a week, by email — see
+  // api/notifications-cron.js's weeklyDeepReportHtml). Same source data as
+  // the Mistake Journal's topic breakdown (computeTopicBreakdown, already
+  // sorted worst-first), reused here rather than recomputed, just filtered
+  // to the handful worth surfacing on the home screen.
+  const weakTopics = React.useMemo(
+    () => (window.computeTopicBreakdown ? window.computeTopicBreakdown().filter((topic) => topic.pendingHere > 0).slice(0, 4) : []),
+    [brain]
+  );
   const todaySessions = React.useMemo(() => {
     const { sessionsByDay } = window.buildScheduleData();
     const todays = sessionsByDay[window.fmtDateKey(new Date())] || [];
@@ -533,6 +543,33 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
           })}
         </div>
       </section>
+
+      {/* ── Ultra: live weak-topic heatmap ──────────────────────────── */}
+      {isUltraUser() && weakTopics.length > 0 && (
+        <section>
+          <div style={{ fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--chrome-gold, #C6A572)", fontWeight: 700, marginBottom: "var(--space-2)" }}>
+            {L("ULTRA · LIVE", "ULTRA · ЖИВО", "ULTRA · ЖИВО", "ULTRA · EN DIRECT", "ULTRA · LIVE")}
+          </div>
+          <H2>{L("Weak spots", "Слабкі місця", "Слабые места", "Points faibles", "Schwachstellen")}</H2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-3)" }}>
+            {weakTopics.map((topic) => {
+              const color = topic.priority === "high" ? "var(--red-500)" : topic.priority === "medium" ? "var(--amber-500)" : "var(--emerald-500)";
+              const width = Math.max(8, 100 - topic.masteryPct);
+              return (
+                <div key={topic.topic} onClick={() => onGoToJournal && onGoToJournal()} style={{ cursor: onGoToJournal ? "pointer" : "default" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--text-sm)", color: "var(--text-body)", marginBottom: 4 }}>
+                    <span>{topic.topic}</span>
+                    <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>{topic.pendingHere} {L("pending", "залишок", "осталось", "restant", "offen")}</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 3, background: "var(--surface-muted)", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${width}%`, background: color, borderRadius: 3 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {dayDetail && (
         <window.DayDetail
