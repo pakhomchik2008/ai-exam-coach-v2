@@ -278,7 +278,7 @@ const DAY_MS_MJ = 86400000;
 
 function MJStatCard({ value, label, color }) {
   return (
-    <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "14px 12px", textAlign: "center", transition: "transform 0.15s ease, box-shadow 0.15s ease" }}>
+    <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", padding: "14px 12px", textAlign: "center", transition: "transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease" }}>
       <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: "var(--font-mono)", lineHeight: 1.1 }}>{value}</div>
       <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", marginTop: 4 }}>{label}</div>
     </div>
@@ -489,7 +489,7 @@ function MJQueueCard({ t, label, items, accent, completionPct, onStartReview }) 
       {completionPct != null && (
         <div>
           <div style={{ height: 5, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-            <div style={{ height: "100%", width: "100%", transform: `scaleX(${completionPct / 100})`, transformOrigin: "left", background: accent, borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
+            <div style={{ height: "100%", width: "100%", transform: `scaleX(${completionPct / 100})`, transformOrigin: "left", background: accent, borderRadius: "var(--radius-full)", transition: "transform var(--dur-moderate) ease" }} />
           </div>
           <div style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 3 }}>{L(`${completionPct}% completed today`, `${completionPct}% виконано сьогодні`, `${completionPct}% выполнено сегодня`, `${completionPct}% terminé aujourd'hui`, `${completionPct}% heute erledigt`)}</div>
         </div>

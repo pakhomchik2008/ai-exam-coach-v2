@@ -169,12 +169,12 @@ function AIPlan({ examIds, onStart, t }) {
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 12,
                 opacity: visible ? 1 : 0, transform: visible ? "translateX(0)" : "translateX(-20px)",
-                transition: "opacity 0.4s ease, transform 0.4s ease",
+                transition: "opacity var(--dur-moderate) ease, transform var(--dur-moderate) ease",
               }}>
                 <span style={{ fontSize: 18, width: 28, textAlign: "center", flexShrink: 0 }}>
                   {checked ? <span style={{ color: "var(--emerald-300)", animation: "fadeUp 0.3s ease" }}>✓</span> : s.icon}
                 </span>
-                <span style={{ fontSize: 14, color: checked ? "rgba(255,255,255,0.5)" : "var(--white)", transition: "color 0.3s ease" }}>{s.text}</span>
+                <span style={{ fontSize: 14, color: checked ? "rgba(255,255,255,0.5)" : "var(--white)", transition: "color var(--dur-normal) ease" }}>{s.text}</span>
               </div>
             );
           })}
@@ -182,7 +182,7 @@ function AIPlan({ examIds, onStart, t }) {
 
         {/* Progress bar */}
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, background: "rgba(255,255,255,0.1)" }}>
-          <div style={{ height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg, var(--indigo-500), var(--indigo-500))", transition: "transform 0.6s ease", borderRadius: "0 2px 2px 0" }} />
+          <div style={{ height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg, var(--indigo-500), var(--indigo-500))", transition: "transform var(--dur-slow) ease", borderRadius: "0 2px 2px 0" }} />
         </div>
       </div>
     );
@@ -240,7 +240,7 @@ function AIPlan({ examIds, onStart, t }) {
                 padding: "16px 14px",
                 position: "relative",
                 textAlign: "left", cursor: "pointer", fontFamily: "var(--font-sans)",
-                transition: "border-color 0.15s ease, background 0.15s ease",
+                transition: "border-color var(--dur-fast) ease, background var(--dur-fast) ease",
               }}>
                 {tier.current && (
                   <div style={{ position: "absolute", top: 8, right: 10, fontSize: 10, fontWeight: 700, color: tier.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
@@ -357,7 +357,7 @@ function AIPlan({ examIds, onStart, t }) {
                         background: w.hours === 0 ? "var(--border-default)" : "linear-gradient(180deg, var(--indigo-500), var(--indigo-600))",
                         borderRadius: "3px 3px 0 0",
                         opacity: w.hours === 0 ? 0.35 : 0.9,
-                        transition: "transform 0.4s ease",
+                        transition: "transform var(--dur-moderate) ease",
                       }} />
                       <div style={{ fontSize: 8, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: "0.03em", textAlign: "center", lineHeight: 1.2, whiteSpace: "nowrap" }}>{w.label}</div>
                     </div>

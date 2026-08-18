@@ -548,7 +548,7 @@ function CalSidebar({ activeExams, courseById, allSessions, profile, todayKey, h
           <span style={{ fontSize: 12, color: "var(--text-faint)" }}>/ {goalHours}h</span>
         </div>
         <div style={{ height: 6, background: "var(--surface-sunken)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: "100%", transform: `scaleX(${goalPct / 100})`, transformOrigin: "left", background: goalPct >= 100 ? "var(--emerald-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform 0.4s ease" }} />
+          <div style={{ height: "100%", width: "100%", transform: `scaleX(${goalPct / 100})`, transformOrigin: "left", background: goalPct >= 100 ? "var(--emerald-500)" : "var(--indigo-500)", borderRadius: "var(--radius-full)", transition: "transform var(--dur-moderate) ease" }} />
         </div>
         <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--text-faint)" }}>{L(`${Math.round(plannedHoursThisWeek * 10) / 10}h planned this week`,`${Math.round(plannedHoursThisWeek * 10) / 10} год заплановано цього тижня`,`${Math.round(plannedHoursThisWeek * 10) / 10} ч запланировано на этой неделе`,`${Math.round(plannedHoursThisWeek * 10) / 10} h prévues cette semaine`,`${Math.round(plannedHoursThisWeek * 10) / 10} Std. diese Woche geplant`)}</p>
       </div>
@@ -648,7 +648,7 @@ function CalFab({ open, setOpen, onCreate, onGoToExams, t }) {
         width: 56, height: 56, borderRadius: "50%", border: "none", cursor: "pointer",
         background: "linear-gradient(135deg, var(--indigo-600), var(--indigo-600))", color: "var(--white)",
         fontSize: 26, boxShadow: "0 8px 24px rgba(79,70,229,0.4)", display: "flex", alignItems: "center", justifyContent: "center",
-        transform: open ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s ease",
+        transform: open ? "rotate(45deg)" : "rotate(0deg)", transition: "transform var(--dur-quick) ease",
       }}>+</button>
     </div>
   );

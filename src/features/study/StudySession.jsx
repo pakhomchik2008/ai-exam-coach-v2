@@ -259,7 +259,7 @@ Rules:
               background: chatOpen ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--indigo-50)",
               color: chatOpen ? "var(--white)" : "var(--indigo-700)",
               fontFamily: "var(--font-sans)", fontWeight: "var(--weight-semibold)", fontSize: "var(--text-sm)",
-              cursor: "pointer", transition: "all 0.2s ease",
+              cursor: "pointer", transition: "all var(--dur-quick) ease",
             }}
           >
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -320,7 +320,7 @@ Rules:
                   <p style={{ width: "100%", margin: "0 0 6px", fontSize: "var(--text-xs)", color: "var(--text-muted)", fontWeight: "var(--weight-medium)" }}>{L("Quick start:","Швидкий старт:","Быстрый старт:","Démarrage rapide :","Schnellstart:")}</p>
                   {QUICK_PROMPTS.map((p, i) => (
                     <button key={i} onClick={() => sendChat(p)}
-                      style={{ padding: "6px 13px", borderRadius: "var(--radius-full)", border: "1.5px solid var(--indigo-200)", background: "transparent", color: "var(--indigo-600)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s ease" }}>
+                      style={{ padding: "6px 13px", borderRadius: "var(--radius-full)", border: "1.5px solid var(--indigo-200)", background: "transparent", color: "var(--indigo-600)", fontSize: "var(--text-xs)", fontWeight: "var(--weight-medium)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast) ease" }}>
                       {p}
                     </button>
                   ))}
@@ -341,7 +341,7 @@ Rules:
                 <button
                   onClick={() => sendChat()}
                   disabled={!chatInput.trim() || chatLoading}
-                  style={{ width: 40, height: 40, borderRadius: "50%", border: "none", fontSize: 17, flexShrink: 0, cursor: chatInput.trim() && !chatLoading ? "pointer" : "default", background: chatInput.trim() && !chatLoading ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--slate-100)", color: chatInput.trim() && !chatLoading ? "var(--white)" : "var(--text-muted)", transition: "all 0.15s ease" }}>
+                  style={{ width: 40, height: 40, borderRadius: "50%", border: "none", fontSize: 17, flexShrink: 0, cursor: chatInput.trim() && !chatLoading ? "pointer" : "default", background: chatInput.trim() && !chatLoading ? "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))" : "var(--slate-100)", color: chatInput.trim() && !chatLoading ? "var(--white)" : "var(--text-muted)", transition: "all var(--dur-fast) ease" }}>
                   ↑
                 </button>
               </div>

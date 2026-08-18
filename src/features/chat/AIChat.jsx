@@ -247,7 +247,7 @@ const _btn = (label, onClick, primary, disabled) => React.createElement("button"
     padding: "12px 20px", background: primary ? (disabled ? "var(--indigo-200)" : "var(--indigo-600)") : "var(--surface-card)",
     color: primary ? "var(--white)" : "var(--text-strong)", border: primary ? "none" : "1.5px solid var(--border-default)",
     borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: disabled ? "default" : "pointer",
-    fontFamily: "var(--font-sans)", width: "100%", transition: "all 0.15s", opacity: disabled ? 0.6 : 1,
+    fontFamily: "var(--font-sans)", width: "100%", transition: "all var(--dur-fast)", opacity: disabled ? 0.6 : 1,
   }
 }, label);
 
@@ -312,7 +312,7 @@ function LessonCheckpoint({ step: s, resolved, onResult, onXp, onAdvance, t }) {
                 });
               }
             },
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: cpRevealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -525,7 +525,7 @@ RULES:
         totalAnswered > 0 && React.createElement("span", null, `${correctCount}/${totalAnswered} ✓`),
         React.createElement("button", { onClick: () => { if (phase !== "roadmap") commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen")))),
     React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-      React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${progressPct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform 0.4s ease" } })),
+      React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${progressPct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform var(--dur-moderate) ease" } })),
     React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 4, display: "block" } }, plan.title));
 
   // ─── ROADMAP ──────────────────────────────────────────────────────────────
@@ -619,7 +619,7 @@ RULES:
                 }
                 return React.createElement("button", {
                   key: i, disabled: revealed, onClick: () => answerQuiz(i, q.correct),
-                  style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+                  style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
                 },
                   React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
                   React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -1013,7 +1013,7 @@ RULES:
             }
             return React.createElement("button", {
               key: i, disabled: revealed, onClick: () => answerMcq(i),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -1041,7 +1041,7 @@ RULES:
         ...questions.questions.map((_, i) => {
           const r = results[i];
           const bg = i === idx ? "var(--indigo-500)" : r ? (r.correct ? "var(--emerald-500)" : "var(--red-500)") : "var(--border-subtle)";
-          return React.createElement("div", { key: i, style: { flex: 1, height: 5, borderRadius: 3, background: bg, transition: "background 0.3s" } });
+          return React.createElement("div", { key: i, style: { flex: 1, height: 5, borderRadius: 3, background: bg, transition: "background var(--dur-normal)" } });
         })),
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginTop: 4 } },
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, questions.sessionTitle || L(`Quick Check: ${topic}`, `Швидка перевірка: ${topic}`, `Быстрая проверка: ${topic}`, `Vérification rapide : ${topic}`, `Schnelltest: ${topic}`)),
@@ -1379,13 +1379,13 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, `${results.filter((r) => r.correct).length}✓ ${results.filter((r) => !r.correct).length}✗`)),
       // Timer bar
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${timerPct / 100})`, transformOrigin: "left", background: timerColor, borderRadius: 2, transition: "transform 1s linear, background 0.3s" } })),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${timerPct / 100})`, transformOrigin: "left", background: timerColor, borderRadius: 2, transition: "transform var(--dur-slowest) linear, background var(--dur-normal)" } })),
       // Progress dots
       React.createElement("div", { style: { display: "flex", gap: 3, marginTop: 6, justifyContent: "center" } },
         ...questions.map((_, i) => {
           const r = results[i];
           const bg = i === idx ? timerColor : r ? (r.correct ? "var(--emerald-500)" : "var(--red-500)") : "var(--border-subtle)";
-          return React.createElement("div", { key: i, style: { width: i === idx ? 18 : 8, height: 6, borderRadius: 3, background: bg, transition: "all 0.2s" } });
+          return React.createElement("div", { key: i, style: { width: i === idx ? 18 : 8, height: 6, borderRadius: 3, background: bg, transition: "all var(--dur-quick)" } });
         }))),
     // Question card
     React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "20px" } },
@@ -1402,7 +1402,7 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
           return React.createElement("button", {
             key: i, disabled: selected !== null,
             onClick: () => answer(i),
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all 0.15s" }
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: selected !== null ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", fontWeight: 500, transition: "all var(--dur-fast)" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: selected !== null && i === q.correct ? "var(--emerald-500)" : selected === i ? "var(--red-500)" : "var(--slate-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: selected !== null && (i === q.correct || i === selected) ? "var(--white)" : "var(--slate-400)", flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             React.createElement("span", { dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -1778,7 +1778,7 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
           React.createElement("button", { onClick: () => setPhase("summary"),
             style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("End exam", "Завершити іспит", "Завершить экзамен", "Terminer l'examen", "Prüfung beenden")))),
       React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform 0.4s" } }))),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pctDone / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform var(--dur-moderate)" } }))),
 
     // Content
     React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "20px" } },
@@ -1808,7 +1808,7 @@ ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
             return React.createElement("button", {
               key: i, disabled: revealed,
               onClick: () => submitAnswer(i),
-              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+              style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
             },
               React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
               React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -2267,7 +2267,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
           const answered = answers[i] !== null && answers[i] !== undefined;
           return React.createElement("div", {
             key: i, onClick: () => setIdx(i),
-            style: { flex: i === idx ? 2 : 1, height: 5, borderRadius: 3, cursor: "pointer", background: i === idx ? "var(--indigo-500)" : answered ? "var(--indigo-200)" : "var(--border-subtle)", transition: "background 0.3s" }
+            style: { flex: i === idx ? 2 : 1, height: 5, borderRadius: 3, cursor: "pointer", background: i === idx ? "var(--indigo-500)" : answered ? "var(--indigo-200)" : "var(--border-subtle)", transition: "background var(--dur-normal)" }
           });
         }))),
 
@@ -3073,7 +3073,7 @@ function LearnFlashcards({ topic, onExit, t }) {
       borderRadius: 20,
       padding: "28px 26px", minHeight: 260, display: "flex", flexDirection: "column", gap: 14,
       boxShadow: `0 8px 24px color-mix(in srgb, ${hue.border} 30%, transparent)`,
-      transition: "background 200ms ease, border-color 200ms ease, box-shadow 200ms ease",
+      transition: "background var(--dur-quick) ease, border-color var(--dur-quick) ease, box-shadow var(--dur-quick) ease",
     } },
       React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: hue.text, fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
       React.createElement("h2", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, card.heading),
@@ -3128,7 +3128,7 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
   const wrap = (children) => React.createElement("div", {
     style: { maxWidth: 720, margin: "0 auto", padding: "24px 20px", fontFamily: "var(--font-sans)" },
   }, children);
-  const cardStyle = { flex: "1 1 240px", padding: "24px 22px", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 120ms, background 120ms" };
+  const cardStyle = { flex: "1 1 240px", padding: "24px 22px", borderRadius: 16, cursor: "pointer", textAlign: "left", fontFamily: "var(--font-sans)", display: "flex", flexDirection: "column", gap: 10, transition: "border-color var(--dur-micro), background var(--dur-micro)" };
   const card = (id, emoji, title, blurb) => {
     const rec = recommended === id;
     const hue = LEARN_METHOD_HUES[id] || { bg: "var(--surface-card)", border: "var(--border-default)", text: "var(--indigo-600)" };
@@ -3548,7 +3548,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
           }
           return React.createElement("button", {
             key: i, disabled: revealed, onClick: () => answerMcq(i, correct, explanation, question, options),
-            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            style: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: bg, border: `1.5px solid ${bc}`, borderRadius: 14, color: col, fontSize: 14, textAlign: "left", cursor: revealed ? "default" : "pointer", width: "100%", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
           },
             React.createElement("span", { style: { width: 28, height: 28, borderRadius: 8, background: lbg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: lcol, flexShrink: 0 } }, ["A", "B", "C", "D"][i]),
             React.createElement("span", { style: { lineHeight: 1.45, fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(opt) } }));
@@ -3575,7 +3575,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
           }
           return React.createElement("button", {
             key: String(val), disabled: revealed, onClick: () => answerTf(val, s.correct),
-            style: { flex: 1, padding: "16px", background: bg, border: `2px solid ${bc}`, borderRadius: 14, fontSize: 16, fontWeight: 700, color: col, cursor: revealed ? "default" : "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            style: { flex: 1, padding: "16px", background: bg, border: `2px solid ${bc}`, borderRadius: 14, fontSize: 16, fontWeight: 700, color: col, cursor: revealed ? "default" : "pointer", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
           }, val ? L("✅ True", "✅ Правда", "✅ Правда", "✅ Vrai", "✅ Wahr") : L("❌ False", "❌ Неправда", "❌ Ложь", "❌ Faux", "❌ Falsch"));
         })),
       revealed && React.createElement("div", {
@@ -3673,9 +3673,9 @@ function LessonEngine({ topic, mode, onExit, t }) {
             const vis = i < stepsRevealed;
             return React.createElement("div", {
               key: i,
-              style: { display: "flex", gap: 12, padding: "14px 0", borderTop: i > 0 ? "1px solid var(--border-subtle)" : "none", opacity: vis ? 1 : 0.25, transform: vis ? "translateY(0)" : "translateY(4px)", transition: "opacity 0.4s, transform 0.4s" }
+              style: { display: "flex", gap: 12, padding: "14px 0", borderTop: i > 0 ? "1px solid var(--border-subtle)" : "none", opacity: vis ? 1 : 0.25, transform: vis ? "translateY(0)" : "translateY(4px)", transition: "opacity var(--dur-moderate), transform var(--dur-moderate)" }
             },
-              React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: vis ? "linear-gradient(135deg,var(--indigo-600),var(--indigo-500))" : "var(--surface-muted)", color: vis ? "var(--white)" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background 0.3s" } }, i + 1),
+              React.createElement("div", { style: { width: 28, height: 28, borderRadius: "50%", background: vis ? "linear-gradient(135deg,var(--indigo-600),var(--indigo-500))" : "var(--surface-muted)", color: vis ? "var(--white)" : "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0, transition: "background var(--dur-normal)" } }, i + 1),
               React.createElement("div", { style: { flex: 1 } },
                 React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: vis ? "var(--indigo-600)" : "var(--text-faint)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" } }, st.label),
                 vis && renderMathLine(st.content)));
@@ -3683,7 +3683,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
         !allVisible && React.createElement("div", { style: { marginTop: 14 } },
           React.createElement("button", {
             onClick: () => setStepsRevealed((n) => n + 1),
-            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed var(--indigo-200)", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "var(--indigo-600)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all 0.15s" }
+            style: { width: "100%", padding: "12px 20px", background: "none", border: "1.5px dashed var(--indigo-200)", borderRadius: 12, fontSize: 14, fontWeight: 600, color: "var(--indigo-600)", cursor: "pointer", fontFamily: "var(--font-sans)", transition: "all var(--dur-fast)" }
           }, stepsRevealed === 0 ? L("Reveal first step →", "Показати перший крок →", "Показать первый шаг →", "Révéler la première étape →", "Ersten Schritt zeigen →") : L(`Reveal step ${stepsRevealed + 1} →`, `Показати крок ${stepsRevealed + 1} →`, `Показать шаг ${stepsRevealed + 1} →`, `Révéler l'étape ${stepsRevealed + 1} →`, `Schritt ${stepsRevealed + 1} zeigen →`))),
         allVisible && s.challenge && React.createElement("div", { style: { marginTop: 14, background: "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "var(--amber-700)" } }, L("🎯 Now you try: ", "🎯 Тепер ваша черга: ", "🎯 Теперь ваша очередь: ", "🎯 À votre tour : ", "🎯 Jetzt bist du dran: "), React.createElement("strong", null, s.challenge))),
       allVisible && React.createElement("div", { style: { marginTop: 16 } },
@@ -3790,7 +3790,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
         React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 10px", borderRadius: 999, background: "var(--ink-900)", color: "var(--white)", fontSize: 11, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "0.02em", flexShrink: 0 } },
           L("LV", "РІВ", "УР", "NIV", "LV"), " ", _lvl.level),
         React.createElement("div", { style: { flex: 1, height: 7, borderRadius: 4, background: "var(--surface-sunken)", overflow: "hidden" } },
-          React.createElement("div", { style: { height: "100%", width: "100%", background: "linear-gradient(90deg,var(--emerald-500),var(--emerald-600))", borderRadius: 4, transform: `scaleX(${_lvlPct / 100})`, transformOrigin: "left", transition: "transform 0.5s var(--ease-out)" } })),
+          React.createElement("div", { style: { height: "100%", width: "100%", background: "linear-gradient(90deg,var(--emerald-500),var(--emerald-600))", borderRadius: 4, transform: `scaleX(${_lvlPct / 100})`, transformOrigin: "left", transition: "transform var(--dur-slower) var(--ease-out)" } })),
         comboActive && React.createElement("span", { key: "combo-" + consecutiveCorrect, style: { display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 9px", borderRadius: 999, background: "var(--amber-50)", color: "var(--amber-700)", fontSize: 11, fontWeight: 800, flexShrink: 0, animation: "pulse 0.4s var(--ease-out)" } }, "🔥 x", consecutiveCorrect),
         // Floating "+N XP" pop on each answer
         xpPop && React.createElement("span", { key: xpPop.id, style: { position: "absolute", right: comboActive ? 74 : 8, top: -2, fontSize: 13, fontWeight: 800, fontFamily: "var(--font-mono)", color: xpPop.correct ? "var(--emerald-600)" : "var(--text-faint)", animation: "xppop 1s var(--ease-out) forwards", pointerEvents: "none" } }, "+", xpPop.amount)),
@@ -3803,7 +3803,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
       ),
       // Progress bar
       React.createElement("div", { style: { height: 5, background: "var(--surface-muted)", borderRadius: 3, overflow: "hidden" } },
-        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3, transition: "transform 0.4s ease" } })),
+        React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3, transition: "transform var(--dur-moderate) ease" } })),
       // Bottom row: title + exit
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 } },
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, plan.title),
@@ -3877,7 +3877,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
       // Floating button
       React.createElement("button", {
         onClick: () => { setAskOpen((v) => !v); if (!askOpen) { setAskReply(null); setAskInput(""); } },
-        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "var(--white)", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(79,70,229,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform 0.15s, background 0.15s" }
+        style: { width: 48, height: 48, borderRadius: "50%", background: askOpen ? "var(--indigo-700)" : "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", border: "none", color: "var(--white)", fontSize: 22, cursor: "pointer", boxShadow: "0 4px 20px rgba(79,70,229,0.4)", display: "flex", alignItems: "center", justifyContent: "center", transition: "transform var(--dur-fast), background var(--dur-fast)" }
       }, askOpen ? "✕" : "💬")));
 }
 
