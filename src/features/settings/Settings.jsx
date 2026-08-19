@@ -708,7 +708,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
             <Row
               label={ultra ? "Ultra" : pro ? "Pro" : "Free"}
               sub={isNativeIOS()
-                ? L(lang, "Subscriptions are managed on examik.app, not in this app.", "Підписки керуються на examik.app, не в застосунку.", "Подписки управляются на examik.app, не в приложении.", "Les abonnements se gèrent sur examik.app, pas dans l’appli.", "Abos werden auf examik.app verwaltet, nicht in der App.")
+                ? L(lang, "Subscriptions are managed on examik.net, not in this app.", "Підписки керуються на examik.net, не в застосунку.", "Подписки управляются на examik.net, не в приложении.", "Les abonnements se gèrent sur examik.net, pas dans l’appli.", "Abos werden auf examik.net verwaltet, nicht in der App.")
                 : ultra
                 ? L(lang, "Our smartest AI, every answer. $9.99/month.", "Наш найрозумніший AI на кожній відповіді. $9.99/міс.", "Наш самый умный AI на каждом ответе. $9.99/мес.", "Notre IA la plus performante. $9.99/mois.", "Unsere klügste KI. $9.99/Monat.")
                 : pro
@@ -775,7 +775,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
           )}
           {isNativeIOS() && (
             <p style={{ margin: "4px 16px 0", fontSize: 12, color: "var(--text-faint)" }}>
-              {L(lang, "Manage your plan on examik.app", "Керуй планом на examik.app", "Управляй планом на examik.app", "Gère ton abonnement sur examik.app", "Verwalte deinen Plan auf examik.app")}
+              {L(lang, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net")}
             </p>
           )}
         </SettingsPage>

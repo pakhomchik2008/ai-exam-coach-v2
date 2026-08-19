@@ -13,8 +13,8 @@ const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
 const PROD_PUSH_HOSTS = new Set([
   "ai-exam-coach-v2.vercel.app",
-  "examik.app",
-  "www.examik.app",
+  "examik.net",
+  "www.examik.net",
 ]);
 
 function isProdPushHost(): boolean {
