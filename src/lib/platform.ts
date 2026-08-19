@@ -18,7 +18,7 @@ export function isNativeIOS(): boolean {
 // server behind it, instead of the deployed Vercel functions. Every /api/*
 // call must go through this so it hits the real backend on native while
 // staying a normal relative path (and same-origin, no CORS) on web.
-const PROD_API_ORIGIN = "https://ai-exam-coach-v2.vercel.app";
+const PROD_API_ORIGIN = "https://examik.net";
 
 export function apiUrl(path: string): string {
   return isNativeIOS() ? `${PROD_API_ORIGIN}${path}` : path;
