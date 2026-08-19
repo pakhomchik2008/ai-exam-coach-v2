@@ -80,7 +80,7 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "#F87171" } }, error) : null,
     native
       ? React.createElement("p", { style: { margin: 0, padding: "17px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } },
-          L5(t, "Manage your plan on examik.app", "Керуй планом на examik.app", "Управляй планом на examik.app", "Gère ton abonnement sur examik.app", "Verwalte deinen Plan auf examik.app"))
+          L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"))
       : React.createElement(React.Fragment, null,
           React.createElement("button", {
             type: "button",

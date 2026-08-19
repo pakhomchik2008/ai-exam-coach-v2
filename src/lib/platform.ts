@@ -3,7 +3,7 @@
  * sell digital content via Apple IAP must not offer any way to buy that
  * content from inside the app — no Stripe Checkout, no "upgrade" link out.
  * Decision: Examik ships as a reader app on iOS (Ultra/Pro subscriptions
- * stay web-only, examik.app), so every purchase entry point in the native
+ * stay web-only, examik.net), so every purchase entry point in the native
  * build is replaced with inert "manage your plan on the website" copy.
  * This is the single switch that decision hangs on.
  */

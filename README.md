@@ -38,7 +38,7 @@ Vercel builds with `npm run build` and serves `dist/` (see `vercel.json`).
 4. **Vercel → Project Settings → Environment Variables**:
    - `ANTHROPIC_API_KEY` = your own Anthropic API key
    - `SUPABASE_SERVICE_ROLE_KEY` = Supabase → Settings → API → `service_role` (**secret** — never put this in a `.jsx` file)
-   - `ALLOWED_ORIGINS` *(optional)* = comma-separated origins allowed to call the API. Defaults to the production URL, `examik.app`, `ai-exam-coach*.vercel.app` previews, and localhost.
+   - `ALLOWED_ORIGINS` *(optional)* = comma-separated origins allowed to call the API. Defaults to the production URL, `examik.net`, `ai-exam-coach*.vercel.app` previews, and localhost.
 5. Redeploy (env vars only take effect on a new deployment).
 
 Without step 4, AI features (AI Coach chat, the Study tab's flashcard/quiz generation, the background "AI plan summary" on new exams, and syllabus URL import) show an error instead of silently pretending to work.

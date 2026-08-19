@@ -32,8 +32,8 @@ const SUPABASE_ANON_KEY =
 
 const DEFAULT_ORIGINS = [
   "https://ai-exam-coach-v2.vercel.app",
-  "https://examik.app",
-  "https://www.examik.app",
+  "https://examik.net",
+  "https://www.examik.net",
   // 5050 was serve.py's port, replaced by Vite (5173) in Phase 1. Left stale
   // here meant every AI request from the local dev server was silently
   // rejected with a 403 "Origin not allowed" — found while reproducing a
@@ -237,7 +237,7 @@ export function resolveAppOrigin(req) {
   return process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 }
 
-// Every caller on the web (examik.app, the Vercel domain, local dev) is
+// Every caller on the web (examik.net, the Vercel domain, local dev) is
 // same-origin with these functions — the browser never needed CORS headers
 // to read the response. The native iOS app is the one caller that ISN'T:
 // it loads from capacitor://localhost and fetches this project's real
