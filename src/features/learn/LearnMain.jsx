@@ -860,6 +860,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
 
   const [openNode, setOpenNode] = React.useState(null); // { unit, node }
   const [proSheet, setProSheet] = React.useState(false);
+  const [showRules, setShowRules] = React.useState(false);
   const [running, setRunning] = React.useState(null);   // { unit, node }
   const [justUnlocked, setJustUnlocked] = React.useState(null);
   const [shownMastered, setShownMastered] = React.useState(mastered);
@@ -1069,6 +1070,44 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
         "aria-label": progressLabel,
         style: { "--learn-pct": String(pct) },
       }, React.createElement("div", { className: "learn-progress-fill" })),
+      React.createElement("button", {
+        type: "button",
+        onClick: () => setShowRules((v) => !v),
+        "aria-expanded": showRules,
+        style: { marginTop: 8, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", fontSize: 12, fontWeight: 600, color: "var(--text-faint)", textDecoration: "underline", textUnderlineOffset: 3 },
+      }, showRules
+        ? L("Hide how mastery works", "Сховати як працює майстерність", "Скрыть как работает мастерство", "Masquer le fonctionnement", "Wie es funktioniert ausblenden")
+        : L("How does mastery work?", "Як працює майстерність?", "Как работает мастерство?", "Comment fonctionne la maîtrise ?", "Wie funktioniert die Meisterschaft?")),
+      showRules && React.createElement("div", {
+        style: { marginTop: 10, padding: 14, borderRadius: 12, background: "var(--surface-muted)", border: "1px solid var(--border-subtle)", fontSize: 13, lineHeight: 1.55, color: "var(--text-body)" },
+      },
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+          React.createElement("span", { "aria-hidden": "true" }, "🥉"),
+          React.createElement("span", null,
+            React.createElement("strong", null, L("Bronze", "Бронза", "Бронза", "Bronze", "Bronze")), " — ",
+            L("pass Prove once. Free for everyone.", "склади Prove один раз. Безкоштовно для всіх.", "пройди Prove один раз. Бесплатно для всех.", "réussis Prove une fois. Gratuit pour tous.", "bestehe Prove einmal. Kostenlos für alle."))),
+        React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+          React.createElement("span", { "aria-hidden": "true" }, "🥈🥇👑"),
+          React.createElement("span", null,
+            React.createElement("strong", null, L("Silver, Gold, Legendary", "Срібло, Золото, Легенда", "Серебро, Золото, Легенда", "Argent, Or, Légendaire", "Silber, Gold, Legendär")), " — ",
+            L(
+              "Examik tracks when a topic starts fading from memory (spaced repetition, same idea as Anki). Come back and pass Prove again once it's due — each on-time pass raises the rank one step.",
+              "Examik стежить, коли тема починає забуватись (інтервальне повторення, як в Anki). Повернись і склади Prove знову, коли настане час — кожна вчасна спроба піднімає ранг на крок.",
+              "Examik следит, когда тема начинает забываться (интервальное повторение, как в Anki). Вернись и пройди Prove снова, когда придёт время — каждая своевременная попытка поднимает ранг на шаг.",
+              "Examik suit quand un sujet commence à s'estomper (répétition espacée, comme Anki). Reviens réussir Prove une fois l'échéance arrivée — chaque réussite à temps fait monter d'un rang.",
+              "Examik merkt, wenn ein Thema zu verblassen beginnt (Spaced Repetition, wie bei Anki). Komm zurück und bestehe Prove erneut, sobald es fällig ist — jeder rechtzeitige Erfolg hebt den Rang um eine Stufe."
+            ))),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+          React.createElement("span", { "aria-hidden": "true" }, "🔒"),
+          React.createElement("span", null,
+            L(
+              "Re-Prove-ing early still counts as practice, but only advances the rank once it's actually due — and only for Ultra. Free and Pro keep full progress if they upgrade later.",
+              "Повторний Prove достроково теж рахується як практика, але ранг підіймається лише коли настав час — і лише для Ultra. Free та Pro зберігають весь прогрес, якщо оновляться пізніше.",
+              "Повторный Prove досрочно тоже считается практикой, но ранг поднимается только когда пришло время — и только для Ultra. Free и Pro сохраняют весь прогресс, если обновятся позже.",
+              "Refaire Prove trop tôt compte comme entraînement, mais le rang ne monte qu'une fois l'échéance atteinte — et seulement pour Ultra. Free et Pro gardent leur progression s'ils passent Ultra plus tard.",
+              "Vorzeitiges erneutes Prove zählt als Übung, hebt den Rang aber erst bei Fälligkeit an — und nur für Ultra. Free und Pro behalten ihren Fortschritt, falls sie später upgraden."
+            ))),
+      ),
     ),
     ...tree.units.map((unit, ui) => React.createElement("div", {
       key: unit.id,
