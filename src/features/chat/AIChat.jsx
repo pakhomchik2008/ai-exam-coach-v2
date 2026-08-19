@@ -26,6 +26,7 @@ import {
   shouldDrawFigure,
   sittingById,
 } from "../../lib/paper-shapes";
+import { startExamLiveActivity, endExamLiveActivity } from "../../lib/widget-bridge";
 import { ExamRecap } from "../study/ExamRecap.jsx";
 import { WaitPress } from "../../components/WaitPress";
 import { ListenClip } from "../../components/ListenClip";
@@ -1953,6 +1954,7 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
     const xpEarned = correctCount * 15 + (pct >= 80 ? 100 : pct >= 50 ? 40 : 0);
     if (window.addXp) window.addXp(xpEarned);
     window.playSound && window.playSound("complete");
+    endExamLiveActivity();
     setPhase("summary");
   };
 
@@ -2090,6 +2092,7 @@ ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
         setTimeLeft(secs);
         setTimeLimitSec(secs);
         setPhase("session");
+        startExamLiveActivity(selectedExam.name, Date.now() + secs * 1000);
       } catch (e) {
         console.error("Exam simulation generation failed:", e);
         setError(e.message || L("Failed to generate exam", "Не вдалося створити іспит", "Не удалось создать экзамен", "Échec de la génération de l'examen", "Prüfung konnte nicht erstellt werden"));

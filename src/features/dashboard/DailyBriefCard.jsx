@@ -34,6 +34,19 @@ function DailyBriefCard({ L, streak, focusSession, activeCourses }) {
     ? [...activeCourses].sort((a, b) => a.daysAway - b.daysAway)[0]
     : null;
 
+  // Home/Lock Screen widget — no-ops on web and when the widget extension
+  // isn't installed, so this is safe to fire on every Dashboard mount.
+  React.useEffect(() => {
+    if (window.pushWidgetBrief) {
+      window.pushWidgetBrief({
+        streak,
+        planTopic: focusSession ? focusSession.topic : "",
+        examName: nearestExam ? nearestExam.subject : "",
+        examDaysAway: nearestExam ? nearestExam.daysAway : -1,
+      });
+    }
+  }, [streak, focusSession, nearestExam]);
+
   React.useEffect(() => {
     if (!isUltra || aiLine || aiLoading) return;
     let cancelled = false;
