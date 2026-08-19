@@ -13,7 +13,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { findLessonByTitle, treeForExam } from "./tree/resolve";
 import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
 import { canOpenNode, isMastered } from "./tree/locks";
-import { freeNodeCount, topicIsLocked } from "./premium";
+import { freeNodeCount, isUltraUser, topicIsLocked } from "./premium";
 import { ProSheet } from "./ProSheet.jsx";
 import { SpeakingDialog } from "./SpeakingDialog.jsx";
 import { isSpeakingTreeNode } from "./speaking";
@@ -52,6 +52,7 @@ const MASTERY_STYLE = {
   gold:       { color: "#d4a017",          label: "🥇" },
   legendary:  { color: "#7b3ff2",          label: "👑" },
 };
+const MASTERY_RANK_BRONZE_PLUS = new Set(["bronze", "silver", "gold", "legendary"]);
 
 function emptyDraft() {
   return {
@@ -376,9 +377,16 @@ ${mcqRulesBlock(plan)}`;
     const correct = results.filter((r) => r.correct).length;
     const totalQ = proveQs ? proveQs.length : 3;
     const passMark = Math.ceil(totalQ * 2 / 3);
-    const mastery = correct >= passMark ? "bronze" : "unlocked";
-    if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, node.id, mastery);
-    setFinalMastery({ mastery, correct, total: totalQ });
+    const passed = correct >= passMark;
+    const progress = window.recordNodeAttempt
+      ? window.recordNodeAttempt(tree.examTaxonomy, node.id, { correct, total: totalQ, canAdvance: isUltraUser() })
+      : null;
+    const mastery = progress ? progress.mastery : (passed ? "bronze" : "unlocked");
+    // `passed` (did they clear the passMark) is tracked separately from
+    // `mastery` (the rank now on file) — a Silver+ node's re-Prove that
+    // lands before its SM-2 due date still passes but doesn't move mastery,
+    // and the pass celebration must still fire either way.
+    setFinalMastery({ mastery, passed, correct, total: totalQ });
     setPhase("done");
   }
 
@@ -388,7 +396,7 @@ ${mcqRulesBlock(plan)}`;
 
   // Pass: medal pops, then return to the list. Fail: stay until they tap.
   React.useEffect(() => {
-    if (phase !== "done" || !finalMastery || finalMastery.mastery !== "bronze") return;
+    if (phase !== "done" || !finalMastery || !finalMastery.passed) return;
     if (prefersReducedMotion()) return;
     const id = setTimeout(() => leave({ nodeId: node.id, unlocked: true }), 1600);
     return () => clearTimeout(id);
@@ -402,7 +410,7 @@ ${mcqRulesBlock(plan)}`;
     React.createElement("button", {
       type: "button",
       onClick: () => leave(
-        phase === "done" && finalMastery && finalMastery.mastery === "bronze"
+        phase === "done" && finalMastery && finalMastery.passed
           ? { nodeId: node.id, unlocked: true }
           : null
       ),
@@ -762,7 +770,7 @@ ${mcqRulesBlock(plan)}`;
 
   // ── Phase: Done ──
   if (phase === "done" && finalMastery) {
-    const passed = finalMastery.mastery === "bronze";
+    const passed = finalMastery.passed;
     const medal = MASTERY_STYLE[finalMastery.mastery] || MASTERY_STYLE.unlocked;
     return wrap([
       header,
@@ -776,8 +784,11 @@ ${mcqRulesBlock(plan)}`;
           className: "learn-done-copy",
           style: { margin: "12px 0 0", fontSize: 22, color: "var(--text-strong)" },
         },
-          passed ? L("Bronze mastery", "Бронзова майстерність", "Бронзовое мастерство", "Maîtrise bronze", "Bronze-Meisterschaft")
-                 : L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Pas encore", "Noch nicht"),
+          !passed
+            ? L("Not quite yet", "Ще не зовсім", "Пока не совсем", "Pas encore", "Noch nicht")
+            : finalMastery.mastery === "bronze"
+              ? L("Bronze mastery", "Бронзова майстерність", "Бронзовое мастерство", "Maîtrise bronze", "Bronze-Meisterschaft")
+              : L("Nice work", "Чудова робота", "Отличная работа", "Bien joué", "Gut gemacht"),
         ),
         React.createElement("p", {
           className: "learn-done-copy",
@@ -994,7 +1005,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
         t,
         onExit: () => exitRunner(null),
         onPassed: () => {
-          if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, running.node.id, "bronze");
+          if (window.recordNodeAttempt) window.recordNodeAttempt(tree.examTaxonomy, running.node.id, { correct: 1, total: 1, canAdvance: isUltraUser() });
         },
       });
     }
@@ -1071,6 +1082,12 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
           const style = MASTERY_STYLE[st.mastery] || MASTERY_STYLE.unlocked;
           const unlockedNow = justUnlocked === node.id;
           const locked = topicIsLocked(tree, node.id);
+          // Silver/Gold/Legendary run on real SM-2 spaced repetition and are
+          // Ultra-gated (see learn-store.jsx's recordNodeAttempt) — bronze+
+          // nodes past their review due date show a nudge either way: Ultra
+          // users see it's worth re-Proving, everyone else sees the paywall.
+          const dueForReview = MASTERY_RANK_BRONZE_PLUS.has(st.mastery) && st.mastery !== "legendary"
+            && typeof st.dueAt === "number" && st.dueAt <= Date.now();
           return React.createElement("button", {
             key: node.id,
             type: "button",
@@ -1088,6 +1105,13 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
               React.createElement("div", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 2 } }, `~${node.estimatedMinutes} min · complexity ${node.complexity}/5`),
             ),
             locked && React.createElement("span", { style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--indigo-600)", background: "var(--indigo-50)", padding: "3px 7px", borderRadius: 999 } }, "Pro"),
+            !locked && dueForReview && (isUltraUser()
+              ? React.createElement("span", {
+                  style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--chrome-purple)", background: "color-mix(in srgb, var(--chrome-purple) 12%, transparent)", padding: "3px 7px", borderRadius: 999 },
+                }, L("Review", "Повторити", "Повторить", "Réviser", "Wiederholen"))
+              : React.createElement("span", {
+                  style: { fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--chrome-gold, #C6A572)", background: "color-mix(in srgb, var(--chrome-gold, #C6A572) 14%, transparent)", padding: "3px 7px", borderRadius: 999 },
+                }, "Ultra")),
           );
         }),
       ),
