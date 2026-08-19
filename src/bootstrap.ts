@@ -30,6 +30,7 @@
 //    off `window.supabase` at module-init, and `_ds_bundle.js` reads `React`.
 import "./lib/globals";
 import "./lib/platform"; // publishes window.apiUrl — must precede curriculum-store.jsx
+import "./lib/widget-bridge"; // publishes window.pushWidgetBrief — must precede DailyBriefCard.jsx
 import "./lib/claude-proxy";
 import "./lib/ds-bundle";
 import "./lib/push"; // OneSignal on prod only; preview drops leftover SW so Safari does not whitescreen
@@ -125,6 +126,7 @@ export const REQUIRED_GLOBALS = [
   "getCurriculum",
   // AI layer
   "apiUrl",
+  "pushWidgetBrief",
   "brainComplete",
   "brainCompleteJSON",
   "parseJSON",
