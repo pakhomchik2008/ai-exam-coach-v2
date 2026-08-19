@@ -158,13 +158,22 @@ function unsubscribeFooter(userId, lang) {
   </p>`;
 }
 
+// Returns the Resend error body on failure (not just ok/not-ok) — the
+// sandbox-sender restriction (RESEND_FROM still onboarding@resend.dev
+// until a domain is verified: it can only deliver to the Resend account
+// owner) used to fail silently here, incrementing results.errors with zero
+// diagnostic detail. A 403 with "You can only send testing emails to your
+// own email address" versus an actual outage look identical without this.
 async function sendEmail(resendKey, to, subject, html) {
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
     body: JSON.stringify({ from: RESEND_FROM, to, subject, html: brandLockupHtml() + html }),
   });
-  return resp.ok;
+  if (resp.ok) return { ok: true };
+  let detail = "";
+  try { detail = (await resp.json())?.message || ""; } catch { /* non-JSON error body */ }
+  return { ok: false, status: resp.status, detail };
 }
 
 // Best-effort second channel — src/lib/push.ts tags each browser's OneSignal
@@ -354,13 +363,17 @@ export default async function handler(req, res) {
       if (dryRun) { results.sent++; return; }
       if (await alreadySent(headers, userId, triggerKey, dedupeKey)) { results.skipped++; return; }
       const { subject, html } = buildEmail();
-      const ok = await sendEmail(resendKey, email, subject, html + footer(profile.lang));
+      const result = await sendEmail(resendKey, email, subject, html + footer(profile.lang));
       // Push reuses the email copy (strip tags, cap length) rather than a
       // second set of per-trigger copy — one content source, two channels.
       const plain = html.replace(/<[^>]+>/g, "").trim().slice(0, 150);
       await sendPush(oneSignalAppId, oneSignalRestKey, userId, subject, plain);
-      if (ok) { await markSent(headers, userId, triggerKey, dedupeKey); results.sent++; }
-      else results.errors++;
+      if (result.ok) { await markSent(headers, userId, triggerKey, dedupeKey); results.sent++; }
+      else {
+        results.errors++;
+        // userId only, never the email address — this is a shared cron log.
+        console.error(`notifications-cron: send failed — trigger=${triggerKey} user=${userId} status=${result.status} detail=${result.detail || "(no detail)"}`);
+      }
     }
 
     // 1–5 are study reminders. Skip them after one-click unsubscribe.

@@ -125,6 +125,13 @@ export async function checkAndRecordQuestion(
         p_text: questionText,
         p_threshold: SIMILARITY_THRESHOLD,
       });
+      // A missing function (PGRST202 — migration not run) and "no similar
+      // question found" both look like `!sim.data.length`, so this is the
+      // only way to tell them apart. Warn once per call rather than throw —
+      // dedup staying blind is a degraded feature, not a broken one.
+      if (sim.error) {
+        console.warn("question-novelty: match_similar_question RPC failed —", (sim.error as { message?: string; code?: string })?.message || sim.error);
+      }
       if (!sim.error && Array.isArray(sim.data) && sim.data.length > 0) {
         const nearRow = sim.data[0] as { id: string };
         if (nearRow && nearRow.id) {
