@@ -105,12 +105,25 @@ export function IeltsWriting({
     return () => { dead = true; };
   }, [mode, module, practiceTask, minutes]);
 
+  // setInterval's own closure is stale after the first tick (deps are just
+  // [phase]) — refs give the tick callback the current draft's word count
+  // and the current submit closure without re-subscribing the interval.
+  const wordsRef = React.useRef(0);
+  const submitRef = React.useRef<() => void>(() => {});
+
   React.useEffect(() => {
     if (phase !== "write") return undefined;
     const id = setInterval(() => {
       setTimeLeft((s) => {
-        if (s <= 1) { setPhase("done"); return 0; }
-        return s - 1;
+        if (s > 1) return s - 1;
+        // Clock hit zero mid-essay. Auto-submit whatever's there instead of
+        // just ending the session — that used to silently discard an
+        // unfinished draft with no score, the one thing the student spent
+        // the whole timer writing. Same word-count gate the manual Submit
+        // button uses; below it there's nothing gradeable to send.
+        if (wordsRef.current >= 20) submitRef.current();
+        else setPhase("done");
+        return 0;
       });
     }, 1000);
     return () => clearInterval(id);
@@ -149,6 +162,9 @@ export function IeltsWriting({
       setPhase("write");
     }
   };
+
+  React.useEffect(() => { wordsRef.current = words; }, [words]);
+  React.useEffect(() => { submitRef.current = () => { void submit(); }; });
 
   if (phase === "load") {
     return (
