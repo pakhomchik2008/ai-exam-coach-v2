@@ -1,5 +1,6 @@
 /**
- * Examik mark — block E of eleven squares. Placeholder until the new SVG lands.
+ * Examik mark — block E of eleven squares. Final (Decision Log #125,
+ * brand/README.md) — Hlib reviewed and kept it, do not regenerate.
  * Lockup is horizontal only: unframed E + "Examik". The framed cream tile is
  * the app icon / favicon, never a header. Gap is one cell of the E so every
  * surface (nav, landing, OG, email) is the same drawing.
