@@ -473,7 +473,16 @@ function allocateBudget(exams, profile) {
     // Excess above the day cap is trimmed rather than pushed past the exam
     // date — a session scheduled for after the exam is worse than an
     // honest "the budget doesn't fit" warning the student can act on.
-    const capPerDay = Math.max(1, Math.round((hoursPerDayFor(profile) * 60) / examSessionLen));
+    //
+    // hoursPerDayFor() reads the RAW profile (what the onboarding hours step
+    // asked about), oblivious to planIntensity — so at "Balanced" the day cap
+    // was already saturating, and "Ambitious" (1.5x more sessions/week to
+    // place) got trimmed straight back down to that same fixed ceiling. The
+    // three tiers rendered identical h/wk in the AIPlan preview because of
+    // this cap, not because of the multiplier — picking Ambitious means
+    // explicitly asking for more study per day too, so the ceiling scales
+    // with the same intensity multiplier the session-count target already uses.
+    const capPerDay = Math.max(1, Math.round((hoursPerDayFor(profile) * (INTENSITY_MULTIPLIERS[planIntensity] || 1) * 60) / examSessionLen));
     const dayCap = Math.max(1, Math.min(capPerDay, Math.ceil(sessionsPerWeekForExam / studyWeekdaySet.size)));
     const capacity = availableDates.length * dayCap;
     const overflow = Math.max(0, sessionPlan.length - capacity);
