@@ -1,9 +1,9 @@
 /**
- * In-app legal pages. English got the Phase 6 pass (real sections, not a
- * one-paragraph stub) — see src/i18n/legal-en.ts. uk/ru/fr/de still fall
- * back to the old single-paragraph draft until translated (Decision:
- * English first, since it's the language most reviewers/App Store/ad
- * platforms actually read). Footer on the landing must not 404 either way.
+ * In-app legal pages, Phase 6 pass — real sections in all 5 languages
+ * (src/i18n/legal-{en,uk,ru,fr,de}.ts). `sections` array wins when present;
+ * `body` (the old single-paragraph draft) is a fallback that's now
+ * effectively dead code but stays as a safety net if a language's array
+ * is ever missing or empty. Footer on the landing must not 404 either way.
  */
 import React from "react";
 
@@ -17,7 +17,6 @@ export function Legal({ page, t, onBack }) {
   return (
     <article className="land-legal" id="content">
       {onBack ? <button type="button" className="land-legal-back" onClick={onBack}>{t.legal_back}</button> : null}
-      <p className="land-legal-stub">{t.legal_stub}</p>
       <h1>{title}</h1>
       {Array.isArray(sections) && sections.length > 0
         ? sections.map((s, i) => (
