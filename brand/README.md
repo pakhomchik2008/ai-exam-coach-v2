@@ -10,7 +10,8 @@ Square 6, gap 4, origin 19,9. Glyph is 26×46 inside the 64 tile.
 
 Lockup is horizontal only: unframed E + `Examik` in the brand serif.
 Gap is one cell of the E. Framed cream rounded-rect is the app icon
-and favicon — never a header. Placeholder mark until the new SVG.
+and favicon — never a header. Final mark (Decision Log #125) — Hlib
+reviewed the 6-concept question and kept this one, do not regenerate.
 
 ## Generators
 
