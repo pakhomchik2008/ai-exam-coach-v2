@@ -1096,3 +1096,49 @@
     transform: none;
   }
 }
+
+/* Legal pages (Privacy, Terms, EULA, Refund, Cookies, Children) — plain
+   prose, same voice/tokens as the rest of the site instead of a stray
+   unstyled page. */
+.land-legal {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+  line-height: 1.65;
+}
+.land-legal h1 {
+  font-family: var(--land-display);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 8px 0 20px;
+}
+.land-legal h2 {
+  font-family: var(--land-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--land-ink);
+  margin: 28px 0 8px;
+}
+.land-legal p {
+  color: var(--land-muted);
+  margin: 0 0 4px;
+}
+.land-legal-stub {
+  font-family: var(--land-mono);
+  font-size: 12px;
+  color: var(--land-faint);
+  margin-bottom: 24px;
+}
+.land-legal-back {
+  display: block;
+  font-family: var(--land-mono);
+  font-size: 12px;
+  color: var(--land-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0 0 20px;
+}
+.land-legal-back:hover { color: var(--land-gold); }
