@@ -143,6 +143,31 @@ describe("hoursPerDay cap", () => {
   });
 });
 
+describe("plan intensity vs the day cap", () => {
+  it("Ambitious schedules more sessions than Balanced even when Balanced already saturates the day cap", () => {
+    // Regression: hoursPerDayFor() read the RAW profile, oblivious to
+    // planIntensity, so once Balanced (1x) already filled the day cap,
+    // Ambitious (1.5x more sessions/week to place) got trimmed straight
+    // back down to that same fixed ceiling — the AIPlan preview showed
+    // identical h/wk for both tiers.
+    const profile = {
+      studyDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+      hoursPerDay: 1,
+      daysPerWeek: 7,
+      weeklyHours: 7,
+      sessionLengthMin: 45,
+    };
+    seedExam(30, 12);
+    const exams = store.getExams().filter((e) => e.id === EXAM_ID);
+    const allocateBudget = (window as unknown as { allocateBudget: (e: Exam[], p: Record<string, unknown>) => Map<string, { sessions: Session[] }> }).allocateBudget;
+
+    const balancedCount = allocateBudget(exams, { ...profile, planIntensity: "balanced" }).get(EXAM_ID)!.sessions.length;
+    const ambitiousCount = allocateBudget(exams, { ...profile, planIntensity: "ambitious" }).get(EXAM_ID)!.sessions.length;
+
+    expect(ambitiousCount).toBeGreaterThan(balancedCount);
+  });
+});
+
 describe("even time-of-day spread", () => {
   it("does not stack five subjects on one clock time when availability is unset", () => {
     store.saveProfile({
