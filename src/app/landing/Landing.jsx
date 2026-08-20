@@ -344,7 +344,14 @@ function Landing({ onContinue, t, lang, onLangChange }) {
   }
 
   if (view === "legal") {
-    return <Legal page={legalPage} t={t} onBack={() => setView("marketing")} />;
+    // Legal is otherwise mounted outside the .land wrapper MarketingPage
+    // uses, so it fell back to raw unstyled browser defaults (white page,
+    // serif black text) instead of the site's actual dark theme/fonts.
+    return (
+      <div className="land">
+        <Legal page={legalPage} t={t} onBack={() => setView("marketing")} />
+      </div>
+    );
   }
 
   if (view === "forgot") {
