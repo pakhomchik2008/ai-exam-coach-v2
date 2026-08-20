@@ -47,9 +47,9 @@ def inside_round_rect(x: float, y: float, size: float) -> bool:
     return dist2(x, y, ix, iy) <= r * r
 
 
-def paint(px: float, py: float) -> bool:
+def paint(px: float, py: float, offset_x: float = 0.0) -> bool:
     for col, row in CELLS:
-        x = ORIGIN_X + col * (SQUARE + GAP)
+        x = ORIGIN_X + offset_x + col * (SQUARE + GAP)
         y = ORIGIN_Y + row * (SQUARE + GAP)
         if x <= px < x + SQUARE and y <= py < y + SQUARE:
             return True
@@ -71,6 +71,10 @@ def render_mark(width: int, height: int) -> list[list[tuple[int, int, int, int]]
 
 
 def render(size: int, background: bool) -> list[list[tuple[int, int, int, int]]]:
+    # Framed-tile only: bbox is centered but col 0 is fully filled while
+    # cols 1-2 are sparse, so the E's ink mass sits left of its bbox.
+    # +5px matches the shift in brand/logo.svg and src/brand/BrandMark.tsx.
+    offset_x = 5.0
     rows = []
     scale = size / 64.0
     for y in range(size):
@@ -78,7 +82,7 @@ def render(size: int, background: bool) -> list[list[tuple[int, int, int, int]]]
         cy = (y + 0.5) / scale
         for x in range(size):
             cx = (x + 0.5) / scale
-            marked = paint(cx, cy)
+            marked = paint(cx, cy, offset_x)
             if background:
                 if not inside_round_rect(x + 0.5, y + 0.5, size):
                     row.append(CLEAR)
