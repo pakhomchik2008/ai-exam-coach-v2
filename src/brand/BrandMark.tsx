@@ -30,7 +30,9 @@ export const BRAND_GLYPH = {
 export const LOCKUP_MARK = 24;
 
 export function lockupGapPx(markHeight: number): number {
-  return markHeight * (BRAND_GLYPH.square / BRAND_GLYPH.height);
+  // 0.6x cell gap, not a full cell — full cell read as too much air between
+  // glyph and wordmark (Hlib: "чуть назад, чуть гармонично").
+  return markHeight * (BRAND_GLYPH.square / BRAND_GLYPH.height) * 0.6;
 }
 
 type BrandMarkProps = {
@@ -67,7 +69,12 @@ export function BrandMark({ size = LOCKUP_MARK, framed = false, title }: BrandMa
         aria-label={title}
       >
         <rect width={BRAND_GLYPH.tile} height={BRAND_GLYPH.tile} rx="14" fill={PAPER} />
-        <BrandGlyph />
+        {/* Bounding box is centered but cell mass isn't: col 0 is fully
+            filled, cols 1-2 are sparse, so the E's visual weight sits left
+            of its own bbox. Nudge +5px right to center the actual ink. */}
+        <g transform="translate(5, 0)">
+          <BrandGlyph />
+        </g>
       </svg>
     );
   }
