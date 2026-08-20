@@ -1,0 +1,64 @@
+/**
+ * French translation of the Phase 6 legal pages — mirrors legal-en.ts
+ * section-for-section (same headings, same order).
+ */
+import type { LegalSection } from "./legal-en";
+
+const UPDATED = "20 août 2026";
+
+export const LEGAL_PRIVACY_FR: LegalSection[] = [
+  { h: "Qui gère ceci", p: `Examik est géré par Hlib Pakhomov, citoyen ukrainien étudiant l'ingénierie des systèmes informatiques à l'University of Warwick (Royaume-Uni) sous visa étudiant — une personne physique, pas une société enregistrée. Cette politique explique ce qu'Examik collecte, pourquoi, et ce que tu peux faire à ce sujet. Dernière mise à jour le ${UPDATED}.` },
+  { h: "Ce que nous collectons", p: "Compte : adresse email et nom, créés via Supabase Auth. Données d'étude : ta liste d'examens, ton planning hebdomadaire, ta progression de maîtrise/XP, ton journal d'erreurs, et tout fichier ou texte que tu envoies au Coach IA (dissertations, photos de devoirs, transcriptions de chat). Préférences de notification : lesquels des 7 déclencheurs email/push tu as activés. Facturation : ton abonnement et tes identifiants client/abonnement Stripe — ton numéro de carte ne touche jamais nos serveurs, Stripe le gère directement." },
+  { h: "Pourquoi nous le collectons", p: "Pour faire fonctionner le produit : construire ton planning d'étude, noter ta pratique, retenir tes erreurs, et donner au Coach IA le contexte nécessaire pour répondre avec pertinence. Nous n'utilisons pas tes données à des fins publicitaires et nous ne les vendons à personne." },
+  { h: "Qui d'autre les voit", p: "Des sous-traitants, chacun uniquement pour ce pour quoi il est nommé : Supabase (base de données + authentification, la sécurité au niveau des lignes signifie que les données d'un utilisateur sont invisibles pour les requêtes d'un autre), Vercel (hébergement et fonctions serverless par lesquelles passent tes requêtes), Anthropic (le modèle Claude qui alimente le Coach IA — reçoit le message que tu envoies et le contexte d'étude nécessaire pour bien répondre), OpenAI (secours d'urgence uniquement si Anthropic est injoignable — même contenu de message, utilisé seulement quand le fournisseur principal échoue), Resend (envoie les emails transactionnels auxquels tu as consenti), OneSignal (push web, uniquement si tu as accordé la permission dans le navigateur), Stripe (traitement des paiements Pro/Ultra). Aucun d'eux ne peut utiliser tes données à ses propres fins." },
+  { h: "Contenu d'étude généré par IA", p: "Les questions de pratique générées par l'IA sont vérifiées contre une banque de questions partagée (par hachage et par similarité) pour que deux élèves ne voient pas les mêmes questions générées par IA à la suite. Cette banque stocke le texte de la question et à quel examen/sujet elle appartient — pas ton nom ni ton compte." },
+  { h: "Combien de temps nous le conservons", p: "Aussi longtemps que ton compte existe. Supprime ton compte dans Settings et tes données d'étude ainsi que ton compte Supabase Auth sont supprimés. Certains enregistrements (comme les factures Stripe) sont conservés aussi longtemps que la loi fiscale l'exige, indépendamment de ton compte Examik." },
+  { h: "Tes droits", p: "Accès, correction, export ou suppression de tes données — la plupart est en libre-service dans Settings ; pour le reste, écris-nous et nous nous en occuperons manuellement. Si tu es au Royaume-Uni ou dans l'UE, tu as aussi le droit de t'opposer au traitement et de te plaindre à ton autorité locale de protection des données (l'ICO au Royaume-Uni) si tu penses que nous avons commis une erreur." },
+  { h: "Sécurité", p: "Tout fonctionne en HTTPS. Tes données sont isolées par utilisateur au niveau de la base de données (row-level security Postgres), pas seulement dans le code applicatif. Les clés API IA vivent uniquement côté serveur — elles ne sont jamais envoyées à ton navigateur." },
+  { h: "Enfants", p: "Examik s'adresse aux élèves de 13 ans et plus. Voir la page séparée Children's Privacy pour les détails." },
+  { h: "Modifications", p: "Si cette politique change de manière significative, nous l'indiquerons sur cette page et, pour les changements matériels, t'enverrons un email." },
+  { h: "Contact", p: "Questions, demandes, ou conflit avec la loi de ton pays : contacte-nous via les coordonnées sur la page d'accueil, on s'en occupe." },
+];
+
+export const LEGAL_TERMS_FR: LegalSection[] = [
+  { h: "Ce qu'est Examik", p: `Un outil d'étude pour la préparation aux examens standardisés (NMT, SAT, IELTS, TOEFL, Duolingo English Test, GCSE, A-Level, ZNO, et d'autres au fur et à mesure). Il ne garantit ni score, ni note, ni admission où que ce soit. Dernière mise à jour le ${UPDATED}.` },
+  { h: "L'IA peut se tromper", p: "Les questions de pratique, explications et notes sont générées par un modèle d'IA. Traite-les comme de l'entraînement, pas comme une source faisant autorité — vérifie toujours le programme officiel ou les annales réelles de ton organisme d'examen." },
+  { h: "Utilisation acceptable", p: "Examik sert à étudier, pas à tricher pendant un examen réel — ne l'utilise pas ainsi. N'essaie pas d'extraire, scraper ou revendre la banque de questions, d'abuser de l'API (requêtes automatisées, partage d'identifiants pour contourner les limites), ou de générer du contenu sans rapport avec l'étude." },
+  { h: "Comptes", p: "Tu es responsable de la sécurité de ton compte. Une personne, un compte — ne partage pas tes identifiants pour contourner les limites par compte. Nous pouvons suspendre ou fermer un compte qui abuse du service, sans que cela ouvre droit à un remboursement pour la période concernée." },
+  { h: "Abonnements", p: "Pro et Ultra sont des offres payantes avec un essai gratuit de 3 jours, facturées mensuellement ou annuellement au prix affiché au moment du paiement. Annule avant la fin de l'essai et tu ne seras pas facturé. Voir la politique de remboursement pour ce qui se passe après." },
+  { h: "Ton contenu", p: "Tu conserves la propriété de tout ce que tu importes (dissertations, photos, notes). Tu nous accordes la licence nécessaire pour le traiter — l'envoyer au modèle d'IA, le stocker, te le montrer — dans le seul but de faire fonctionner le service." },
+  { h: "Aucune garantie", p: "Le service est fourni tel quel. Nous travaillons à le garder précis et disponible, mais nous ne promettons pas qu'il soit sans erreur, ininterrompu, ou conforme aux exigences d'un organisme d'examen particulier." },
+  { h: "Responsabilité", p: "Dans la mesure permise par la loi, nous ne sommes pas responsables des résultats d'examens, des échéances manquées, ou des pertes indirectes liées à l'utilisation ou à l'impossibilité d'utiliser Examik. Rien ici ne limite une responsabilité que la loi ne permet pas de limiter." },
+  { h: "Modifications des présentes conditions", p: "Nous pouvons mettre à jour ces conditions au fur et à mesure de l'évolution du produit. Les changements matériels sont signalés sur cette page." },
+  { h: "Droit applicable", p: "Ces conditions sont régies par le droit de l'Angleterre et du Pays de Galles, sans préjudice de tout droit de consommation impératif dont tu bénéficies selon la loi de ton pays de résidence." },
+];
+
+export const LEGAL_EULA_FR: LegalSection[] = [
+  { h: "Ce que tu es autorisé à faire", p: `Une licence personnelle et non transférable d'utilisation de l'application et du site Examik pour ta propre préparation aux examens. C'est une licence d'utilisation du logiciel, pas une vente, et pas une licence sur le code source. Dernière mise à jour le ${UPDATED}.` },
+  { h: "Ce que tu n'es pas autorisé à faire", p: "Faire de l'ingénierie inverse, décompiler, ou tenter d'extraire le code source, les prompts du modèle ou la banque de questions ; revendre ou sous-licencier l'accès ; utiliser l'application d'une manière qui viole ces conditions ou les Terms of Service." },
+  { h: "Spécifiquement pour iOS", p: "La version iOS suit en plus l'EULA standard d'Apple (celle des App Store Terms) dans la mesure où cet accord n'est pas remplacé par celui-ci. Examik ne vend pas d'abonnements via Apple In-App Purchase — Pro/Ultra sont gérés entièrement sur examik.net, sur le web, hors de l'application." },
+  { h: "Contenu des leçons", p: "La théorie, les questions de pratique et les explications de la section Learn sont générées par un modèle d'IA à partir d'un programme que nous avons rédigé ou que l'IA a rédigé et que nous avons vérifié — ce n'est pas une publication officielle d'un ministère de l'éducation ou d'un organisme d'examen, vérifie toujours le programme réel." },
+  { h: "Résiliation", p: "Cette licence prend fin automatiquement si tu enfreins ses termes, ou lorsque tu supprimes ton compte. La fin de la licence n'annule pas ce qui a déjà été facturé — voir la politique de remboursement." },
+];
+
+export const LEGAL_REFUND_FR: LegalSection[] = [
+  { h: "L'essai", p: "Chaque offre payante (Pro, Ultra) commence par un essai gratuit de 3 jours. Annule à tout moment pendant ces 3 jours dans Settings et tu ne seras pas facturé." },
+  { h: "Après l'essai", p: "Une fois l'essai terminé, ta carte est débitée du prix affiché au checkout pour le plan et la période de facturation (mensuelle ou annuelle) que tu as choisis. Les débits récurrents suivent ensuite le même rythme jusqu'à annulation." },
+  { h: "Annulation", p: "Annule à tout moment dans Settings → Subscription, ou via le portail de facturation lié depuis là. L'annulation arrête les futurs renouvellements ; elle ne rembourse pas automatiquement la période déjà payée." },
+  { h: "Fenêtre de remboursement", p: "Si tu es dans les 14 jours suivant un débit (la conversion essai-payant ou tout renouvellement) et que tu n'avais pas l'intention d'être facturé, ou que le service n'a manifestement pas fonctionné pour toi, contacte-nous et nous te rembourserons — sans interrogatoire, sans petites lignes au-delà de ce paragraphe." },
+  { h: "Hors de la fenêtre", p: "Au-delà de 14 jours, nous ne remboursons généralement pas une période de facturation terminée, mais nous examinerons quand même les problèmes réels (une erreur de facturation de notre part, une panne de service qui a englouti ton temps d'étude) au cas par cas." },
+  { h: "Comment les remboursements sont payés", p: "Les remboursements retournent vers le moyen de paiement d'origine via Stripe, généralement sous 5 à 10 jours ouvrés selon ta banque." },
+  { h: "Pas encore de facturation App Store", p: "Il n'y a actuellement pas d'Apple In-App Purchase pour Pro/Ultra — toute la facturation passe par Stripe sur le web, donc le propre processus de remboursement d'Apple ne s'applique pas ici." },
+];
+
+export const LEGAL_COOKIES_FR: LegalSection[] = [
+  { h: "Ce que nous utilisons réellement", p: "Un cookie/jeton de session Supabase qui te maintient connecté. Ta langue, ton thème et d'autres préférences dans le localStorage de ton appareil (jamais envoyés ailleurs qu'à nos propres serveurs quand c'est pertinent). Un identifiant OneSignal, uniquement si tu as explicitement accordé la permission de notification push du navigateur." },
+  { h: "Ce que nous n'utilisons pas", p: "Aucun traceur publicitaire tiers, aucun pixel de suivi inter-sites, aucun Google Analytics ou équivalent, nulle part sur la page d'accueil ou dans l'application. Si cela devait changer un jour, ce serait une décision séparée et déclarée — jamais ajoutée en silence." },
+  { h: "Gérer cela", p: "Vider le stockage de ton navigateur te déconnecte et réinitialise les préférences locales. Révoquer la permission de notification push dans les paramètres de ton navigateur arrête l'utilisation de l'identifiant OneSignal." },
+];
+
+export const LEGAL_CHILDREN_FR: LegalSection[] = [
+  { h: "Âge", p: "Examik est destiné aux élèves de 13 ans et plus. Si tu as moins de 13 ans, merci de ne pas créer de compte — demande à un parent ou tuteur de t'aider à trouver une alternative adaptée à ton âge." },
+  { h: "Parents et tuteurs", p: "Si tu penses qu'un enfant de moins de 13 ans a créé un compte ou nous a fourni des données personnelles, contacte-nous et nous les supprimerons. Comme beaucoup de nos examens (GCSE, ZNO, A-Level) sont passés par des élèves qui restent mineurs selon la loi de leur pays même à 13 ans et plus, nous limitons les données collectées auprès des adolescents au strict nécessaire pour le produit — progression d'étude et informations de base du compte, pas de profilage comportemental." },
+  { h: "Différences régionales", p: "L'âge à partir duquel un jeune peut consentir seul à un service en ligne varie selon les pays (13 ans au Royaume-Uni et aux États-Unis ; jusqu'à 16 ans dans certains États membres de l'UE). Si ton pays fixe un âge supérieur à 13 ans, c'est cet âge qui s'applique, et un parent ou tuteur devrait créer le compte à ta place." },
+];
