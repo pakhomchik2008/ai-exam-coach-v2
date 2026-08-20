@@ -3,8 +3,8 @@
 Locked 16 Aug 2026. Working name was AI Exam Coach / exam.coach.
 Brand is **Examik** in every language — do not translate.
 
-Domain intent: `examik.app`. Confirm/buy before pointing DNS. Until then
-the live alias stays `https://ai-exam-coach-v2.vercel.app`.
+Domain: `examik.app` was the intent but taken by someone else. `examik.net`
+was bought instead — live, verified (Vercel + Resend DNS), canonical now.
 
 Do not reuse Decision Log #73–86 (billing) or #87–99 (AI quality).
 #100–103 live in `docs/phase-5-billing-tiers-plan.md`. This file starts
@@ -70,7 +70,7 @@ See #100–103 in `docs/phase-5-billing-tiers-plan.md`.
 | # | Decision | Why |
 |---|---|---|
 | 104 | Brand is Examik, untranslated, all five langs | One string. Domain and App Store need Latin. Translating it fragments search |
-| 105 | Canonical domain is examik.app when bought | Vercel URL stays the fallback origin until DNS is live |
+| 105 | Canonical domain is examik.net (examik.app was taken — see domain note above) | Vercel URL stays a working fallback origin |
 | 106 | Delete Telegram + TikTok from product surfaces | Accounts do not exist. Dead social links are worse than none |
 | 107 | Keep the design-system window namespace | Renaming `AIExamCoachDesignSystem_99e467` blanks screens. Brand copy ≠ architecture |
 | 110 | Lockup is horizontal unframed E + Examik. Framed cream tile is icon-only | A poster is not a lockup. One drawing in every header |
@@ -88,3 +88,4 @@ See #100–103 in `docs/phase-5-billing-tiers-plan.md`.
 | 122 | Electronics sits Eduqas (AQA has none): GCSE C490 2×1h30/80, A-level A490 2×2h45/140. AP onboarding subjects sit College Board section clocks. IB onboarding subjects sit HL clocks (SL shorter — same #121 Higher rule). University stays unofficial — board is "Custom modules", no public характеристика | Same leftover-mock lie. Uni clocks would be invented. Visual Arts / Art NEA still written-only. AP listen/speak mocked as printed |
 | 123 | Food 8585 + AP Human Geography sit official clocks. Uni onboarding subjects sit a typical UK unseen 2h/100 (studio 90/80) so Exam Sim is not 18 MCQs — note says this is a convention, not a board. Bare AP/IB/GCSE without a subject stay unofficial | Same leftover. Art History matcher before History. Bare family picker would be 20+ papers — worse than a generic mock |
 | 124 | Leftover onboarding families sit official public clocks: Enhanced ACT 2025–26 sections; CKE Matura Formuła 2023 (PP compulsory / PR electives); Bac éduscol terminales; Abitur NRW LK (other Länder differ — picker says NRW); IELTS L/R/W; TOEFL iBT 2026; DET task packs (real test is one adaptive stream); PTE Academic parts. Listen/speak/oral = printed/written mock. #37/#114 stay — 3+ public demos for curve only | Same leftover-mock lie. Bare Matura/Abitur/Bac stay unofficial (too many papers). ACT/IELTS/TOEFL/DET/PTE bare = section picker like SAT. Abitur is Land-dependent — we document NRW, we do not invent a Bundeseinheit |
+| 125 | Logo finalized: the block-E placeholder (`brand/logo.svg`, `BrandMark.tsx`) is now the permanent mark, not a placeholder | The "6 concepts" step in §B never happened — Hlib reviewed the shipped mark on light/dark/nav/icon and kept it as-is. Do not regenerate |
