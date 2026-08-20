@@ -340,7 +340,7 @@ export const LANDING_STRINGS = {
     settings_sounds_on: "Play interface sounds",
     settings_sounds_note: "Off by default. Six short cues: tap, select, correct, wrong, finish, level.",
     settings_sounds_preview: "Preview",
-    legal_stub: "Drafted by the founder with AI assistance; not reviewed by a lawyer for every jurisdiction. If this conflicts with your country's law, write — we fix it before launch.",
+    legal_stub: "AI-assisted draft, not lawyer-reviewed for every jurisdiction. Conflicts with your local law? Write — we fix it.",
     legal_privacy_title: "Privacy Policy",
     legal_privacy_body: "Examik stores: account email and name, study profile, progress, mistake journal, chat metadata. We do not sell it. Processors: Supabase (database), Vercel (hosting), Anthropic (model), Resend (email), OneSignal (push). Rows are RLS-isolated. Settings wipe study data and the auth account.",
     legal_privacy_sections: LEGAL_PRIVACY_EN,
