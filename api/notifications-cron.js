@@ -49,7 +49,7 @@ const APP_URL = process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 // daytime in the Americas for a same-day nudge rather than a 3am one.
 const CRON_HOUR_UTC = 16;
 
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { trialEmailDue } from "./_stripe.js";
 import { fetchPredictorCommentary, gradeProbability, predictorCommentaryPrompt, weakestTopics } from "./_predictor.js";
 
@@ -328,8 +328,15 @@ export default async function handler(req, res) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
+  // Plain !== short-circuits on the first mismatched character, so response
+  // time leaks how many leading characters of a guess are correct — a
+  // timing side-channel an attacker could use to recover CRON_SECRET
+  // byte-by-byte. HMAC both sides first: a hash is fixed-length regardless
+  // of input length (no length leak either) and timingSafeEqual makes the
+  // comparison itself constant-time.
   const auth = req.headers.authorization || "";
-  if (auth !== `Bearer ${cronSecret}`) {
+  const mac = (s) => createHmac("sha256", cronSecret).update(s).digest();
+  if (!timingSafeEqual(mac(auth), mac(`Bearer ${cronSecret}`))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
