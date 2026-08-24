@@ -60,10 +60,15 @@ function allowedOrigins() {
 
 // Vercel preview deployments get a generated hostname per commit, so an exact
 // allowlist would break every preview. Same project, same owner — allowed.
+// Matches the real preview shape (ai-exam-coach-v2-<hash>-<team>.vercel.app)
+// exactly, not just a prefix — a bare startsWith("ai-exam-coach") would also
+// admit any unrelated Vercel project named e.g. "ai-exam-coach-evil", since
+// project names aren't unique across accounts.
+const VERCEL_PREVIEW_RE = /^ai-exam-coach-v2-[a-z0-9]+-[a-z0-9-]+\.vercel\.app$/;
 function isVercelPreview(origin) {
   try {
     const h = new URL(origin).hostname;
-    return h.endsWith(".vercel.app") && h.startsWith("ai-exam-coach");
+    return VERCEL_PREVIEW_RE.test(h);
   } catch {
     return false;
   }
