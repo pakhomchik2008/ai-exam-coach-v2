@@ -46,6 +46,15 @@ export const config = { maxDuration: 60 };
 // still correctly fail here rather than being silently truncated upstream.
 const MAX_PAYLOAD_CHARS = 4_000_000;
 const MAX_MESSAGES = 80;
+// buildLearnerContext() (ai-brain.jsx) — the only legitimate producer of
+// `system` — tops out around 3-4 KB even for a student with many exams.
+// Nothing in the app needs more; a direct API caller sending a much bigger
+// value is either misusing the endpoint as a general-purpose AI proxy or
+// trying to smuggle a large payload past the coarser MAX_PAYLOAD_CHARS
+// check. This doesn't stop a caller from overriding the system prompt
+// entirely within that budget (that requires the server to own prompt
+// selection, a larger change) — it just bounds the blast radius.
+const MAX_SYSTEM_CHARS = 8_000;
 // Sit under Vercel Hobby's 60s kill so we return JSON instead of an HTML 504
 // the client then reports as "took too long".
 const UPSTREAM_TIMEOUT_MS = 55_000;
@@ -63,6 +72,8 @@ function payloadError(system, msgs) {
   if (!Array.isArray(msgs)) return "messages must be an array";
   if (!msgs.length) return "messages is empty";
   if (msgs.length > MAX_MESSAGES) return `Too many messages (max ${MAX_MESSAGES})`;
+  const systemChars = typeof system === "string" ? system.length : JSON.stringify(system || "").length;
+  if (systemChars > MAX_SYSTEM_CHARS) return `system prompt too large (max ${MAX_SYSTEM_CHARS} chars)`;
   for (const m of msgs) {
     if (!m || typeof m !== "object") return "Each message must be an object";
     if (m.role !== "user" && m.role !== "assistant") return "Invalid message role";

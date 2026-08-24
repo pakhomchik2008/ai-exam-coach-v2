@@ -5,8 +5,17 @@
 // `user_profile_v1` row.
 //
 // The user id itself isn't a secret (it goes in the URL of every email we
-// send), so this is deliberately unauthenticated — anyone who knows a user
-// id can only make their emails STOP, never receive them or read anything.
+// send), so this endpoint needs no login. But a bare UUID with no proof of
+// possession is an IDOR: anyone who has ever seen ONE unsubscribe link (a
+// forwarded email, an intercepted one) could swap in any other victim's
+// UUID and silently mute them, including the trial-ending billing warning.
+// The `t` param is an HMAC-SHA256 of the user id, signed with
+// UNSUBSCRIBE_SECRET when notifications-cron.js builds the link — proof the
+// server issued this link for this specific id. Falls back to accepting an
+// unsigned link when UNSUBSCRIBE_SECRET isn't set (matches this codebase's
+// degrade-don't-block convention for missing env vars, and keeps already-
+// sent emails' links working), but that means the IDOR stays open until the
+// secret is configured in Vercel.
 // Fail-safe direction: too easy to unsubscribe is fine, too easy to sign up
 // somebody else would not be.
 //
@@ -15,7 +24,19 @@
 // design would strand recipients on a broken page. RFC 8058's List-
 // Unsubscribe-Post header is added by the send path, not here.
 
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://cyftpdiabopydwytyudt.supabase.co";
+
+function validToken(userId, token) {
+  const secret = process.env.UNSUBSCRIBE_SECRET;
+  if (!secret) return true; // not configured yet — degrade to the old unauthenticated behavior
+  if (typeof token !== "string" || !token) return false;
+  const expected = createHmac("sha256", secret).update(userId).digest("hex");
+  const expectedBuf = Buffer.from(expected, "hex");
+  const gotBuf = Buffer.from(token, "hex");
+  return expectedBuf.length === gotBuf.length && timingSafeEqual(expectedBuf, gotBuf);
+}
 
 function serviceHeaders() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -36,6 +57,7 @@ h1{margin:0 0 8px;font-size:20px;}p{margin:8px 0 0;color:#475569;font-size:14px;
 
 export default async function handler(req, res) {
   const userId = (req.query && req.query.u) || "";
+  const token = (req.query && req.query.t) || "";
   const headers = serviceHeaders();
   if (!headers) {
     res.status(500).setHeader("Content-Type", "text/html; charset=utf-8")
@@ -45,6 +67,11 @@ export default async function handler(req, res) {
   if (!UUID_RE.test(userId)) {
     res.status(400).setHeader("Content-Type", "text/html; charset=utf-8")
       .send(page("Invalid link", "<h1>Invalid link</h1><p>This unsubscribe link is malformed.</p>"));
+    return;
+  }
+  if (!validToken(userId, token)) {
+    res.status(403).setHeader("Content-Type", "text/html; charset=utf-8")
+      .send(page("Invalid link", "<h1>Invalid link</h1><p>This unsubscribe link is invalid.</p>"));
     return;
   }
 
