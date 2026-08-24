@@ -13,12 +13,19 @@
 //   - http/https only
 //   - hostname AND every resolved IP checked against private/loopback/link-
 //     local ranges (blocks DNS-rebinding, not just literal IP URLs)
+//   - the connection is pinned to the exact IP assertSafeUrl validated, via
+//     Node's `lookup` request option — the actual request never re-resolves
+//     the hostname, closing the DNS-rebinding TOCTOU window between the
+//     check and the connect (a rebind attacker with a near-zero-TTL record
+//     could otherwise swap the answer to a private IP between the two)
 //   - redirects followed manually (max 3), re-checked at each hop — fetch's
 //     automatic redirect-follow would silently bypass the checks above
 //   - response capped at 2MB, request capped at 10s
 
-import { lookup } from "node:dns/promises";
+import { lookup as dnsLookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import * as http from "node:http";
+import * as https from "node:https";
 import { guard } from "./_guard.js";
 
 export const config = { maxDuration: 15 };
@@ -65,9 +72,12 @@ async function assertSafeUrl(urlStr) {
   }
   // Literal IP in the URL, or a hostname that resolves to one — both checked.
   const literalVersion = isIP(hostname);
-  const ips = literalVersion ? [hostname] : (await lookup(hostname, { all: true })).map((r) => r.address);
+  const ips = literalVersion ? [hostname] : (await dnsLookup(hostname, { all: true })).map((r) => r.address);
   if (!ips.length || ips.some(isPrivateIP)) throw new Error("This host is not allowed");
-  return u;
+  // Hand back the exact IP that was validated so the caller can pin the
+  // connection to it — resolving again at connect time is what opens the
+  // DNS-rebinding window.
+  return { url: u, resolvedIp: ips[0] };
 }
 
 function stripHtml(html) {
@@ -83,35 +93,52 @@ function stripHtml(html) {
     .trim();
 }
 
-async function fetchOnce(urlStr) {
-  const safeUrl = await assertSafeUrl(urlStr);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const resp = await fetch(safeUrl.toString(), {
-      redirect: "manual",
-      signal: controller.signal,
-      headers: { "User-Agent": "Examik-URLImport/1.0" },
-    });
-    if (resp.status >= 300 && resp.status < 400 && resp.headers.get("location")) {
-      return { redirect: new URL(resp.headers.get("location"), safeUrl).toString() };
-    }
-    if (!resp.ok) throw new Error(`Upstream returned ${resp.status}`);
-    const reader = resp.body.getReader();
-    const chunks = [];
-    let total = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.length;
-      if (total > MAX_BYTES) { controller.abort(); throw new Error("Page too large"); }
-      chunks.push(value);
-    }
-    const buf = Buffer.concat(chunks.map((c) => Buffer.from(c)));
-    return { text: buf.toString("utf-8") };
-  } finally {
-    clearTimeout(timeout);
-  }
+function fetchOnce(urlStr) {
+  return new Promise((resolve, reject) => {
+    assertSafeUrl(urlStr).then(({ url, resolvedIp }) => {
+      const client = url.protocol === "https:" ? https : http;
+      const req = client.request(url, {
+        method: "GET",
+        headers: { "User-Agent": "Examik-URLImport/1.0" },
+        // Force the connection onto the pre-validated IP instead of letting
+        // Node re-resolve the hostname. SNI/Host stay on `url` (the first
+        // arg), so TLS cert validation is unaffected — only the address the
+        // socket dials is pinned. Node's http/https client always requests
+        // `{ all: true }` from a custom `lookup`, so the callback must reply
+        // with an address array, not the single-address `(err, ip, family)`
+        // shape — passing the wrong shape throws "Invalid IP address:
+        // undefined" deep inside net.connect with no indication why.
+        lookup: (_hostname, _opts, cb) => cb(null, [{ address: resolvedIp, family: isIP(resolvedIp) }]),
+        timeout: FETCH_TIMEOUT_MS,
+      }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          res.resume();
+          resolve({ redirect: new URL(res.headers.location, url).toString() });
+          return;
+        }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          res.resume();
+          reject(new Error(`Upstream returned ${res.statusCode}`));
+          return;
+        }
+        const chunks = [];
+        let total = 0;
+        res.on("data", (chunk) => {
+          total += chunk.length;
+          if (total > MAX_BYTES) {
+            req.destroy(new Error("Page too large"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        res.on("end", () => resolve({ text: Buffer.concat(chunks).toString("utf-8") }));
+        res.on("error", reject);
+      });
+      req.on("timeout", () => req.destroy(new Error("Request timed out")));
+      req.on("error", reject);
+      req.end();
+    }, reject);
+  });
 }
 
 export default async function handler(req, res) {
