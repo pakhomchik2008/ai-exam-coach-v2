@@ -249,6 +249,14 @@ async function signInWithOAuth(provider) {
 // Requires Supabase → Authentication → Sign In / Providers → "Allow anonymous
 // sign-ins". If it is off, the demo still opens but every AI call returns 401.
 async function startDemo() {
+  // Reuse an existing anonymous session instead of minting a new Supabase
+  // user every call — signInAnonymously() has no rate limit, so a repeat
+  // caller (or a script looping the "Try the demo" button) could otherwise
+  // mint unlimited fresh per-user AI quotas (supabase/07_ai_usage.sql,
+  // 'complete:anon').
+  const current = getSession();
+  if (current && current.mode === "demo" && current.id) return current;
+
   // Set the local session first so the caller can route immediately even if
   // Supabase is slow — the anonymous user id fills in a moment later.
   const local = setSession({ id: null, email: null, name: "Demo", mode: "demo" });

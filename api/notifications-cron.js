@@ -49,6 +49,7 @@ const APP_URL = process.env.APP_URL || "https://ai-exam-coach-v2.vercel.app";
 // daytime in the Americas for a same-day nudge rather than a 3am one.
 const CRON_HOUR_UTC = 16;
 
+import { createHmac } from "node:crypto";
 import { trialEmailDue } from "./_stripe.js";
 import { fetchPredictorCommentary, gradeProbability, predictorCommentaryPrompt, weakestTopics } from "./_predictor.js";
 
@@ -150,8 +151,24 @@ function brandLockupHtml() {
 </table>`;
 }
 
+// The unsubscribe link's user id isn't secret (it goes out in every email
+// anyway — see api/unsubscribe.js), but on its own it makes the endpoint an
+// IDOR: anyone who has ever seen ONE of these links can silently unsubscribe
+// ANY other user by swapping in their UUID. Signing the id with a server
+// secret (UNSUBSCRIBE_SECRET) turns "knows a UUID" into "holds a token this
+// server issued for that UUID" — api/unsubscribe.js verifies it.
+// Falls back to an unsigned link when the secret isn't configured yet
+// (matches this codebase's degrade-don't-block convention for missing env
+// vars), but that reopens the IDOR — set UNSUBSCRIBE_SECRET in Vercel.
+function unsubscribeToken(userId) {
+  const secret = process.env.UNSUBSCRIBE_SECRET;
+  if (!secret) return null;
+  return createHmac("sha256", secret).update(userId).digest("hex");
+}
+
 function unsubscribeFooter(userId, lang) {
-  const url = `${APP_URL}/api/unsubscribe?u=${userId}`;
+  const token = unsubscribeToken(userId);
+  const url = `${APP_URL}/api/unsubscribe?u=${userId}${token ? `&t=${token}` : ""}`;
   const label = { uk: "Відписатися від сповіщень", ru: "Отписаться от уведомлений" }[lang] || "Unsubscribe from these emails";
   return `<p style="margin-top:24px;font-size:12px;color:#94a3b8;">
     <a href="${url}" style="color:#94a3b8;">${label}</a> · Examik

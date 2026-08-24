@@ -53,32 +53,43 @@ const PARSE_FAILED = Symbol("parse-failed");
 
 // ─── learner context ─────────────────────────────────────────────────────────
 
+// Every field below is user-controlled (profile name, exam names, memory
+// notes the student's own past sessions wrote, AI-extracted "facts" from
+// uploaded documents) and lands directly in the AI system prompt, which
+// carries developer-level instruction authority. Strip line breaks so a
+// crafted value can't inject a new fake instruction line (e.g. an exam
+// named "Math\n\nSYSTEM OVERRIDE: ..."), and cap length so a single field
+// can't crowd out the rest of the context.
+function sanitize(s) {
+  return typeof s === "string" ? s.replace(/[\r\n\u0085\u2028\u2029]/g, " ").slice(0, 200) : "";
+}
+
 function buildLearnerContext(opts = {}) {
   if (!window.getBrain) return "";
   const b = window.getBrain();
   const p = b.profile || {};
   const lines = [];
 
-  const name = p.fullName ? p.fullName.split(" ")[0] : null;
+  const name = p.fullName ? sanitize(p.fullName.split(" ")[0]) : null;
   lines.push(`You are this student's personal tutor.${name ? ` Their name is ${name}.` : ""}`);
   if (p.weeklyHours) lines.push(`They study about ${p.weeklyHours} hours/week.`);
 
   // Learning memory — what we've learned ABOUT this student across sessions
   const mem = b.memory || {};
-  if (mem.learningStyle) lines.push(`Preferred learning style: ${mem.learningStyle}.`);
-  if (mem.strengths && mem.strengths.length) lines.push(`Known strengths: ${mem.strengths.join(", ")}.`);
-  if (mem.weaknesses && mem.weaknesses.length) lines.push(`Known weaknesses: ${mem.weaknesses.join(", ")}.`);
+  if (mem.learningStyle) lines.push(`Preferred learning style: ${sanitize(mem.learningStyle)}.`);
+  if (mem.strengths && mem.strengths.length) lines.push(`Known strengths: ${mem.strengths.map(sanitize).join(", ")}.`);
+  if (mem.weaknesses && mem.weaknesses.length) lines.push(`Known weaknesses: ${mem.weaknesses.map(sanitize).join(", ")}.`);
   if (mem.preferredExplanations && mem.preferredExplanations.length)
-    lines.push(`They respond well to: ${mem.preferredExplanations.join(", ")}.`);
+    lines.push(`They respond well to: ${mem.preferredExplanations.map(sanitize).join(", ")}.`);
   if (mem.notes && mem.notes.length)
-    lines.push(`Remember: ${mem.notes.slice(0, 8).join("; ")}.`);
+    lines.push(`Remember: ${mem.notes.slice(0, 8).map(sanitize).join("; ")}.`);
 
   // Exams with per-topic mastery detail
   if (b.examViews && b.examViews.length) {
     lines.push("\n── THEIR EXAMS ──");
     b.examViews.forEach((e) => {
       const days = e.daysAway == null ? "" : e.daysAway < 0 ? " (passed)" : ` — exam in ${e.daysAway} days`;
-      lines.push(`\n📘 ${e.name} (${e.examBoard || "unknown board"}), target ${e.targetGrade}, ${e.started ? `${e.readiness}% ready` : "not started yet"}${days}`);
+      lines.push(`\n📘 ${sanitize(e.name)} (${sanitize(e.examBoard) || "unknown board"}), target ${sanitize(e.targetGrade)}, ${e.started ? `${e.readiness}% ready` : "not started yet"}${days}`);
 
       // Per-topic mastery breakdown — this is what makes the tutor KNOW the student
       const topicLines = [];
@@ -129,16 +140,19 @@ function buildLearnerContext(opts = {}) {
         norm(c.title).includes(topicL) || topicL.includes(norm(c.title)) ||
         (Array.isArray(c.topics) && c.topics.some((tp) => norm(tp).includes(topicL) || topicL.includes(norm(tp)))));
       if (ch) {
-        lines.push(`\n── FROM STUDENT'S OWN MATERIALS: ${ch.title} ──`);
-        if (ch.objectives && ch.objectives.length) lines.push("Objectives: " + ch.objectives.join("; "));
-        if (ch.keyFacts && ch.keyFacts.length) lines.push("Key facts:\n• " + ch.keyFacts.slice(0, 12).join("\n• "));
-        if (ch.formulas && ch.formulas.length) lines.push("Formulas: " + ch.formulas.join("; "));
+        // AI-extracted from a document the student uploaded — indirect
+        // injection vector (a crafted PDF can plant "objectives"/"key
+        // facts" text), so sanitize the same as any other user field.
+        lines.push(`\n── FROM STUDENT'S OWN MATERIALS: ${sanitize(ch.title)} ──`);
+        if (ch.objectives && ch.objectives.length) lines.push("Objectives: " + ch.objectives.map(sanitize).join("; "));
+        if (ch.keyFacts && ch.keyFacts.length) lines.push("Key facts:\n• " + ch.keyFacts.slice(0, 12).map(sanitize).join("\n• "));
+        if (ch.formulas && ch.formulas.length) lines.push("Formulas: " + ch.formulas.map(sanitize).join("; "));
       }
       if (kb.glossary && kb.glossary.length) {
         const relevant = kb.glossary.filter((g) => topicL.includes(norm(g.term)) || norm(g.term).includes(topicL));
         if (relevant.length) {
           lines.push("Relevant glossary:");
-          relevant.slice(0, 5).forEach((g) => lines.push(`• ${g.term}: ${g.def}`));
+          relevant.slice(0, 5).forEach((g) => lines.push(`• ${sanitize(g.term)}: ${sanitize(g.def)}`));
         }
       }
     }
