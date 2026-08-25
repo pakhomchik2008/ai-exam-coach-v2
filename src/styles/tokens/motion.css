@@ -99,6 +99,10 @@
   animation: ux-bar 600ms var(--ease-out) both;
 }
 
+.ux-fadeup {
+  animation: fadeUp 280ms var(--ease-out) both;
+}
+
 .ux-stagger > * {
   animation: fadeUp 280ms var(--ease-out) both;
 }

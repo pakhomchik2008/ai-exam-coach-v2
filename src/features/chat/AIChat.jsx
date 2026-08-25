@@ -3122,7 +3122,7 @@ function LearnMethodPicker({ topic, onExit, onPick, t }) {
         L("How do you want to learn?", "Як ви хочете вчити?", "Как хотите учить?", "Comment veux-tu apprendre ?", "Wie möchtest du lernen?")),
     ),
     React.createElement("h1", { key: "title", style: { margin: "0 0 24px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, topic),
-    React.createElement("div", { key: "opts", style: { display: "flex", gap: 14, flexWrap: "wrap" } },
+    React.createElement("div", { key: "opts", className: "ux-stagger", style: { display: "flex", gap: 14, flexWrap: "wrap" } },
       card("theory", "📖",
         L("Full theory page", "Повна теорія", "Полная теория", "Théorie complète", "Vollständige Theorie"),
         L("Structured read — TL;DR, concepts, worked examples, common mistakes, cheat sheet.",
