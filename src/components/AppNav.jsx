@@ -90,6 +90,56 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileOpen]);
 
+  // Drag-to-dismiss on the grabber, tracking the pointer 1:1 (apple-design
+  // §2/§3) instead of the sheet only ever running its fixed close transition
+  // on a tap. Mutates the DOM directly rather than via React state so the
+  // sheet follows the finger every frame with no render in between.
+  const sheetRef = React.useRef(null);
+  const dragRef = React.useRef(null);
+
+  // Resistance grows the further past the boundary — used so an upward drag
+  // past "fully open" (there's nowhere further to go) feels like it's
+  // pushing against something instead of hard-stopping (apple-design §9).
+  function rubberband(overshoot, dimension, constant = 0.55) {
+    return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
+  }
+
+  const onGrabberPointerDown = (e) => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    sheet.setPointerCapture(e.pointerId);
+    dragRef.current = { startY: e.clientY, startTime: e.timeStamp, height: sheet.getBoundingClientRect().height };
+    sheet.style.transition = "none"; // take over from the CSS transition while dragging
+  };
+
+  const onGrabberPointerMove = (e) => {
+    const drag = dragRef.current;
+    const sheet = sheetRef.current;
+    if (!drag || !sheet) return;
+    const raw = e.clientY - drag.startY;
+    const y = raw < 0 ? -rubberband(-raw, drag.height) : raw;
+    sheet.style.transform = `translateY(${y}px)`;
+  };
+
+  const onGrabberPointerUp = (e) => {
+    const drag = dragRef.current;
+    const sheet = sheetRef.current;
+    if (!drag || !sheet) return;
+    dragRef.current = null;
+    const raw = e.clientY - drag.startY;
+    const elapsed = e.timeStamp - drag.startTime;
+    // AUDIT.md's exact velocity-dismiss formula: distance/elapsedMs > ~0.11,
+    // not a distance threshold alone — a fast short flick should dismiss
+    // just as reliably as a slow long drag.
+    const velocity = elapsed > 0 ? Math.abs(raw) / elapsed : 0;
+    const shouldDismiss = raw > 0 && (raw > drag.height * 0.35 || velocity > 0.11);
+    sheet.style.transition = ""; // hand back to the CSS transition for the settle
+    sheet.style.transform = "";
+    if (shouldDismiss) setMobileOpen(false);
+    // else: clearing the inline transform while .is-open stays on lets the
+    // CSS transition snap the sheet back to translateY(0) on its own.
+  };
+
   return (
     <nav className="app-nav">
       <div className="app-nav-bar">
@@ -151,6 +201,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           focus, anchor to source). Closes on scrim tap or picking a link. */}
       {mobileOpen && <div className="app-nav-more-scrim" onClick={() => setMobileOpen(false)} />}
       <div
+        ref={sheetRef}
         className={"app-nav-more-sheet" + (mobileOpen ? " is-open" : "")}
         role={mobileOpen ? "dialog" : undefined}
         aria-modal={mobileOpen ? "true" : undefined}
@@ -161,7 +212,15 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
         // from tab order and the accessibility tree until it's actually open.
         inert={mobileOpen ? undefined : ""}
       >
-        <div className="app-nav-more-grabber" aria-hidden="true" />
+        <div
+          className="app-nav-more-grabber"
+          aria-hidden="true"
+          style={{ touchAction: "none", cursor: "grab" }}
+          onPointerDown={onGrabberPointerDown}
+          onPointerMove={onGrabberPointerMove}
+          onPointerUp={onGrabberPointerUp}
+          onPointerCancel={onGrabberPointerUp}
+        />
         {moreLinks.map((l) => {
           const active = isActive(l.id);
           return (

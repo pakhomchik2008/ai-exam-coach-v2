@@ -66,6 +66,15 @@
   40%           { opacity: 1; transform: scale(1); }
 }
 
+/* Referenced inline (AIChat.jsx's XP pop-up on every answer) but never
+   defined here, so it silently no-op'd — same class of bug as fadeUp/pulse/
+   loadDot above. Rises and fades, transform+opacity only. */
+@keyframes xppop {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
+  20%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-18px) scale(1); }
+}
+
 .ux-page {
   animation: ux-page 220ms var(--ease-out) both;
 }
