@@ -32,6 +32,7 @@ import "./lib/globals";
 import "./lib/platform"; // publishes window.apiUrl — must precede curriculum-store.jsx
 import "./lib/widget-bridge"; // publishes window.pushWidgetBrief — must precede DailyBriefCard.jsx
 import "./lib/claude-proxy";
+import "./lib/use-exit-transition"; // must precede Dashboard/StudyCalendar/Exams (delayed-unmount hook for their overlays)
 import "./lib/ds-bundle";
 import "./lib/push"; // OneSignal on prod only; preview drops leftover SW so Safari does not whitescreen
 import "./lib/sounds"; // Phase 4 kit — playSound reads getProfile at call time, not init
@@ -125,6 +126,7 @@ export const REQUIRED_GLOBALS = [
   "useBrain",
   "getCurriculum",
   // AI layer
+  "useExitTransition",
   "apiUrl",
   "pushWidgetBrief",
   "brainComplete",

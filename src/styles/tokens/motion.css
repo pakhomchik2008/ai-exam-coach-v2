@@ -89,6 +89,32 @@
   animation: ux-modal 240ms var(--ease-out) both;
 }
 
+/* Mirrors of the three entrances above (AUDIT §7: reversible transitions
+   should mirror their easing/path) — applied via useExitTransition's
+   `closing` flag so the parent keeps the overlay mounted long enough for
+   this to actually play, instead of unmounting mid-close. */
+@keyframes ux-backdrop-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes ux-sheet-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0.7; transform: translateY(18%); }
+}
+@keyframes ux-modal-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+.ux-overlay.is-closing {
+  animation: ux-backdrop-out 180ms var(--ease-out) both;
+}
+.ux-overlay.is-closing > .ux-sheet {
+  animation: ux-sheet-out 220ms var(--ease-out) both;
+}
+.ux-overlay.is-closing > .ux-modal {
+  animation: ux-modal-out 200ms var(--ease-out) both;
+}
+
 .ux-pop {
   animation: ux-pop 180ms var(--ease-out) both;
   transform-origin: top right;
@@ -104,8 +130,13 @@
 }
 
 .ux-bar-fill {
+  /* Was width:% (layout, driven by a one-shot mount animation that never
+     replayed on later updates) — transform is compositor-only and the
+     transition fires on every re-render, not just mount, matching
+     .learn-progress-fill's already-correct pattern. */
   transform-origin: left center;
-  animation: ux-bar 600ms var(--ease-out) both;
+  transform: scaleX(var(--ux-bar-pct, 1));
+  transition: transform var(--dur-slow) var(--ease-out);
 }
 
 .ux-fadeup {

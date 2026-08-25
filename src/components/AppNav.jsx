@@ -199,7 +199,11 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
       {/* Scrim + sheet for "More" — dims the page and rises from the bottom
           bar, matching the tab that opened it (Apple materials: dim to
           focus, anchor to source). Closes on scrim tap or picking a link. */}
-      {mobileOpen && <div className="app-nav-more-scrim" onClick={() => setMobileOpen(false)} />}
+      <div
+        className={"app-nav-more-scrim" + (mobileOpen ? " is-open" : "")}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
       <div
         ref={sheetRef}
         className={"app-nav-more-sheet" + (mobileOpen ? " is-open" : "")}

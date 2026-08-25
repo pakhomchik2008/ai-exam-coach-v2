@@ -70,8 +70,17 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
   const [preview, setPreview] = React.useState(null); // { id, date, startTime, durationMin } while dragging
   const [armedDelete, setArmedDelete] = React.useState(null);
   const [createSpec, setCreateSpec] = React.useState(null); // { date, startTime, type, recurring }
+  // See useExitTransition (src/lib/use-exit-transition.ts) — keeps each
+  // modal mounted through its close animation instead of unmounting the
+  // instant onClose/onReject flips the state to null.
+  const createSpecRef = React.useRef(null);
+  if (createSpec) createSpecRef.current = createSpec;
+  const createSpecXT = window.useExitTransition(!!createSpec);
   const [fabOpen, setFabOpen] = React.useState(false);
   const [aiProposal, setAiProposal] = React.useState(null);
+  const aiProposalRef = React.useRef(null);
+  if (aiProposal) aiProposalRef.current = aiProposal;
+  const aiProposalXT = window.useExitTransition(!!aiProposal);
   const [ripple, setRipple] = React.useState(null);
   const [ghost, setGhost] = React.useState(null);
 
@@ -390,14 +399,14 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
 
       <CalFab t={t} open={fabOpen} setOpen={setFabOpen} onGoToExams={onGoToExams} onCreate={openFabCreate} />
 
-      {createSpec && (
-        <QuickCreateModal t={t} spec={createSpec} exams={activeExams} defaultDurationMin={defaultDurationMin}
+      {createSpecXT.mounted && (
+        <QuickCreateModal t={t} closing={createSpecXT.closing} spec={createSpecRef.current} exams={activeExams} defaultDurationMin={defaultDurationMin}
           onClose={() => setCreateSpec(null)}
           onCreate={() => { setCreateSpec(null); setRefreshKey((k) => k + 1); }} />
       )}
 
-      {aiProposal && (
-        <AiProposalModal t={t} proposal={aiProposal} courseById={courseById} onAccept={acceptProposal} onReject={rejectProposal} />
+      {aiProposalXT.mounted && (
+        <AiProposalModal t={t} closing={aiProposalXT.closing} proposal={aiProposalRef.current} courseById={courseById} onAccept={acceptProposal} onReject={rejectProposal} />
       )}
     </div>
   );
@@ -405,7 +414,7 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
 
 // ─── AI proposal preview (Accept/Reject) ────────────────────────────────────
 
-function AiProposalModal({ proposal, courseById, onAccept, onReject, t }) {
+function AiProposalModal({ proposal, courseById, onAccept, onReject, t, closing }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const { title, summary, moves = [], adds = [], removes = [] } = proposal;
   const totalChanges = moves.length + adds.length + removes.length;
@@ -417,7 +426,7 @@ function AiProposalModal({ proposal, courseById, onAccept, onReject, t }) {
   }, []);
 
   return (
-    <div className="ux-overlay" onClick={onReject} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+    <div className={"ux-overlay" + (closing ? " is-closing" : "")} onClick={onReject} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
       <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 420, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "var(--shadow-lg)" }}>
         <h3 style={{ margin: "0 0 4px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>{title}</h3>
         <p style={{ margin: "0 0 14px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{summary}</p>
@@ -656,7 +665,7 @@ function CalFab({ open, setOpen, onCreate, onGoToExams, t }) {
 
 // ─── quick-create modal (study session / personal event / recurring) ──────
 
-function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate, t }) {
+function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate, t, closing }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [type, setType] = React.useState(spec.type);
   const [recurring, setRecurring] = React.useState(spec.recurring);
@@ -707,7 +716,7 @@ function QuickCreateModal({ spec, exams, defaultDurationMin, onClose, onCreate, 
   const label = { display: "block", fontSize: 11, color: "var(--text-faint)", marginBottom: 4 };
 
   return (
-    <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+    <div className={"ux-overlay" + (closing ? " is-closing" : "")} onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
       <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: "var(--radius-2xl)", padding: 24, width: 380, maxHeight: "88vh", overflowY: "auto", boxShadow: "var(--shadow-lg)" }}>
         <h3 style={{ margin: "0 0 12px", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--text-strong)" }}>
           {recurring ? L("Add recurring session","Додати регулярну сесію","Добавить регулярную сессию","Ajouter une séance récurrente","Wiederkehrende Einheit hinzufügen") : type === "personal" ? L("Add personal event","Додати особисту подію","Добавить личное событие","Ajouter un événement perso","Privaten Termin hinzufügen") : L("Add study session","Додати навчальну сесію","Добавить учебную сессию","Ajouter une séance d'étude","Lerneinheit hinzufügen")}

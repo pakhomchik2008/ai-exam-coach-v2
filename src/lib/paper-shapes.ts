@@ -3319,6 +3319,7 @@ Do not copy a published past paper or a third-party bank.
 ${diffBlock}
 Topics to cover: ${topicLine}
 Write exactly ${section.count} items. ${section.note}
+Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.`;
 
   if (section.kind === "mcq") {

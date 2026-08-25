@@ -7,7 +7,7 @@ function _defaultSessionLen() {
   return (window.getProfile && window.getProfile().sessionLengthMin) || 45;
 }
 
-function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }) {
+function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t, closing }) {
   const { Button, GaugeRing, Badge } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[(t && t.code) || "en"] || en);
   const grade = (window.examType ? window.examType(course.examTypeId) : null);
@@ -103,7 +103,7 @@ function CourseDetail({ course, onClose, onStart, onSave, onGoToChat, focus, t }
   };
 
   return (
-    <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", fontFamily: "var(--font-sans)" }}>
+    <div className={"ux-overlay" + (closing ? " is-closing" : "")} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0", fontFamily: "var(--font-sans)" }}>
       <div className="ux-sheet" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 600, maxHeight: "94vh", display: "flex", flexDirection: "column", background: "var(--surface-page)", borderTopLeftRadius: "var(--radius-2xl)", borderTopRightRadius: "var(--radius-2xl)", borderTop: `5px solid ${course.color}`, boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
 
         {/* Header */}

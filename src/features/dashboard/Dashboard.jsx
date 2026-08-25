@@ -8,6 +8,17 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
 
   const [detail, setDetail] = React.useState(null);
   const [dayDetail, setDayDetail] = React.useState(null);
+  // Keeps the modal mounted through its close animation instead of
+  // unmounting the instant onClose flips the state to null (see
+  // useExitTransition / .ux-overlay.is-closing in motion.css). The refs
+  // hold the last non-null value so the closing render still has data to
+  // show — `detail`/`dayDetail` themselves are already null by then.
+  const detailRef = React.useRef(null);
+  if (detail) detailRef.current = detail;
+  const detailXT = window.useExitTransition(!!detail);
+  const dayDetailRef = React.useRef(null);
+  if (dayDetail) dayDetailRef.current = dayDetail;
+  const dayDetailXT = window.useExitTransition(!!dayDetail);
   const [missionSession, setMissionSession] = React.useState(null);
   const [toast, setToast] = React.useState(null);
   const [adaptMsg, setAdaptMsg] = React.useState(null);
@@ -605,9 +616,10 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         </section>
       )}
 
-      {dayDetail && (
+      {dayDetailXT.mounted && (
         <window.DayDetail
-          day={dayDetail.day} dayIndex={dayDetail.dayIndex} t={t}
+          closing={dayDetailXT.closing}
+          day={dayDetailRef.current.day} dayIndex={dayDetailRef.current.dayIndex} t={t}
           onClose={() => setDayDetail(null)}
           onStart={(s) => {
             setDayDetail(null);
@@ -625,9 +637,10 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
         />
       )}
 
-      {detail && (
+      {detailXT.mounted && (
         <window.CourseDetail
-          course={detail.course} focus={detail.focus} t={t}
+          closing={detailXT.closing}
+          course={detailRef.current.course} focus={detailRef.current.focus} t={t}
           onClose={() => setDetail(null)}
           onStart={(s) => { setDetail(null); startMission(s); }}
           onSave={saveCourse} onGoToChat={onGoToChat}
