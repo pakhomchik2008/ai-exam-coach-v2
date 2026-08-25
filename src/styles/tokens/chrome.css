@@ -319,11 +319,22 @@
 }
 
 .app-nav-more-grabber {
+  /* Hit target is much bigger than the visible pill (Apple's ~10px hit-
+     padding guidance) — the actual drag surface, sized via padding so the
+     pill itself stays visually thin. */
+  width: 120px;
+  box-sizing: border-box;
+  padding: 14px 0 18px;
+  margin: -12px auto -4px;
+  display: flex;
+  justify-content: center;
+}
+.app-nav-more-grabber::before {
+  content: "";
   width: 36px;
   height: 4px;
   border-radius: 999px;
   background: var(--chrome-line);
-  margin: 2px auto 10px;
 }
 
 @keyframes appNavScrimIn {
