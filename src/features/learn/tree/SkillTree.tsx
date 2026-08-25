@@ -121,6 +121,7 @@ export function UnitSkillTree({
               <button
                 key={p.id}
                 type="button"
+                className="skilltree-node"
                 onClick={() => onSelect(p.node)}
                 aria-disabled={locked}
                 style={{

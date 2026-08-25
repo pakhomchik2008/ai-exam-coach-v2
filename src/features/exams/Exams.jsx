@@ -10,6 +10,12 @@ function Exams({ t, onPlanReady }) {
   const [showAdd, setShowAdd] = React.useState(false);
   const [showSlotPaywall, setShowSlotPaywall] = React.useState(false);
   const [editing, setEditing] = React.useState(null);
+  // See useExitTransition — keeps AddExamModal/ExamDetailModal mounted
+  // through their close animation instead of unmounting instantly.
+  const showAddXT = window.useExitTransition(showAdd);
+  const editingRef = React.useRef(null);
+  if (editing) editingRef.current = editing;
+  const editingXT = window.useExitTransition(!!editing);
 
   // Re-sync when brain changes (another screen marked topics, etc.)
   React.useEffect(() => { setExams(window.getExams()); }, [brain]);
@@ -127,7 +133,7 @@ function Exams({ t, onPlanReady }) {
       {showSlotPaywall && (
         <ProSheet reason="exam_slot" t={t} onClose={() => setShowSlotPaywall(false)} />
       )}
-      {showAdd && (exams.length === 0 ? (
+      {showAddXT.mounted && (exams.length === 0 ? (
         <window.ExamWizard
           config={window.EXAM_WIZARD_PRESETS.addExam}
           lang={t.code || "en"}
@@ -136,25 +142,27 @@ function Exams({ t, onPlanReady }) {
         />
       ) : (
         <AddExamModal
+          closing={showAddXT.closing}
           lastExam={exams[exams.length - 1]}
           lang={t.code || "en"}
           onClose={() => setShowAdd(false)}
           onSave={(newExams) => { setExams(window.getExams()); setShowAdd(false); if (onPlanReady && newExams) onPlanReady(newExams); }}
         />
       ))}
-      {editing && (
+      {editingXT.mounted && (
         <ExamDetailModal
-          exam={editing}
-          ev={evMap[editing.id]}
+          closing={editingXT.closing}
+          exam={editingRef.current}
+          ev={evMap[editingRef.current.id]}
           onClose={() => setEditing(null)}
-          onSave={(patch) => { updateExam(editing.id, patch); setEditing(null); }}
-          onDelete={() => { deleteExam(editing.id); setEditing(null); }}
+          onSave={(patch) => { updateExam(editingRef.current.id, patch); setEditing(null); }}
+          onDelete={() => { deleteExam(editingRef.current.id); setEditing(null); }}
         />
       )}
     </div>
   );
 
-  function AddExamModal({ lastExam, lang, onClose, onSave }) {
+  function AddExamModal({ lastExam, lang, onClose, onSave, closing }) {
     const defaultDate = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); })();
     const todayISO = new Date().toISOString().slice(0, 10);
     const profile = React.useMemo(() => window.getProfile ? window.getProfile() : {}, []);
@@ -285,7 +293,7 @@ function Exams({ t, onPlanReady }) {
     ];
 
     return (
-      <div className="ux-overlay" role="dialog" aria-modal="true" aria-label={t.exams_add} style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", flexDirection: "column", background: "var(--surface-page)", fontFamily: "var(--font-sans)" }}>
+      <div className={"ux-overlay" + (closing ? " is-closing" : "")} role="dialog" aria-modal="true" aria-label={t.exams_add} style={{ position: "fixed", inset: 0, zIndex: 80, display: "flex", flexDirection: "column", background: "var(--surface-page)", fontFamily: "var(--font-sans)" }}>
         {/* No slide-in class here on purpose: ux-sheet translates by 18%, and on
             a surface that owns the whole viewport that pushes the footer buttons
             off-screen for as long as the animation is mid-flight. */}
@@ -448,7 +456,7 @@ function Exams({ t, onPlanReady }) {
     );
   }
 
-  function ExamDetailModal({ exam, ev, onClose, onSave, onDelete }) {
+  function ExamDetailModal({ exam, ev, onClose, onSave, onDelete, closing }) {
     const [confirmDelete, setConfirmDelete] = React.useState(false);
     const [editing, setEditingMode] = React.useState(false);
     const todayISO = new Date().toISOString().slice(0, 10);
@@ -484,7 +492,7 @@ function Exams({ t, onPlanReady }) {
     const editInputStyle = { width: "100%", boxSizing: "border-box", padding: "10px 12px", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", outline: "none" };
 
     return (
-      <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
+      <div className={"ux-overlay" + (closing ? " is-closing" : "")} onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)" }}>
         <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 440, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ width: 10, height: 10, borderRadius: "50%", background: exam.color, flexShrink: 0 }} />

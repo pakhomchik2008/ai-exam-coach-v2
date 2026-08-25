@@ -289,12 +289,23 @@
   .app-nav-bottom-bar { display: flex; }
 
   .app-nav-more-scrim {
+    /* Was conditionally mounted with an entry-only animation, so closing
+       unmounted it instantly while the sheet was still 220ms into its own
+       slide-down — the dim layer vanished mid-motion. Always mounted now
+       (pointer-events gated), transitioning opacity both ways in step with
+       the sheet's own transition. */
     display: block;
     position: fixed;
     inset: 0;
     z-index: 61;
     background: rgba(15, 23, 42, 0.45);
-    animation: appNavScrimIn 180ms var(--chrome-ease);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms var(--chrome-ease);
+  }
+  .app-nav-more-scrim.is-open {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .app-nav-more-sheet {
@@ -337,13 +348,7 @@
   background: var(--chrome-line);
 }
 
-@keyframes appNavScrimIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .app-nav-more-sheet { transition: opacity 160ms ease; transform: none; }
   .app-nav-more-sheet:not(.is-open) { opacity: 0; pointer-events: none; }
-  .app-nav-more-scrim { animation: none; }
 }

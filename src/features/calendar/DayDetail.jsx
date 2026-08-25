@@ -1,5 +1,5 @@
 // Examik — DayDetail: tap a WeekStrip cell to see what happened or what's planned.
-function DayDetail({ day, dayIndex, onClose, onStart, t }) {
+function DayDetail({ day, dayIndex, onClose, onStart, t, closing }) {
   const { Button, Badge } = window.AIExamCoachDesignSystem_99e467;
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[(t && t.code) || "en"] || en);
 
@@ -52,7 +52,7 @@ function DayDetail({ day, dayIndex, onClose, onStart, t }) {
 
   return (
     <div
-      className="ux-overlay"
+      className={"ux-overlay" + (closing ? " is-closing" : "")}
       onClick={onClose}
       style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center", fontFamily: "var(--font-sans)" }}
     >

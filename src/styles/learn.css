@@ -61,6 +61,20 @@
   }
 }
 
+/* Skill-tree row (SkillTree.tsx) — same press-feedback pattern as
+   .learn-node above; it was the one pressable row in Learn with none. */
+.skilltree-node {
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) ease;
+}
+.skilltree-node:active:not([aria-disabled="true"]) {
+  transform: scale(0.98);
+}
+@media (hover: hover) and (pointer: fine) {
+  .skilltree-node:hover:not([aria-disabled="true"]) {
+    background: var(--surface-muted);
+  }
+}
+
 .learn-medal {
   display: inline-block;
   line-height: 1;

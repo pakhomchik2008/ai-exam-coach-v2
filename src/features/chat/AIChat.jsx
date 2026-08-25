@@ -375,7 +375,8 @@ RULES:
 - EXACTLY 3-4 sections. Not 5, not 6. Choose the most essential sub-topics.
 - Content is 3-5 sentences per section — not essays, not bullet points.
 - Every field that says "null if not applicable" MUST be null (not omitted) when not relevant.
-- Adapt to subject: math → formulas + worked numbers; history → key dates + causation; programming → code; science → mechanisms.`;
+- Adapt to subject: math → formulas + worked numbers; history → key dates + causation; programming → code; science → mechanisms.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Taking too long — try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 55000));
         const parsed = await Promise.race([
@@ -767,7 +768,8 @@ RULES:
 - Difficulty: ${DIFFICULTY_MIXES[difficulty - 1]}
 - Explanations are 1 sentence max — concise, helpful if wrong.
 - Each question covers a DIFFERENT subtopic/concept.
-- "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").`;
+- "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 40000));
         // The novelty pass needs to regenerate JUST the questions batch on a
@@ -1089,6 +1091,7 @@ RULES:
 - Questions should be clear and direct — no ambiguity
 - Mix easy (40%), medium (40%), hard (20%)
 - Spread questions across the given topics evenly
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
@@ -1515,6 +1518,7 @@ RULES:
 - explanation should teach WHY the right answer is right AND why the chosen wrong one is wrong
 - Spread questions evenly across the listed topics
 - No duplicate concepts
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
@@ -2041,6 +2045,7 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
 RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.
+Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
 ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
             return raceJson(system, `Generate ${perChunk} questions on: ${ts.join(", ")}`)
               .then((p) => (Array.isArray(p && p.questions) ? p.questions : []))
@@ -2352,7 +2357,8 @@ async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
 - Praise is specific and earned — name the exact thing they did right. NEVER "Great job", "Correct!", "Well done", or praise that fits any answer.
 - 1-3 short sentences per text field. No walls of text.
 - Turn wrong answers into insight ("Ooh — that's the classic trap, here's the tell…"), never a flat "the answer is B".
-- When the student's history above is relevant, reference it naturally. NEVER invent history you weren't given.`;
+- When the student's history above is relevant, reference it naturally. NEVER invent history you weren't given.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.`;
 
     const STEP_TYPES = `STEP TYPES AND THEIR EXACT JSON SHAPES:
 
@@ -4659,7 +4665,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
         window.xpTier && (() => { const _tier = window.xpTier(); return React.createElement("span", { className: _tier.theme ? "tier-glow" : "", style: { fontSize: 11, fontWeight: 700, color: "var(--text-strong)", background: "var(--surface-muted)", border: "1px solid var(--border-subtle)", padding: "4px 8px", borderRadius: 8, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 } }, _tier.emoji, window.tierTitle(_tier, t?.code)); })(),
         React.createElement("div", { style: { flex: 1 } },
           React.createElement("div", { style: { height: 6, background: "var(--border-subtle)", borderRadius: 3, overflow: "hidden" } },
-            React.createElement("div", { className: "ux-bar-fill", style: { height: "100%", width: `${xpPct}%`, background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3 } })),
+            React.createElement("div", { className: "ux-bar-fill", style: { height: "100%", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3, "--ux-bar-pct": xpPct / 100 } })),
           React.createElement("p", { style: { fontSize: 10, color: "var(--text-muted)", margin: "3px 0 0", textAlign: "right" } }, `${xpData.into}/${xpData.need} XP`)))),
 
     // Urgent review nudge
