@@ -93,6 +93,7 @@ export function UnitSkillTree({
                   fill={g.fill}
                   stroke={g.stroke}
                   strokeWidth={2}
+                  style={{ transition: "fill var(--dur-fast) ease, stroke var(--dur-fast) ease" }}
                 />
               );
             }
@@ -106,6 +107,7 @@ export function UnitSkillTree({
                 stroke={g.stroke}
                 strokeWidth={2}
                 strokeDasharray={!open && !isMastered(mastery) ? "3 2" : undefined}
+                style={{ transition: "fill var(--dur-fast) ease, stroke var(--dur-fast) ease" }}
               />
             );
           })}

@@ -105,7 +105,7 @@ function DailyBriefCard({ L, streak, focusSession, activeCourses }) {
       </div>
 
       {isUltra && (aiLine || aiLoading) && (
-        <div style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-subtle)" }}>
+        <div className="ux-fadeup" style={{ marginTop: "var(--space-3)", paddingTop: "var(--space-3)", borderTop: "1px solid var(--border-subtle)" }}>
           <span style={{ fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--chrome-gold, #C6A572)", fontWeight: 700 }}>
             {L("ULTRA INSIGHT", "ULTRA ІНСАЙТ", "ULTRA ИНСАЙТ", "ULTRA INSIGHT", "ULTRA INSIGHT")}
           </span>
