@@ -127,10 +127,25 @@ function hasProfile() {
 function getProfile() {
   let raw;
   try { raw = localStorage.getItem(PROFILE_KEY); } catch { raw = null; }
-  if (raw === _profileRaw && _profileCache) return _profileCache; // nothing changed — stable reference
-  _profileRaw = raw;
-  try { _profileCache = migrateProfile(raw ? JSON.parse(raw) : null); }
-  catch { _profileCache = migrateProfile(null); }
+  if (raw !== _profileRaw || !_profileCache) {
+    _profileRaw = raw;
+    try { _profileCache = migrateProfile(raw ? JSON.parse(raw) : null); }
+    catch { _profileCache = migrateProfile(null); }
+  }
+  // Dev-only, demo-only: `npm run dev` unlocks Ultra on the anonymous demo
+  // session so screen recordings (marketing video, screenshots) show paid
+  // features without a manual console patch each time. import.meta.env.DEV
+  // is statically false in a production build, so this never ships; the
+  // session-mode check keeps it off logged-in accounts even locally. Checked
+  // on every call (not just when localStorage changes) since the demo
+  // session itself lives outside PROFILE_KEY and can flip after the profile
+  // cache was already built.
+  if (import.meta.env.DEV) {
+    const session = window.getSession ? window.getSession() : null;
+    if (session && session.mode === "demo") {
+      return { ..._profileCache, pro: true, tier: "ultra" };
+    }
+  }
   return _profileCache;
 }
 
