@@ -29,24 +29,49 @@ const PLANS = [
   {
     id: "free",
     name: (t) => L5(t, "Free", "Free", "Free", "Free", "Free"),
-    blurb: (t) => L5(t, "First unit of every subject, one exam.", "Перший юніт кожного предмета, один іспит.", "Первый юнит каждого предмета, один экзамен.", "Premier chapitre de chaque matière, un examen.", "Erste Einheit jedes Fachs, eine Prüfung."),
     price: { monthly: "$0", yearly: "$0" },
+    features: (t) => [
+      L5(t, "First unit of every subject", "Перший юніт кожного предмета", "Первый юнит каждого предмета", "Premier chapitre de chaque matière", "Erste Einheit jedes Fachs"),
+      L5(t, "1 saved exam", "1 збережений іспит", "1 сохранённый экзамен", "1 examen enregistré", "1 gespeicherte Prüfung"),
+      L5(t, "AI Coach chat", "Чат з AI Coach", "Чат с AI Coach", "Chat AI Coach", "AI-Coach-Chat"),
+      L5(t, "Practice Engine & Speed Round", "Practice Engine і Speed Round", "Practice Engine и Speed Round", "Practice Engine et Speed Round", "Practice Engine & Speed Round"),
+    ],
   },
   {
     id: "pro",
     name: (t) => L5(t, "Pro", "Pro", "Pro", "Pro", "Pro"),
-    blurb: (t) => L5(t, "Full syllabus, calendar, mistake journal.", "Повна програма, календар, журнал помилок.", "Полная программа, календарь, журнал ошибок.", "Programme complet, calendrier, journal.", "Voller Lehrplan, Kalender, Fehlerjournal."),
     price: { monthly: "$5.99", yearly: "$59.99" },
     badge: (t) => L5(t, "Most popular", "Найпопулярніший", "Самый популярный", "Le plus populaire", "Am beliebtesten"),
+    features: (t) => [
+      L5(t, "Everything in Free", "Все з Free", "Всё из Free", "Tout Free", "Alles aus Free"),
+      L5(t, "Full syllabus, every unit", "Повна програма, кожен юніт", "Полная программа, каждый юнит", "Programme complet, chaque chapitre", "Voller Lehrplan, jede Einheit"),
+      L5(t, "Unlimited exams", "Необмежена кількість іспитів", "Неограниченное число экзаменов", "Examens illimités", "Unbegrenzte Prüfungen"),
+      L5(t, "Weekly study calendar", "Тижневий план навчання", "Недельный план обучения", "Calendrier hebdomadaire", "Wöchentlicher Studienplan"),
+      L5(t, "Mistake journal", "Журнал помилок", "Журнал ошибок", "Journal d'erreurs", "Fehlerjournal"),
+      L5(t, "Exam Simulation & flashcards", "Симуляція іспиту та картки", "Симуляция экзамена и карточки", "Simulation d'examen et fiches", "Prüfungssimulation & Karteikarten"),
+    ],
   },
   {
     id: "ultra",
     name: (t) => L5(t, "Ultra", "Ultra", "Ultra", "Ultra", "Ultra"),
-    blurb: (t) => L5(t, "Smarter AI + Weekly Deep Report.", "Розумніший AI + щотижневий звіт.", "Более умный AI + еженедельный отчёт.", "IA plus performante + rapport hebdo.", "Klügere KI + Wochenbericht."),
     price: { monthly: "$9.99", yearly: "$99.99" },
     badge: (t) => L5(t, "Best value", "Найвигідніший", "Самый выгодный", "Meilleure valeur", "Bester Wert"),
+    features: (t) => [
+      L5(t, "Everything in Pro", "Все з Pro", "Всё из Pro", "Tout Pro", "Alles aus Pro"),
+      L5(t, "Smarter AI model", "Розумніша модель AI", "Более умная модель AI", "Modèle IA plus performant", "Klügeres KI-Modell"),
+      L5(t, "Weekly Deep Report", "Щотижневий поглиблений звіт", "Еженедельный углублённый отчёт", "Rapport hebdomadaire approfondi", "Wöchentlicher Tiefenbericht"),
+    ],
   },
 ];
+
+function CheckIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }}>
+      <circle cx="10" cy="10" r="10" fill="var(--chrome-gold)" />
+      <path d="M6 10.3l2.4 2.4L14 7" stroke="#1F1400" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 function PlanCard({ plan, t, interval, currentTier, busy, onPick }) {
   const isCurrent = currentTier === plan.id;
@@ -69,7 +94,14 @@ function PlanCard({ plan, t, interval, currentTier, busy, onPick }) {
           /{interval === "yearly" ? L5(t, "yr", "рік", "год", "an", "Jahr") : L5(t, "mo", "міс", "мес", "mois", "Monat")}
         </span>
       </div>
-      <p style={{ fontSize: 13, lineHeight: 1.5, color: "color-mix(in srgb, var(--chrome-paper) 65%, transparent)", margin: "6px 0 16px", flex: 1 }}>{plan.blurb(t)}</p>
+      <ul style={{ listStyle: "none", margin: "14px 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
+        {plan.features(t).map((f, i) => (
+          <li key={i} style={{ display: "flex", gap: 8, fontSize: 13, lineHeight: 1.4, color: "color-mix(in srgb, var(--chrome-paper) 82%, transparent)" }}>
+            <CheckIcon />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
       {isCurrent ? (
         <div style={{ textAlign: "center", padding: "10px 0", fontSize: 13, fontWeight: 700, color: "var(--chrome-gold)" }}>{COPY.current(t)}</div>
       ) : plan.id === "free" ? null : (
