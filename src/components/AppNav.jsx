@@ -43,12 +43,16 @@ function TabIcon({ id, size = 21 }) {
 // that step, or who is browsing a fresh visit, has no visible path to sign
 // up. This button + modal is that path, always on-screen while in demo.
 const SIGNUP_COPY = {
-  en: { cta: "Sign up", title: "Create your account", sub: "Keeps your plan and progress — same demo data, now saved for good.", name: "Full name", email: "Email", password: "Password", submit: "Create account", busy: "Creating…", emailBad: "Enter a valid email.", pwShort: "Use at least 6 characters.", pending: "Check your email to confirm — your progress is already saved." },
-  uk: { cta: "Реєстрація", title: "Створи акаунт", sub: "Збереже твій план і прогрес — ті самі демо-дані, тепер назавжди.", name: "Повне ім'я", email: "Email", password: "Пароль", submit: "Створити акаунт", busy: "Створюємо…", emailBad: "Введіть дійсний email.", pwShort: "Щонайменше 6 символів.", pending: "Перевір пошту для підтвердження — прогрес уже збережено." },
-  ru: { cta: "Регистрация", title: "Создай аккаунт", sub: "Сохранит твой план и прогресс — те же демо-данные, теперь навсегда.", name: "Полное имя", email: "Email", password: "Пароль", submit: "Создать аккаунт", busy: "Создаём…", emailBad: "Введите действительный email.", pwShort: "Не менее 6 символов.", pending: "Проверь почту для подтверждения — прогресс уже сохранён." },
-  fr: { cta: "S'inscrire", title: "Crée ton compte", sub: "Conserve ton plan et ta progression — mêmes données démo, sauvegardées pour de bon.", name: "Nom complet", email: "E-mail", password: "Mot de passe", submit: "Créer le compte", busy: "Création…", emailBad: "Entrez un e-mail valide.", pwShort: "Au moins 6 caractères.", pending: "Vérifie ton e-mail pour confirmer — ta progression est déjà sauvegardée." },
-  de: { cta: "Registrieren", title: "Konto erstellen", sub: "Speichert deinen Plan und Fortschritt — dieselben Demo-Daten, jetzt dauerhaft.", name: "Vollständiger Name", email: "E-Mail", password: "Passwort", submit: "Konto erstellen", busy: "Wird erstellt…", emailBad: "Gib eine gültige E-Mail ein.", pwShort: "Mindestens 6 Zeichen.", pending: "Prüfe deine E-Mail zur Bestätigung — dein Fortschritt ist schon gespeichert." },
+  en: { cta: "Sign up", title: "Create your account", sub: "Keeps your plan and progress — same demo data, now saved for good.", name: "Full name", email: "Email", password: "Password", submit: "Create account", busy: "Creating…", emailBad: "Enter a valid email.", pwShort: "Use at least 6 characters.", pending: "Check your email to confirm — your progress is already saved.", google: "Continue with Google", or: "or" },
+  uk: { cta: "Реєстрація", title: "Створи акаунт", sub: "Збереже твій план і прогрес — ті самі демо-дані, тепер назавжди.", name: "Повне ім'я", email: "Email", password: "Пароль", submit: "Створити акаунт", busy: "Створюємо…", emailBad: "Введіть дійсний email.", pwShort: "Щонайменше 6 символів.", pending: "Перевір пошту для підтвердження — прогрес уже збережено.", google: "Продовжити з Google", or: "або" },
+  ru: { cta: "Регистрация", title: "Создай аккаунт", sub: "Сохранит твой план и прогресс — те же демо-данные, теперь навсегда.", name: "Полное имя", email: "Email", password: "Пароль", submit: "Создать аккаунт", busy: "Создаём…", emailBad: "Введите действительный email.", pwShort: "Не менее 6 символов.", pending: "Проверь почту для подтверждения — прогресс уже сохранён.", google: "Продолжить с Google", or: "или" },
+  fr: { cta: "S'inscrire", title: "Crée ton compte", sub: "Conserve ton plan et ta progression — mêmes données démo, sauvegardées pour de bon.", name: "Nom complet", email: "E-mail", password: "Mot de passe", submit: "Créer le compte", busy: "Création…", emailBad: "Entrez un e-mail valide.", pwShort: "Au moins 6 caractères.", pending: "Vérifie ton e-mail pour confirmer — ta progression est déjà sauvegardée.", google: "Continuer avec Google", or: "ou" },
+  de: { cta: "Registrieren", title: "Konto erstellen", sub: "Speichert deinen Plan und Fortschritt — dieselben Demo-Daten, jetzt dauerhaft.", name: "Vollständiger Name", email: "E-Mail", password: "Passwort", submit: "Konto erstellen", busy: "Wird erstellt…", emailBad: "Gib eine gültige E-Mail ein.", pwShort: "Mindestens 6 Zeichen.", pending: "Prüfe deine E-Mail zur Bestätigung — dein Fortschritt ist schon gespeichert.", google: "Weiter mit Google", or: "oder" },
 };
+
+const GOOGLE_LOGO = (
+  <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.2 30.2 0 24 0 14.8 0 6.9 5.4 3 13.3l7.9 6.1C12.8 13.2 18 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.5c-.5 2.8-2.1 5.2-4.5 6.8l7 5.4c4.1-3.8 6.6-9.4 6.6-16.2z"/><path fill="#FBBC05" d="M10.9 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.1.8-4.6L2.4 13.3A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.5 10.6l8.4-6z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7-5.4c-2 1.4-4.6 2.2-8.2 2.2-6 0-11.1-3.7-13-8.9l-8.4 6C6.9 42.6 14.8 48 24 48z"/></svg>
+);
 
 function SignUpModal({ onClose, lang }) {
   const c = SIGNUP_COPY[lang] || SIGNUP_COPY.en;
@@ -58,6 +62,19 @@ function SignUpModal({ onClose, lang }) {
   const [error, setError] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [pending, setPending] = React.useState(false);
+  const [googleBusy, setGoogleBusy] = React.useState(false);
+
+  const google = async () => {
+    setError("");
+    setGoogleBusy(true);
+    try {
+      await window.linkGoogleAccount();
+      // Browser navigates away to Google — nothing more to do on success.
+    } catch (err) {
+      setError((err && err.message) || c.emailBad);
+      setGoogleBusy(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -91,6 +108,15 @@ function SignUpModal({ onClose, lang }) {
           <form onSubmit={submit}>
             <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: 700, color: "var(--text-strong)" }}>{c.title}</h2>
             <p style={{ margin: "0 0 16px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.sub}</p>
+            <button type="button" onClick={google} disabled={googleBusy}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "11px 16px", marginBottom: 16, borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-strong)", fontWeight: 600, fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", cursor: googleBusy ? "wait" : "pointer" }}>
+              {GOOGLE_LOGO}{c.google}
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <div style={{ flex: 1, height: 1, background: "var(--border-default)" }} />
+              <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{c.or}</span>
+              <div style={{ flex: 1, height: 1, background: "var(--border-default)" }} />
+            </div>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder={c.name} autoComplete="name" style={inputStyle} />
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={c.email} autoComplete="email" style={inputStyle} />
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={c.password} autoComplete="new-password" style={{ ...inputStyle, marginBottom: 4 }} />

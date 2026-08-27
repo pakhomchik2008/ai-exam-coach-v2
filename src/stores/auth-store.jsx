@@ -241,6 +241,22 @@ async function signInWithOAuth(provider) {
   // Browser will navigate away to the OAuth provider — nothing more to do here
 }
 
+// Upgrades an anonymous demo session straight to a real account via Google,
+// same idea as upgradeAnonymousAccount() but for OAuth instead of
+// email/password. linkIdentity (not signInWithOAuth) is what keeps the SAME
+// user id/session across the redirect — signInWithOAuth would start a brand
+// new anonymous-vs-real identity instead of upgrading this one, silently
+// orphaning whatever the student already did in this demo session.
+async function linkGoogleAccount() {
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await _supabase.auth.linkIdentity({
+    provider: "google",
+    options: { redirectTo },
+  });
+  if (error) throw new Error(error.message);
+  // Browser will navigate away to Google — nothing more to do here
+}
+
 // Demo mode used to be a localStorage-only session with no server identity,
 // which is why /api/complete had to accept unauthenticated callers. It now signs
 // in anonymously, so a demo visitor carries a real JWT and a real (smaller)
@@ -297,26 +313,21 @@ async function upgradeAnonymousAccount({ name, email, password }) {
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  // Password first: it is applied immediately and is what makes the account
-  // recoverable. If the email step then needs confirmation, the student still
-  // has a real credential rather than a half-made account.
-  const pw = await _supabase.auth.updateUser({ password, data: { full_name: name.trim() } });
-  if (pw.error) {
-    const err = new Error(pw.error.message);
-    err.code = "SIGNUP_ERROR";
-    throw err;
-  }
-
-  const em = await _supabase.auth.updateUser({ email: cleanEmail });
-  if (em.error) {
-    const err = new Error(em.error.message);
+  // Supabase rejects setting a password on an anonymous user before it has
+  // an email or phone identity attached — "Updating password of an
+  // anonymous user without email or phone is not allowed." Sending both in
+  // ONE call (rather than password-then-email, which looked reasonable but
+  // fails outright) attaches the identity and the credential together.
+  const res = await _supabase.auth.updateUser({ email: cleanEmail, password, data: { full_name: name.trim() } });
+  if (res.error) {
+    const err = new Error(res.error.message);
     err.code = "SIGNUP_ERROR";
     throw err;
   }
 
   // `email_confirmed_at` stays null until the link is clicked; new_email holds
   // the pending address in that case.
-  const updated = em.data?.user || null;
+  const updated = res.data?.user || null;
   const emailPending = !!updated && !updated.email;
   const session = setSession({
     id: (updated && updated.id) || user.id,
@@ -424,7 +435,7 @@ Object.assign(window, {
   ACCOUNTS_KEY, SESSION_KEY, _supabase, PERSONAL_DATA_KEYS,
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
-  signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount,
+  signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount, linkGoogleAccount,
   updateAccount, MIN_PASSWORD_LEN,
   getAccessToken, apiHeaders,
   requestPasswordReset, completePasswordReset, isPasswordRecovery, clearPasswordRecovery,
