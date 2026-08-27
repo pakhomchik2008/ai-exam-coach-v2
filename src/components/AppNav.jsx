@@ -229,12 +229,15 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   return (
     <nav className="app-nav">
       <div className="app-nav-bar">
-        <button type="button" onClick={() => navigate("dashboard")} aria-label="Examik" style={{
-          display: "flex", alignItems: "center", border: "none", background: "transparent",
-          cursor: "pointer", padding: 0, color: "var(--text-strong)",
-        }}>
-          <BrandLockup wordClassName="app-nav-wordmark" />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button type="button" onClick={() => navigate("dashboard")} aria-label="Examik" style={{
+            display: "flex", alignItems: "center", border: "none", background: "transparent",
+            cursor: "pointer", padding: 0, color: "var(--text-strong)",
+          }}>
+            <BrandLockup wordClassName="app-nav-wordmark" />
+          </button>
+          {isDemo && <NavSignUpButton lang={lang} />}
+        </div>
 
         <div className="app-nav-links">
           {links.map((l) => {
@@ -278,7 +281,6 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             )}
           </div>
 
-          {isDemo && <NavSignUpButton lang={lang} />}
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
@@ -336,8 +338,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-          {isDemo && <NavSignUpButton lang={lang} />}
+        <div style={{ marginTop: 8 }}>
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
