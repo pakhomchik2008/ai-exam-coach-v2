@@ -30,9 +30,9 @@ export const BRAND_GLYPH = {
 export const LOCKUP_MARK = 24;
 
 export function lockupGapPx(markHeight: number): number {
-  // 0.6x cell gap, not a full cell — full cell read as too much air between
-  // glyph and wordmark (Hlib: "чуть назад, чуть гармонично").
-  return markHeight * (BRAND_GLYPH.square / BRAND_GLYPH.height) * 0.6;
+  // 0.85x cell gap — 0.6 read as glyph and wordmark touching (Hlib,
+  // 26 Aug 2026: "лого отодвинул чуть левее от названия").
+  return markHeight * (BRAND_GLYPH.square / BRAND_GLYPH.height) * 0.85;
 }
 
 type BrandMarkProps = {
