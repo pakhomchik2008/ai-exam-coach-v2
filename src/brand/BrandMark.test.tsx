@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 import { BrandLockup, BrandMark, BRAND_GLYPH, LOCKUP_MARK, lockupGapPx } from "./BrandMark";
 
 describe("BrandMark lockup", () => {
-  it("gap is 0.85 cell of the E at the 24px mark", () => {
-    expect(lockupGapPx(LOCKUP_MARK)).toBeCloseTo(LOCKUP_MARK * (6 / 46) * 0.85);
+  it("gap is 1.6 cell of the E at the 24px mark", () => {
+    expect(lockupGapPx(LOCKUP_MARK)).toBeCloseTo(LOCKUP_MARK * (6 / 46) * 1.6);
     expect(BRAND_GLYPH.width).toBe(26);
     expect(BRAND_GLYPH.height).toBe(46);
   });
