@@ -490,7 +490,7 @@ RULES:
         React.createElement("button", { onClick: () => { if (phase !== "roadmap") commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen")))),
     React.createElement("div", { style: { height: 4, background: "var(--surface-muted)", borderRadius: 2, overflow: "hidden" } },
       React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${progressPct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 2, transition: "transform var(--dur-moderate) ease" } })),
-    React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 4, display: "block" } }, plan.title));
+    React.createElement("span", { style: { fontSize: 11, color: "var(--text-faint)", marginTop: 4, display: "block" }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }));
 
   // ─── ROADMAP ──────────────────────────────────────────────────────────────
   if (phase === "roadmap") {
@@ -499,7 +499,7 @@ RULES:
       React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "24px 20px" } },
         React.createElement("div", { style: { textAlign: "center", marginBottom: 28 } },
           React.createElement("span", { style: { fontSize: 48 } }, "📘"),
-          React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 6px" } }, plan.title),
+          React.createElement("h1", { style: { fontSize: 22, fontWeight: 700, color: "var(--text-strong)", margin: "12px 0 6px" }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }),
           React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: 0 } }, L(`${totalSections} sections · ~${plan.estimatedMinutes || 15} min`, `${totalSections} розділів · ~${plan.estimatedMinutes || 15} хв`, `${totalSections} разделов · ~${plan.estimatedMinutes || 15} мин`, `${totalSections} sections · ~${plan.estimatedMinutes || 15} min`, `${totalSections} Abschnitte · ~${plan.estimatedMinutes || 15} Min.`))),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 } },
           ...sections.map((s, i) => React.createElement("div", {
@@ -508,7 +508,7 @@ RULES:
           },
             React.createElement("div", { style: { width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,var(--indigo-500),var(--indigo-600))", color: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 } }, i + 1),
             React.createElement("div", { style: { flex: 1 } },
-              React.createElement("span", { style: { fontSize: 15, fontWeight: 600, color: "var(--text-strong)" } }, s.title),
+              React.createElement("span", { style: { fontSize: 15, fontWeight: 600, color: "var(--text-strong)" }, dangerouslySetInnerHTML: { __html: _md(s.title || "") } }),
               s.quiz && s.quiz.length > 0 && React.createElement("span", { style: { fontSize: 11, color: "var(--text-muted)", marginLeft: 8 } }, L(`+ ${s.quiz.length} quiz`, `+ ${s.quiz.length} тест`, `+ ${s.quiz.length} тест`, `+ ${s.quiz.length} quiz`, `+ ${s.quiz.length} Quiz`)))))),
         _btn(L("Let's start →", "Почнімо →", "Начнём →", "Commençons →", "Los geht's →"), () => { setPhase("section"); scrollTop(); }, true, false)));
   }
@@ -647,7 +647,7 @@ RULES:
     },
       React.createElement("div", { style: { fontSize: 56, marginBottom: 8, animation: "pulse 0.6s ease-in-out" } }, gradeEmoji[grade]),
       React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, L("Study Guide Complete!", "Навчальний посібник завершено!", "Учебное пособие завершено!", "Guide d'étude terminé !", "Lernleitfaden abgeschlossen!")),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, plan.title),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }),
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 360, marginBottom: 24 } },
         React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 14, padding: "16px", textAlign: "center" } },
           React.createElement("p", { style: { fontSize: 28, fontWeight: 700, color: accuracy >= 70 ? "var(--emerald-700)" : "var(--amber-700)", margin: 0 } }, `${accuracy}%`),
@@ -1360,7 +1360,7 @@ ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
         }))),
     // Question card
     React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "20px" } },
-      q.topic && React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" } }, q.topic),
+      q.topic && React.createElement("p", { style: { fontSize: 11, fontWeight: 600, color: "var(--indigo-600)", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }, dangerouslySetInnerHTML: { __html: _md(q.topic) } }),
       React.createElement("p", { style: { fontWeight: 600, fontSize: 17, margin: "0 0 20px", color: "var(--text-strong)", lineHeight: 1.5 }, dangerouslySetInnerHTML: { __html: _md(q.q) } }),
       React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
         ...(q.options || []).map((opt, i) => {
@@ -2768,7 +2768,7 @@ function LearnTheoryReader({ topic, onExit, t, onOpenTopic }) {
 
   return wrap([
     header,
-    React.createElement("h1", { key: "title", style: { margin: "0 0 12px", fontSize: 28, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2, letterSpacing: "-0.01em" } }, plan.title),
+    React.createElement("h1", { key: "title", style: { margin: "0 0 12px", fontSize: 28, fontWeight: 800, color: "var(--text-strong)", lineHeight: 1.2, letterSpacing: "-0.01em" }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }),
     plan.tldr && React.createElement("div", { key: "tldr", style: { marginTop: 8, padding: "16px 18px", background: "var(--indigo-50)", borderRadius: 12, fontSize: 15, lineHeight: 1.6, color: "var(--text-strong)" } },
       React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--indigo-700)", fontWeight: 700, marginBottom: 6 } }, L("TL;DR", "Коротко", "Коротко", "En bref", "Kurz gesagt")),
       React.createElement("div", { dangerouslySetInnerHTML: html(plan.tldr) }),
@@ -3031,7 +3031,7 @@ function LearnFlashcards({ topic, onExit, t }) {
 
   return wrap([
     header,
-    React.createElement("h1", { key: "title", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.25 } }, plan.title),
+    React.createElement("h1", { key: "title", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.25 }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }),
     // Progress dots — one per card, current is filled with THAT card's hue,
     // already-seen cards keep their own hue at half strength. The dot row
     // reads as a little rainbow trail of the deck, not a single-color bar.
@@ -3053,7 +3053,7 @@ function LearnFlashcards({ topic, onExit, t }) {
       transition: "background var(--dur-quick) ease, border-color var(--dur-quick) ease, box-shadow var(--dur-quick) ease",
     } },
       React.createElement("div", { style: { fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", color: hue.text, fontWeight: 700 } }, `${idx + 1} / ${plan.cards.length}`),
-      React.createElement("h2", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 } }, card.heading),
+      React.createElement("h2", { style: { margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-strong)", lineHeight: 1.3 }, dangerouslySetInnerHTML: { __html: _md(card.heading || "") } }),
       React.createElement("div", { style: { fontSize: 16, lineHeight: 1.7, color: "var(--text-body)" }, dangerouslySetInnerHTML: html(card.body) }),
       card.example && React.createElement("div", { style: { marginTop: "auto", padding: "12px 14px", background: "var(--surface-page)", border: `1px solid ${hue.soft}`, borderRadius: 12, fontSize: 14, lineHeight: 1.65 }, dangerouslySetInnerHTML: html(card.example) }),
     ),
@@ -3457,7 +3457,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
     },
       React.createElement("div", { style: { fontSize: 56, marginBottom: 8, animation: "pulse 0.6s ease-in-out" } }, gradeEmoji[grade]),
       React.createElement("h1", { style: { fontSize: 24, fontWeight: 700, color: "var(--text-strong)", margin: "0 0 4px", textAlign: "center" } }, L("Lesson Complete!", "Урок завершено!", "Урок завершён!", "Leçon terminée !", "Lektion abgeschlossen!")),
-      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" } }, plan.title),
+      React.createElement("p", { style: { fontSize: 14, color: "var(--text-muted)", margin: "0 0 24px" }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }),
 
       // Stats grid
       React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, width: "100%", maxWidth: 360, marginBottom: 24 } },
@@ -3495,7 +3495,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
   const renderTeach = () => React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
     React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
       React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", L("📖 CONCEPT", "📖 КОНЦЕПЦІЯ", "📖 КОНЦЕПЦИЯ", "📖 CONCEPT", "📖 KONZEPT"))),
-      s.title && React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
+      s.title && React.createElement("h2", { style: { margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: { __html: _md(s.title) } }),
       React.createElement("div", { style: { fontSize: 15, lineHeight: 1.75, color: "var(--text-body)", marginBottom: 16 }, dangerouslySetInnerHTML: { __html: _md(s.body) } }),
       s.keyTakeaway && React.createElement("div", { style: { background: "linear-gradient(135deg, var(--amber-50), var(--amber-100))", border: "1px solid var(--amber-200)", borderRadius: 12, padding: "12px 16px", fontSize: 14, color: "var(--amber-700)", marginBottom: s.example ? 14 : 0 } },
         "💡 ", React.createElement("strong", null, s.keyTakeaway)),
@@ -3644,7 +3644,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
     return React.createElement("div", { style: { animation: "fadeUp 0.3s ease-out" } },
       React.createElement("div", { style: { background: "var(--surface-card)", border: "1px solid var(--border-subtle)", borderRadius: 16, padding: 24 } },
         React.createElement("div", { style: { marginBottom: 14 } }, _badge("var(--indigo-50)", "var(--indigo-600)", L("📝 WORKED EXAMPLE", "📝 РОЗВ'ЯЗАНИЙ ПРИКЛАД", "📝 РЕШЁННЫЙ ПРИМЕР", "📝 EXEMPLE RÉSOLU", "📝 GELÖSTES BEISPIEL"))),
-        s.title && React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" } }, s.title),
+        s.title && React.createElement("h3", { style: { margin: "0 0 16px", fontSize: 16, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: { __html: _md(s.title) } }),
         React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 0 } },
           ...steps.map((st, i) => {
             const vis = i < stepsRevealed;
@@ -3783,7 +3783,7 @@ function LessonEngine({ topic, mode, onExit, t }) {
         React.createElement("div", { style: { height: "100%", width: "100%", transform: `scaleX(${pct / 100})`, transformOrigin: "left", background: "linear-gradient(90deg,var(--indigo-500),var(--indigo-600))", borderRadius: 3, transition: "transform var(--dur-moderate) ease" } })),
       // Bottom row: title + exit
       React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 } },
-        React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 } }, plan.title),
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-faint)", fontWeight: 500 }, dangerouslySetInnerHTML: { __html: _md(plan.title || "") } }),
         React.createElement("button", { onClick: () => { commitResults(); onExit(); }, style: { fontSize: 11, color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)", textDecoration: "underline" } }, L("Exit", "Вийти", "Выйти", "Quitter", "Verlassen"))),
       // Difficulty pills (shown after first answer)
       totalAnswered > 0 && !diffVoted && React.createElement("div", { style: { marginTop: 8, animation: "fadeUp 0.3s ease-out" } }, renderDiffPills())),

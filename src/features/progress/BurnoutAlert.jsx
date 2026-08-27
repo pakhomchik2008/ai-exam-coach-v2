@@ -1,3 +1,5 @@
+import { renderCoachMarkdown } from "../../lib/math-render";
+
 // Examik — Predictive Burnout Detection (#9)
 function BurnoutAlert({ t }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
@@ -45,11 +47,12 @@ function BurnoutAlert({ t }) {
             ? L(`You've studied ${studyHours}h in the last 3 days`, `Ви навчалися ${studyHours} год за останні 3 дні`, `Вы занимались ${studyHours} ч за последние 3 дня`, `Vous avez étudié ${studyHours} h ces 3 derniers jours`, `Du hast in den letzten 3 Tagen ${studyHours} Std. gelernt`)
             : L(`You've missed ${totalMissed} sessions this week`, `Ви пропустили ${totalMissed} сесій цього тижня`, `Вы пропустили ${totalMissed} сессий на этой неделе`, `Vous avez manqué ${totalMissed} séances cette semaine`, `Du hast diese Woche ${totalMissed} Einheiten verpasst`)}
         </p>
-        <p style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', color: isIntensity ? 'var(--amber-700)' : 'var(--sky-700)', lineHeight: 1.5 }}>
-          {aiMsg || (isIntensity
+        <p
+          style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', color: isIntensity ? 'var(--amber-700)' : 'var(--sky-700)', lineHeight: 1.5 }}
+          dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(aiMsg || (isIntensity
             ? L('Consider a rest day or lighter session today — consistent pacing leads to better long-term retention.', 'Сьогодні варто відпочити або зменшити навантаження — стабільний темп дає краще довгострокове запам\'ятовування.', 'Сегодня стоит отдохнуть или снизить нагрузку — стабильный темп даёт лучшее долгосрочное запоминание.', 'Pensez à une journée de repos ou une séance plus légère — un rythme régulier améliore la rétention à long terme.', 'Gönn dir heute eine Pause oder eine leichtere Einheit — gleichmäßiges Tempo verbessert das Langzeitgedächtnis.')
-            : L("Let's scale back next week's load and rebuild momentum gradually. Small consistent steps matter more than big catchups.", 'Зменшимо навантаження наступного тижня і поступово відновимо ритм. Малі стабільні кроки важливіші за великі надолуження.', 'Снизим нагрузку на следующей неделе и постепенно восстановим ритм. Маленькие стабильные шаги важнее больших навёрстываний.', "Allégeons la charge de la semaine prochaine et reconstruisons l'élan progressivement.", 'Reduzieren wir die Last nächste Woche und bauen den Schwung schrittweise wieder auf.'))}
-        </p>
+            : L("Let's scale back next week's load and rebuild momentum gradually. Small consistent steps matter more than big catchups.", 'Зменшимо навантаження наступного тижня і поступово відновимо ритм. Малі стабільні кроки важливіші за великі надолуження.', 'Снизим нагрузку на следующей неделе и постепенно восстановим ритм. Маленькие стабильные шаги важнее больших навёрстываний.', "Allégeons la charge de la semaine prochaine et reconstruisons l'élan progressivement.", 'Reduzieren wir die Last nächste Woche und bauen den Schwung schrittweise wieder auf.'))) }}
+        />
         {!aiMsg && !loading && (
           <button onClick={getAdvice} style={{ border: 'none', background: 'transparent', padding: 0, fontSize: 11, color: isIntensity ? 'var(--amber-600)' : 'var(--sky-700)', cursor: 'pointer', fontFamily: 'var(--font-sans)', textDecoration: 'underline' }}>
             {L('Get personalised advice →', 'Отримати персональну пораду →', 'Получить персональный совет →', 'Obtenir un conseil personnalisé →', 'Persönlichen Rat erhalten →')}
