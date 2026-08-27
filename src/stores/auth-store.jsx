@@ -76,6 +76,7 @@ function _persistSession(session) {
 _supabase.auth.getSession().then(({ data: { session } }) => {
   if (session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
+    _syncProfileFromUser(session.user);
     // Covers a refresh while already signed in — onAuthStateChange's SIGNED_IN
     // only fires on a *new* sign-in event, not on a session merely resuming.
     void startDataSync(_supabase, session.user.id);
@@ -96,6 +97,23 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
 // clearing logic since it isn't a session key.
 const RECOVERY_FLAG_KEY = "auth_password_recovery_v1";
 
+// OAuth (signInWithOAuth or linkIdentity) fills in email/name on the
+// Supabase session/user object, but nothing wrote it into profile-store —
+// Settings.jsx reads profile.email/profile.fullName, not the auth session,
+// so a Google sign-in left both blank there, and Settings' "Change
+// password" (which requires a real email to send the reset link to) then
+// had nothing to send it to. Only fills gaps — never overwrites an email
+// or name the student already has saved, in profile-store or Settings.
+function _syncProfileFromUser(user) {
+  if (!user || user.is_anonymous || !window.getProfile || !window.saveProfile) return;
+  const current = window.getProfile();
+  const patch = {};
+  if (!current.email && user.email) patch.email = user.email;
+  const oauthName = user.user_metadata?.full_name || user.user_metadata?.name;
+  if (!current.fullName && oauthName) patch.fullName = oauthName;
+  if (Object.keys(patch).length) window.saveProfile(patch);
+}
+
 // Stay in sync for the lifetime of the page
 _supabase.auth.onAuthStateChange((event, session) => {
   if (event === "PASSWORD_RECOVERY" && session?.user) {
@@ -108,11 +126,18 @@ _supabase.auth.onAuthStateChange((event, session) => {
     void startDataSync(_supabase, session.user.id);
   } else if (event === "SIGNED_IN" && session?.user) {
     _persistSession(_supabaseUserToSession(session.user));
+    _syncProfileFromUser(session.user);
     void startDataSync(_supabase, session.user.id);
     // Tags this browser's OneSignal push subscription with the Supabase user
     // id (external_id) so api/notifications-cron.js can target it by id —
     // see src/lib/push.ts's header.
     if (window.identifyPushUser) window.identifyPushUser(session.user.id);
+  } else if (event === "USER_UPDATED" && session?.user) {
+    // linkIdentity() (Google account linking from an anonymous session)
+    // fires this, not SIGNED_IN, since it's the same session gaining an
+    // identity rather than a new sign-in.
+    _persistSession(_supabaseUserToSession(session.user));
+    _syncProfileFromUser(session.user);
   } else if (event === "SIGNED_OUT") {
     _cachedSession = null;
     try { localStorage.removeItem(SESSION_KEY); } catch {}
