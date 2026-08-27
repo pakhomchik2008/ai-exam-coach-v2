@@ -1,3 +1,5 @@
+import { renderCoachMarkdown } from "../../lib/math-render";
+
 // Examik — Session Recap: shown immediately after a study session.
 // Two phases:
 //   1. COVERAGE — the user tells us which of the exam's topics they actually
@@ -193,9 +195,10 @@ function SessionRecap({ data, onClose, t }) {
               </div>
             )}
             {chatSummary && (
-              <div style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.75, whiteSpace: "pre-line" }}>
-                {chatSummary}
-              </div>
+              <div
+                style={{ fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.75, whiteSpace: "pre-line" }}
+                dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(chatSummary) }}
+              />
             )}
             {!summaryLoading && !chatSummary && (
               <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>

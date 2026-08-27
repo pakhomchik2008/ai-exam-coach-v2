@@ -1,3 +1,5 @@
+import { renderCoachMarkdown } from "../../lib/math-render";
+
 // Examik — Dashboard's live counterpart to the daily_brief email
 // (api/notifications-cron.js): same three ingredients (today's plan status,
 // streak, nearest exam countdown) computed from data the Dashboard already
@@ -109,9 +111,10 @@ function DailyBriefCard({ L, streak, focusSession, activeCourses }) {
           <span style={{ fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--chrome-gold, #C6A572)", fontWeight: 700 }}>
             {L("ULTRA INSIGHT", "ULTRA ІНСАЙТ", "ULTRA ИНСАЙТ", "ULTRA INSIGHT", "ULTRA INSIGHT")}
           </span>
-          <p style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.5 }}>
-            {aiLine || L("Thinking…", "Думаю…", "Думаю…", "Réflexion…", "Denke nach…")}
-          </p>
+          <p
+            style={{ margin: "4px 0 0", fontSize: "var(--text-sm)", color: "var(--text-body)", lineHeight: 1.5 }}
+            dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(aiLine || L("Thinking…", "Думаю…", "Думаю…", "Réflexion…", "Denke nach…")) }}
+          />
         </div>
       )}
     </section>

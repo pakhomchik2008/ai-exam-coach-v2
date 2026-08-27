@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { WaitPress } from "../../components/WaitPress";
+import { renderCoachMarkdown } from "../../lib/math-render";
 import {
   answersMatch,
   IELTS_READING,
@@ -174,12 +175,12 @@ export function IeltsReading({
       <div className="ielts-read">
         <article className="ielts-passage">
           <p className="ielts-passage-kicker">Passage {cur.pi + 1}{passages.length > 1 ? ` / ${passages.length}` : ""}</p>
-          <h3>{cur.p.title}</h3>
+          <h3 dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(cur.p.title) }} />
           {paras.map((para, i) => <p key={i}>{para}</p>)}
         </article>
         <section className="ielts-q">
           <p className="ielts-q-label">{L(t, "Questions", "Питання", "Вопросы", "Questions", "Fragen")}</p>
-          <p className="ielts-q-stem">{cur.q.question}</p>
+          <p className="ielts-q-stem" dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(cur.q.question) }} />
           {cur.q.type === "tfng" && (
             <div className="ielts-tfng">
               {(["true", "false", "ng"] as TfngValue[]).map((v) => (
@@ -197,7 +198,7 @@ export function IeltsReading({
           )}
           {cur.q.type === "mcq" && (cur.q.options || []).map((opt, i) => (
             <button key={i} type="button" disabled={revealed} className="ielts-opt" onClick={() => mark(i)}>
-              {["A", "B", "C", "D"][i]} · {opt}
+              {["A", "B", "C", "D"][i]} · <span dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(opt) }} />
             </button>
           ))}
           {cur.q.type === "fill" && (
@@ -211,7 +212,7 @@ export function IeltsReading({
           {revealed && (
             <p className="ielts-explain">
               {isCorrect(cur, answers[gi] ?? null) ? "✓ " : "✗ "}
-              {cur.q.explanation}
+              <span dangerouslySetInnerHTML={{ __html: renderCoachMarkdown(cur.q.explanation || "") }} />
             </p>
           )}
           {(revealed || (!revealEach && answers[gi] != null)) && (

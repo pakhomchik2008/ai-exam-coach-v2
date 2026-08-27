@@ -218,7 +218,7 @@ export function SpeakingDialog({ topic, onExit, t, onPassed }) {
 
   return wrap([
     header,
-    React.createElement("h1", { key: "t", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, cue.title),
+    React.createElement("h1", { key: "t", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: { __html: md(cue.title || "") } }),
     React.createElement("p", { key: "p", style: { margin: "0 0 12px", fontSize: 16, lineHeight: 1.55 }, dangerouslySetInnerHTML: { __html: md(cue.prompt) } }),
     cue.bullets.length > 0 && React.createElement("ul", { key: "b", style: { margin: "0 0 16px", paddingLeft: 20 } },
       ...cue.bullets.map((line, i) => React.createElement("li", { key: i, style: { marginBottom: 4 } }, line))),

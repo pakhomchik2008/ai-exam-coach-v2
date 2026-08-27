@@ -115,7 +115,7 @@ export function FadingDialog({ topic, onExit, t }) {
 
   return wrap([
     header,
-    React.createElement("h1", { key: "t", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" } }, plan.title),
+    React.createElement("h1", { key: "t", style: { margin: "0 0 8px", fontSize: 22, fontWeight: 700, color: "var(--text-strong)" }, dangerouslySetInnerHTML: { __html: md(plan.title || "") } }),
     React.createElement("div", { key: "lvl", style: { fontSize: 13, color: "var(--text-muted)", marginBottom: 16 } },
       L(`Step ${level} of ${maxLevel}`, `Крок ${level} з ${maxLevel}`, `Шаг ${level} из ${maxLevel}`, `Étape ${level} / ${maxLevel}`, `Schritt ${level} von ${maxLevel}`)),
     React.createElement("div", { key: "p", style: { padding: "16px 18px", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 14, marginBottom: 16 }, dangerouslySetInnerHTML: { __html: md(plan.problem) } }),
