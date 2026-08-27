@@ -37,6 +37,89 @@ function TabIcon({ id, size = 21 }) {
   );
 }
 
+// Demo sessions are real Supabase anonymous users (see auth-store.jsx
+// startDemo), but nothing outside the onboarding wizard's last step ever
+// offers a way back to creating a real account — a demo user who skipped
+// that step, or who is browsing a fresh visit, has no visible path to sign
+// up. This button + modal is that path, always on-screen while in demo.
+const SIGNUP_COPY = {
+  en: { cta: "Sign up", title: "Create your account", sub: "Keeps your plan and progress — same demo data, now saved for good.", name: "Full name", email: "Email", password: "Password", submit: "Create account", busy: "Creating…", emailBad: "Enter a valid email.", pwShort: "Use at least 6 characters.", pending: "Check your email to confirm — your progress is already saved." },
+  uk: { cta: "Реєстрація", title: "Створи акаунт", sub: "Збереже твій план і прогрес — ті самі демо-дані, тепер назавжди.", name: "Повне ім'я", email: "Email", password: "Пароль", submit: "Створити акаунт", busy: "Створюємо…", emailBad: "Введіть дійсний email.", pwShort: "Щонайменше 6 символів.", pending: "Перевір пошту для підтвердження — прогрес уже збережено." },
+  ru: { cta: "Регистрация", title: "Создай аккаунт", sub: "Сохранит твой план и прогресс — те же демо-данные, теперь навсегда.", name: "Полное имя", email: "Email", password: "Пароль", submit: "Создать аккаунт", busy: "Создаём…", emailBad: "Введите действительный email.", pwShort: "Не менее 6 символов.", pending: "Проверь почту для подтверждения — прогресс уже сохранён." },
+  fr: { cta: "S'inscrire", title: "Crée ton compte", sub: "Conserve ton plan et ta progression — mêmes données démo, sauvegardées pour de bon.", name: "Nom complet", email: "E-mail", password: "Mot de passe", submit: "Créer le compte", busy: "Création…", emailBad: "Entrez un e-mail valide.", pwShort: "Au moins 6 caractères.", pending: "Vérifie ton e-mail pour confirmer — ta progression est déjà sauvegardée." },
+  de: { cta: "Registrieren", title: "Konto erstellen", sub: "Speichert deinen Plan und Fortschritt — dieselben Demo-Daten, jetzt dauerhaft.", name: "Vollständiger Name", email: "E-Mail", password: "Passwort", submit: "Konto erstellen", busy: "Wird erstellt…", emailBad: "Gib eine gültige E-Mail ein.", pwShort: "Mindestens 6 Zeichen.", pending: "Prüfe deine E-Mail zur Bestätigung — dein Fortschritt ist schon gespeichert." },
+};
+
+function SignUpModal({ onClose, lang }) {
+  const c = SIGNUP_COPY[lang] || SIGNUP_COPY.en;
+  const [name, setName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [error, setError] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError(c.emailBad); return; }
+    if (password.length < 6) { setError(c.pwShort); return; }
+    setBusy(true);
+    try {
+      const res = await window.upgradeAnonymousAccount({ name: name.trim(), email: email.trim(), password });
+      if (res && res.emailPending) setPending(true);
+      else onClose();
+    } catch (err) {
+      setError((err && err.message) || c.emailBad);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const inputStyle = {
+    width: "100%", boxSizing: "border-box", padding: "12px 14px", fontSize: "var(--text-base)",
+    fontFamily: "var(--font-sans)", color: "var(--text-strong)", background: "var(--surface-card)",
+    border: "1px solid var(--border-default)", borderRadius: "var(--radius-xl)", outline: "none", marginBottom: 12,
+  };
+
+  return (
+    <div className="ux-overlay" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(15,23,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-sans)", padding: 16 }}>
+      <div className="ux-modal" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 400, background: "var(--surface-page)", borderRadius: "var(--radius-2xl)", boxShadow: "var(--shadow-lg)", padding: 24 }}>
+        {pending ? (
+          <p style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--emerald-700)" }}>{c.pending}</p>
+        ) : (
+          <form onSubmit={submit}>
+            <h2 style={{ margin: "0 0 4px", fontSize: "var(--text-xl)", fontWeight: 700, color: "var(--text-strong)" }}>{c.title}</h2>
+            <p style={{ margin: "0 0 16px", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>{c.sub}</p>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={c.name} autoComplete="name" style={inputStyle} />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={c.email} autoComplete="email" style={inputStyle} />
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={c.password} autoComplete="new-password" style={{ ...inputStyle, marginBottom: 4 }} />
+            {error && <p style={{ color: "var(--red-600)", fontSize: 12, margin: "0 0 8px" }}>{error}</p>}
+            <button type="submit" disabled={busy} style={{ width: "100%", marginTop: 12, padding: 12, borderRadius: 12, border: "none", background: "var(--indigo-600)", color: "#fff", fontWeight: 700, cursor: busy ? "wait" : "pointer", fontFamily: "var(--font-sans)" }}>
+              {busy ? c.busy : c.submit}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NavSignUpButton({ lang }) {
+  const c = SIGNUP_COPY[lang] || SIGNUP_COPY.en;
+  const [open, setOpen] = React.useState(false);
+  return (
+    <>
+      <button type="button" className="ux-press" onClick={() => setOpen(true)} style={{
+        border: "none", background: "var(--indigo-600)", color: "#fff", cursor: "pointer", marginLeft: 4,
+        fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", fontWeight: 700,
+        padding: "8px 16px", borderRadius: 999,
+      }}>{c.cta}</button>
+      {open && <SignUpModal onClose={() => setOpen(false)} lang={lang} />}
+    </>
+  );
+}
+
 function NavLogoutButton({ onLogout, label }) {
   const [confirm, setConfirm] = React.useState(false);
   React.useEffect(() => {
@@ -77,6 +160,9 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const moreLinks = links.filter((l) => !PRIMARY_TAB_IDS.includes(l.id));
   const isActive = (id) => current === id || (id === "calendar" && current === "schedule");
   const moreActive = moreLinks.some((l) => isActive(l.id));
+
+  const session = window.getSession ? window.getSession() : null;
+  const isDemo = !!session && session.mode === "demo";
 
   const [langOpen, setLangOpen] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -192,6 +278,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             )}
           </div>
 
+          {isDemo && <NavSignUpButton lang={lang} />}
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
@@ -249,7 +336,8 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+          {isDemo && <NavSignUpButton lang={lang} />}
           <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
       </div>
