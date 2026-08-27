@@ -186,9 +186,9 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
   const [hoursPerDay, setHoursPerDay] = React.useState(profile.hoursPerDay || Math.round((profile.weeklyHours || 12) / (profile.daysPerWeek || 5)));
   const [country, setCountry] = React.useState(profile.country || "");
   const [avatar, setAvatar] = React.useState(profile.avatarDataUrl || "");
-  const [password, setPassword] = React.useState("");
-  const [password2, setPassword2] = React.useState("");
   const [accountError, setAccountError] = React.useState("");
+  const [passwordResetBusy, setPasswordResetBusy] = React.useState(false);
+  const [passwordResetSent, setPasswordResetSent] = React.useState(false);
   const [avatarError, setAvatarError] = React.useState("");
   const [emailPending, setEmailPending] = React.useState(false);
   const [accountBusy, setAccountBusy] = React.useState(false);
@@ -225,7 +225,6 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const session = window.getSession ? window.getSession() : null;
   const isDemo = !session || session.mode === "demo";
-  const minPassword = window.MIN_PASSWORD_LEN || 8;
 
   React.useEffect(() => {
     if (!window.isPushSupported || !window.isPushSupported()) return;
@@ -257,14 +256,6 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
     setEmailError(emailValid ? "" : t.settings_email_invalid);
     setAccountError("");
     if (!emailValid) return;
-    if (password && password.length < minPassword) {
-      setAccountError(L(lang, `Use at least ${minPassword} characters.`, `Щонайменше ${minPassword} символів.`, `Не менее ${minPassword} символов.`, `Au moins ${minPassword} caractères.`, `Mindestens ${minPassword} Zeichen.`));
-      return;
-    }
-    if (password && password !== password2) {
-      setAccountError(t.settings_password_mismatch);
-      return;
-    }
     persist({
       fullName, timezone: tz.id, reminderEnabled, reminderHour,
       notifyDailyBrief, notifyExamCountdown, notifyWeeklyDigest, notifyStreakDanger, notifyMistakeReview,
@@ -284,10 +275,7 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
       const result = await window.updateAccount({
         name: fullName,
         email: trimmedEmail,
-        password: password || undefined,
       });
-      setPassword("");
-      setPassword2("");
       setEmailPending(!!result.emailPending);
       setSaved(true);
       setTimeout(() => setSaved(false), 2800);
@@ -296,6 +284,30 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
       setAccountError(err && err.code === "DEMO" ? t.settings_password_demo : (err && err.message) || t.settings_email_invalid);
     } finally {
       setAccountBusy(false);
+    }
+  }
+
+  // Routes password changes through the same email-confirmation link the
+  // "forgot password" flow already uses (auth-store.jsx's
+  // requestPasswordReset/PASSWORD_RECOVERY handling) instead of accepting a
+  // new password typed directly in this form — a stolen or over-the-shoulder
+  // session can't silently lock the real owner out, since setting it
+  // requires clicking a link only the account's inbox can receive.
+  async function changePassword() {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !EMAIL_RE.test(trimmedEmail)) {
+      setAccountError(t.settings_email_invalid);
+      return;
+    }
+    setAccountError("");
+    setPasswordResetBusy(true);
+    try {
+      await window.requestPasswordReset(trimmedEmail);
+      setPasswordResetSent(true);
+    } catch (err) {
+      setAccountError((err && err.message) || t.settings_email_invalid);
+    } finally {
+      setPasswordResetBusy(false);
     }
   }
 
@@ -468,9 +480,16 @@ function Settings({ t, lang, onLangChange, onLogout, onGoToExams, onGoToTools, o
               : (
                 <>
                   <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", margin: "12px 0 4px" }}>{t.settings_password}</label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder={t.settings_password_note} style={{ ...inputStyle, marginBottom: 12 }} />
-                  <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{t.settings_password_confirm}</label>
-                  <input type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" style={inputStyle} />
+                  {passwordResetSent ? (
+                    <p style={{ fontSize: 12, color: "var(--emerald-700)", margin: 0 }}>
+                      {t.settings_password_sent.replace("{email}", email.trim())}
+                    </p>
+                  ) : (
+                    <button type="button" disabled={passwordResetBusy} onClick={changePassword}
+                      style={{ padding: 10, borderRadius: 10, border: "1px solid var(--border-default)", background: "var(--surface-muted)", cursor: passwordResetBusy ? "wait" : "pointer", fontFamily: "var(--font-sans)", fontSize: 14 }}>
+                      {passwordResetBusy ? L(lang, "Sending…", "Надсилання…", "Отправка…", "Envoi…", "Wird gesendet…") : t.settings_password_change}
+                    </button>
+                  )}
                 </>
               )}
             {accountError && <p style={{ color: "var(--red-600)", fontSize: 12 }}>{accountError}</p>}
