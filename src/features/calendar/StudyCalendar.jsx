@@ -13,6 +13,15 @@
 // sentinel, which never matches a real exam id (see schedule-store.jsx).
 
 import { PageHeader } from "../../components/PageHeader";
+import { CoachMark } from "../../components/CoachMark.jsx";
+
+const CALENDAR_TOUR_COPY = {
+  en: "Drag a session to move it, resize from its bottom edge, or click an empty slot to add your own.",
+  uk: "Перетягни сесію, щоб перемістити, тягни нижній край, щоб змінити тривалість, або клацни порожній слот.",
+  ru: "Перетащи сессию, чтобы переместить, тяни нижний край, чтобы изменить длительность, или кликни пустой слот.",
+  fr: "Fais glisser une séance pour la déplacer, redimensionne depuis le bas, ou clique un créneau vide.",
+  de: "Ziehe eine Einheit zum Verschieben, passe die Länge am unteren Rand an, oder klicke einen leeren Slot.",
+};
 
 const CAL_HOUR_START = 6;   // 06:00
 const CAL_HOUR_END = 23;    // 23:00
@@ -285,7 +294,7 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
             {((c) => ({ en: "Drag a session to move it · drag its bottom edge to resize · click an empty slot to add one · click a session's × to remove it. Anything you edit here stays put — the AI planner won't overwrite it.", uk: "Перетягніть сесію, щоб перемістити · тягніть нижній край, щоб змінити тривалість · клацніть порожній слот, щоб додати · натисніть × щоб видалити. Ваші правки залишаються — AI-планувальник їх не перезапише.", ru: "Перетащите сессию, чтобы переместить · тяните нижний край, чтобы изменить длительность · кликните пустой слот, чтобы добавить · нажмите × чтобы удалить. Ваши правки сохраняются — AI-планировщик их не перезапишет.", fr: "Glissez une séance pour la déplacer · tirez le bord inférieur pour redimensionner · cliquez sur un créneau vide pour ajouter · cliquez sur × pour supprimer.", de: "Ziehe eine Einheit zum Verschieben · unteren Rand ziehen zum Anpassen · leeren Slot anklicken zum Hinzufügen · × zum Entfernen." }[c] || ""))(t?.code || "en")}
           </p>
 
-          <div style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" }}>
+          <div id="tour-calendar-grid" style={{ borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", boxShadow: "var(--shadow-sm)", overflow: "hidden" }}>
             {/* day headers */}
             <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7, 1fr)", borderBottom: "1px solid var(--border-default)" }}>
               <div />
@@ -408,6 +417,8 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
       {aiProposalXT.mounted && (
         <AiProposalModal t={t} closing={aiProposalXT.closing} proposal={aiProposalRef.current} courseById={courseById} onAccept={acceptProposal} onReject={rejectProposal} />
       )}
+
+      <CoachMark id="calendar_plan" waitFor="learn_node" targetSelector="#tour-calendar-grid" body={CALENDAR_TOUR_COPY[t?.code] || CALENDAR_TOUR_COPY.en} />
     </div>
   );
 }

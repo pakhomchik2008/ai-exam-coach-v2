@@ -15,6 +15,15 @@ import { flattenLessonNodes, localize, totalNodeCount } from "./tree/schema";
 import { canOpenNode, isMastered } from "./tree/locks";
 import { freeNodeCount, isUltraUser, topicIsLocked } from "./premium";
 import { ProSheet } from "./ProSheet.jsx";
+import { CoachMark } from "../../components/CoachMark.jsx";
+
+const LEARN_NODE_TOUR_COPY = {
+  en: "Tap any topic to open it — Teach explains it, Drill practices it, Prove tests it.",
+  uk: "Тапни по темі, щоб відкрити — Teach пояснює, Drill тренує, Prove перевіряє.",
+  ru: "Тапни по теме, чтобы открыть — Teach объясняет, Drill тренирует, Prove проверяет.",
+  fr: "Touche un sujet pour l'ouvrir — Teach explique, Drill entraîne, Prove teste.",
+  de: "Tippe ein Thema an — Teach erklärt, Drill übt, Prove prüft.",
+};
 import { SpeakingDialog } from "./SpeakingDialog.jsx";
 import { isSpeakingTreeNode } from "./speaking";
 import { checkAndRecordQuestion } from "../../lib/question-novelty";
@@ -1202,6 +1211,7 @@ function LearnMain({ t, launch, onLaunchConsumed, onGoToExams }) {
       }, L("Start", "Почати", "Начать", "Commencer", "Starten")),
     )),
     proSheet && React.createElement(ProSheet, { key: "pro", freeCount, lockedCount: proCount, onClose: () => setProSheet(false), t }),
+    React.createElement(CoachMark, { key: "tour", id: "learn_node", waitFor: "coach_modes", targetSelector: ".learn-node", body: LEARN_NODE_TOUR_COPY[t?.code] || LEARN_NODE_TOUR_COPY.en }),
   );
 }
 
