@@ -43,7 +43,7 @@ describe("AppNav tabs", () => {
         onLangChange={() => {}}
       />,
     );
-    for (const name of ["Dashboard", "Coach", "Learn", "Tools", "Journal", "Calendar", "Exams", "Settings"]) {
+    for (const name of ["Dashboard", "Coach", "Learn", "Tools", "Mistake Journal", "Calendar", "Add Exam", "Settings"]) {
       expect(screen.getAllByRole("button", { name }).length).toBeGreaterThan(0);
     }
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -61,7 +61,7 @@ describe("AppNav tabs", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "More" }));
-    const journalButtons = screen.getAllByRole("button", { name: "Journal" });
+    const journalButtons = screen.getAllByRole("button", { name: "Mistake Journal" });
     fireEvent.click(journalButtons[0] as HTMLElement);
     expect(onNavigate).toHaveBeenCalledWith("journal");
   });
