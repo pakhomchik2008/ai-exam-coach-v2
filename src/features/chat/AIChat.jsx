@@ -385,7 +385,7 @@ RULES:
 - Content is 3-5 sentences per section — not essays, not bullet points.
 - Every field that says "null if not applicable" MUST be null (not omitted) when not relevant.
 - Adapt to subject: math → formulas + worked numbers; history → key dates + causation; programming → code; science → mechanisms.
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.`;
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Taking too long — try again.", "Це триває занадто довго — спробуйте ще раз.", "Это длится слишком долго — попробуйте ещё раз.", "Cela prend trop de temps — réessayez.", "Das dauert zu lange — versuche es erneut."))), 55000));
         const parsed = await Promise.race([
@@ -778,7 +778,7 @@ RULES:
 - Explanations are 1 sentence max — concise, helpful if wrong.
 - Each question covers a DIFFERENT subtopic/concept.
 - "topic" field = the specific concept being tested (e.g. "Pythagorean theorem" not "Geometry").
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.`;
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 40000));
         // The novelty pass needs to regenerate JUST the questions batch on a
@@ -1100,7 +1100,7 @@ RULES:
 - Questions should be clear and direct — no ambiguity
 - Mix easy (40%), medium (40%), hard (20%)
 - Spread questions across the given topics evenly
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.
 ${mcqRulesBlock(planCorrectIndices(totalQ, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 50000));
@@ -1527,7 +1527,7 @@ RULES:
 - explanation should teach WHY the right answer is right AND why the chosen wrong one is wrong
 - Spread questions evenly across the listed topics
 - No duplicate concepts
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.
 ${mcqRulesBlock(planCorrectIndices(n, 4))}`;
 
         const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long.", "Це тривало занадто довго.", "Это длилось слишком долго.", "Cela a pris trop de temps.", "Das hat zu lange gedauert."))), 45000));
@@ -2054,7 +2054,7 @@ function ExamSimEngine({ examViews, onExit, onDrillTopics, t }) {
 OUTPUT ONLY valid JSON — no markdown, no fences. Start with { end with }.
 FORMAT: {"questions":[{"kind":"mcq","question":"...","options":["A","B","C","D"],"correct":0,"explanation":"1-2 sentences","topic":"which topic"}]}
 RULES: exactly 4 options; "correct" is a 0-based index; genuine exam difficulty; explanation teaches WHY; no duplicate concepts.
-Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.
 ${mcqRulesBlock(planCorrectIndices(perChunk, 4))}`;
             return raceJson(system, `Generate ${perChunk} questions on: ${ts.join(", ")}`)
               .then((p) => (Array.isArray(p && p.questions) ? p.questions : []))
@@ -2367,7 +2367,7 @@ async function generateLessonPlan({ mode, topic, resolved, tcode, force }) {
 - 1-3 short sentences per text field. No walls of text.
 - Turn wrong answers into insight ("Ooh — that's the classic trap, here's the tell…"), never a flat "the answer is B".
 - When the student's history above is relevant, reference it naturally. NEVER invent history you weren't given.
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.`;
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.`;
 
     const STEP_TYPES = `STEP TYPES AND THEIR EXACT JSON SHAPES:
 
@@ -2621,7 +2621,7 @@ RULES:
 - 2-3 worked examples that cover different situations.
 - 3-6 pitfalls; 4-8 cheat-sheet lines.
 - 2-3 relatedConcepts — topic names the student would naturally study NEXT to build on this one. Real topic names only, no filler like "practice problems".
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\int_a^b f(x)\\,dx$$. Never use unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.
 - Concepts read as prose — full sentences with line breaks between paragraphs. Not bullet lists.
 - Explanations pitch at exam-preparation level, not textbook. Concrete, active voice.`;
     // No brainCompleteJSON repair: a second round-trip inside the client race
@@ -2936,7 +2936,7 @@ RULES:
 - Total cards: 6 for a simple recall topic, 10 for a deep multi-step topic, else pick something between based on how much genuinely different content there is. Never fewer than 6 or more than 10.
 - Cards are ordered easiest → hardest, each building on the last.
 - Each card covers ONE distinct concept — no repeats, no near-duplicates.
-- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never unicode superscripts or ^ notation — the reader renders LaTeX to real formulas.
+- Write MATH as LaTeX: inline like $x^2 + 1$, display like $$\\frac{a}{b}$$. Never unicode superscripts or ^ notation — the reader renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.
 - **Bold** the single key term on each card.
 - Skip filler like "in this card we will…" — get straight to the point.${langName ? `\n- Write EVERY JSON string (title, heading, body, example) in ${langName} only. The app UI may be in another language — ignore it.` : ""}`;
     const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(L("Took too long — try again.", "Це тривало занадто довго — спробуйте ще раз.", "Это длилось слишком долго — попробуйте ещё раз.", "Cela a pris trop de temps — réessayez.", "Das hat zu lange gedauert — versuche es erneut."))), 45000));
@@ -4039,7 +4039,7 @@ function ChatMode({ onExit, initialQuery, t }) {
 Answer clearly. Use **bold** for key terms. Keep it under 150 words unless the student explicitly asks for depth. Do NOT output JSON — just natural text.
 
 FORMATTING:
-- Write MATH using LaTeX: inline as $x^2 + 1$, display as $$\\frac{a}{b}$$. NEVER use ^, ², or unicode superscripts — the client renders LaTeX to real formulas.
+- Write MATH using LaTeX: inline as $x^2 + 1$, display as $$\\frac{a}{b}$$. NEVER use ^, ², or unicode superscripts — the client renders LaTeX to real formulas. Inside the JSON string, escape every backslash by doubling it — write \\\\frac not \\frac. Never invent a substitute notation like <<frac{a}{b}// or similar — always a real backslash command.
 - Section titles as ## Title on their own line. The client renders them — never leave raw hashes in a sentence.
 - Use short paragraphs (2-3 sentences each). Blank line between paragraphs.
 - Bullet lists start with "- " on their own line.

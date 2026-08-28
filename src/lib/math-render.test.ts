@@ -48,6 +48,18 @@ describe("renderMathText", () => {
   it("handles empty input", () => {
     expect(renderMathText("")).toBe("");
   });
+
+  it("repairs invented <<frac{a}{b}// notation into real rendered LaTeX", () => {
+    const html = renderMathText("Simplify <<frac{2}{3}//.");
+    expect(html).toContain("katex");
+    expect(html).not.toContain("<<frac");
+    expect(html).not.toContain("//");
+  });
+
+  it("leaves ordinary text with a literal // untouched", () => {
+    const html = renderMathText("see https://examik.net for more");
+    expect(html).toContain("https://examik.net");
+  });
 });
 
 describe("renderCoachMarkdown", () => {

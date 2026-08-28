@@ -27,7 +27,25 @@ function looksLikeProseMath(value: string): boolean {
   return words > 20 || (words > 8 && !tex);
 }
 
+// Safety net: some models, when unsure how to double-escape a backslash
+// inside a JSON string, invent a substitute notation instead — writing
+// <<frac{a}{b}// in place of \frac{a}{b} (28 Aug 2026, Hlib hit this on an
+// NMT Math > Functions quiz). The invented form is never inside real $...$
+// delimiters either — that's the only reason it leaks as literal text — so
+// repair the command AND wrap it in $...$ so it actually reaches KaTeX.
+function repairInventedLatex(input: string): string {
+  if (!input.includes("<<")) return input;
+  let out = input.replace(/<<([a-zA-Z]+)/g, "\\$1").replace(/\}\s*(?:\/\/|>>)/g, "}");
+  out = out.replace(/\\([a-zA-Z]+)((?:\{[^{}]*\})+)/g, (match, _cmd, _args, offset, full) => {
+    const before = full.slice(0, offset);
+    const opens = (before.match(/\$/g) || []).length;
+    return opens % 2 === 1 ? match : `$${match}$`; // odd = already inside a $...$ run
+  });
+  return out;
+}
+
 export function tokenizeMath(input: string): MathSegment[] {
+  input = repairInventedLatex(input);
   const out: MathSegment[] = [];
   let i = 0;
   while (i < input.length) {
