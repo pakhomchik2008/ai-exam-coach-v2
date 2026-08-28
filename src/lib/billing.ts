@@ -74,8 +74,8 @@ async function postBilling(path: string, jsonBody?: unknown): Promise<{ ok?: tru
 export type BillingTier = "pro" | "ultra";
 export type BillingInterval = "monthly" | "yearly";
 
-export async function startCheckout(tier: BillingTier, interval: BillingInterval): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
-  return postBilling("/api/stripe-checkout", { tier, interval });
+export async function startCheckout(tier: BillingTier, interval: BillingInterval, skipTrial = false): Promise<{ ok?: true; error?: string; alreadyPro?: boolean }> {
+  return postBilling("/api/stripe-checkout", { tier, interval, skipTrial });
 }
 
 export async function startBillingPortal(): Promise<{ ok?: true; error?: string }> {

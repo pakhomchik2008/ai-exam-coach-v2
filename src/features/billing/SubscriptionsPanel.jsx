@@ -20,7 +20,8 @@ const COPY = {
   manageBilling: (t) => L5(t, "Manage billing", "Керувати оплатою", "Управлять оплатой", "Gérer la facturation", "Zahlung verwalten"),
   redirecting: (t) => L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…"),
   tryFree: (t) => L5(t, "Try 3 days free", "3 дні безкоштовно", "3 дня бесплатно", "3 jours gratuits", "3 Tage gratis"),
-  upgrade: (t) => L5(t, "Upgrade", "Оновити", "Обновить", "Passer à ce plan", "Upgraden"),
+  payNow: (t) => L5(t, "Pay now", "Оплатити зараз", "Оплатить сейчас", "Payer maintenant", "Jetzt bezahlen"),
+  skipTrial: (t) => L5(t, "Skip the 3-day trial — charge me today", "Без 3-денного пробного — оплата сьогодні", "Без 3-дневного пробного — оплата сегодня", "Sans les 3 jours d'essai — facturer aujourd'hui", "Ohne 3-Tage-Testphase — heute abrechnen"),
   native: (t) => L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"),
   demoError: (t) => L5(t, "Create an account to start Pro.", "Створи акаунт, щоб почати Pro.", "Создай аккаунт, чтобы начать Pro.", "Crée un compte pour démarrer Pro.", "Erstelle ein Konto, um Pro zu starten."),
 };
@@ -73,7 +74,7 @@ function CheckIcon() {
   );
 }
 
-function PlanCard({ plan, t, interval, currentTier, busy, onPick }) {
+function PlanCard({ plan, t, interval, currentTier, busy, skipTrial, onPick }) {
   const isCurrent = currentTier === plan.id;
   const price = plan.price[interval];
   return (
@@ -111,7 +112,7 @@ function PlanCard({ plan, t, interval, currentTier, busy, onPick }) {
           color: plan.id === "pro" ? "#fff" : "var(--chrome-gold)",
           boxShadow: plan.id === "ultra" ? "inset 0 0 0 1px color-mix(in srgb, var(--chrome-gold) 45%, transparent)" : "none",
           fontWeight: 700, fontSize: 14, fontFamily: "var(--font-sans)", opacity: busy ? 0.7 : 1,
-        }}>{currentTier === "free" ? COPY.tryFree(t) : COPY.upgrade(t)}</button>
+        }}>{skipTrial ? COPY.payNow(t) : COPY.tryFree(t)}</button>
       )}
     </div>
   );
@@ -122,13 +123,14 @@ export function SubscriptionsPanel({ onClose, t }) {
   const currentTier = profile.tier === "pro" || profile.tier === "ultra" ? profile.tier : "free";
   const native = isNativeIOS();
   const [interval, setInterval] = React.useState("monthly");
+  const [skipTrial, setSkipTrial] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
 
   async function pick(tier) {
     setBusy(true);
     setError("");
-    const result = await startCheckout(tier, interval);
+    const result = await startCheckout(tier, interval, skipTrial);
     if (result.alreadyPro) { onClose?.(); return; }
     if (result.error) { setError(result.error); setBusy(false); }
   }
@@ -137,7 +139,14 @@ export function SubscriptionsPanel({ onClose, t }) {
     setBusy(true);
     setError("");
     const result = await startBillingPortal();
-    if (result.error) { setError(result.error); setBusy(false); }
+    if (!result.error) return;
+    // profile.tier can say "pro"/"ultra" with no real Stripe customer behind
+    // it yet (stale cache, or the dev demo-Ultra override) — the portal 404s
+    // with "Start a trial first" and there was no way out. Fall back to a
+    // real checkout for the current tier instead of leaving the user stuck.
+    const checkout = await startCheckout(currentTier, interval, skipTrial);
+    if (checkout.error) { setError(checkout.error); }
+    setBusy(false);
   }
 
   return (
@@ -177,11 +186,16 @@ export function SubscriptionsPanel({ onClose, t }) {
               ))}
             </div>
 
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, fontSize: 13, color: "color-mix(in srgb, var(--chrome-paper) 78%, transparent)", cursor: "pointer" }}>
+              <input type="checkbox" checked={skipTrial} onChange={(e) => setSkipTrial(e.target.checked)} style={{ width: 16, height: 16, accentColor: "var(--chrome-gold)" }} />
+              {COPY.skipTrial(t)}
+            </label>
+
             {error && <p style={{ margin: "0 0 14px", fontSize: 13, color: "#F87171" }}>{error}</p>}
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
               {PLANS.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} t={t} interval={interval} currentTier={currentTier} busy={busy} onPick={pick} />
+                <PlanCard key={plan.id} plan={plan} t={t} interval={interval} currentTier={currentTier} busy={busy} skipTrial={skipTrial} onPick={pick} />
               ))}
             </div>
           </>
