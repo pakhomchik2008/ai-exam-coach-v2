@@ -214,6 +214,12 @@ function clearSession() {
   _supabase.auth.signOut().catch(() => {}); // fire-and-forget
 }
 
+function _accountExistsError() {
+  const err = new Error("An account with this email already exists — log in instead.");
+  err.code = "ACCOUNT_EXISTS";
+  return err;
+}
+
 async function signUp({ name, email, password }) {
   const { data, error } = await _supabase.auth.signUp({
     email: email.trim().toLowerCase(),
@@ -221,6 +227,7 @@ async function signUp({ name, email, password }) {
     options: { data: { full_name: name.trim() } },
   });
   if (error) {
+    if (/already registered|already exists/i.test(error.message)) throw _accountExistsError();
     const err = new Error(error.message);
     err.code = "SIGNUP_ERROR";
     throw err;
@@ -229,6 +236,13 @@ async function signUp({ name, email, password }) {
     const session = _supabaseUserToSession(data.session.user);
     window.saveProfile && window.saveProfile({ fullName: session.name, email: session.email });
     return setSession(session);
+  }
+  // Supabase's email-enumeration protection: signUp() for an address that
+  // already belongs to a confirmed account returns no error and no session
+  // — identical to a brand-new pending signup — except `identities` comes
+  // back empty. That's the only signal it isn't actually a new account.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw _accountExistsError();
   }
   // Supabase requires email confirmation before the session is live
   const err = new Error("Check your email to confirm your account, then log in.");
@@ -345,6 +359,7 @@ async function upgradeAnonymousAccount({ name, email, password }) {
   // fails outright) attaches the identity and the credential together.
   const res = await _supabase.auth.updateUser({ email: cleanEmail, password, data: { full_name: name.trim() } });
   if (res.error) {
+    if (/already registered|already exists|already been registered/i.test(res.error.message)) throw _accountExistsError();
     const err = new Error(res.error.message);
     err.code = "SIGNUP_ERROR";
     throw err;
