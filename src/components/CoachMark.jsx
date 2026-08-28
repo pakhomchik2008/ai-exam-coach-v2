@@ -53,24 +53,38 @@ export function CoachMark({ id, targetSelector, step, total, body, gotItLabel = 
     onDone?.();
   }
 
+  // Clamp the target rect to the viewport first — a tall grid (e.g. the
+  // Coach mode cards) can have a real bounding box taller than the screen,
+  // which used to push the callout's math (rect.bottom + ...) off-screen
+  // entirely, making the tip look broken/invisible (Hlib, 28 Aug 2026).
+  const visTop = Math.max(0, rect.top);
+  const visBottom = Math.min(window.innerHeight, rect.bottom);
+
   const spot = {
     position: "fixed", zIndex: 210, pointerEvents: "none",
-    left: rect.left - inset, top: rect.top - inset,
-    width: rect.width + inset * 2, height: rect.height + inset * 2,
+    left: rect.left - inset, top: visTop - inset,
+    width: rect.width + inset * 2, height: Math.max(0, visBottom - visTop) + inset * 2,
     borderRadius: Math.min(24, rect.height / 2 + inset),
-    boxShadow: "0 0 0 9999px rgba(10,12,18,0.62)",
+    boxShadow: "0 0 0 2000px rgba(10,12,18,0.62)",
     outline: "2px solid var(--chrome-gold)",
   };
 
   const below = placement === "bottom";
   const calloutWidth = 240;
+  const calloutHeight = 170; // rough, deliberately generous — better a few px of gap above than a clipped button below
   const rawLeft = rect.left + rect.width / 2 - calloutWidth / 2;
   const left = Math.max(12, Math.min(rawLeft, window.innerWidth - calloutWidth - 12));
   const arrowLeft = rect.left + rect.width / 2 - left - 6;
+  // The mobile bottom tab bar is fixed and outranks the callout visually if
+  // we clamp right up against window.innerHeight — reserve its real height.
+  const tabBar = document.querySelector(".app-nav-bottom-bar");
+  const tabBarH = tabBar && getComputedStyle(tabBar).display !== "none" ? tabBar.getBoundingClientRect().height : 0;
+  const rawTop = below ? visBottom + inset + 14 : visTop - inset - 14 - calloutHeight;
+  const top = Math.max(12, Math.min(rawTop, window.innerHeight - tabBarH - calloutHeight - 12));
 
   const callout = {
     position: "fixed", zIndex: 211, width: calloutWidth,
-    left, [below ? "top" : "bottom"]: below ? rect.bottom + inset + 14 : window.innerHeight - rect.top + inset + 14,
+    left, top,
     background: "var(--chrome-ink)", color: "var(--chrome-paper)", borderRadius: 16,
     padding: "14px 16px", boxShadow: "0 20px 40px rgba(0,0,0,0.3)", fontFamily: "var(--font-sans)",
   };
