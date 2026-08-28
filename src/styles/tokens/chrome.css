@@ -175,6 +175,15 @@
   gap: 2px;
 }
 
+/* Belt-and-braces: this class ships no rules of its own elsewhere, so
+   nothing should ever be able to collapse it — force it visible regardless
+   of whatever cascade/engine quirk zeroes it out on narrow real devices
+   (Hlib, 28 Aug 2026: wordmark missing next to the logo glyph on phone). */
+.app-nav-wordmark {
+  display: inline-block !important;
+  flex-shrink: 0 !important;
+}
+
 .app-nav-room {
   border: none;
   cursor: pointer;
