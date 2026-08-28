@@ -31,6 +31,7 @@ export default async function handler(req, res) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const tier = body.tier === "ultra" ? "ultra" : "pro";
   const interval = body.interval === "yearly" ? "yearly" : "monthly";
+  const skipTrial = body.skipTrial === true;
 
   const auth = await authenticate(req, res, tier === "ultra" ? "Sign in to start Ultra." : "Sign in to start Pro.");
   if (!auth) return;
@@ -86,7 +87,6 @@ export default async function handler(req, res) {
     mode: "subscription",
     "line_items[0][price]": priceId,
     "line_items[0][quantity]": "1",
-    "subscription_data[trial_period_days]": "3",
     "subscription_data[metadata][userId]": user.id,
     "metadata[userId]": user.id,
     client_reference_id: user.id,
@@ -94,6 +94,9 @@ export default async function handler(req, res) {
     cancel_url: `${base}/?billing=cancel`,
     allow_promotion_codes: "true",
   };
+  // Trial is opt-in from the client now — was hardcoded on every checkout
+  // with no way to just pay today (Hlib, 27 Aug 2026).
+  if (!skipTrial) fields["subscription_data[trial_period_days]"] = "3";
   if (customerId) fields.customer = customerId;
   else fields.customer_email = email;
 
