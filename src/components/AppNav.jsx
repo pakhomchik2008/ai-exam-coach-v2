@@ -195,10 +195,14 @@ function AccountButton({ lang, t, onOpenSubs, onOpenSettings, onLogout }) {
   return (
     <div ref={rootRef} style={{ position: "relative" }}>
       <button type="button" className="ux-press" onClick={() => setOpen((o) => !o)} aria-label={t.nav_settings} style={{
-        width: 34, height: 34, borderRadius: 999, border: "none", cursor: "pointer",
+        width: 34, height: 34, borderRadius: 999, border: "none", cursor: "pointer", padding: 0, overflow: "hidden",
         background: "var(--chrome-ink)", color: "var(--chrome-paper)", fontWeight: 700, fontSize: 14,
         fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center",
-      }}>{initial}</button>
+      }}>
+        {profile.avatarDataUrl
+          ? <img src={profile.avatarDataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          : initial}
+      </button>
       {open && (
         <div className="ux-pop" style={{
           position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 100, width: 250,
