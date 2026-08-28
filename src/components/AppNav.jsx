@@ -52,6 +52,8 @@ const SIGNUP_COPY = {
 };
 
 const MANAGE_SUB_LABEL = { en: "Manage subscriptions", uk: "Керування підпискою", ru: "Управление подпиской", fr: "Gérer l'abonnement", de: "Abo verwalten" };
+const LOGOUT_CONFIRM_LABEL = { en: "Click again to confirm", uk: "Натисніть ще раз", ru: "Нажмите ещё раз", fr: "Cliquez à nouveau", de: "Erneut klicken" };
+const PLAN_BADGE_LABEL = { free: "FREE", pro: "PRO", ultra: "ULTRA" };
 
 const GOOGLE_LOGO = (
   <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.2 30.2 0 24 0 14.8 0 6.9 5.4 3 13.3l7.9 6.1C12.8 13.2 18 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.5c-.5 2.8-2.1 5.2-4.5 6.8l7 5.4c4.1-3.8 6.6-9.4 6.6-16.2z"/><path fill="#FBBC05" d="M10.9 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.1.8-4.6L2.4 13.3A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.5 10.6l8.4-6z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7-5.4c-2 1.4-4.6 2.2-8.2 2.2-6 0-11.1-3.7-13-8.9l-8.4 6C6.9 42.6 14.8 48 24 48z"/></svg>
@@ -166,6 +168,65 @@ function NavLogoutButton({ onLogout, label }) {
   );
 }
 
+// Manage subscriptions + Log out used to sit as plain text links in the top
+// bar — invisible next to the other text links (Hlib, 27 Aug 2026: "внимания
+// вообще не привлекают"). Top apps (Duolingo, Spotify, Headspace) solve this
+// with a single recognizable avatar icon in the corner that opens an account
+// menu — a learned pattern the eye finds on its own, vs. more text to scan.
+function AccountButton({ lang, t, onOpenSubs, onLogout }) {
+  const [open, setOpen] = React.useState(false);
+  const [confirmLogout, setConfirmLogout] = React.useState(false);
+  const rootRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) { setConfirmLogout(false); return; }
+    const onDocClick = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDocClick);
+    window.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDocClick); window.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const profile = window.getProfile ? window.getProfile() : {};
+  const tier = profile.tier === "pro" || profile.tier === "ultra" ? profile.tier : "free";
+  const initial = (profile.fullName || profile.email || "?").trim().charAt(0).toUpperCase();
+
+  return (
+    <div ref={rootRef} style={{ position: "relative" }}>
+      <button type="button" className="ux-press" onClick={() => setOpen((o) => !o)} aria-label={t.nav_settings} style={{
+        width: 34, height: 34, borderRadius: 999, border: "none", cursor: "pointer",
+        background: "var(--chrome-ink)", color: "var(--chrome-paper)", fontWeight: 700, fontSize: 14,
+        fontFamily: "var(--font-sans)", display: "flex", alignItems: "center", justifyContent: "center",
+      }}>{initial}</button>
+      {open && (
+        <div className="ux-pop" style={{
+          position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 100, width: 250,
+          background: "var(--chrome-ink)", borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
+          padding: 8, fontFamily: "var(--font-sans)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", padding: "10px 10px 8px" }}>
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 999,
+              background: "color-mix(in srgb, var(--chrome-gold) 18%, transparent)", color: "var(--chrome-gold)",
+              fontSize: 11, fontWeight: 700, letterSpacing: "0.04em",
+            }}>{tier === "ultra" ? "⚡ " : ""}{PLAN_BADGE_LABEL[tier]}</span>
+          </div>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 4px" }} />
+          <button type="button" onClick={() => { setOpen(false); onOpenSubs(); }} style={{
+            width: "100%", textAlign: "left", padding: 12, border: "none", borderRadius: 12, cursor: "pointer",
+            background: "transparent", color: "var(--chrome-paper)", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)",
+          }}>{MANAGE_SUB_LABEL[lang] || MANAGE_SUB_LABEL.en}</button>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 4px" }} />
+          <button type="button" onClick={() => confirmLogout ? onLogout() : setConfirmLogout(true)} style={{
+            width: "100%", textAlign: "left", padding: 12, border: "none", borderRadius: 12, cursor: "pointer",
+            background: "transparent", color: "#F87171", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)",
+          }}>{confirmLogout ? (LOGOUT_CONFIRM_LABEL[lang] || LOGOUT_CONFIRM_LABEL.en) : t.nav_logout}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
   const t = window.LANGS[lang] || window.LANGS.en;
   const links = [
@@ -267,58 +328,54 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             <BrandLockup wordClassName="app-nav-wordmark" />
           </button>
           {isDemo && <NavSignUpButton lang={lang} />}
-          <button type="button" onClick={() => setSubsOpen(true)} style={{
-            border: "none", background: "transparent", cursor: "pointer", marginLeft: 4,
-            fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", fontWeight: 600,
-            color: "var(--text-muted)",
-          }}>{MANAGE_SUB_LABEL[lang] || MANAGE_SUB_LABEL.en}</button>
-          <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
         </div>
         {subsOpen && <SubscriptionsPanel onClose={() => setSubsOpen(false)} t={t} />}
 
-        <div className="app-nav-links">
-          {links.map((l) => {
-            const active = current === l.id || (l.id === "calendar" && current === "schedule");
-            return (
-              <button
-                key={l.id}
-                type="button"
-                className="app-nav-room"
-                aria-current={active ? "page" : undefined}
-                onClick={() => navigate(l.id)}
-              >{l.label}</button>
-            );
-          })}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="app-nav-links">
+            {links.map((l) => {
+              const active = current === l.id || (l.id === "calendar" && current === "schedule");
+              return (
+                <button
+                  key={l.id}
+                  type="button"
+                  className="app-nav-room"
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => navigate(l.id)}
+                >{l.label}</button>
+              );
+            })}
 
-          <div style={{ position: "relative", marginLeft: 4 }}>
-            <button type="button" className="ux-press app-nav-lang" onClick={() => setLangOpen((o) => !o)}>
-              <span>{t.flag}</span>
-              <span className="app-nav-lang-caret" style={{ fontSize: 10, color: "var(--text-faint)" }}>▾</span>
-            </button>
-            {langOpen && (
-              <div className="ux-pop" style={{
-                position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
-                background: "var(--chrome-paper)",
-                border: "1px solid var(--chrome-line)",
-                borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
-                overflow: "hidden", minWidth: 160,
-              }}>
-                {langs.map((l) => (
-                  <button key={l.code} type="button" onClick={() => { onLangChange(l.code); setLangOpen(false); }} style={{
-                    display: "flex", alignItems: "center", gap: "var(--space-2)", width: "100%", textAlign: "left",
-                    padding: "10px 14px", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)",
-                    fontSize: "var(--text-sm)", background: lang === l.code ? "var(--chrome-ink)" : "transparent",
-                    color: lang === l.code ? "var(--chrome-paper)" : "var(--text-body)",
-                    fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)",
-                  }}>
-                    <span>{l.flag}</span><span>{l.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div style={{ position: "relative", marginLeft: 4 }}>
+              <button type="button" className="ux-press app-nav-lang" onClick={() => setLangOpen((o) => !o)}>
+                <span>{t.flag}</span>
+                <span className="app-nav-lang-caret" style={{ fontSize: 10, color: "var(--text-faint)" }}>▾</span>
+              </button>
+              {langOpen && (
+                <div className="ux-pop" style={{
+                  position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 100,
+                  background: "var(--chrome-paper)",
+                  border: "1px solid var(--chrome-line)",
+                  borderRadius: "var(--radius-xl)", boxShadow: "var(--shadow-lg)",
+                  overflow: "hidden", minWidth: 160,
+                }}>
+                  {langs.map((l) => (
+                    <button key={l.code} type="button" onClick={() => { onLangChange(l.code); setLangOpen(false); }} style={{
+                      display: "flex", alignItems: "center", gap: "var(--space-2)", width: "100%", textAlign: "left",
+                      padding: "10px 14px", border: "none", cursor: "pointer", fontFamily: "var(--font-sans)",
+                      fontSize: "var(--text-sm)", background: lang === l.code ? "var(--chrome-ink)" : "transparent",
+                      color: lang === l.code ? "var(--chrome-paper)" : "var(--text-body)",
+                      fontWeight: lang === l.code ? "var(--weight-medium)" : "var(--weight-normal)",
+                    }}>
+                      <span>{l.flag}</span><span>{l.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <NavLogoutButton onLogout={onLogout} label={t.nav_logout} />
+          <AccountButton lang={lang} t={t} onOpenSubs={() => setSubsOpen(true)} onLogout={onLogout} />
         </div>
       </div>
 
