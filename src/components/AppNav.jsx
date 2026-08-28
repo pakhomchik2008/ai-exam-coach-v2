@@ -3,6 +3,7 @@
 
 import { BrandLockup, BrandMark } from "../brand/BrandMark";
 import { SubscriptionsPanel } from "../features/billing/SubscriptionsPanel.jsx";
+import { CoachMark } from "./CoachMark.jsx";
 
 function NavLogoMark({ size = 24 }) {
   return <BrandMark size={size} />;
@@ -52,6 +53,13 @@ const SIGNUP_COPY = {
 };
 
 const MANAGE_SUB_LABEL = { en: "Manage subscriptions", uk: "Керування підпискою", ru: "Управление подпиской", fr: "Gérer l'abonnement", de: "Abo verwalten" };
+const NAV_TOUR_COPY = {
+  en: { body: "Four rooms, always one tap away — Dashboard, Coach, Learn, Tools. Everything else lives under More.", gotIt: "Got it" },
+  uk: { body: "Чотири розділи, завжди в один тап — Dashboard, Coach, Learn, Tools. Все інше — під More.", gotIt: "Зрозуміло" },
+  ru: { body: "Четыре раздела, всегда в один тап — Dashboard, Coach, Learn, Tools. Всё остальное — под More.", gotIt: "Понятно" },
+  fr: { body: "Quatre espaces, toujours à un clic — Dashboard, Coach, Learn, Tools. Le reste est sous More.", gotIt: "Compris" },
+  de: { body: "Vier Bereiche, immer einen Tap entfernt — Dashboard, Coach, Learn, Tools. Der Rest steckt unter More.", gotIt: "Verstanden" },
+};
 const ALL_SETTINGS_LABEL = { en: "All settings", uk: "Усі налаштування", ru: "Все настройки", fr: "Tous les paramètres", de: "Alle Einstellungen" };
 const LOGOUT_CONFIRM_LABEL = { en: "Click again to confirm", uk: "Натисніть ще раз", ru: "Нажмите ещё раз", fr: "Cliquez à nouveau", de: "Erneut klicken" };
 const PLAN_BADGE_LABEL = { free: "FREE", pro: "PRO", ultra: "ULTRA" };
@@ -473,6 +481,16 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           <span>{t.nav_more}</span>
         </button>
       </div>
+
+      {current === "dashboard" && (
+        <CoachMark
+          id="nav_intro"
+          targetSelector={[".app-nav-bottom-bar", ".app-nav-links"]}
+          body={(NAV_TOUR_COPY[lang] || NAV_TOUR_COPY.en).body}
+          gotItLabel={(NAV_TOUR_COPY[lang] || NAV_TOUR_COPY.en).gotIt}
+          placement="top"
+        />
+      )}
     </nav>
   );
 }

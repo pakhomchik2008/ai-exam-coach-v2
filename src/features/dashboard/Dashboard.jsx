@@ -1,5 +1,14 @@
 // Examik — Dashboard: next action, week strip, gauges, today's sessions.
 import { isProUser, isUltraUser } from "../learn/premium";
+import { CoachMark } from "../../components/CoachMark.jsx";
+
+const ADD_EXAM_TOUR_COPY = {
+  en: "Start here — add your exam and Examik builds a study plan around it.",
+  uk: "Почни звідси — додай іспит, і Examik побудує план навчання.",
+  ru: "Начни отсюда — добавь экзамен, и Examik построит план обучения.",
+  fr: "Commence ici — ajoute ton examen, Examik construit ton plan.",
+  de: "Fang hier an — füge deine Prüfung hinzu, Examik erstellt deinen Lernplan.",
+};
 
 function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGoToLearn, onGoToJournal, t }) {
   const { SessionCard, WeekStrip, GaugeRing, Button, ProgressBar } = window.AIExamCoachDesignSystem_99e467;
@@ -326,7 +335,8 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
             <p style={{ margin: "0 0 var(--space-3)", fontSize: "var(--text-sm)", color: "var(--text-muted)" }}>
               {L("Add an exam to get your personalized AI study plan.","Додай іспит для AI плану.","Добавь экзамен для AI плана.","Ajoute un examen pour ton plan IA.","Füge eine Prüfung hinzu für deinen KI-Plan.")}
             </p>
-            <Button variant="accent" size="md" onClick={() => onGoToExams && onGoToExams()}>{L("Add an exam","Додати іспит","Добавить экзамен","Ajouter un examen","Prüfung hinzufügen")} →</Button>
+            <Button id="tour-add-exam" variant="accent" size="md" onClick={() => onGoToExams && onGoToExams()}>{L("Add an exam","Додати іспит","Добавить экзамен","Ajouter un examen","Prüfung hinzufügen")} →</Button>
+            <CoachMark id="dashboard_add_exam" waitFor="nav_intro" targetSelector="#tour-add-exam" body={ADD_EXAM_TOUR_COPY[t?.code] || ADD_EXAM_TOUR_COPY.en} />
           </div>
         )}
 

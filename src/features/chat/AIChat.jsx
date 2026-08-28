@@ -44,6 +44,15 @@ import { flattenLessonNodes, localize } from "../learn/tree/schema";
 import { freeNodeCount, isProUser, topicIsLocked } from "../learn/premium";
 import { copyLangFor, inferCoachQual, languageNameFor, paperLanguageFor, paperQualForExam } from "../../lib/paper-language";
 import { ProSheet } from "../learn/ProSheet.jsx";
+import { CoachMark } from "../../components/CoachMark.jsx";
+
+const COACH_MODES_TOUR_COPY = {
+  en: "Pick a mode — Lesson to learn, Quick Check or Speed Round to drill, Exam Simulation for the real thing.",
+  uk: "Вибери режим — Lesson щоб вчитись, Quick Check чи Speed Round щоб дрилити, Exam Simulation — повний тест.",
+  ru: "Выбери режим — Lesson чтобы учиться, Quick Check или Speed Round чтобы дрилить, Exam Simulation — полный тест.",
+  fr: "Choisis un mode — Lesson pour apprendre, Quick Check ou Speed Round pour t'entraîner, Exam Simulation pour l'examen complet.",
+  de: "Wähle einen Modus — Lesson zum Lernen, Quick Check oder Speed Round zum Üben, Exam Simulation für die volle Prüfung.",
+};
 
 /**
  * The qualification id (nmt/sat/gcse/...) an exam belongs to, or null — the
@@ -4681,7 +4690,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       React.createElement("span", { style: { fontSize: 12, color: "var(--amber-700)", fontWeight: 600 } }, "→")),
 
     // Mode cards
-    React.createElement("div", { className: "ux-stagger", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
+    React.createElement("div", { id: "tour-coach-modes", className: "ux-stagger", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "0 20px", flex: 1 } },
       ...COACH_MODES.map((m) => React.createElement("button", {
         key: m.id,
         className: "ux-card ux-press coach-mode",
@@ -4693,7 +4702,8 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
       },
         React.createElement("span", { className: "coach-mode-emoji", style: { fontSize: 32 } }, m.emoji),
         React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--text-strong)" } }, m.label[t?.code] || m.label.en),
-        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc[t?.code] || m.desc.en)))));
+        React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc[t?.code] || m.desc.en)))),
+    React.createElement(CoachMark, { id: "coach_modes", waitFor: "dashboard_add_exam", targetSelector: "#tour-coach-modes", body: COACH_MODES_TOUR_COPY[t?.code] || COACH_MODES_TOUR_COPY.en }));
 }
 
 Object.assign(window, { AIChat, CoachIcon, LearnEngine });

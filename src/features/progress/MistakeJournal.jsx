@@ -8,6 +8,15 @@
 
 import { renderCoachMarkdown } from "../../lib/math-render";
 import { EmptyState, PageHeader } from "../../components/PageHeader";
+import { CoachMark } from "../../components/CoachMark.jsx";
+
+const JOURNAL_TOUR_COPY = {
+  en: "Miss a question anywhere in the app and it lands here, so you can come back and drill it.",
+  uk: "Помилка в будь-якому режимі потрапляє сюди — можна повернутись і повторити.",
+  ru: "Ошибка в любом режиме попадает сюда — можно вернуться и повторить.",
+  fr: "Une erreur où que ce soit dans l'app atterrit ici pour être revue plus tard.",
+  de: "Ein Fehler landet hier, egal wo in der App — zum späteren Wiederholen.",
+};
 
 function mjL(t, en, uk, ru, fr, de) { return { en, uk, ru, fr, de }[(t && t.code) || "en"] || en; }
 
@@ -649,18 +658,21 @@ function MJMistakeCard({ t, m, subject, open, onToggle, onRetryDone, onRemove, o
 function MJEmptyState({ t, onGoToDashboard, onGoToChat }) {
   const L = (en, uk, ru, fr, de) => mjL(t, en, uk, ru, fr, de);
   return (
-    <EmptyState
-      title={L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}
-      body={L(
-        "Nothing to review. Today already has your next step.",
-        "Немає що повторювати. Наступний крок уже на Сьогодні.",
-        "Нечего повторять. Следующий шаг уже на Сегодня.",
-        "Rien à revoir. Aujourd'hui a déjà la suite.",
-        "Nichts zu wiederholen. Heute hat den nächsten Schritt."
-      )}
-      actionLabel={L("Back to Today", "На сьогодні", "На сегодня", "Retour à aujourd'hui", "Zurück zu Heute")}
-      onAction={onGoToDashboard || (() => onGoToChat && onGoToChat())}
-    />
+    <>
+      <EmptyState
+        title={L("Mistake Journal", "Журнал помилок", "Журнал ошибок", "Journal des erreurs", "Fehlerjournal")}
+        body={L(
+          "Nothing to review. Today already has your next step.",
+          "Немає що повторювати. Наступний крок уже на Сьогодні.",
+          "Нечего повторять. Следующий шаг уже на Сегодня.",
+          "Rien à revoir. Aujourd'hui a déjà la suite.",
+          "Nichts zu wiederholen. Heute hat den nächsten Schritt."
+        )}
+        actionLabel={L("Back to Today", "На сьогодні", "На сегодня", "Retour à aujourd'hui", "Zurück zu Heute")}
+        onAction={onGoToDashboard || (() => onGoToChat && onGoToChat())}
+      />
+      <CoachMark id="journal_empty" waitFor="calendar_plan" targetSelector=".app-empty" body={JOURNAL_TOUR_COPY[t?.code] || JOURNAL_TOUR_COPY.en} />
+    </>
   );
 }
 
