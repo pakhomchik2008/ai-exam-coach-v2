@@ -47,11 +47,11 @@ import { ProSheet } from "../learn/ProSheet.jsx";
 import { CoachMark } from "../../components/CoachMark.jsx";
 
 const COACH_MODES_TOUR_COPY = {
-  en: "Pick a mode — Lesson to learn, Quick Check or Speed Round to drill, Exam Simulation for the real thing.",
-  uk: "Вибери режим — Lesson щоб вчитись, Quick Check чи Speed Round щоб дрилити, Exam Simulation — повний тест.",
-  ru: "Выбери режим — Lesson чтобы учиться, Quick Check или Speed Round чтобы дрилить, Exam Simulation — полный тест.",
-  fr: "Choisis un mode — Lesson pour apprendre, Quick Check ou Speed Round pour t'entraîner, Exam Simulation pour l'examen complet.",
-  de: "Wähle einen Modus — Lesson zum Lernen, Quick Check oder Speed Round zum Üben, Exam Simulation für die volle Prüfung.",
+  en: "Start with Lesson — a full structured walkthrough of any topic. Quick Check, Speed Round, and Exam Simulation drill what you already know.",
+  uk: "Почни з Lesson — повний структурований урок з будь-якої теми. Quick Check, Speed Round і Exam Simulation тренують те, що вже знаєш.",
+  ru: "Начни с Lesson — полный структурированный урок по любой теме. Quick Check, Speed Round и Exam Simulation тренируют то, что уже знаешь.",
+  fr: "Commence par Lesson — une leçon structurée complète sur n'importe quel sujet. Quick Check, Speed Round et Exam Simulation entraînent ce que tu sais déjà.",
+  de: "Starte mit Lesson — eine vollständige, strukturierte Lektion zu jedem Thema. Quick Check, Speed Round und Exam Simulation üben, was du schon kannst.",
 };
 
 /**
@@ -4663,7 +4663,7 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
   const xpData = window.xpLevel ? window.xpLevel() : null;
   const xpPct = xpData ? Math.round((xpData.into / xpData.need) * 100) : 0;
 
-  return React.createElement("div", { className: "coach-lobby", style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, fontFamily: "var(--font-sans)" } },
+  return React.createElement("div", { className: "coach-lobby", style: { display: "flex", flexDirection: "column", height: "calc(100vh - 140px)", minHeight: 480, overflowY: "auto", WebkitOverflowScrolling: "touch", fontFamily: "var(--font-sans)" } },
     // Hero
     React.createElement("div", { className: "coach-lobby-hero", style: { display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "36px 20px 20px" } },
       React.createElement(CoachIcon, { size: 56, className: "coach-lobby-icon" }),
@@ -4698,8 +4698,17 @@ function AIChat({ t, initialQuery, onConsumeQuery }) {
           if (m.id === "learn") { setTopicPicker(true); }
           else { setMode(m.id); }
         },
-        style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px", background: "var(--surface-card)", border: "1.5px solid var(--border-default)", borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)" }
+        style: {
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "28px 16px",
+          background: m.id === "learn" ? "color-mix(in srgb, var(--chrome-gold, #C6A572) 8%, var(--surface-card))" : "var(--surface-card)",
+          border: m.id === "learn" ? "1.5px solid var(--chrome-gold, #C6A572)" : "1.5px solid var(--border-default)",
+          borderRadius: 16, cursor: "pointer", fontFamily: "var(--font-sans)", position: "relative",
+          gridColumn: m.id === "learn" ? "1 / -1" : undefined,
+        }
       },
+        m.id === "learn" && React.createElement("span", {
+          style: { position: "absolute", top: -10, left: 16, fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: "var(--chrome-gold, #C6A572)", color: "#1F1400" },
+        }, L("Start here", "Почни звідси", "Начни отсюда", "Commence ici", "Fang hier an")),
         React.createElement("span", { className: "coach-mode-emoji", style: { fontSize: 32 } }, m.emoji),
         React.createElement("span", { style: { fontSize: 15, fontWeight: 700, color: "var(--text-strong)" } }, m.label[t?.code] || m.label.en),
         React.createElement("span", { style: { fontSize: 12, color: "var(--text-muted)" } }, m.desc[t?.code] || m.desc.en)))),
