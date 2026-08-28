@@ -52,6 +52,7 @@ const SIGNUP_COPY = {
 };
 
 const MANAGE_SUB_LABEL = { en: "Manage subscriptions", uk: "Керування підпискою", ru: "Управление подпиской", fr: "Gérer l'abonnement", de: "Abo verwalten" };
+const ALL_SETTINGS_LABEL = { en: "All settings", uk: "Усі налаштування", ru: "Все настройки", fr: "Tous les paramètres", de: "Alle Einstellungen" };
 const LOGOUT_CONFIRM_LABEL = { en: "Click again to confirm", uk: "Натисніть ще раз", ru: "Нажмите ещё раз", fr: "Cliquez à nouveau", de: "Erneut klicken" };
 const PLAN_BADGE_LABEL = { free: "FREE", pro: "PRO", ultra: "ULTRA" };
 
@@ -173,7 +174,7 @@ function NavLogoutButton({ onLogout, label }) {
 // вообще не привлекают"). Top apps (Duolingo, Spotify, Headspace) solve this
 // with a single recognizable avatar icon in the corner that opens an account
 // menu — a learned pattern the eye finds on its own, vs. more text to scan.
-function AccountButton({ lang, t, onOpenSubs, onLogout }) {
+function AccountButton({ lang, t, onOpenSubs, onOpenSettings, onLogout }) {
   const [open, setOpen] = React.useState(false);
   const [confirmLogout, setConfirmLogout] = React.useState(false);
   const rootRef = React.useRef(null);
@@ -216,6 +217,10 @@ function AccountButton({ lang, t, onOpenSubs, onLogout }) {
             width: "100%", textAlign: "left", padding: 12, border: "none", borderRadius: 12, cursor: "pointer",
             background: "transparent", color: "var(--chrome-paper)", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)",
           }}>{MANAGE_SUB_LABEL[lang] || MANAGE_SUB_LABEL.en}</button>
+          <button type="button" onClick={() => { setOpen(false); onOpenSettings(); }} style={{
+            width: "100%", textAlign: "left", padding: 12, border: "none", borderRadius: 12, cursor: "pointer",
+            background: "transparent", color: "var(--chrome-paper)", fontWeight: 600, fontSize: 14, fontFamily: "var(--font-sans)",
+          }}>{ALL_SETTINGS_LABEL[lang] || ALL_SETTINGS_LABEL.en}</button>
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "4px 4px" }} />
           <button type="button" onClick={() => confirmLogout ? onLogout() : setConfirmLogout(true)} style={{
             width: "100%", textAlign: "left", padding: 12, border: "none", borderRadius: 12, cursor: "pointer",
@@ -375,7 +380,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             </div>
           </div>
 
-          <AccountButton lang={lang} t={t} onOpenSubs={() => setSubsOpen(true)} onLogout={onLogout} />
+          <AccountButton lang={lang} t={t} onOpenSubs={() => setSubsOpen(true)} onOpenSettings={() => navigate("settings")} onLogout={onLogout} />
         </div>
       </div>
 
