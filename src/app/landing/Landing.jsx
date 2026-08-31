@@ -286,19 +286,26 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
         {/* ── OAuth ─────────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
           {[
-            { provider: "google", label: L("Continue with Google", "Продовжити з Google", "Продолжить с Google", "Continuer avec Google", "Weiter mit Google"), logo: (
+            // GitHub pulled for now — not configured in Supabase (Decision
+            // Log, 20 Aug 2026). Apple is required alongside Google by App
+            // Review Guideline 4.8 — needs the Apple provider configured in
+            // Supabase (Services ID, Team ID, Key ID, private key) before
+            // this button does anything but error.
+            { provider: "google", label: L("Continue with Google", "Продовжити з Google", "Продолжить с Google", "Continuer avec Google", "Weiter mit Google"), dark: false, logo: (
               <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.2 30.2 0 24 0 14.8 0 6.9 5.4 3 13.3l7.9 6.1C12.8 13.2 18 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.5c-.5 2.8-2.1 5.2-4.5 6.8l7 5.4c4.1-3.8 6.6-9.4 6.6-16.2z"/><path fill="#FBBC05" d="M10.9 28.6A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.1.8-4.6L2.4 13.3A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.5 10.6l8.4-6z"/><path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7-5.4c-2 1.4-4.6 2.2-8.2 2.2-6 0-11.1-3.7-13-8.9l-8.4 6C6.9 42.6 14.8 48 24 48z"/></svg>
             )},
-            { provider: "github", label: L("Continue with GitHub", "Продовжити з GitHub", "Продолжить с GitHub", "Continuer avec GitHub", "Weiter mit GitHub"), logo: (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.1.82-.26.82-.58v-2.04c-3.34.72-4.04-1.6-4.04-1.6-.54-1.38-1.33-1.75-1.33-1.75-1.08-.74.08-.73.08-.73 1.2.08 1.83 1.23 1.83 1.23 1.07 1.83 2.8 1.3 3.48 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.3c0 .32.22.69.82.57C20.56 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            { provider: "apple", label: L("Continue with Apple", "Продовжити з Apple", "Продолжить с Apple", "Continuer avec Apple", "Weiter mit Apple"), dark: true, logo: (
+              <svg width="16" height="16" viewBox="0 0 384 512" fill="#fff"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
             )},
-            { provider: "apple", label: L("Continue with Apple", "Продовжити з Apple", "Продолжить с Apple", "Continuer avec Apple", "Weiter mit Apple"), logo: (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.15 2c.97 0 2.18.65 2.89 1.48-.64.78-1.71 1.38-2.76 1.3-.1-.97.54-2.03.87-2.78zm4.36 4.6c-1.3-.08-2.42.74-3.04.74-.64 0-1.6-.7-2.65-.68-1.36.02-2.63.79-3.32 2-.71 1.24-.54 3.57.77 5.66.64 1 1.5 2.12 2.6 2.1.98-.02 1.36-.64 2.56-.64 1.19 0 1.53.64 2.56.62 1.13-.02 1.87-1.08 2.5-2.08.53-.82.74-1.22.97-2.08-2.5-.97-2.91-4.52-.95-5.64z"/></svg>
-            )},
-          ].map(({ provider, label, logo }) => (
+          ].map(({ provider, label, logo, dark }) => (
             <button key={provider} type="button"
               onClick={async () => { try { await window.signInWithOAuth(provider); } catch (e) { setFormError(e.message); } }}
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "11px 16px", borderRadius: "var(--radius-xl)", border: "1px solid var(--border-default)", background: "var(--surface-card)", color: "var(--text-strong)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", cursor: "pointer" }}>
+              style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "11px 16px", borderRadius: "var(--radius-xl)", fontWeight: "var(--weight-medium)", fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", cursor: "pointer",
+                border: dark ? "none" : "1px solid var(--border-default)",
+                background: dark ? "#000" : "var(--surface-card)",
+                color: dark ? "#fff" : "var(--text-strong)",
+              }}>
               {logo}{label}
             </button>
           ))}

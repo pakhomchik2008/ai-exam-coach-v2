@@ -296,6 +296,21 @@ async function linkGoogleAccount() {
   // Browser will navigate away to Google — nothing more to do here
 }
 
+// Same as linkGoogleAccount() but for Apple — required alongside Google by
+// App Review Guideline 4.8 (any third-party sign-in requires Sign in with
+// Apple as an equal option). Needs the Apple provider actually configured
+// in Supabase (Services ID, Team ID, Key ID, private key from Apple
+// Developer) before this does anything but error.
+async function linkAppleAccount() {
+  const redirectTo = window.location.origin + window.location.pathname;
+  const { error } = await _supabase.auth.linkIdentity({
+    provider: "apple",
+    options: { redirectTo },
+  });
+  if (error) throw new Error(error.message);
+  // Browser will navigate away to Apple — nothing more to do here
+}
+
 // Demo mode used to be a localStorage-only session with no server identity,
 // which is why /api/complete had to accept unauthenticated callers. It now signs
 // in anonymously, so a demo visitor carries a real JWT and a real (smaller)
@@ -475,7 +490,7 @@ Object.assign(window, {
   ACCOUNTS_KEY, SESSION_KEY, _supabase, PERSONAL_DATA_KEYS,
   hashPassword, getAccounts, saveAccounts,
   getSession, setSession, clearSession,
-  signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount, linkGoogleAccount,
+  signUp, logIn, startDemo, signInWithOAuth, upgradeAnonymousAccount, linkGoogleAccount, linkAppleAccount,
   updateAccount, MIN_PASSWORD_LEN,
   getAccessToken, apiHeaders,
   requestPasswordReset, completePasswordReset, isPasswordRecovery, clearPasswordRecovery,
