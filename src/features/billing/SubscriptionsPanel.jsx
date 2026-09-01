@@ -3,8 +3,9 @@
 // gold language as ProSheet.jsx (that file owns the paywall moment; this one
 // owns "let me see and change my plan" as its own screen, not a paywall).
 
-import { startCheckout, startBillingPortal } from "../../lib/billing";
+import { startCheckout, startBillingPortal, pollProStatus } from "../../lib/billing";
 import { isNativeIOS } from "../../lib/platform";
+import { hasNativeIAP, purchaseNative, restoreNativePurchases } from "../../lib/native-iap";
 
 function L5(t, en, uk, ru, fr, de) {
   return { en, uk, ru, fr, de }[t?.code] || en;
@@ -24,6 +25,10 @@ const COPY = {
   skipTrial: (t) => L5(t, "Skip the 3-day trial — charge me today", "Без 3-денного пробного — оплата сьогодні", "Без 3-дневного пробного — оплата сегодня", "Sans les 3 jours d'essai — facturer aujourd'hui", "Ohne 3-Tage-Testphase — heute abrechnen"),
   native: (t) => L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"),
   demoError: (t) => L5(t, "Create an account to start Pro.", "Створи акаунт, щоб почати Pro.", "Создай аккаунт, чтобы начать Pro.", "Crée un compte pour démarrer Pro.", "Erstelle ein Konto, um Pro zu starten."),
+  purchasing: (t) => L5(t, "Purchasing…", "Купівля…", "Покупка…", "Achat…", "Kauf läuft…"),
+  restore: (t) => L5(t, "Restore purchases", "Відновити покупки", "Восстановить покупки", "Restaurer les achats", "Käufe wiederherstellen"),
+  restoring: (t) => L5(t, "Restoring…", "Відновлення…", "Восстановление…", "Restauration…", "Wird wiederhergestellt…"),
+  billedByApple: (t) => L5(t, "Billed by Apple · cancel anytime in Settings", "Оплата через Apple · скасування в Налаштуваннях", "Оплата через Apple · отмена в Настройках", "Facturé par Apple · annulation dans Réglages", "Abgerechnet von Apple · Kündigung in den Einstellungen"),
 };
 
 const PLANS = [
@@ -122,17 +127,38 @@ export function SubscriptionsPanel({ onClose, t }) {
   const profile = window.getProfile ? window.getProfile() : {};
   const currentTier = profile.tier === "pro" || profile.tier === "ultra" ? profile.tier : "free";
   const native = isNativeIOS();
+  // Same cross-platform-entitlement rule as ProSheet.jsx: a Stripe web
+  // subscriber must never be offered a second, StoreKit purchase for a plan
+  // they already have.
+  const canBuyNative = native && hasNativeIAP() && currentTier === "free";
   const [interval, setInterval] = React.useState("monthly");
   const [skipTrial, setSkipTrial] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [restoring, setRestoring] = React.useState(false);
   const [error, setError] = React.useState("");
 
   async function pick(tier) {
     setBusy(true);
     setError("");
-    const result = await startCheckout(tier, interval, skipTrial);
+    const result = canBuyNative ? await purchaseNative(tier, interval) : await startCheckout(tier, interval, skipTrial);
     if (result.alreadyPro) { onClose?.(); return; }
-    if (result.error) { setError(result.error); setBusy(false); }
+    if (result.error) { setError(result.error); setBusy(false); return; }
+    if (result.ok) {
+      setBusy(false);
+      if (canBuyNative) void pollProStatus(); // webhook lags the purchase promise — see billing.ts
+      onClose?.();
+      return;
+    }
+    setBusy(false); // purchaseNative(): {} means the StoreKit sheet was cancelled — not an error
+  }
+
+  async function restore() {
+    setRestoring(true);
+    setError("");
+    const result = await restoreNativePurchases();
+    if (result.error) setError(result.error);
+    else void pollProStatus();
+    setRestoring(false);
   }
 
   async function manageBilling() {
@@ -161,11 +187,20 @@ export function SubscriptionsPanel({ onClose, t }) {
           <button type="button" onClick={onClose} aria-label="Close" style={{ border: "none", background: "transparent", color: "color-mix(in srgb, var(--chrome-paper) 60%, transparent)", fontSize: 22, lineHeight: 1, cursor: "pointer", padding: 4 }}>×</button>
         </div>
 
-        {native ? (
-          <p style={{ margin: "20px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" }}>{COPY.native(t)}</p>
+        {native && !canBuyNative ? (
+          <>
+            <p style={{ margin: "20px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" }}>{COPY.native(t)}</p>
+            {native && hasNativeIAP() && (
+              <button type="button" disabled={restoring} onClick={restore} style={{
+                display: "block", margin: "0 auto", padding: "10px 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)",
+                background: "transparent", color: "var(--chrome-paper)", fontWeight: 600, fontSize: 13, cursor: restoring ? "default" : "pointer", fontFamily: "var(--font-sans)",
+              }}>{restoring ? COPY.restoring(t) : COPY.restore(t)}</button>
+            )}
+            {error && <p style={{ margin: "14px 0 0", textAlign: "center", fontSize: 13, color: "#F87171" }}>{error}</p>}
+          </>
         ) : (
           <>
-            {currentTier !== "free" && (
+            {currentTier !== "free" && !native && (
               <button type="button" disabled={busy} onClick={manageBilling} style={{
                 marginBottom: 18, padding: "10px 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)",
                 background: "transparent", color: "var(--chrome-paper)", fontWeight: 600, fontSize: 13, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-sans)",
@@ -186,10 +221,12 @@ export function SubscriptionsPanel({ onClose, t }) {
               ))}
             </div>
 
-            <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, fontSize: 13, color: "color-mix(in srgb, var(--chrome-paper) 78%, transparent)", cursor: "pointer" }}>
-              <input type="checkbox" checked={skipTrial} onChange={(e) => setSkipTrial(e.target.checked)} style={{ width: 16, height: 16, accentColor: "var(--chrome-gold)" }} />
-              {COPY.skipTrial(t)}
-            </label>
+            {!canBuyNative && (
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 18, fontSize: 13, color: "color-mix(in srgb, var(--chrome-paper) 78%, transparent)", cursor: "pointer" }}>
+                <input type="checkbox" checked={skipTrial} onChange={(e) => setSkipTrial(e.target.checked)} style={{ width: 16, height: 16, accentColor: "var(--chrome-gold)" }} />
+                {COPY.skipTrial(t)}
+              </label>
+            )}
 
             {error && <p style={{ margin: "0 0 14px", fontSize: 13, color: "#F87171" }}>{error}</p>}
 
@@ -198,6 +235,18 @@ export function SubscriptionsPanel({ onClose, t }) {
                 <PlanCard key={plan.id} plan={plan} t={t} interval={interval} currentTier={currentTier} busy={busy} skipTrial={skipTrial} onPick={pick} />
               ))}
             </div>
+
+            {canBuyNative && (
+              <>
+                <p style={{ margin: "16px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" }}>
+                  {COPY.billedByApple(t)}
+                </p>
+                <button type="button" disabled={restoring} onClick={restore} style={{
+                  display: "block", margin: "12px auto 0", padding: "8px 16px", borderRadius: 999, border: "none",
+                  background: "transparent", color: "color-mix(in srgb, var(--chrome-paper) 60%, transparent)", fontWeight: 600, fontSize: 12, cursor: restoring ? "default" : "pointer", fontFamily: "var(--font-sans)",
+                }}>{restoring ? COPY.restoring(t) : COPY.restore(t)}</button>
+              </>
+            )}
           </>
         )}
       </div>
