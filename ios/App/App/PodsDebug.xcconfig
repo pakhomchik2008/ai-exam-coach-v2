@@ -1,0 +1,8 @@
+// App target's own Debug base config. Kept separate from ../../debug.xcconfig
+// (which the project level AND the ExamikWidgetExtension target's Debug
+// config both still point to) specifically so pulling in RevenueCat's Pods
+// settings here doesn't also leak into the widget target's build — the
+// widget doesn't link RevenueCat and shouldn't inherit its search paths /
+// linker flags.
+#include "../Pods/Target Support Files/Pods-App/Pods-App.debug.xcconfig"
+CAPACITOR_DEBUG = true

@@ -1,8 +1,9 @@
 // Pro gate — Learn lock, second exam, calendar, journal.
 // Copy stays tied to what Free actually opens. Checkout is a server redirect.
 
-import { startCheckout } from "../../lib/billing";
+import { startCheckout, pollProStatus } from "../../lib/billing";
 import { isNativeIOS } from "../../lib/platform";
+import { hasNativeIAP, purchaseNative } from "../../lib/native-iap";
 
 function L5(t, en, uk, ru, fr, de) {
   return { en, uk, ru, fr, de }[t?.code] || en;
@@ -58,17 +59,34 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const native = isNativeIOS();
+  // A Stripe web subscriber opening the native app must never be asked to
+  // buy again through StoreKit (App Review 3.1.3(b), cross-platform
+  // entitlement recognition) — profile.tier is server-authoritative
+  // regardless of which store paid for it, so an existing paid tier always
+  // routes to "manage on examik.net", IAP or not.
+  const alreadyPaid = ["pro", "ultra"].includes(window.getProfile?.()?.tier);
+  const canBuyNative = native && hasNativeIAP() && !alreadyPaid;
 
   async function upgrade(tier = "pro") {
     setBusy(true);
     setError("");
-    const result = await startCheckout(tier, "monthly");
+    const result = canBuyNative ? await purchaseNative(tier, "monthly") : await startCheckout(tier, "monthly");
     if (result.alreadyPro) {
       onClose?.();
       return;
     }
     if (result.error) {
       setError(result.error);
+      setBusy(false);
+      return;
+    }
+    if (result.ok) {
+      setBusy(false);
+      if (canBuyNative) void pollProStatus(); // webhook lags the purchase promise — see billing.ts
+      onClose?.();
+    } else {
+      // purchaseNative() resolves with {} (no ok, no error) on a user-cancelled
+      // StoreKit sheet — not an error, just let them try again.
       setBusy(false);
     }
   }
@@ -78,7 +96,7 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     React.createElement("h3", { style: { margin: "0 0 10px", fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--chrome-paper)" } }, title),
     React.createElement("p", { style: { margin: "0 0 20px", fontSize: 16, lineHeight: 1.55, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } }, body),
     error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "#F87171" } }, error) : null,
-    native
+    native && !canBuyNative
       ? React.createElement("p", { style: { margin: 0, padding: "17px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } },
           L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"))
       : React.createElement(React.Fragment, null,
@@ -88,8 +106,12 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
             onClick: () => upgrade("pro"),
             style: { width: "100%", padding: 17, borderRadius: 999, background: "var(--chrome-purple)", color: "#fff", border: "none", fontSize: 17, fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "var(--font-sans)" },
           }, busy
-            ? L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…")
-            : L5(t, "Try 3 days of Pro free", "Спробуй 3 дні Pro безкоштовно", "Попробуй 3 дня Pro бесплатно", "Essaie 3 jours de Pro gratuits", "Teste 3 Tage Pro gratis")),
+            ? (canBuyNative
+                ? L5(t, "Purchasing…", "Купівля…", "Покупка…", "Achat…", "Kauf läuft…")
+                : L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…"))
+            : (canBuyNative
+                ? L5(t, "Get Pro — $5.99/mo", "Отримати Pro — $5.99/міс", "Получить Pro — $5.99/мес", "Passer à Pro — $5.99/mois", "Pro holen — $5.99/Monat")
+                : L5(t, "Try 3 days of Pro free", "Спробуй 3 дні Pro безкоштовно", "Попробуй 3 дня Pro бесплатно", "Essaie 3 jours de Pro gratuits", "Teste 3 Tage Pro gratis"))),
           React.createElement("button", {
             type: "button",
             disabled: busy,
@@ -97,7 +119,12 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
             style: { width: "100%", marginTop: 10, padding: "12px 16px", borderRadius: 12, border: "1px solid color-mix(in srgb, var(--chrome-gold) 45%, transparent)", background: "transparent", color: "var(--chrome-gold)", fontSize: 14, fontWeight: 600, cursor: busy ? "default" : "pointer", fontFamily: "var(--font-sans)" },
           }, L5(t, "Or go Ultra — smarter AI + Weekly Deep Report, $9.99/mo", "Або Ultra — розумніший AI + щотижневий звіт, $9.99/міс", "Или Ultra — более умный AI + еженедельный отчёт, $9.99/мес", "Ou passe à Ultra — IA plus performante + rapport hebdo, $9.99/mois", "Oder Ultra — klügere KI + Wochenbericht, $9.99/Monat")),
           React.createElement("p", { style: { margin: "14px 0 0", textAlign: "center", fontFamily: "'JetBrains Mono', var(--font-mono)", fontSize: 10, letterSpacing: "0.1em", color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)" } },
-            L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR"))),
+            // Apple (not Examik) handles refunds and cancellation for a
+            // StoreKit purchase — the Stripe 14-day-refund line would promise
+            // something Examik doesn't control on this path.
+            canBuyNative
+              ? L5(t, "BILLED BY APPLE · CANCEL ANYTIME IN SETTINGS", "ОПЛАТА ЧЕРЕЗ APPLE · СКАСУВАННЯ В НАЛАШТУВАННЯХ", "ОПЛАТА ЧЕРЕЗ APPLE · ОТМЕНА В НАСТРОЙКАХ", "FACTURÉ PAR APPLE · ANNULATION DANS LES RÉGLAGES", "ABGERECHNET VON APPLE · KÜNDIGUNG IN DEN EINSTELLUNGEN")
+              : L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR"))),
     onClose && !page ? React.createElement("button", {
       type: "button",
       onClick: onClose,

@@ -82,6 +82,20 @@ export async function startBillingPortal(): Promise<{ ok?: true; error?: string 
   return postBilling("/api/stripe-portal");
 }
 
+// A store purchase (Stripe checkout redirect, or a native StoreKit purchase
+// via native-iap.ts) writes `subscriptions` through a webhook that runs
+// after the checkout/purchase promise already resolved — there's a real gap
+// where the row isn't there yet. Same retry shape App.tsx already uses for
+// the Stripe billing=success redirect; native-iap purchase flows share it too.
+export async function pollProStatus(attempts = 6, delayMs = 1500): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    const pro = await refreshProStatus();
+    if (pro) return true;
+    if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return false;
+}
+
 export async function refreshProStatus(): Promise<boolean> {
   const session = w().getSession?.();
   const sb = w()._supabase;

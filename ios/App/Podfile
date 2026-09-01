@@ -1,0 +1,28 @@
+require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
+
+platform :ios, '15.0'
+use_frameworks!
+
+# Workaround to avoid Xcode caching of Pods that requires
+# Product -> Clean Build Folder after new Cordova plugins are installed.
+# Requires CocoaPods 1.6 or newer.
+install! 'cocoapods', :disable_input_output_paths => true
+
+def capacitor_pods
+  pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+end
+
+# Every other Capacitor plugin (App, Browser, Haptics) ships a Package.swift
+# and stays on SPM via CapApp-SPM/Package.swift — only RevenueCat's plugin
+# needs CocoaPods (it ships a podspec only, no Package.swift). Mixed SPM +
+# CocoaPods is a supported Capacitor setup; Xcode links both through the
+# .xcworkspace `pod install` generates.
+target 'App' do
+  capacitor_pods
+  pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+end
+
+post_install do |installer|
+  assertDeploymentTarget(installer)
+end

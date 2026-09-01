@@ -5,6 +5,54 @@
 // OAuth (Google, GitHub, Apple) added via window.signInWithOAuth(provider).
 
 import { startDataSync, stopDataSync } from "../lib/data-sync";
+import { isNativeIOS } from "../lib/platform";
+import { initNativeIAP, resetNativeIAP } from "../lib/native-iap";
+import { Browser } from "@capacitor/browser";
+import { App as CapApp } from "@capacitor/app";
+
+// Custom URL scheme registered in ios/App/App/Info.plist (CFBundleURLTypes).
+// Google/Apple refuse to complete OAuth inside an embedded WKWebView
+// ("disallowed_useragent"), and even if they didn't, Supabase's redirect
+// would land on the web origin with no app behind it to catch the code.
+// So on native we open the OAuth URL in the system browser (skipBrowserRedirect)
+// and wait for iOS to hand control back to this scheme via appUrlOpen, then
+// finish the PKCE exchange ourselves.
+const NATIVE_OAUTH_REDIRECT = "app.examik.ios://auth-callback";
+
+async function _oauthNative(provider, { link = false } = {}) {
+  const method = link ? "linkIdentity" : "signInWithOAuth";
+  const { data, error } = await _supabase.auth[method]({
+    provider,
+    options: { redirectTo: NATIVE_OAUTH_REDIRECT, skipBrowserRedirect: true },
+  });
+  if (error) throw new Error(error.message);
+  return new Promise((resolve, reject) => {
+    let sub;
+    const cleanup = () => { try { sub?.remove(); } catch {} };
+    sub = CapApp.addListener("appUrlOpen", async ({ url }) => {
+      if (!url || !url.startsWith(NATIVE_OAUTH_REDIRECT)) return;
+      cleanup();
+      Browser.close().catch(() => {});
+      try {
+        // exchangeCodeForSession() takes the bare auth code, not the deep-link
+        // URL it arrived in — passing the full URL sends it as auth_code and
+        // GoTrue rejects the exchange ("auth code and code verifier should be
+        // non empty").
+        const params = new URL(url).searchParams;
+        const authError = params.get("error_description") || params.get("error");
+        if (authError) throw new Error(authError);
+        const code = params.get("code");
+        if (!code) throw new Error("No auth code in OAuth redirect.");
+        const { error: exErr } = await _supabase.auth.exchangeCodeForSession(code);
+        if (exErr) throw new Error(exErr.message);
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    });
+    Browser.open({ url: data.url }).catch((e) => { cleanup(); reject(e); });
+  });
+}
 
 const ACCOUNTS_KEY = "auth_accounts_v1"; // kept for compat
 const SESSION_KEY  = "auth_session_v1";
@@ -39,7 +87,12 @@ const PERSONAL_DATA_KEYS = [
 const { createClient } = window.supabase;
 const _supabase = createClient(
   "https://cyftpdiabopydwytyudt.supabase.co",
-  "sb_publishable_wL5HRZEHk9zAMUNWJa0BMA_IA4cC9Wo"
+  "sb_publishable_wL5HRZEHk9zAMUNWJa0BMA_IA4cC9Wo",
+  // supabase-js defaults to flowType "implicit" (tokens in a URL #fragment).
+  // The native OAuth flow (_oauthNative above) calls exchangeCodeForSession,
+  // which only works with the pkce flow's ?code= query param — implicit mode
+  // leaves that call with nothing to exchange.
+  { auth: { flowType: "pkce" } }
 );
 
 // ─── Session cache (sync-readable, async-updated) ─────────────────────────────
@@ -80,6 +133,7 @@ _supabase.auth.getSession().then(({ data: { session } }) => {
     // Covers a refresh while already signed in — onAuthStateChange's SIGNED_IN
     // only fires on a *new* sign-in event, not on a session merely resuming.
     void startDataSync(_supabase, session.user.id);
+    if (!session.user.is_anonymous) void initNativeIAP(session.user.id);
   } else {
     // Restore demo mode from localStorage if the user was demoing
     try {
@@ -128,6 +182,7 @@ _supabase.auth.onAuthStateChange((event, session) => {
     _persistSession(_supabaseUserToSession(session.user));
     _syncProfileFromUser(session.user);
     void startDataSync(_supabase, session.user.id);
+    if (!session.user.is_anonymous) void initNativeIAP(session.user.id);
     // Tags this browser's OneSignal push subscription with the Supabase user
     // id (external_id) so api/notifications-cron.js can target it by id —
     // see src/lib/push.ts's header.
@@ -143,6 +198,7 @@ _supabase.auth.onAuthStateChange((event, session) => {
     try { localStorage.removeItem(SESSION_KEY); } catch {}
     window.dispatchEvent(new StorageEvent("storage", { key: SESSION_KEY }));
     stopDataSync(_supabase);
+    void resetNativeIAP();
     if (window.logoutPushUser) window.logoutPushUser();
   }
 });
@@ -270,6 +326,7 @@ async function logIn({ email, password }) {
 }
 
 async function signInWithOAuth(provider) {
+  if (isNativeIOS()) return _oauthNative(provider);
   // redirectTo must be listed in Supabase → Authentication → URL Configuration
   const redirectTo = window.location.origin + window.location.pathname;
   const { error } = await _supabase.auth.signInWithOAuth({
@@ -287,6 +344,7 @@ async function signInWithOAuth(provider) {
 // new anonymous-vs-real identity instead of upgrading this one, silently
 // orphaning whatever the student already did in this demo session.
 async function linkGoogleAccount() {
+  if (isNativeIOS()) return _oauthNative("google", { link: true });
   const redirectTo = window.location.origin + window.location.pathname;
   const { error } = await _supabase.auth.linkIdentity({
     provider: "google",
@@ -302,6 +360,7 @@ async function linkGoogleAccount() {
 // in Supabase (Services ID, Team ID, Key ID, private key from Apple
 // Developer) before this does anything but error.
 async function linkAppleAccount() {
+  if (isNativeIOS()) return _oauthNative("apple", { link: true });
   const redirectTo = window.location.origin + window.location.pathname;
   const { error } = await _supabase.auth.linkIdentity({
     provider: "apple",
