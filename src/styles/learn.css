@@ -90,6 +90,20 @@
   animation: learn-sheet-up var(--dur-normal) var(--ease-out);
 }
 
+/* The sheet's own bottom padding (calc(30px + safe-area), set inline in
+   LearnMain.jsx / ProSheet.jsx) only clears the home indicator — it doesn't
+   know the fixed bottom tab bar reserves another ~70px above that. On a
+   real phone the Start/Buy button ends up sitting flush against, or
+   clipped by, the tab bar row. Match .app-main's own reserved-space math
+   (chrome.css) so every bottom sheet clears it. .learn-sheet-panel-safe is
+   ProSheet.jsx's paywall sheet — same bug, same fix, no shared component. */
+@media (max-width: 1040px) {
+  .learn-sheet-panel,
+  .learn-sheet-panel-safe {
+    padding-bottom: calc(30px + 70px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 /* Theory-page figure. The SVG is AI-authored; this chrome is what stops
    it reading as a screenshot pasted into a card. Full column width, paper
    wash, no inner 480px clamp. */
