@@ -297,6 +297,15 @@
 
   .app-nav-bottom-bar { display: flex; }
 
+  /* exam-wizard.jsx's Continue/Back bar is `position: sticky; bottom: 0` —
+     on mobile that sticks it exactly where the fixed bottom tab bar already
+     sits, and the tab bar (later in paint order, no shared stacking context)
+     wins every hit-test: the button was visible but unclickable, covered by
+     the tab bar's own icons. Push it up by the bar's reserved height instead. */
+  .wizard-cta-bar {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
   .app-nav-more-scrim {
     /* Was conditionally mounted with an entry-only animation, so closing
        unmounted it instantly while the sheet was still 220ms into its own

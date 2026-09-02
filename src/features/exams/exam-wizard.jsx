@@ -799,7 +799,7 @@ function ExamWizard({ config, initialExam, lang, onLangChange, onFinish, onCance
           </>)}
         </div>
 
-        <div style={{ position: "sticky", bottom: 0, padding: "var(--space-4) var(--space-5)", background: "linear-gradient(to top, var(--indigo-50) 70%, transparent)", display: "flex", gap: "var(--space-3)" }}>
+        <div className="wizard-cta-bar" style={{ position: "sticky", bottom: 0, padding: "var(--space-4) var(--space-5)", background: "linear-gradient(to top, var(--indigo-50) 70%, transparent)", display: "flex", gap: "var(--space-3)" }}>
           {step !== "welcome" && !(stepIdx === 0 && !cfg.showWelcome) && <Button variant="secondary" size="lg" onClick={goBack}>{c.back}</Button>}
           {step === "welcome"
             ? <Button variant="accent" size="lg" fullWidth onClick={goNext}>{c.next}</Button>
