@@ -196,6 +196,19 @@ function NavBuyProButton({ lang, onClick }) {
   );
 }
 
+// Paid tier was only ever visible one tap deep, inside the avatar menu.
+// Hlib wants to see it at a glance on the dashboard — same gold pill the
+// account menu already uses, just always on when there's a plan to show.
+function NavPlanBadge({ tier }) {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 6, marginLeft: 4, padding: "6px 12px", borderRadius: 999,
+      background: "color-mix(in srgb, var(--chrome-gold) 18%, transparent)", color: "var(--chrome-gold)",
+      fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", fontFamily: "var(--font-sans)",
+    }}>{tier === "ultra" ? "⚡ " : ""}{PLAN_BADGE_LABEL[tier]}</span>
+  );
+}
+
 function NavLogoutButton({ onLogout, label }) {
   const [confirm, setConfirm] = React.useState(false);
   React.useEffect(() => {
@@ -384,6 +397,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
           </button>
           {isDemo && <NavSignUpButton lang={lang} />}
           {!isPaid && <NavBuyProButton lang={lang} onClick={() => setSubsOpen(true)} />}
+          {isPaid && <NavPlanBadge tier={navProfile.tier} />}
         </div>
         {subsOpen && <SubscriptionsPanel onClose={() => setSubsOpen(false)} t={t} />}
 
