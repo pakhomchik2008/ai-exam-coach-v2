@@ -18,7 +18,12 @@ export function isNativeIOS(): boolean {
 // server behind it, instead of the deployed Vercel functions. Every /api/*
 // call must go through this so it hits the real backend on native while
 // staying a normal relative path (and same-origin, no CORS) on web.
-const PROD_API_ORIGIN = "https://examik.net";
+// www, not the bare apex — examik.net 308-redirects every request to
+// www.examik.net (Vercel's canonical-domain redirect), and a native
+// WKWebView fetch() following a cross-subdomain redirect for a POST with a
+// JSON body is exactly the kind of request that surfaces as a bare
+// "Load failed" with no further detail. Skip the hop entirely.
+const PROD_API_ORIGIN = "https://www.examik.net";
 
 export function apiUrl(path: string): string {
   return isNativeIOS() ? `${PROD_API_ORIGIN}${path}` : path;
