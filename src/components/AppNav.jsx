@@ -53,6 +53,7 @@ const SIGNUP_COPY = {
 };
 
 const MANAGE_SUB_LABEL = { en: "Manage subscriptions", uk: "Керування підпискою", ru: "Управление подпиской", fr: "Gérer l'abonnement", de: "Abo verwalten" };
+const BUY_PRO_LABEL = { en: "Buy Pro", uk: "Купити Pro", ru: "Купить Pro", fr: "Acheter Pro", de: "Pro kaufen" };
 const NAV_TOUR_COPY = {
   en: { body: "Four rooms, always one tap away — Dashboard, Coach, Learn, Tools. Everything else lives under More.", gotIt: "Got it" },
   uk: { body: "Чотири розділи, завжди в один тап — Dashboard, Coach, Learn, Tools. Все інше — під More.", gotIt: "Зрозуміло" },
@@ -181,6 +182,20 @@ function NavSignUpButton({ lang }) {
   );
 }
 
+// Standalone top-bar CTA — separate from AccountButton's "Manage
+// subscriptions" menu row so a free/demo visitor sees the paywall without
+// having to discover the avatar menu first.
+function NavBuyProButton({ lang, onClick }) {
+  const label = BUY_PRO_LABEL[lang] || BUY_PRO_LABEL.en;
+  return (
+    <button type="button" className="ux-press" onClick={onClick} style={{
+      border: "none", background: "var(--chrome-purple)", color: "#fff", cursor: "pointer", marginLeft: 4,
+      fontSize: "var(--text-sm)", fontFamily: "var(--font-sans)", fontWeight: 700,
+      padding: "8px 16px", borderRadius: 999,
+    }}>{label}</button>
+  );
+}
+
 function NavLogoutButton({ onLogout, label }) {
   const [confirm, setConfirm] = React.useState(false);
   React.useEffect(() => {
@@ -291,6 +306,8 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
 
   const session = window.getSession ? window.getSession() : null;
   const isDemo = !!session && session.mode === "demo";
+  const navProfile = window.getProfile ? window.getProfile() : {};
+  const isPaid = navProfile.tier === "pro" || navProfile.tier === "ultra";
 
   const [langOpen, setLangOpen] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -366,6 +383,7 @@ function AppNav({ current, onNavigate, onLogout, lang, onLangChange }) {
             <BrandLockup wordClassName="app-nav-wordmark" />
           </button>
           {isDemo && <NavSignUpButton lang={lang} />}
+          {!isPaid && <NavBuyProButton lang={lang} onClick={() => setSubsOpen(true)} />}
         </div>
         {subsOpen && <SubscriptionsPanel onClose={() => setSubsOpen(false)} t={t} />}
 
