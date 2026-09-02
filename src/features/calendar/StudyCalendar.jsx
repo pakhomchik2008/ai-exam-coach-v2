@@ -63,6 +63,155 @@ function calNextQuarterHour() {
   return calHHMM(mins);
 }
 
+// The week grid has no mobile layout at all — seven columns squeezed under
+// 400px turn into unreadable slivers (audit: real device screenshot showed
+// every session block as a thin sliver, sidebar cards stacked full-width
+// below it). Below 768px, MobileDayView replaces the whole sidebar+grid row;
+// the drag/resize grid itself is untouched for anything wider.
+function useIsMobileCalendar() {
+  const [isMobile, setIsMobile] = React.useState(() => (
+    typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(max-width: 767px)").matches : false
+  ));
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsMobile(mq.matches);
+    (mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange));
+    return () => (mq.removeEventListener ? mq.removeEventListener("change", onChange) : mq.removeListener(onChange));
+  }, []);
+  return isMobile;
+}
+
+// Single-day agenda with a 7-chip date strip and swipe-to-change-day —
+// the Apple/Google Calendar mobile default. Reuses the same sessionsByDate /
+// courseById data the desktop grid uses, just laid out for one column.
+function MobileDayView({ t, selectedDate, setSelectedDate, sessionsByDate, courseById, todayKey, defaultDurationMin, onStart, onDelete, armedDelete }) {
+  const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
+  const touchRef = React.useRef(null);
+  const dow5 = calWeekdays(t);
+  const calLocale = t?.code === "uk" ? "uk-UA" : t?.code === "ru" ? "ru-RU" : t?.code === "fr" ? "fr-FR" : t?.code === "de" ? "de-DE" : "en-GB";
+
+  const strip = React.useMemo(() => {
+    const out = [];
+    for (let i = -3; i <= 3; i++) { const d = new Date(selectedDate); d.setDate(d.getDate() + i); out.push(d); }
+    return out;
+  }, [selectedDate]);
+
+  function shiftDay(delta) {
+    setSelectedDate((d) => { const n = new Date(d); n.setDate(n.getDate() + delta); return n; });
+  }
+
+  function onTouchStart(e) { touchRef.current = e.touches[0].clientX; }
+  function onTouchEnd(e) {
+    if (touchRef.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchRef.current;
+    touchRef.current = null;
+    if (Math.abs(dx) > 48) shiftDay(dx < 0 ? 1 : -1);
+  }
+
+  const selKey = calFmtDate(selectedDate);
+  const daySessions = (sessionsByDate[selKey] || []).slice().sort((a, b) => calMinutesOf(a.startTime) - calMinutesOf(b.startTime));
+  const gridHeight = (CAL_HOUR_END - CAL_HOUR_START) * CAL_HOUR_PX;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 2px 14px" }}>
+        {strip.map((d, i) => {
+          const key = calFmtDate(d);
+          const isSel = key === selKey;
+          const isToday = key === todayKey;
+          const hasEvents = !!(sessionsByDate[key] || []).length;
+          return (
+            <button key={key} type="button" onClick={() => setSelectedDate(d)} style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: 32,
+              border: "none", background: "transparent", cursor: "pointer", fontFamily: "var(--font-sans)", padding: 0,
+            }}>
+              <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", color: hasEvents ? "var(--indigo-600)" : "var(--text-faint)" }}>{dow5[(d.getDay() + 6) % 7][0]}{dow5[(d.getDay() + 6) % 7][1]}</span>
+              <span style={{
+                width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 13,
+                background: isSel ? "var(--text-strong)" : "transparent",
+                color: isSel ? "var(--surface-card)" : isToday ? "var(--indigo-600)" : "var(--text-body)",
+              }}>{d.getDate()}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <span style={{ fontFamily: "var(--font-brand, var(--font-display))", fontSize: 20, fontWeight: 600 }}>
+          {selectedDate.toLocaleDateString(calLocale, { weekday: "long", day: "numeric" })}
+        </span>
+        {selKey !== todayKey && (
+          <button onClick={() => setSelectedDate(new Date())} style={{ border: "none", background: "transparent", color: "var(--indigo-600)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-sans)" }}>
+            {L("Today", "Сьогодні", "Сегодня", "Aujourd'hui", "Heute")}
+          </button>
+        )}
+      </div>
+
+      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative" }}>
+        {daySessions.length === 0 && (
+          <p style={{ fontSize: 13, color: "var(--text-faint)", padding: "24px 4px", textAlign: "center", margin: 0 }}>
+            {L("Nothing scheduled — swipe to another day, or tap + to add one.", "Нічого не заплановано — свайпніть на інший день або натисніть +.", "Ничего не запланировано — свайпни на другой день или нажми +.", "Rien de prévu — glissez vers un autre jour ou touchez +.", "Nichts geplant — wische zu einem anderen Tag oder tippe auf +.")}
+          </p>
+        )}
+        <div style={{ position: "relative", height: gridHeight }}>
+          {Array.from({ length: CAL_HOUR_END - CAL_HOUR_START }, (_, i) => (
+            <div key={i} style={{ position: "absolute", top: i * CAL_HOUR_PX, left: 0, right: 0, borderTop: "1px solid var(--border-subtle)" }}>
+              <span style={{ position: "absolute", top: -6, left: 0, fontSize: 10, color: "var(--text-faint)" }}>{String(CAL_HOUR_START + i).padStart(2, "0")}:00</span>
+            </div>
+          ))}
+          {daySessions.map((s) => {
+            const isPersonal = s.type === "personal";
+            const cat = isPersonal ? PERSONAL_CATEGORIES.find((c) => c.id === s.category) : null;
+            const course = isPersonal ? null : courseById.get(s.examId);
+            const color = isPersonal ? (s.personalColor || cat?.color || "var(--slate-500)") : (course?.color || "var(--indigo-500)");
+            const startMin = calMinutesOf(s.startTime || "17:00");
+            const dur = s.durationMin || defaultDurationMin;
+            const top = ((startMin - CAL_HOUR_START * 60) / 60) * CAL_HOUR_PX;
+            const height = Math.max(34, (dur / 60) * CAL_HOUR_PX - 2);
+            const completed = s.status === "completed";
+            return (
+              <div key={s.id} style={{
+                position: "absolute", top, height, left: 38, right: 4,
+                borderRadius: 8, padding: "5px 8px", overflow: "hidden",
+                background: color + (completed ? "22" : isPersonal ? "14" : "1c"),
+                borderLeft: `3px solid ${color}`,
+                opacity: completed ? 0.6 : 1,
+                fontFamily: "var(--font-sans)",
+              }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text-strong)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {completed && "✓ "}{isPersonal && (cat?.emoji || "📌") + " "}{s.seriesId && "🔁 "}{s.topic}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: "var(--text-muted)" }}>{s.startTime || "17:00"} · {dur}m{!isPersonal && course ? ` · ${course.name}` : ""}</div>
+                  </div>
+                  {!completed && (
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      {!isPersonal && (
+                        <button type="button" aria-label={L("Start session", "Почати сесію", "Начать сессию", "Commencer", "Sitzung starten")} onClick={() => onStart(s)} style={{
+                          width: 22, height: 22, borderRadius: "50%", border: "none", cursor: "pointer", fontSize: 10,
+                          background: "rgba(0,0,0,0.12)", color: "var(--text-strong)",
+                        }}>▶</button>
+                      )}
+                      <button type="button" onClick={() => onDelete(s.id)} style={{
+                        width: 22, height: 22, borderRadius: "50%", border: "none", cursor: "pointer", fontSize: 11,
+                        background: armedDelete === s.id ? "var(--red-500)" : "rgba(0,0,0,0.12)",
+                        color: armedDelete === s.id ? "var(--white)" : "var(--text-muted)",
+                      }}>{armedDelete === s.id ? "✓" : "×"}</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StudyCalendar({ t, onGoToExams, embedded }) {
   const L = (en, uk, ru, fr, de) => ({ en, uk, ru, fr, de }[t?.code] || en);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -92,6 +241,8 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
   const aiProposalXT = window.useExitTransition(!!aiProposal);
   const [ripple, setRipple] = React.useState(null);
   const [ghost, setGhost] = React.useState(null);
+  const isMobile = useIsMobileCalendar();
+  const [mobileDate, setMobileDate] = React.useState(() => new Date());
 
   // ── sidebar filters (visual only — never changes what's stored) ─────────
   const [hiddenExamIds, setHiddenExamIds] = React.useState(() => new Set());
@@ -262,23 +413,33 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", fontFamily: "var(--font-sans)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        {!embedded && (
-          <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
-            {t?.nav_calendar || "Calendar"}
-          </h1>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() - 7); return d; })}
-            style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 10px", cursor: "pointer", color: "var(--text-muted)" }}>←</button>
-          <button onClick={() => setWeekStart(calMondayOf(new Date()))}
-            style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 14px", cursor: "pointer", color: "var(--text-body)", fontSize: "var(--text-sm)", fontWeight: 600 }}>{({ uk: "Сьогодні", ru: "Сегодня", fr: "Aujourd'hui", de: "Heute" }[t?.code]) || "Today"}</button>
-          <button onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() + 7); return d; })}
-            style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 10px", cursor: "pointer", color: "var(--text-muted)" }}>→</button>
-          <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginLeft: 6, fontWeight: 600 }}>{weekLabel}</span>
+      {!isMobile && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          {!embedded && (
+            <h1 style={{ margin: 0, fontSize: "var(--text-2xl)", fontWeight: "var(--weight-semibold)", color: "var(--text-strong)" }}>
+              {t?.nav_calendar || "Calendar"}
+            </h1>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() - 7); return d; })}
+              style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 10px", cursor: "pointer", color: "var(--text-muted)" }}>←</button>
+            <button onClick={() => setWeekStart(calMondayOf(new Date()))}
+              style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 14px", cursor: "pointer", color: "var(--text-body)", fontSize: "var(--text-sm)", fontWeight: 600 }}>{({ uk: "Сьогодні", ru: "Сегодня", fr: "Aujourd'hui", de: "Heute" }[t?.code]) || "Today"}</button>
+            <button onClick={() => setWeekStart((w) => { const d = new Date(w); d.setDate(d.getDate() + 7); return d; })}
+              style={{ border: "1px solid var(--border-default)", background: "var(--surface-card)", borderRadius: "var(--radius-lg)", padding: "6px 10px", cursor: "pointer", color: "var(--text-muted)" }}>→</button>
+            <span style={{ fontSize: "var(--text-sm)", color: "var(--text-muted)", marginLeft: 6, fontWeight: 600 }}>{weekLabel}</span>
+          </div>
         </div>
-      </div>
+      )}
 
+      {isMobile ? (
+        <MobileDayView t={t}
+          selectedDate={mobileDate} setSelectedDate={setMobileDate}
+          sessionsByDate={sessionsByDate} courseById={courseById} todayKey={todayKey}
+          defaultDurationMin={defaultDurationMin}
+          onStart={startCalSession} onDelete={confirmDelete} armedDelete={armedDelete}
+        />
+      ) : (
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
         <CalSidebar t={t}
           activeExams={activeExams} courseById={courseById} allSessions={relevantSessions}
@@ -405,6 +566,7 @@ function StudyCalendar({ t, onGoToExams, embedded }) {
           </div>
         </div>
       </div>
+      )}
 
       <CalFab t={t} open={fabOpen} setOpen={setFabOpen} onGoToExams={onGoToExams} onCreate={openFabCreate} />
 
