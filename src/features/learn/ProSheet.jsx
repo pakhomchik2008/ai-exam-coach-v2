@@ -65,7 +65,18 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
   // regardless of which store paid for it, so an existing paid tier always
   // routes to "manage on examik.net", IAP or not.
   const alreadyPaid = ["pro", "ultra"].includes(window.getProfile?.()?.tier);
-  const canBuyNative = native && hasNativeIAP() && !alreadyPaid;
+  // A demo session never gets Purchases.configure() called (native-iap.ts's
+  // initNativeIAP guards on !is_anonymous), so its RevenueCat SDK is never
+  // initialized — purchaseNative() would fail confusingly instead of showing
+  // the same "create an account" prompt the web checkout path already has.
+  const isDemoSession = window.getSession?.()?.mode === "demo";
+  const canBuyNative = native && hasNativeIAP() && !alreadyPaid && !isDemoSession;
+  // "Manage on examik.net" is the safe fallback for native — but only when
+  // there's genuinely nowhere else to send the tap. A demo visitor still
+  // gets a real button: upgrade() falls through to startCheckout(), which
+  // shows "Create an account to start Pro." inline without ever navigating
+  // the WebView anywhere (postBilling checks session.mode before any fetch).
+  const showManageText = native && !isDemoSession && (alreadyPaid || !hasNativeIAP());
 
   async function upgrade(tier = "pro") {
     setBusy(true);
@@ -96,7 +107,7 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     React.createElement("h3", { style: { margin: "0 0 10px", fontFamily: "var(--font-display)", fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.15, color: "var(--chrome-paper)" } }, title),
     React.createElement("p", { style: { margin: "0 0 20px", fontSize: 16, lineHeight: 1.55, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } }, body),
     error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "#F87171" } }, error) : null,
-    native && !canBuyNative
+    showManageText
       ? React.createElement("p", { style: { margin: 0, padding: "17px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } },
           L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"))
       : React.createElement(React.Fragment, null,

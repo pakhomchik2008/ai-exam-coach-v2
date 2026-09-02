@@ -16,12 +16,15 @@ const COPY = {
   billed: (t) => L5(t, "Billed", "Оплата", "Оплата", "Facturation", "Abrechnung"),
   monthly: (t) => L5(t, "Monthly", "Щомісяця", "Ежемесячно", "Mensuel", "Monatlich"),
   yearly: (t) => L5(t, "Yearly", "Щорічно", "Ежегодно", "Annuel", "Jährlich"),
-  yearlyBadge: (t) => L5(t, "2 months free", "2 місяці безкоштовно", "2 месяца бесплатно", "2 mois offerts", "2 Monate gratis"),
   current: (t) => L5(t, "Current plan", "Поточний план", "Текущий план", "Plan actuel", "Aktueller Plan"),
   manageBilling: (t) => L5(t, "Manage billing", "Керувати оплатою", "Управлять оплатой", "Gérer la facturation", "Zahlung verwalten"),
   redirecting: (t) => L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…"),
   tryFree: (t) => L5(t, "Try 3 days free", "3 дні безкоштовно", "3 дня бесплатно", "3 jours gratuits", "3 Tage gratis"),
   payNow: (t) => L5(t, "Pay now", "Оплатити зараз", "Оплатить сейчас", "Payer maintenant", "Jetzt bezahlen"),
+  // StoreKit doesn't do the Stripe 3-day-trial flow — a native purchase is
+  // an immediate charge, so the button says exactly that instead of
+  // promising a trial the App Store checkout sheet won't actually give.
+  buyNow: (t, plan) => L5(t, `Buy ${plan}`, `Купити ${plan}`, `Купить ${plan}`, `Acheter ${plan}`, `${plan} kaufen`),
   skipTrial: (t) => L5(t, "Skip the 3-day trial — charge me today", "Без 3-денного пробного — оплата сьогодні", "Без 3-дневного пробного — оплата сегодня", "Sans les 3 jours d'essai — facturer aujourd'hui", "Ohne 3-Tage-Testphase — heute abrechnen"),
   native: (t) => L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"),
   demoError: (t) => L5(t, "Create an account to start Pro.", "Створи акаунт, щоб почати Pro.", "Создай аккаунт, чтобы начать Pro.", "Crée un compte pour démarrer Pro.", "Erstelle ein Konto, um Pro zu starten."),
@@ -79,7 +82,7 @@ function CheckIcon() {
   );
 }
 
-function PlanCard({ plan, t, interval, currentTier, busy, skipTrial, onPick }) {
+function PlanCard({ plan, t, interval, currentTier, busy, skipTrial, canBuyNative, onPick }) {
   const isCurrent = currentTier === plan.id;
   const price = plan.price[interval];
   return (
@@ -117,7 +120,7 @@ function PlanCard({ plan, t, interval, currentTier, busy, skipTrial, onPick }) {
           color: plan.id === "pro" ? "#fff" : "var(--chrome-gold)",
           boxShadow: plan.id === "ultra" ? "inset 0 0 0 1px color-mix(in srgb, var(--chrome-gold) 45%, transparent)" : "none",
           fontWeight: 700, fontSize: 14, fontFamily: "var(--font-sans)", opacity: busy ? 0.7 : 1,
-        }}>{skipTrial ? COPY.payNow(t) : COPY.tryFree(t)}</button>
+        }}>{canBuyNative ? COPY.buyNow(t, plan.name(t)) : (skipTrial ? COPY.payNow(t) : COPY.tryFree(t))}</button>
       )}
     </div>
   );
@@ -129,8 +132,14 @@ export function SubscriptionsPanel({ onClose, t }) {
   const native = isNativeIOS();
   // Same cross-platform-entitlement rule as ProSheet.jsx: a Stripe web
   // subscriber must never be offered a second, StoreKit purchase for a plan
-  // they already have.
-  const canBuyNative = native && hasNativeIAP() && currentTier === "free";
+  // they already have. A demo session is excluded too — its RevenueCat SDK
+  // is never configured (native-iap.ts's initNativeIAP guards on
+  // !is_anonymous), so purchaseNative() would fail; startCheckout()'s
+  // existing "Create an account to start Pro." demo check is the correct
+  // path here instead.
+  const isDemoSession = window.getSession?.()?.mode === "demo";
+  const canBuyNative = native && hasNativeIAP() && currentTier === "free" && !isDemoSession;
+  const showManageText = native && !isDemoSession && (currentTier !== "free" || !hasNativeIAP());
   const [interval, setInterval] = React.useState("monthly");
   const [skipTrial, setSkipTrial] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -187,7 +196,7 @@ export function SubscriptionsPanel({ onClose, t }) {
           <button type="button" onClick={onClose} aria-label="Close" style={{ border: "none", background: "transparent", color: "color-mix(in srgb, var(--chrome-paper) 60%, transparent)", fontSize: 22, lineHeight: 1, cursor: "pointer", padding: 4 }}>×</button>
         </div>
 
-        {native && !canBuyNative ? (
+        {showManageText ? (
           <>
             <p style={{ margin: "20px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" }}>{COPY.native(t)}</p>
             {native && hasNativeIAP() && (
@@ -216,7 +225,6 @@ export function SubscriptionsPanel({ onClose, t }) {
                   fontWeight: 700, fontSize: 13, fontFamily: "var(--font-sans)",
                 }}>
                   {iv === "monthly" ? COPY.monthly(t) : COPY.yearly(t)}
-                  {iv === "yearly" && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "var(--chrome-gold)" }}>{COPY.yearlyBadge(t)}</span>}
                 </button>
               ))}
             </div>
@@ -232,7 +240,7 @@ export function SubscriptionsPanel({ onClose, t }) {
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
               {PLANS.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} t={t} interval={interval} currentTier={currentTier} busy={busy} skipTrial={skipTrial} onPick={pick} />
+                <PlanCard key={plan.id} plan={plan} t={t} interval={interval} currentTier={currentTier} busy={busy} skipTrial={skipTrial} canBuyNative={canBuyNative} onPick={pick} />
               ))}
             </div>
 

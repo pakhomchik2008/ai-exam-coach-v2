@@ -339,9 +339,20 @@ function AuthForm({ mode, onSwitchMode, onBack, onSuccess, onDemo, t, lang, onLa
   );
 }
 
+// App Store Connect's Privacy Policy URL field needs a link that opens
+// straight to the policy — the SPA otherwise always boots to "marketing"
+// with no way to deep-link, so ?legal=privacy (etc.) is read once on load.
+function initialLegalQuery() {
+  try {
+    return new URLSearchParams(window.location.search).get("legal");
+  } catch {
+    return null;
+  }
+}
+
 function Landing({ onContinue, t, lang, onLangChange }) {
-  const [view, setView] = React.useState("marketing"); // "marketing" | "signup" | "login" | "forgot" | "legal"
-  const [legalPage, setLegalPage] = React.useState("privacy");
+  const [view, setView] = React.useState(() => (initialLegalQuery() ? "legal" : "marketing")); // "marketing" | "signup" | "login" | "forgot" | "legal"
+  const [legalPage, setLegalPage] = React.useState(() => initialLegalQuery() || "privacy");
 
   // Awaited: window.startDemo() now signs in anonymously with Supabase, and the
   // demo user needs that JWT before the first AI call fires on the next screen.
