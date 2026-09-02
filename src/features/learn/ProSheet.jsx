@@ -152,6 +152,7 @@ export function ProSheet({ lockedCount, freeCount, onClose, t, reason = "learn" 
   }, React.createElement("div", {
     role: "dialog",
     "aria-modal": "true",
+    className: "learn-sheet-panel-safe",
     onClick: (e) => e.stopPropagation(),
     style: { background: "var(--chrome-ink)", padding: "16px 24px calc(30px + env(safe-area-inset-bottom, 0px))", borderRadius: "28px 28px 0 0", width: "100%", maxWidth: 520, boxSizing: "border-box" },
   },
