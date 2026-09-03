@@ -305,6 +305,13 @@ function trialEndEmail() {
     html: `<p>Your 3-day Pro trial ends tomorrow. The $5.99/month charge starts then. Cancel from the Stripe email if you do not want to continue.</p>`,
   };
 }
+function subscriptionRenewalEmail(tier, price) {
+  const label = tier === "ultra" ? "Ultra" : "Pro";
+  return {
+    subject: `Your ${label} plan renews in 3 days`,
+    html: `<p>Your ${label} subscription renews in 3 days${price ? ` at ${price}` : ""}. No action needed to continue — cancel any time before then from Manage Subscription if you don't want to renew.</p>`,
+  };
+}
 
 async function fetchTrialing(headers) {
   const url = `${SUPABASE_URL}/rest/v1/subscriptions?status=eq.trialing&select=user_id,trial_end&limit=1000`;
@@ -319,6 +326,19 @@ async function fetchTiers(headers) {
   const url = `${SUPABASE_URL}/rest/v1/subscriptions?select=user_id,tier&limit=1000`;
   const resp = await fetch(url, { headers });
   if (!resp.ok) return []; // table/column missing until Hlib runs 24_billing_tier.sql
+  return resp.json();
+}
+
+// Actively-renewing rows with their next charge date — status/
+// current_period_end come from either store (api/_stripe.js's webhook or
+// api/revenuecat-webhook.js's), so this one query covers a subscriber
+// regardless of whether they paid on web or through native StoreKit IAP.
+// past_due is deliberately excluded: that subscriber's charge already
+// failed, so "renews in 3 days" would be the wrong message to send them.
+async function fetchActiveSubs(headers) {
+  const url = `${SUPABASE_URL}/rest/v1/subscriptions?status=eq.active&select=user_id,tier,current_period_end&limit=1000`;
+  const resp = await fetch(url, { headers });
+  if (!resp.ok) return [];
   return resp.json();
 }
 
@@ -365,6 +385,10 @@ export default async function handler(req, res) {
   const tierByUser = new Map();
   for (const row of await fetchTiers(headers)) {
     if (row && row.user_id) tierByUser.set(row.user_id, row.tier);
+  }
+  const activeSubByUser = new Map();
+  for (const row of await fetchActiveSubs(headers)) {
+    if (row && row.user_id) activeSubByUser.set(row.user_id, row);
   }
   const results = { checked: 0, sent: 0, skipped: 0, errors: 0 };
 
@@ -499,6 +523,18 @@ export default async function handler(req, res) {
     const trialEnd = trialByUser.get(userId);
     if (trialEmailDue(trialEnd, now)) {
       await fire("trial_end", utcDateKey(new Date(trialEnd)), () => trialEndEmail());
+    }
+
+    // 7. Subscription renewal — 3 days before an active subscriber's next
+    // charge. Billing, not marketing — sent regardless of notifUnsubscribed,
+    // same as trial_end above.
+    const activeSub = activeSubByUser.get(userId);
+    if (activeSub && activeSub.current_period_end) {
+      const daysToRenewal = Math.ceil((new Date(activeSub.current_period_end) - now) / DAY_MS);
+      if (daysToRenewal === 3) {
+        const price = activeSub.tier === "ultra" ? "$9.99" : "$5.99";
+        await fire("subscription_renewal", utcDateKey(new Date(activeSub.current_period_end)), () => subscriptionRenewalEmail(activeSub.tier, price));
+      }
     }
   }
 

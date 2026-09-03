@@ -17,6 +17,7 @@ const COPY = {
   monthly: (t) => L5(t, "Monthly", "Щомісяця", "Ежемесячно", "Mensuel", "Monatlich"),
   yearly: (t) => L5(t, "Yearly", "Щорічно", "Ежегодно", "Annuel", "Jährlich"),
   current: (t) => L5(t, "Current plan", "Поточний план", "Текущий план", "Plan actuel", "Aktueller Plan"),
+  included: (t) => L5(t, "Included in your plan", "Входить у твій план", "Входит в твой план", "Inclus dans ton forfait", "In deinem Plan enthalten"),
   manageBilling: (t) => L5(t, "Manage billing", "Керувати оплатою", "Управлять оплатой", "Gérer la facturation", "Zahlung verwalten"),
   redirecting: (t) => L5(t, "Redirecting…", "Перехід…", "Переход…", "Redirection…", "Weiterleitung…"),
   tryFree: (t) => L5(t, "Try 3 days free", "3 дні безкоштовно", "3 дня бесплатно", "3 jours gratuits", "3 Tage gratis"),
@@ -82,8 +83,15 @@ function CheckIcon() {
   );
 }
 
+const TIER_RANK = { free: 0, pro: 1, ultra: 2 };
+
 function PlanCard({ plan, t, interval, currentTier, busy, skipTrial, canBuyNative, onPick }) {
   const isCurrent = currentTier === plan.id;
+  // A card ranked below what the subscriber already has (an Ultra subscriber
+  // looking at the Pro card) is already fully covered by Ultra — showing a
+  // "Try Pro free" buy button there reads as a downgrade upsell, which is
+  // wrong: Ultra includes everything Pro does.
+  const isIncluded = !isCurrent && plan.id !== "free" && TIER_RANK[plan.id] < TIER_RANK[currentTier];
   const price = plan.price[interval];
   return (
     <div style={{
@@ -113,6 +121,8 @@ function PlanCard({ plan, t, interval, currentTier, busy, skipTrial, canBuyNativ
       </ul>
       {isCurrent ? (
         <div style={{ textAlign: "center", padding: "10px 0", fontSize: 13, fontWeight: 700, color: "var(--chrome-gold)" }}>{COPY.current(t)}</div>
+      ) : isIncluded ? (
+        <div style={{ textAlign: "center", padding: "10px 0", fontSize: 13, fontWeight: 700, color: "color-mix(in srgb, var(--chrome-paper) 55%, transparent)" }}>{COPY.included(t)}</div>
       ) : plan.id === "free" ? null : (
         <button type="button" disabled={busy} onClick={() => onPick(plan.id)} style={{
           width: "100%", padding: 12, borderRadius: 999, border: "none", cursor: busy ? "default" : "pointer",

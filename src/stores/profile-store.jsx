@@ -106,6 +106,10 @@ function migrateProfile(raw) {
     // existing profiles with no `tier` field derive it from the old boolean
     // so nobody's model routing silently changes on this migration alone.
     tier: ["free", "sprint", "pro", "ultra"].includes(p.tier) ? p.tier : (p.pro === true ? "pro" : "free"),
+    // Raw subscriptions.status, synced by refreshProStatus() — lets Dashboard
+    // tell "never subscribed" apart from "subscribed, then canceled" once
+    // `tier` alone has already fallen back to "free" for both cases.
+    subStatus: typeof p.subStatus === "string" ? p.subStatus : null,
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",
     currentYear: typeof p.currentYear === "string" ? p.currentYear : "",
