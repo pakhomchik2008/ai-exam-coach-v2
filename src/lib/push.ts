@@ -1,13 +1,26 @@
-// Examik — OneSignal Web Push glue (Phase 3 §3.5 follow-up).
+// Examik — push notifications glue (Phase 3 §3.5, native follow-up).
 //
-// The SDK is injected from here, not from index.html. OneSignal's dashboard
-// is scoped to production; loading it on a preview origin throws
-// "Can only be used on: https://ai-exam-coach-v2.vercel.app" and the leftover
-// service worker intercepts hashed /assets/*.js after a deploy — Safari
-// then whitescreens. Preview/local skip the SDK and drop any worker.
+// Two entirely separate delivery paths, both landing on the same OneSignal
+// app id and the same `external_id` = Supabase user id, so
+// api/notifications-cron.js's sendPush() (one REST call, targets by
+// external_id) reaches whichever one the student actually has:
+//
+//   - Web: the JS SDK below, service-worker based. Only works on the real
+//     prod origin (OneSignal's dashboard is scoped to it) — a Capacitor
+//     WKWebView's origin is capacitor://localhost, not that origin, so this
+//     path is a deliberate no-op on native.
+//   - Native iOS: onesignal-cordova-plugin, OneSignal's own native SDK
+//     wrapper. Registers the device with APNs directly; no web/service-worker
+//     involved. Needs the aps-environment entitlement (App.entitlements) and
+//     an APNs Auth Key uploaded to OneSignal's iOS platform settings — pure
+//     app-code can't do either of those, see docs/phase-5-billing-tiers-plan.md
+//     sibling audit notes for the manual setup checklist.
 //
 // `external_id` = the Supabase user id — set via OneSignal.login() on sign-in
 // so api/notifications-cron.js can target a user by id alone.
+
+import { isNativeIOS } from "./platform";
+import NativeOneSignal from "onesignal-cordova-plugin";
 
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
@@ -22,6 +35,7 @@ function isProdPushHost(): boolean {
 }
 
 function isPushSupported(): boolean {
+  if (isNativeIOS()) return !!APP_ID;
   return typeof window !== "undefined" && !!APP_ID && isProdPushHost();
 }
 
@@ -53,6 +67,11 @@ function loadOneSignalSdk(): void {
 }
 
 function initPush(): void {
+  if (isNativeIOS()) {
+    if (!APP_ID) return;
+    try { NativeOneSignal.initialize(APP_ID); } catch { /* device without push entitlement, e.g. simulator */ }
+    return;
+  }
   if (!isProdPushHost()) {
     dropForeignServiceWorkers();
     return;
@@ -71,14 +90,30 @@ function initPush(): void {
 
 function identifyPushUser(userId: string): void {
   if (!userId) return;
+  if (isNativeIOS()) {
+    if (!isPushSupported()) return;
+    try { NativeOneSignal.login(userId); } catch { /* not yet initialized */ }
+    return;
+  }
   withOneSignal((OneSignal) => OneSignal.login(userId));
 }
 
 function logoutPushUser(): void {
+  if (isNativeIOS()) {
+    if (!isPushSupported()) return;
+    try { NativeOneSignal.logout(); } catch { /* not yet initialized */ }
+    return;
+  }
   withOneSignal((OneSignal) => OneSignal.logout());
 }
 
 function requestPushPermission(): Promise<string> {
+  if (isNativeIOS()) {
+    if (!isPushSupported()) return Promise.resolve("unsupported");
+    return NativeOneSignal.Notifications.requestPermission(true)
+      .then((granted: boolean) => (granted ? "granted" : "denied"))
+      .catch(() => "denied");
+  }
   return new Promise((resolve) => {
     if (!isPushSupported()) { resolve("unsupported"); return; }
     withOneSignal(async (OneSignal) => {
