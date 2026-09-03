@@ -35,6 +35,10 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Examik uses your microphone so you can practice speaking answers out loud.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

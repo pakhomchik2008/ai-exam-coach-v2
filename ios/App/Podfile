@@ -21,6 +21,16 @@ end
 target 'App' do
   capacitor_pods
   pod 'RevenuecatPurchasesCapacitor', :path => '../../node_modules/@revenuecat/purchases-capacitor'
+
+  # onesignal-cordova-plugin is a Cordova (not Capacitor-native) plugin — its
+  # Swift/ObjC bridge code lives in the generated capacitor-cordova-ios-plugins
+  # target, and its own native SDK dependency is declared in its plugin.xml
+  # (nospm="true", so it can't go on SPM like the other plugins above). A
+  # Podfile `cap sync` generates from scratch wires both of these in
+  # automatically; this one is hand-maintained (see the RevenueCat comment
+  # above), so both are added by hand here instead.
+  pod 'CordovaPluginsResources', :path => '../capacitor-cordova-ios-plugins'
+  pod 'OneSignalCordovaDependencies', :git => 'https://github.com/OneSignal/OneSignal-Cordova-SDK.git', :tag => '5.5.4'
 end
 
 post_install do |installer|

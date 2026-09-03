@@ -2,6 +2,58 @@ PODS:
   - Capacitor (8.5.0):
     - CapacitorCordova
   - CapacitorCordova (8.5.0)
+  - CordovaPluginsResources (0.0.105)
+  - OneSignalCordovaDependencies (5.5.4):
+    - OneSignalXCFramework (= 5.5.6)
+  - OneSignalXCFramework (5.5.6):
+    - OneSignalXCFramework/OneSignalComplete (= 5.5.6)
+  - OneSignalXCFramework/OneSignal (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalExtension
+    - OneSignalXCFramework/OneSignalLiveActivities
+    - OneSignalXCFramework/OneSignalNotifications
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalOutcomes
+    - OneSignalXCFramework/OneSignalUser
+  - OneSignalXCFramework/OneSignalComplete (5.5.6):
+    - OneSignalXCFramework/OneSignal
+    - OneSignalXCFramework/OneSignalInAppMessages
+    - OneSignalXCFramework/OneSignalLocation
+  - OneSignalXCFramework/OneSignalCore (5.5.6)
+  - OneSignalXCFramework/OneSignalExtension (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalOutcomes
+  - OneSignalXCFramework/OneSignalInAppMessages (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalNotifications
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalOutcomes
+    - OneSignalXCFramework/OneSignalUser
+  - OneSignalXCFramework/OneSignalLiveActivities (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalUser
+  - OneSignalXCFramework/OneSignalLocation (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalNotifications
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalUser
+  - OneSignalXCFramework/OneSignalNotifications (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalExtension
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalOutcomes
+  - OneSignalXCFramework/OneSignalOSCore (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+  - OneSignalXCFramework/OneSignalOutcomes (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalOSCore
+  - OneSignalXCFramework/OneSignalUser (5.5.6):
+    - OneSignalXCFramework/OneSignalCore
+    - OneSignalXCFramework/OneSignalNotifications
+    - OneSignalXCFramework/OneSignalOSCore
+    - OneSignalXCFramework/OneSignalOutcomes
   - PurchasesHybridCommon (14.3.0):
     - RevenueCat (= 5.32.0)
   - RevenueCat (5.32.0)
@@ -12,10 +64,13 @@ PODS:
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - CordovaPluginsResources (from `../capacitor-cordova-ios-plugins`)
+  - OneSignalCordovaDependencies (from `https://github.com/OneSignal/OneSignal-Cordova-SDK.git`, tag `5.5.4`)
   - "RevenuecatPurchasesCapacitor (from `../../node_modules/@revenuecat/purchases-capacitor`)"
 
 SPEC REPOS:
   trunk:
+    - OneSignalXCFramework
     - PurchasesHybridCommon
     - RevenueCat
 
@@ -24,16 +79,29 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CordovaPluginsResources:
+    :path: "../capacitor-cordova-ios-plugins"
+  OneSignalCordovaDependencies:
+    :git: https://github.com/OneSignal/OneSignal-Cordova-SDK.git
+    :tag: 5.5.4
   RevenuecatPurchasesCapacitor:
     :path: "../../node_modules/@revenuecat/purchases-capacitor"
+
+CHECKOUT OPTIONS:
+  OneSignalCordovaDependencies:
+    :git: https://github.com/OneSignal/OneSignal-Cordova-SDK.git
+    :tag: 5.5.4
 
 SPEC CHECKSUMS:
   Capacitor: 00b87168591cc006ea6f5c0de681ec5c39a2c8eb
   CapacitorCordova: 9d3acbb574048e7167d2af127a0af2123e619f2f
+  CordovaPluginsResources: da93847212bf7b16ba770e4d6c3e7dba820174c7
+  OneSignalCordovaDependencies: 09873d75a688fa76392d22034765e1a3b044d1f8
+  OneSignalXCFramework: 9a0f33eaef7544788a2b04f067e90fe18759fdf9
   PurchasesHybridCommon: 7f0944cc5411bdcd1ea5d69affa6a6f9aaf87b13
   RevenueCat: 7e1d0768fb287c9983173c9b28e39ccbeeb828a9
   RevenuecatPurchasesCapacitor: c84ce1cd5253bf22758c28decfb4313267cabb2c
 
-PODFILE CHECKSUM: 9ae8507040cd79617b3a5f6d774b4366acebec4b
+PODFILE CHECKSUM: 80f53b3dfa71e9d00ffaa7340559410e90077abf
 
 COCOAPODS: 1.17.0
