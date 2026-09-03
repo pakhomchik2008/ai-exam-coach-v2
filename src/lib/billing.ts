@@ -11,7 +11,7 @@ export function isProStatus(status: string | undefined | null): boolean {
 }
 
 type SessionLike = { id?: string; mode?: string };
-type ProfileLike = { pro?: boolean; tier?: string };
+type ProfileLike = { pro?: boolean; tier?: string; subStatus?: string | null };
 type BillingFlag = "success" | "cancel";
 
 function w(): Window & {
@@ -106,7 +106,14 @@ export async function refreshProStatus(): Promise<boolean> {
   if (!data) return cached;
   const pro = isProStatus(data.status);
   const tier = data.tier === "sprint" || data.tier === "pro" || data.tier === "ultra" ? data.tier : "free";
+  const subStatus = typeof data.status === "string" ? data.status : null;
   const current = w().getProfile?.();
-  if (current && (current.pro !== pro || current.tier !== tier)) w().saveProfile?.({ pro, tier });
+  // subStatus is what lets Dashboard tell "never subscribed" apart from
+  // "subscribed, then canceled" once tier has fallen back to free — the tier
+  // field alone can't distinguish those two, and only the second one should
+  // show a "renew" prompt.
+  if (current && (current.pro !== pro || current.tier !== tier || current.subStatus !== subStatus)) {
+    w().saveProfile?.({ pro, tier, subStatus });
+  }
   return pro;
 }

@@ -84,8 +84,8 @@ describe("verifyStripeSignature", () => {
 describe("refreshProStatus", () => {
   const w = window as unknown as {
     getSession?: () => { id: string };
-    getProfile?: () => { pro?: boolean; tier?: string };
-    saveProfile?: (patch: { pro?: boolean; tier?: string }) => void;
+    getProfile?: () => { pro?: boolean; tier?: string; subStatus?: string | null };
+    saveProfile?: (patch: { pro?: boolean; tier?: string; subStatus?: string | null }) => void;
     _supabase?: unknown;
   };
 
@@ -98,7 +98,7 @@ describe("refreshProStatus", () => {
 
   it("caches tier alongside pro when the row has both (Phase 5 slice D)", async () => {
     w.getSession = () => ({ id: "u1" });
-    w.getProfile = () => ({ pro: false, tier: "free" });
+    w.getProfile = () => ({ pro: false, tier: "free", subStatus: null });
     const saved: unknown[] = [];
     w.saveProfile = (patch) => saved.push(patch);
     w._supabase = {
@@ -112,12 +112,12 @@ describe("refreshProStatus", () => {
     };
     const pro = await refreshProStatus();
     expect(pro).toBe(true);
-    expect(saved).toEqual([{ pro: true, tier: "ultra" }]);
+    expect(saved).toEqual([{ pro: true, tier: "ultra", subStatus: "active" }]);
   });
 
   it("falls back to free for an unrecognized tier value, never crashes", async () => {
     w.getSession = () => ({ id: "u1" });
-    w.getProfile = () => ({ pro: false, tier: "free" });
+    w.getProfile = () => ({ pro: false, tier: "free", subStatus: null });
     const saved: unknown[] = [];
     w.saveProfile = (patch) => saved.push(patch);
     w._supabase = {
@@ -130,12 +130,12 @@ describe("refreshProStatus", () => {
       }),
     };
     await refreshProStatus();
-    expect(saved).toEqual([{ pro: true, tier: "free" }]);
+    expect(saved).toEqual([{ pro: true, tier: "free", subStatus: "active" }]);
   });
 
   it("does not write when nothing changed", async () => {
     w.getSession = () => ({ id: "u1" });
-    w.getProfile = () => ({ pro: true, tier: "ultra" });
+    w.getProfile = () => ({ pro: true, tier: "ultra", subStatus: "active" });
     const saved: unknown[] = [];
     w.saveProfile = (patch) => saved.push(patch);
     w._supabase = {

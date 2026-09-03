@@ -1,6 +1,7 @@
 // Examik — Dashboard: next action, week strip, gauges, today's sessions.
 import { isProUser, isUltraUser } from "../learn/premium";
 import { CoachMark } from "../../components/CoachMark.jsx";
+import { SubscriptionsPanel } from "../billing/SubscriptionsPanel.jsx";
 
 const ADD_EXAM_TOUR_COPY = {
   en: "Start here — add your exam and Examik builds a study plan around it.",
@@ -174,6 +175,7 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
   // week read 100% without a single real minute behind it.)
   const weekData = window.deriveWeek([t.mon,t.tue,t.wed,t.thu,t.fri,t.sat,t.sun]);
   const profile = window.getProfile ? window.getProfile() : { weeklyHours: 12 };
+  const [subsOpen, setSubsOpen] = React.useState(false);
   const weeklyGoalH = profile.weeklyHours || 12;
   const secStudied = window.secondsStudiedThisWeek ? window.secondsStudiedThisWeek() : 0;
   const hoursStudied = Math.round((secStudied / 3600) * 10) / 10;
@@ -217,6 +219,20 @@ function Dashboard({ onOpenCourse, onGoToChat, onGoToExams, onGoToSchedule, onGo
           <button onClick={() => setAdaptMsg(null)} style={{ border: "none", background: "transparent", color: "var(--indigo-400)", cursor: "pointer", fontSize: 16, padding: 0 }}>✕</button>
         </div>
       )}
+
+      {/* ── Lapsed subscription — was paid, isn't anymore ─── */}
+      {profile.tier === "free" && profile.subStatus === "canceled" && (
+        <div style={{ borderRadius: "var(--radius-xl)", background: "linear-gradient(135deg, var(--red-50), var(--red-100))", border: "1.5px solid var(--red-200)", padding: "14px var(--space-4)", display: "flex", alignItems: "center", gap: "var(--space-3)", animation: "fadeUp 0.4s ease" }}>
+          <span style={{ fontSize: 22 }}>⚠️</span>
+          <span style={{ flex: 1, fontSize: "var(--text-sm)", fontWeight: "var(--weight-semibold)", color: "var(--red-700)" }}>
+            {L("Your plan lapsed — Calendar and Journal are locked again.","Твій план завершився — Календар і Журнал знову закриті.","Твой план закончился — Календарь и Журнал снова закрыты.","Ton forfait a expiré — Calendrier et Journal sont de nouveau verrouillés.","Dein Plan ist abgelaufen — Kalender und Journal sind wieder gesperrt.")}
+          </span>
+          <button onClick={() => setSubsOpen(true)} style={{ border: "none", borderRadius: 999, background: "var(--red-600)", color: "#fff", fontWeight: "var(--weight-bold)", fontSize: "var(--text-sm)", padding: "8px 16px", cursor: "pointer", whiteSpace: "nowrap", fontFamily: "var(--font-sans)" }}>
+            {L("Renew subscription","Поновити підписку","Продлить подписку","Renouveler l'abonnement","Abo erneuern")}
+          </button>
+        </div>
+      )}
+      {subsOpen && <SubscriptionsPanel onClose={() => setSubsOpen(false)} t={t} />}
 
       {/* ── Phase 4: Exam Countdown Banner (< 7 days) ─────── */}
       {(() => {
