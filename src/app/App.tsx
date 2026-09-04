@@ -132,6 +132,15 @@ export function App() {
     return () => window.removeEventListener("storage", onStorage);
   }, [getSession, isPasswordRecovery]);
 
+  // route is the only signal this component has for "a session just became
+  // available" (sign-in doesn't otherwise re-render past this effect's
+  // [billingNote] deps) — without this, logging in without a full page
+  // reload leaves profile.tier stuck at whatever it was before sign-in,
+  // even when the subscriptions row the server already has is Pro/Ultra.
+  React.useEffect(() => {
+    if (route === "app") void refreshProStatus();
+  }, [route]);
+
   React.useEffect(() => {
     void refreshProStatus();
     if (billingNote !== "success") return;
