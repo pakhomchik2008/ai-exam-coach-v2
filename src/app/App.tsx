@@ -132,6 +132,19 @@ export function App() {
     return () => window.removeEventListener("storage", onStorage);
   }, [getSession, isPasswordRecovery]);
 
+  // profile-store.jsx already notifies on every saveProfile() call
+  // (subscribeProfile/_notifyProfile) — nothing here was ever listening.
+  // AppNav's plan badge and every other spot that reads window.getProfile()
+  // directly at render time only picked up a change on the next unrelated
+  // re-render, so refreshProStatus() resolving asynchronously after sign-in
+  // (or a purchase) looked like it silently did nothing: the profile was
+  // already correct, the screen just hadn't been told to look again.
+  React.useEffect(() => {
+    const subscribeProfile = legacyOptional<(fn: () => void) => () => void>("subscribeProfile");
+    if (!subscribeProfile) return;
+    return subscribeProfile(() => setDataVersion((v) => v + 1));
+  }, []);
+
   // route is the only signal this component has for "a session just became
   // available" (sign-in doesn't otherwise re-render past this effect's
   // [billingNote] deps) — without this, logging in without a full page
