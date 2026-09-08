@@ -35,6 +35,10 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Examik uses your microphone so you can practice speaking answers out loud.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Examik uses your camera so you can photograph a syllabus page or a problem to add to your study plan.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Examik needs access to your photos so you can attach a saved image of a syllabus page or a problem.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
