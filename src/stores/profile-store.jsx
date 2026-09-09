@@ -110,6 +110,11 @@ function migrateProfile(raw) {
     // tell "never subscribed" apart from "subscribed, then canceled" once
     // `tier` alone has already fallen back to "free" for both cases.
     subStatus: typeof p.subStatus === "string" ? p.subStatus : null,
+    // Which store sold the current subscription — "stripe" or "native"
+    // (RevenueCat/StoreKit), synced by refreshProStatus(). Lets
+    // SubscriptionsPanel.jsx point a native subscriber at Settings › Apple ID
+    // › Subscriptions instead of the Stripe portal on examik.net.
+    billingSource: p.billingSource === "stripe" || p.billingSource === "native" ? p.billingSource : null,
     country: typeof p.country === "string" ? p.country : "",
     educationLevel: typeof p.educationLevel === "string" ? p.educationLevel : "",
     currentYear: typeof p.currentYear === "string" ? p.currentYear : "",

@@ -11,7 +11,7 @@ export function isProStatus(status: string | undefined | null): boolean {
 }
 
 type SessionLike = { id?: string; mode?: string };
-type ProfileLike = { pro?: boolean; tier?: string; subStatus?: string | null };
+type ProfileLike = { pro?: boolean; tier?: string; subStatus?: string | null; billingSource?: string | null };
 type BillingFlag = "success" | "cancel";
 
 function w(): Window & {
@@ -24,7 +24,7 @@ function w(): Window & {
       select: (cols: string) => {
         eq: (col: string, val: string) => {
           maybeSingle: () => Promise<{
-            data: { status?: string; trial_end?: string; current_period_end?: string; tier?: string } | null;
+            data: { status?: string; trial_end?: string; current_period_end?: string; tier?: string; stripe_customer_id?: string | null } | null;
             error: { code?: string } | null;
           }>;
         };
@@ -101,19 +101,25 @@ export async function refreshProStatus(): Promise<boolean> {
   const sb = w()._supabase;
   const cached = w().getProfile?.()?.pro === true;
   if (!session?.id || !sb) return cached;
-  const { data, error } = await sb.from("subscriptions").select("status,tier").eq("user_id", session.id).maybeSingle();
+  const { data, error } = await sb.from("subscriptions").select("status,tier,stripe_customer_id").eq("user_id", session.id).maybeSingle();
   if (error) return cached;
   if (!data) return cached;
   const pro = isProStatus(data.status);
   const tier = data.tier === "sprint" || data.tier === "pro" || data.tier === "ultra" ? data.tier : "free";
   const subStatus = typeof data.status === "string" ? data.status : null;
+  // A row with no stripe_customer_id came from RevenueCat's webhook (native
+  // StoreKit purchase) — SubscriptionsPanel.jsx needs this to know whether
+  // "manage your plan" should point at examik.net (Stripe) or at Settings ›
+  // Apple ID › Subscriptions (StoreKit); the tier/status columns alone don't
+  // say which store sold the subscription.
+  const billingSource = data.stripe_customer_id ? "stripe" : "native";
   const current = w().getProfile?.();
   // subStatus is what lets Dashboard tell "never subscribed" apart from
   // "subscribed, then canceled" once tier has fallen back to free — the tier
   // field alone can't distinguish those two, and only the second one should
   // show a "renew" prompt.
-  if (current && (current.pro !== pro || current.tier !== tier || current.subStatus !== subStatus)) {
-    w().saveProfile?.({ pro, tier, subStatus });
+  if (current && (current.pro !== pro || current.tier !== tier || current.subStatus !== subStatus || current.billingSource !== billingSource)) {
+    w().saveProfile?.({ pro, tier, subStatus, billingSource });
   }
   return pro;
 }
