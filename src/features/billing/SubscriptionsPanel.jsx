@@ -3,9 +3,18 @@
 // gold language as ProSheet.jsx (that file owns the paywall moment; this one
 // owns "let me see and change my plan" as its own screen, not a paywall).
 
+import { Browser } from "@capacitor/browser";
 import { startCheckout, startBillingPortal, pollProStatus } from "../../lib/billing";
 import { isNativeIOS } from "../../lib/platform";
 import { hasNativeIAP, purchaseNative, restoreNativePurchases } from "../../lib/native-iap";
+
+// Schedule 2, §3.1.2 wants functional Terms of Use / Privacy Policy links on
+// the purchase screen itself, not just reachable a few taps away in
+// Settings. Browser.open() is a no-op-safe wrapper — on native it opens
+// Safari View Controller, on web it's a normal new-tab window.open().
+function openLegal(page) {
+  Browser.open({ url: `https://www.examik.net/?legal=${page}` });
+}
 
 function L5(t, en, uk, ru, fr, de) {
   return { en, uk, ru, fr, de }[t?.code] || en;
@@ -39,6 +48,8 @@ const COPY = {
   restore: (t) => L5(t, "Restore purchases", "Відновити покупки", "Восстановить покупки", "Restaurer les achats", "Käufe wiederherstellen"),
   restoring: (t) => L5(t, "Restoring…", "Відновлення…", "Восстановление…", "Restauration…", "Wird wiederhergestellt…"),
   billedByApple: (t) => L5(t, "Billed by Apple · cancel anytime in Settings", "Оплата через Apple · скасування в Налаштуваннях", "Оплата через Apple · отмена в Настройках", "Facturé par Apple · annulation dans Réglages", "Abgerechnet von Apple · Kündigung in den Einstellungen"),
+  terms: (t) => L5(t, "Terms of use", "Умови використання", "Условия использования", "Conditions", "Nutzungsbedingungen"),
+  privacy: (t) => L5(t, "Privacy policy", "Політика конфіденційності", "Политика конфиденциальности", "Confidentialité", "Datenschutz"),
 };
 
 const PLANS = [
@@ -269,6 +280,15 @@ export function SubscriptionsPanel({ onClose, t }) {
               {PLANS.map((plan) => (
                 <PlanCard key={plan.id} plan={plan} t={t} interval={interval} currentTier={currentTier} busy={busy} skipTrial={skipTrial} canBuyNative={canBuyNative} onPick={pick} />
               ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "center", gap: 16, margin: "16px 0 0" }}>
+              <button type="button" onClick={() => openLegal("terms")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12, color: "color-mix(in srgb, var(--chrome-paper) 55%, transparent)", textDecoration: "underline" }}>
+                {COPY.terms(t)}
+              </button>
+              <button type="button" onClick={() => openLegal("privacy")} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12, color: "color-mix(in srgb, var(--chrome-paper) 55%, transparent)", textDecoration: "underline" }}>
+                {COPY.privacy(t)}
+              </button>
             </div>
 
             {canBuyNative && (
