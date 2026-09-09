@@ -1,9 +1,16 @@
 // Pro gate — Learn lock, second exam, calendar, journal.
 // Copy stays tied to what Free actually opens. Checkout is a server redirect.
 
+import { Browser } from "@capacitor/browser";
 import { startCheckout, pollProStatus } from "../../lib/billing";
 import { isNativeIOS } from "../../lib/platform";
 import { hasNativeIAP, purchaseNative } from "../../lib/native-iap";
+
+// Same helper as SubscriptionsPanel.jsx — Schedule 2 §3.1.2 wants functional
+// Terms/Privacy links on the purchase screen itself, not just in Settings.
+function openLegal(page) {
+  Browser.open({ url: `https://www.examik.net/?legal=${page}` });
+}
 
 function L5(t, en, uk, ru, fr, de) {
   return { en, uk, ru, fr, de }[t?.code] || en;
@@ -77,6 +84,11 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
   // shows "Create an account to start Pro." inline without ever navigating
   // the WebView anywhere (postBilling checks session.mode before any fetch).
   const showManageText = native && !isDemoSession && (alreadyPaid || !hasNativeIAP());
+  // Same distinction as SubscriptionsPanel.jsx: a plan bought through
+  // StoreKit is billed by Apple, not us — "examik.net" is wrong for that
+  // subscriber and reads like the "manage elsewhere" framing App Review
+  // flags. billingSource is synced onto the profile by billing.ts.
+  const isAppleBilled = alreadyPaid && window.getProfile?.()?.billingSource === "native";
 
   async function upgrade(tier = "pro") {
     setBusy(true);
@@ -108,8 +120,16 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
     React.createElement("p", { style: { margin: "0 0 20px", fontSize: 16, lineHeight: 1.55, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } }, body),
     error ? React.createElement("p", { style: { margin: "0 0 12px", fontSize: 13, color: "#F87171" } }, error) : null,
     showManageText
-      ? React.createElement("p", { style: { margin: 0, padding: "17px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } },
-          L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"))
+      ? React.createElement(React.Fragment, null,
+          React.createElement("p", { style: { margin: 0, padding: "17px 0 8px", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" } },
+            isAppleBilled
+              ? L5(t, "Manage your plan in Settings", "Керуй планом у Налаштуваннях", "Управляй планом в Настройках", "Gère ton abonnement dans Réglages", "Verwalte deinen Plan in den Einstellungen")
+              : L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net")),
+          isAppleBilled ? React.createElement("button", {
+            type: "button",
+            onClick: () => { window.location.href = "itms-apps://apps.apple.com/account/subscriptions"; },
+            style: { display: "block", margin: "0 auto", padding: "10px 18px", borderRadius: 999, border: "none", background: "var(--chrome-paper)", color: "var(--chrome-ink)", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)" },
+          }, L5(t, "Open Subscriptions", "Відкрити підписки", "Открыть подписки", "Ouvrir les abonnements", "Abos öffnen")) : null)
       : React.createElement(React.Fragment, null,
           React.createElement("button", {
             type: "button",
@@ -135,7 +155,16 @@ function PaywallBody({ reason, freeCount, lockedCount, onClose, t, page }) {
             // something Examik doesn't control on this path.
             canBuyNative
               ? L5(t, "BILLED BY APPLE · CANCEL ANYTIME IN SETTINGS", "ОПЛАТА ЧЕРЕЗ APPLE · СКАСУВАННЯ В НАЛАШТУВАННЯХ", "ОПЛАТА ЧЕРЕЗ APPLE · ОТМЕНА В НАСТРОЙКАХ", "FACTURÉ PAR APPLE · ANNULATION DANS LES RÉGLAGES", "ABGERECHNET VON APPLE · KÜNDIGUNG IN DEN EINSTELLUNGEN")
-              : L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR"))),
+              : L5(t, "REFUNDS 14 DAYS · CANCEL ANYTIME", "ПОВЕРНЕННЯ 14 ДНІВ · СКАСУВАННЯ БУДЬ-КОЛИ", "ВОЗВРАТ 14 ДНЕЙ · ОТМЕНА В ЛЮБОЙ МОМЕНТ", "REMBOURSEMENT 14 JOURS · ANNULATION LIBRE", "RÜCKERSTATTUNG 14 TAGE · JEDERZEIT KÜNDBAR")),
+          React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 16, margin: "10px 0 0" } },
+            React.createElement("button", {
+              type: "button", onClick: () => openLegal("terms"),
+              style: { background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)", textDecoration: "underline" },
+            }, L5(t, "Terms of use", "Умови використання", "Условия использования", "Conditions", "Nutzungsbedingungen")),
+            React.createElement("button", {
+              type: "button", onClick: () => openLegal("privacy"),
+              style: { background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11, color: "color-mix(in srgb, var(--chrome-paper) 45%, transparent)", textDecoration: "underline" },
+            }, L5(t, "Privacy policy", "Політика конфіденційності", "Политика конфиденциальности", "Confidentialité", "Datenschutz")))),
     onClose && !page ? React.createElement("button", {
       type: "button",
       onClick: onClose,
