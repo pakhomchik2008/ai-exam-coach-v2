@@ -28,6 +28,12 @@ const COPY = {
   buyNow: (t, plan) => L5(t, `Buy ${plan}`, `Купити ${plan}`, `Купить ${plan}`, `Acheter ${plan}`, `${plan} kaufen`),
   skipTrial: (t) => L5(t, "Skip the 3-day trial — charge me today", "Без 3-денного пробного — оплата сьогодні", "Без 3-дневного пробного — оплата сегодня", "Sans les 3 jours d'essai — facturer aujourd'hui", "Ohne 3-Tage-Testphase — heute abrechnen"),
   native: (t) => L5(t, "Manage your plan on examik.net", "Керуй планом на examik.net", "Управляй планом на examik.net", "Gère ton abonnement sur examik.net", "Verwalte deinen Plan auf examik.net"),
+  // A subscription RevenueCat's webhook wrote (billingSource "native") was
+  // sold and is billed by Apple, not by us — pointing that subscriber at
+  // examik.net/Stripe would be both wrong and, on a StoreKit purchase,
+  // exactly the kind of "manage elsewhere" framing Apple review flags.
+  nativeApple: (t) => L5(t, "Manage your plan in Settings", "Керуй планом у Налаштуваннях", "Управляй планом в Настройках", "Gère ton abonnement dans Réglages", "Verwalte deinen Plan in den Einstellungen"),
+  openAppleSettings: (t) => L5(t, "Open Subscriptions", "Відкрити підписки", "Открыть подписки", "Ouvrir les abonnements", "Abos öffnen"),
   demoError: (t) => L5(t, "Create an account to start Pro.", "Створи акаунт, щоб почати Pro.", "Создай аккаунт, чтобы начать Pro.", "Crée un compte pour démarrer Pro.", "Erstelle ein Konto, um Pro zu starten."),
   purchasing: (t) => L5(t, "Purchasing…", "Купівля…", "Покупка…", "Achat…", "Kauf läuft…"),
   restore: (t) => L5(t, "Restore purchases", "Відновити покупки", "Восстановить покупки", "Restaurer les achats", "Käufe wiederherstellen"),
@@ -150,6 +156,11 @@ export function SubscriptionsPanel({ onClose, t }) {
   const isDemoSession = window.getSession?.()?.mode === "demo";
   const canBuyNative = native && hasNativeIAP() && currentTier === "free" && !isDemoSession;
   const showManageText = native && !isDemoSession && (currentTier !== "free" || !hasNativeIAP());
+  // A subscriber with an active plan whose billingSource is "native" bought
+  // it through StoreKit — Apple, not us, holds that billing relationship, so
+  // "manage" has to point at Settings › Apple ID › Subscriptions, not
+  // examik.net (see billing.ts's refreshProStatus()).
+  const isAppleBilled = currentTier !== "free" && profile.billingSource === "native";
   const [interval, setInterval] = React.useState("monthly");
   const [skipTrial, setSkipTrial] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -208,7 +219,13 @@ export function SubscriptionsPanel({ onClose, t }) {
 
         {showManageText ? (
           <>
-            <p style={{ margin: "20px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" }}>{COPY.native(t)}</p>
+            <p style={{ margin: "20px 0", textAlign: "center", fontSize: 15, fontWeight: 600, color: "color-mix(in srgb, var(--chrome-paper) 72%, transparent)" }}>{isAppleBilled ? COPY.nativeApple(t) : COPY.native(t)}</p>
+            {isAppleBilled && (
+              <button type="button" onClick={() => { window.location.href = "itms-apps://apps.apple.com/account/subscriptions"; }} style={{
+                display: "block", margin: "0 auto 12px", padding: "10px 18px", borderRadius: 999, border: "none",
+                background: "var(--chrome-paper)", color: "var(--chrome-ink)", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "var(--font-sans)",
+              }}>{COPY.openAppleSettings(t)}</button>
+            )}
             {native && hasNativeIAP() && (
               <button type="button" disabled={restoring} onClick={restore} style={{
                 display: "block", margin: "0 auto", padding: "10px 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)",

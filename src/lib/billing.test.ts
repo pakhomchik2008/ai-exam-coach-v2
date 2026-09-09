@@ -84,8 +84,8 @@ describe("verifyStripeSignature", () => {
 describe("refreshProStatus", () => {
   const w = window as unknown as {
     getSession?: () => { id: string };
-    getProfile?: () => { pro?: boolean; tier?: string; subStatus?: string | null };
-    saveProfile?: (patch: { pro?: boolean; tier?: string; subStatus?: string | null }) => void;
+    getProfile?: () => { pro?: boolean; tier?: string; subStatus?: string | null; billingSource?: string | null };
+    saveProfile?: (patch: { pro?: boolean; tier?: string; subStatus?: string | null; billingSource?: string | null }) => void;
     _supabase?: unknown;
   };
 
@@ -112,7 +112,7 @@ describe("refreshProStatus", () => {
     };
     const pro = await refreshProStatus();
     expect(pro).toBe(true);
-    expect(saved).toEqual([{ pro: true, tier: "ultra", subStatus: "active" }]);
+    expect(saved).toEqual([{ pro: true, tier: "ultra", subStatus: "active", billingSource: "native" }]);
   });
 
   it("falls back to free for an unrecognized tier value, never crashes", async () => {
@@ -130,12 +130,12 @@ describe("refreshProStatus", () => {
       }),
     };
     await refreshProStatus();
-    expect(saved).toEqual([{ pro: true, tier: "free", subStatus: "active" }]);
+    expect(saved).toEqual([{ pro: true, tier: "free", subStatus: "active", billingSource: "native" }]);
   });
 
   it("does not write when nothing changed", async () => {
     w.getSession = () => ({ id: "u1" });
-    w.getProfile = () => ({ pro: true, tier: "ultra", subStatus: "active" });
+    w.getProfile = () => ({ pro: true, tier: "ultra", subStatus: "active", billingSource: "native" });
     const saved: unknown[] = [];
     w.saveProfile = (patch) => saved.push(patch);
     w._supabase = {
