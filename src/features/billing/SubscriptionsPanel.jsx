@@ -67,7 +67,7 @@ const PLANS = [
   {
     id: "pro",
     name: (t) => L5(t, "Pro", "Pro", "Pro", "Pro", "Pro"),
-    price: { monthly: "$5.99", yearly: "$59.99" },
+    price: { monthly: "$5.99", yearly: "$49.99" },
     badge: (t) => L5(t, "Most popular", "Найпопулярніший", "Самый популярный", "Le plus populaire", "Am beliebtesten"),
     features: (t) => [
       L5(t, "Everything in Free", "Все з Free", "Всё из Free", "Tout Free", "Alles aus Free"),
@@ -81,7 +81,7 @@ const PLANS = [
   {
     id: "ultra",
     name: (t) => L5(t, "Ultra", "Ultra", "Ultra", "Ultra", "Ultra"),
-    price: { monthly: "$9.99", yearly: "$99.99" },
+    price: { monthly: "$9.99", yearly: "$79.99" },
     badge: (t) => L5(t, "Best value", "Найвигідніший", "Самый выгодный", "Meilleure valeur", "Bester Wert"),
     features: (t) => [
       L5(t, "Everything in Pro", "Все з Pro", "Всё из Pro", "Tout Pro", "Alles aus Pro"),
